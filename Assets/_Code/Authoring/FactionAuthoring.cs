@@ -9,8 +9,9 @@ namespace Lsss.Authoring
     [RequiresEntityConversion]
     public class FactionAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
-        public int                totalUnits     = 10;
-        public int                maxUnitsAtOnce = 10;
+        public int                totalUnits         = 10;
+        public int                maxUnitsAtOnce     = 10;
+        public float              spawnWeightInverse = 1f;
         public SpaceshipAuthoring aiShipPrefab;
         public SpaceshipAuthoring playerShipPrefab;
 
@@ -28,6 +29,7 @@ namespace Lsss.Authoring
                 name                    = name,
                 remainingReinforcements = totalUnits,
                 maxFieldUnits           = maxUnitsAtOnce,
+                spawnWeightInverse      = spawnWeightInverse,
                 aiPrefab                = conversionSystem.GetPrimaryEntity(aiShipPrefab),
                 playerPrefab            = conversionSystem.TryGetPrimaryEntity(playerShipPrefab)
             });

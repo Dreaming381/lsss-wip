@@ -65,11 +65,12 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<ShipVsWallDamageSystem>();
             GetOrCreateAndAddSystem<BulletVsWallSystem>();
             GetOrCreateAndAddSystem<CheckSpawnPointIsSafeSystem>();
-            GetOrCreateAndAddSystem<FireGunsSystem>();
             GetOrCreateAndAddSystem<TravelThroughWormholeSystem>();
             GetOrCreateAndAddSystem<UpdateTimeToLiveSystem>();
             GetOrCreateAndAddSystem<DestroyShipsWithNoHealthSystem>();
+            GetOrCreateAndAddSystem<SpawnShipsPrioritizeSystem>();
             GetOrCreateAndAddSystem<SpawnShipsDequeueSystem>();
+            GetOrCreateAndAddSystem<FireGunsSystem>();
         }
     }
 }

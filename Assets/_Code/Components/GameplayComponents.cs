@@ -23,6 +23,7 @@ namespace Lsss
         public FixedString64 name;
         public int           remainingReinforcements;
         public int           maxFieldUnits;
+        public float         spawnWeightInverse;
         public Entity        aiPrefab;
         public Entity        playerPrefab;
     }
@@ -223,8 +224,17 @@ namespace Lsss
 
     public struct SpawnQueues : ICollectionComponent
     {
-        public NativeQueue<Entity> playerQueue;
-        public NativeQueue<Entity> aiQueue;
+        public struct FactionRanges
+        {
+            public int   start;
+            public int   count;
+            public float weight;
+        }
+
+        public NativeQueue<Entity>       playerQueue;
+        public NativeQueue<Entity>       aiQueue;
+        public NativeList<Entity>        newAiEntitiesToPrioritize;
+        public NativeList<FactionRanges> factionRanges;
 
         public Type AssociatedComponentType => typeof(SpawnQueuesTag);
 
