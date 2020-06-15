@@ -21,12 +21,12 @@ namespace Lsss.Authoring
             dstManager.AddComponentData(entity, new AiShipRadar
             {
                 distance                             = range,
-                cosFov                               = math.cos(math.radians(fieldOfView)),
+                cosFov                               = math.cos(math.radians(fieldOfView) / 2f),
                 preferredTargetDistance              = preferredTargetDistance,
                 friendCrossHairsDistanceFilter       = friendlyFireDisableRange,
-                friendCrossHairsCosFovFilter         = math.cos(math.radians(friendlyFireDisableFieldOfView)),
+                friendCrossHairsCosFovFilter         = math.cos(math.radians(friendlyFireDisableFieldOfView) / 2f),
                 nearestEnemyCrossHairsDistanceFilter = additionalEnemyDetectionRange,
-                nearestEnemyCrossHairsCosFovFilter   = math.cos(math.radians(additionalEnemyDetectionFieldOfView))
+                nearestEnemyCrossHairsCosFovFilter   = math.cos(math.radians(additionalEnemyDetectionFieldOfView) / 2f)
             });
             dstManager.AddComponent<AiShipRadarScanResults>(entity);
             dstManager.AddComponent<AiRadarTag>(            entity);

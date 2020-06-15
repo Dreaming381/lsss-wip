@@ -166,19 +166,50 @@ namespace Lsss
             m_radars.SetSharedComponentFilter(factionMember);
             int count  = m_radars.CalculateEntityCount();
             var bodies = new NativeArray<ColliderBody>(count, Allocator.TempJob);
+            var aabbs  = new NativeArray<Aabb>(count, Allocator.TempJob);
             var jh     = Entities.WithAll<AiRadarTag>().WithSharedComponentFilter(factionMember).WithStoreEntityQueryInField(ref m_radars)
                          .ForEach((Entity e, int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw) =>
             {
+                var transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position);
+                var sphere    = new SphereCollider(0f, radar.distance);
+                if (radar.cosFov < 0f)
+                {
+                    //Todo: Create tighter bounds here too.
+                    aabbs[entityInQueryIndex] = Physics.CalculateAabb(sphere, transform);
+                }
+                else
+                {
+                    //Compute aabb of vertex and spherical cap points which are extreme points
+                    float3 forward             = math.forward(transform.rot);
+                    bool3  positiveOnSphereCap = forward > radar.cosFov;
+                    bool3  negativeOnSphereCap = -forward > radar.cosFov;
+                    float3 min                 = math.select(0f, -radar.distance, negativeOnSphereCap);
+                    float3 max                 = math.select(0f, radar.distance, positiveOnSphereCap);
+                    Aabb   aabb                = new Aabb(min, max);
+
+                    //Compute aabb of circle base
+                    float4 cos                = new float4(forward, radar.cosFov);
+                    float4 sinSq              = 1f - (cos * cos);
+                    float4 sin                = math.sqrt(sinSq);
+                    float3 center             = forward * radar.distance * radar.cosFov;
+                    float  radius             = radar.distance * sin.w;
+                    float3 extents            = sin.xyz * radius;
+                    min                       = center - extents;
+                    max                       = center + extents;
+                    aabb.min                  = math.min(aabb.min, min) + transform.pos;
+                    aabb.max                  = math.max(aabb.max, max) + transform.pos;
+                    aabbs[entityInQueryIndex] = aabb;
+                }
+
                 bodies[entityInQueryIndex] = new ColliderBody
                 {
-                    collider = new SphereCollider(0f,
-                                                  radar.distance),
+                    collider  = sphere,
                     entity    = e,
-                    transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position)
+                    transform = transform
                 };
             }).ScheduleParallel(inputDeps);
-            jh = Physics.BuildCollisionLayer(bodies).ScheduleParallel(out layer, Allocator.TempJob, jh);
-            jh = bodies.Dispose(jh);
+            jh = Physics.BuildCollisionLayer(bodies, aabbs).ScheduleParallel(out layer, Allocator.TempJob, jh);
+            jh = JobHandle.CombineDependencies(bodies.Dispose(jh), aabbs.Dispose(jh));
             return jh;
         }
 
