@@ -1,4 +1,5 @@
-﻿using Latios;
+﻿using System.Security.Cryptography;
+using Latios;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -16,6 +17,8 @@ namespace Lsss
             public Random random;
         }
 
+        EntityQuery m_query;
+
         protected override void OnUpdate()
         {
             if (!sceneGlobalEntity.HasComponentData<Rng>())
@@ -30,7 +33,11 @@ namespace Lsss
                 radar.target = results.target;
             }).ScheduleParallel();
 
-            Entities.WithAll<AiTag>().ForEach((ref AiDestination destination, ref AiWantsToFire wantsToFire, in Translation trans, in AiPersonality personality, in AiBrain brain) =>
+            var toRandomizeArray = new NativeArray<Entity>(m_query.CalculateEntityCount(), Allocator.TempJob);
+
+            Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((Entity entity, int entityInQueryIndex, ref AiDestination destination,
+                                                                                        ref AiWantsToFire wantsToFire, in Translation trans,
+                                                                                        in AiPersonality personality, in AiBrain brain) =>
             {
                 var shipScan = GetComponent<AiShipRadarScanResults>(
                     brain.shipRadar);
@@ -44,9 +51,23 @@ namespace Lsss
                 }
                 else if (math.distancesq(destination.position, trans.Value) < personality.destinationRadius * personality.destinationRadius)
                 {
-                    float radius                               = random.NextFloat(0f, arenaRadius);
-                    destination.position                       = random.NextFloat3Direction() * radius;
-                    SetComponent(sceneEntity, new Rng { random = random });
+                    toRandomizeArray[entityInQueryIndex] = entity;
+                }
+            }).ScheduleParallel();
+
+            Job.WithDeallocateOnJobCompletion(toRandomizeArray).WithCode(() =>
+            {
+                for (int i = 0; i < toRandomizeArray.Length; i++)
+                {
+                    if (toRandomizeArray[i] == Entity.Null)
+                        continue;
+
+                    float         radius = random.NextFloat(0f, arenaRadius);
+                    AiDestination destination;
+                    destination.position = random.NextFloat3Direction() * radius;
+                    destination.chase    = false;
+                    SetComponent(toRandomizeArray[i], destination);
+                    SetComponent(sceneEntity,         new Rng { random = random });
                 }
             }).Schedule();
         }
