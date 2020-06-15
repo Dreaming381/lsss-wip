@@ -18,7 +18,7 @@ namespace Lsss
             Entities.WithAll<AiInitializeTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiDestination targetPosition, in Translation trans, in Rotation rot,
                                                                                                   in AiPersonality personality) =>
             {
-                targetPosition.position = math.forward(rot.Value) * personality.spawnForwardDistance + trans.Value;
+                targetPosition.position = math.forward(rot.Value) * (personality.spawnForwardDistance + personality.destinationRadius) + trans.Value;
             }).Run();
 
             EntityManager.RemoveComponent<AiInitializeTag>(m_query);
