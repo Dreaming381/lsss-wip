@@ -53,7 +53,7 @@ namespace Lsss
                 {
                     reloadTimes.bulletReloadTime = math.max(0f, reloadTimes.bulletReloadTime - dt);
                     reloadTimes.clipReloadTime   = math.max(0f, reloadTimes.clipReloadTime - dt);
-                    bool reloadClip              = reloadTimes.clipReloadTime <= 0f && reloadTimes.bulletsRemaining == 0;
+                    bool reloadClip              = reloadTimes.clipReloadTime <= 0f;
                     reloadTimes.bulletsRemaining = math.select(reloadTimes.bulletsRemaining, reloadTimes.bulletsPerClip, reloadClip);
                 }
             }).ScheduleParallel();
