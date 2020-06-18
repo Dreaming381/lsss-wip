@@ -32,6 +32,7 @@ namespace Lsss
         public float spawnForwardDistance;
         public float destinationRadius;
         public float targetLeadDistance;
+        public float newDestinationSearchRadius;
     }
 
     public struct AiBrain : IComponentData

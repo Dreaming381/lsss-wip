@@ -11,6 +11,7 @@ namespace Lsss.Authoring
         public float distanceToTravelAfterSpawn = 10f;
         public float destinationRadius          = 5f;
         public float targetLeadDistance         = 15f;
+        public float newDestinationSearchRadius = 100f;
 
         public AiShipRadarAuthoring shipRadar;
 
@@ -18,9 +19,10 @@ namespace Lsss.Authoring
         {
             dstManager.AddComponentData(entity, new AiPersonality
             {
-                spawnForwardDistance = distanceToTravelAfterSpawn,
-                destinationRadius    = destinationRadius,
-                targetLeadDistance   = targetLeadDistance
+                spawnForwardDistance       = distanceToTravelAfterSpawn,
+                destinationRadius          = destinationRadius,
+                targetLeadDistance         = targetLeadDistance,
+                newDestinationSearchRadius = newDestinationSearchRadius
             });
 
             dstManager.AddComponentData(entity, new AiBrain

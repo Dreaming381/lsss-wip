@@ -39,8 +39,7 @@ namespace Lsss
                                                                                         ref AiWantsToFire wantsToFire, in Translation trans,
                                                                                         in AiPersonality personality, in AiBrain brain) =>
             {
-                var shipScan = GetComponent<AiShipRadarScanResults>(
-                    brain.shipRadar);
+                var shipScan     = GetComponent<AiShipRadarScanResults>(brain.shipRadar);
                 wantsToFire.fire = shipScan.nearestEnemy != Entity.Null && !shipScan.friendFound;
 
                 destination.chase = false;
@@ -62,7 +61,9 @@ namespace Lsss
                     if (toRandomizeArray[i] == Entity.Null)
                         continue;
 
-                    float         radius = random.NextFloat(0f, arenaRadius);
+                    float3        currentPos    = GetComponent<Translation>(toRandomizeArray[i]).Value;
+                    float         desiredRadius = GetComponent<AiPersonality>(toRandomizeArray[i]).newDestinationSearchRadius;
+                    float         radius        = random.NextFloat(0f, math.min(desiredRadius, arenaRadius - math.length(currentPos)));
                     AiDestination destination;
                     destination.position = random.NextFloat3Direction() * radius;
                     destination.chase    = false;
