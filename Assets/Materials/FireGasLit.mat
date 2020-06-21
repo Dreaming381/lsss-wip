@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da692e001514ec24dbc4cca1949ff7e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  version: 2
+  version: 3
 --- !u!21 &2100000
 Material:
   serializedVersion: 6
@@ -21,8 +21,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: FireGasLit
-  m_Shader: {fileID: -6465566751694194690, guid: 7f89ef47d1a7455488d45e4d723a90d2,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 7f89ef47d1a7455488d45e4d723a90d2, type: 3}
   m_ShaderKeywords: _BLENDMODE_ALPHA _ENABLE_FOG_ON_TRANSPARENT _SURFACE_TYPE_TRANSPARENT
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
@@ -37,6 +36,7 @@ Material:
   - TransparentDepthPrepass
   - TransparentDepthPostpass
   - TransparentBackface
+  - RayTracingPrepass
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -137,6 +137,7 @@ Material:
     - _AlphaCutoffShadow: 0.5
     - _AlphaDstBlend: 10
     - _AlphaSrcBlend: 1
+    - _AlphaToMask: 0
     - _Anisotropy: 0
     - _BlendMode: 0
     - _CoatMask: 0
@@ -201,9 +202,11 @@ Material:
     - _PPDMinSamples: 5
     - _PPDPrimitiveLength: 1
     - _PPDPrimitiveWidth: 1
+    - _RayTracing: 0
     - _ReceivesSSR: 1
+    - _ReceivesSSRTransparent: 1
     - _RefractionModel: 0
-    - _RenderQueueType: 5
+    - _RenderQueueType: 4
     - _RequireSplitLighting: 0
     - _SSRefractionProjectionModel: 0
     - _Smoothness: 0.5
@@ -264,3 +267,4 @@ Material:
     - _UVDetailsMappingMask: {r: 1, g: 0, b: 0, a: 0}
     - _UVMappingMask: {r: 1, g: 0, b: 0, a: 0}
     - _UVMappingMaskEmissive: {r: 1, g: 0, b: 0, a: 0}
+  m_BuildTextureStacks: []

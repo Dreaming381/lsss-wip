@@ -14,4 +14,5 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MassiveBattleTest1.unity
     guid: 925e3498d081c364bb605dafd2ba4991
-  m_configObjects: {}
+  m_configObjects:
+    com.unity.input.settings: {fileID: 11400000, guid: b879fc492f903344394097c747df081d, type: 2}

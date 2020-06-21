@@ -65,6 +65,7 @@ MonoBehaviour:
   distanceToTravelAfterSpawn: 10
   destinationRadius: 5
   targetLeadDistance: 3
+  newDestinationSearchRadius: 100
   shipRadar: {fileID: 7393536357191798422}
 --- !u!1001 &2123522135399784735
 PrefabInstance:

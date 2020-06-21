@@ -1400,6 +1400,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   totalUnits: 10
   maxUnitsAtOnce: 1
+  spawnWeightInverse: 1
   aiShipPrefab: {fileID: 6293869802519747633, guid: 9c1d1979da5a4b44c9c300cd2437db04, type: 3}
   playerShipPrefab: {fileID: 3164099731881873170, guid: dd297a6baa033424b81adce1e596ecd7, type: 3}
 --- !u!4 &285726390
@@ -7941,7 +7942,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0bfac60bbf96e7498b842d397f6a7d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  radius: 5000
+  radius: 2000
 --- !u!4 &1361058608
 Transform:
   m_ObjectHideFlags: 0
@@ -8463,6 +8464,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   totalUnits: 10000
   maxUnitsAtOnce: 5000
+  spawnWeightInverse: 1
   aiShipPrefab: {fileID: 6293869802519747633, guid: 9c1d1979da5a4b44c9c300cd2437db04, type: 3}
   playerShipPrefab: {fileID: 0}
 --- !u!4 &1441889143
@@ -8966,6 +8968,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   totalUnits: 10000
   maxUnitsAtOnce: 5000
+  spawnWeightInverse: 1
   aiShipPrefab: {fileID: 6293869802519747633, guid: 9c1d1979da5a4b44c9c300cd2437db04, type: 3}
   playerShipPrefab: {fileID: 0}
 --- !u!4 &1599968507
@@ -10446,6 +10449,7 @@ MonoBehaviour:
   m_LightShadowRadius: 0.5
   m_SemiTransparentShadow: 0
   m_ColorShadow: 1
+  m_DistanceBasedFiltering: 0
   m_EvsmExponent: 15
   m_EvsmLightLeakBias: 0
   m_EvsmVarianceBias: 0.00001
