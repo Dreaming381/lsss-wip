@@ -249,7 +249,7 @@ namespace Lsss
 
     public struct FleetSpawnPlayerSlotTag : IComponentData { }
 
-    public struct OrbitalSpawnPointPopulator : IComponentData
+    public struct OrbitalSpawnPointProcGen : IComponentData
     {
         public int    spawnerCount;
         public uint   randomSeed;

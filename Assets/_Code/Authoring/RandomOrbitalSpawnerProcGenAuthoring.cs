@@ -6,7 +6,7 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [RequiresEntityConversion]
-    public class RandomOrbitalSpawnerPopulatorAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class RandomOrbitalSpawnerProcGenAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public int                        spawnerCount    = 0;
         public uint                       randomSeed      = 150;
@@ -17,7 +17,7 @@ namespace Lsss.Authoring
 
         public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
         {
-            dstManager.AddComponentData(entity, new OrbitalSpawnPointPopulator
+            dstManager.AddComponentData(entity, new OrbitalSpawnPointProcGen
             {
                 spawnerCount       = spawnerCount,
                 randomSeed         = randomSeed,

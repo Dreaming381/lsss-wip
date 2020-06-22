@@ -16,11 +16,12 @@
         "Unity.TextMeshPro",
         "UnityEngine.UI",
         "Unity.Transforms",
-        "Unity.Transforms.Hybrid"
+        "Unity.Transforms.Hybrid",
+        "Unity.Mathematics.Extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,

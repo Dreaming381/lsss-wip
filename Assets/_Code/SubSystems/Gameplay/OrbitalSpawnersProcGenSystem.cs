@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class PopulateOrbitalSpawnersSystem : SubSystem
+    public class OrbitalSpawnersProcGenSystem : SubSystem
     {
         struct NewSpawnerTag : IComponentData { }
 
@@ -20,7 +20,7 @@ namespace Lsss
         {
             float arenaRadius = sceneGlobalEntity.GetComponentData<ArenaRadius>().radius;
 
-            Entities.WithStoreEntityQueryInField(ref m_populatorQuery).ForEach((ref OrbitalSpawnPointPopulator populator) =>
+            Entities.WithStoreEntityQueryInField(ref m_populatorQuery).ForEach((ref OrbitalSpawnPointProcGen populator) =>
             {
                 Collider collider = new SphereCollider(0f, populator.colliderRadius);
 
@@ -49,7 +49,7 @@ namespace Lsss
             EntityManager.DestroyEntity(m_populatorQuery);
         }
 
-        void Randomize(OrbitalSpawnPointPopulator populator, float radius)
+        void Randomize(OrbitalSpawnPointProcGen populator, float radius)
         {
             Random random = new Random(populator.randomSeed);
 

@@ -12,12 +12,21 @@ namespace Lsss.SuperSystems
         {
             GetOrCreateAndAddSystem<CameraFollowPlayerSystem>();
             GetOrCreateAndAddSystem<FaceCameraSystem>();
-            GetOrCreateAndAddSystem<LifetimeFadeSystem>();
             GetOrCreateAndAddSystem<SpawnPointAnimationSystem>();
 
             //Debug until playerloop fixed so camera doesn't jitter
             //GetOrCreateAndAddSystem<TransformSystemGroup>();
             //GetOrCreateAndAddSystem<CompanionGameObjectUpdateTransformSystem>();  //Todo: Namespace
+        }
+    }
+
+    public class ShaderPropertySuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            //GetOrCreateAndAddSystem<GravityWarpShaderUpdateSystem>();
+            GetOrCreateAndAddSystem<LifetimeFadeSystem>();
+            GetOrCreateAndAddSystem<SpeedShaderUpdateSystem>();
         }
     }
 }
