@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Debug = UnityEngine.Debug;
+using Unity.Entities;
 using UnityEngine.SceneManagement;
 
 namespace Latios.Systems

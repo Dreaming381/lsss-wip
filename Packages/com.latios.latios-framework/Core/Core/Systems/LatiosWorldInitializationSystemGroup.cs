@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Debug = UnityEngine.Debug;
 using Unity.Entities;
 
 namespace Latios.Systems
@@ -86,9 +87,13 @@ namespace Latios.Systems
 
         protected override void OnUpdate()
         {
+            LatiosWorld lw       = World as LatiosWorld;
+            lw.pauseForSceneLoad = false;
             foreach (var sys in m_systemsToUpdate)
             {
                 sys.Update();
+                if (lw.pauseForSceneLoad)
+                    break;
             }
         }
     }

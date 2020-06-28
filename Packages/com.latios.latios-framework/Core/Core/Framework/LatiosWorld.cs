@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using Debug = UnityEngine.Debug;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
-using UnityEngine;
 
 using Latios.Systems;
 
@@ -29,6 +29,9 @@ namespace Latios
         private SimulationSystemGroup     m_simulationSystemGroup;
         private PresentationSystemGroup   m_presentationSystemGroup;
 
+        //Todo: Refactor hack.
+        internal bool pauseForSceneLoad = false;
+
         public LatiosWorld(string name) : base(name)
         {
             //BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentTag<>),               typeof(IManagedComponent));
@@ -47,8 +50,8 @@ namespace Latios
 #endif
 
             m_initializationSystemGroup = GetOrCreateSystem<LatiosWorldInitializationSystemGroup>();
-            m_simulationSystemGroup     = GetOrCreateSystem<SimulationSystemGroup>();
-            m_presentationSystemGroup   = GetOrCreateSystem<PresentationSystemGroup>();
+            m_simulationSystemGroup     = GetOrCreateSystem<LatiosSimulationSystemGroup>();
+            m_presentationSystemGroup   = GetOrCreateSystem<LatiosPresentationSystemGroup>();
         }
 
         internal void CreateNewSceneGlobalEntity()
@@ -195,6 +198,26 @@ namespace Latios
             }
         }
         #endregion
+    }
+
+    public class LatiosSimulationSystemGroup : SimulationSystemGroup
+    {
+        protected override void OnUpdate()
+        {
+            LatiosWorld lw = World as LatiosWorld;
+            if (!lw.pauseForSceneLoad)
+                base.OnUpdate();
+        }
+    }
+
+    public class LatiosPresentationSystemGroup : PresentationSystemGroup
+    {
+        protected override void OnUpdate()
+        {
+            LatiosWorld lw = World as LatiosWorld;
+            if (!lw.pauseForSceneLoad)
+                base.OnUpdate();
+        }
     }
 }
 

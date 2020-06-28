@@ -52,8 +52,9 @@ namespace Latios.Systems
                         curr.previousScene = curr.currentScene;
                         UnityEngine.Debug.Log("Loading scene: " + targetScene);
                         SceneManager.LoadScene(targetScene.ToString());
-                        curr.currentScene      = targetScene;
-                        curr.isSceneFirstFrame = true;
+                        latiosWorld.pauseForSceneLoad = true;
+                        curr.currentScene             = targetScene;
+                        curr.isSceneFirstFrame        = true;
                         worldGlobalEntity.SetComponentData(curr);
                         return;
                     }

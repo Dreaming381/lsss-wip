@@ -25,30 +25,36 @@ namespace Lsss
                 if (titleAndMenu.titlePanel.activeSelf)
                 {
                     var gamepad = Gamepad.current;
-                    if (gamepad.buttonEast.wasPressedThisFrame ||
-                        gamepad.buttonNorth.wasPressedThisFrame ||
-                        gamepad.buttonSouth.wasPressedThisFrame ||
-                        gamepad.buttonWest.wasPressedThisFrame ||
-                        gamepad.leftStickButton.wasPressedThisFrame ||
-                        gamepad.rightStickButton.wasPressedThisFrame ||
-                        gamepad.startButton.wasPressedThisFrame ||
-                        gamepad.selectButton.wasPressedThisFrame ||
-                        gamepad.leftShoulder.wasPressedThisFrame ||
-                        gamepad.leftTrigger.wasPressedThisFrame ||
-                        gamepad.rightShoulder.wasPressedThisFrame ||
-                        gamepad.rightTrigger.wasPressedThisFrame)
+                    if (gamepad != null)
                     {
-                        titleAndMenu.titlePanel.SetActive(false);
-                        titleAndMenu.menuPanel.SetActive(true);
+                        if (gamepad.buttonEast.wasPressedThisFrame ||
+                            gamepad.buttonNorth.wasPressedThisFrame ||
+                            gamepad.buttonSouth.wasPressedThisFrame ||
+                            gamepad.buttonWest.wasPressedThisFrame ||
+                            gamepad.leftStickButton.wasPressedThisFrame ||
+                            gamepad.rightStickButton.wasPressedThisFrame ||
+                            gamepad.startButton.wasPressedThisFrame ||
+                            gamepad.selectButton.wasPressedThisFrame ||
+                            gamepad.leftShoulder.wasPressedThisFrame ||
+                            gamepad.leftTrigger.wasPressedThisFrame ||
+                            gamepad.rightShoulder.wasPressedThisFrame ||
+                            gamepad.rightTrigger.wasPressedThisFrame)
+                        {
+                            titleAndMenu.titlePanel.SetActive(false);
+                            titleAndMenu.menuPanel.SetActive(true);
+                        }
                     }
                 }
                 else
                 {
                     var gamepad = Gamepad.current;
-                    if (gamepad.bButton.wasPressedThisFrame || gamepad.crossButton.wasPressedThisFrame)
                     {
-                        titleAndMenu.menuPanel.SetActive(false);
-                        titleAndMenu.titlePanel.SetActive(true);
+                        if (gamepad != null)
+                            if (gamepad.bButton.wasPressedThisFrame || gamepad.crossButton.wasPressedThisFrame)
+                            {
+                                titleAndMenu.menuPanel.SetActive(false);
+                                titleAndMenu.titlePanel.SetActive(true);
+                            }
                     }
                 }
                 float a                             = 0.75f * (float)math.sin(Time.ElapsedTime / titleAndMenu.pulsePeriod * 2d * math.PI_DBL) + 0.5f;

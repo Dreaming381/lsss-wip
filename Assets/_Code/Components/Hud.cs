@@ -14,6 +14,11 @@ namespace Lsss
         public float         blackFadeControl = 1f;
         public float         blackFadeOutTime = 0.5f;
         public float         blackFadeInTime  = 0.5f;
+
+        private void Awake()
+        {
+            blackFade.color = new Color(0f, 0f, 0f, 1f);
+        }
     }
 }
 
