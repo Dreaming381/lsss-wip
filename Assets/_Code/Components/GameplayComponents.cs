@@ -238,7 +238,16 @@ namespace Lsss
 
         public Type AssociatedComponentType => typeof(SpawnQueuesTag);
 
-        public JobHandle Dispose(JobHandle inputDeps) => JobHandle.CombineDependencies(playerQueue.Dispose(inputDeps), aiQueue.Dispose(inputDeps));
+        public unsafe JobHandle Dispose(JobHandle inputDeps)
+        {
+            var jh = stackalloc[] {
+                playerQueue.Dispose(inputDeps),
+                aiQueue.Dispose(inputDeps),
+                newAiEntitiesToPrioritize.Dispose(inputDeps),
+                factionRanges.Dispose(inputDeps)
+            };
+            return Unity.Jobs.LowLevel.Unsafe.JobHandleUnsafeUtility.CombineDependencies(jh, 4);
+        }
     }
 
     public struct SpawnQueuesTag : IComponentData { }

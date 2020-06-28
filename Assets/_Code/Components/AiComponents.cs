@@ -8,18 +8,9 @@ namespace Lsss
 {
     public struct AiTag : IComponentData { }
 
-    public struct AiInitializeTag : IComponentData { }
-
-    public struct AiDestination : IComponentData
+    public struct AiBrain : IComponentData
     {
-        public float3 position;
-        public bool   chase;
-    }
-
-    public struct AiTargetEnemy : IComponentData
-    {
-        public Entity enemy;
-        public float3 enemyPositionLastUpdate;
+        public Entity shipRadar;
     }
 
     public struct AiWantsToFire : IComponentData
@@ -27,17 +18,60 @@ namespace Lsss
         public bool fire;
     }
 
-    public struct AiPersonality : IComponentData
+    public struct AiGoalOutput : IComponentData
     {
-        public float spawnForwardDistance;
-        public float destinationRadius;
-        public float targetLeadDistance;
-        public float newDestinationSearchRadius;
+        public float3 flyTowardsPosition;
+        public bool   useAggressiveSteering;
+        public bool   isValid;
     }
 
-    public struct AiBrain : IComponentData
+    public struct AiSearchAndDestroyOutput : IComponentData
+    {
+        public float3 flyTowardsPosition;
+        public bool   isPositionValid;
+        public bool   fire;
+    }
+
+    public struct AiSearchAndDestroyPersonality : IComponentData
+    {
+        public float targetLeadDistance;
+    }
+
+    public struct AiSearchAndDestroyPersonalityInitializerValues : IComponentData
+    {
+        public float2 targetLeadDistanceMinMax;
+    }
+
+    public struct AiShipRadarEntity : IComponentData
     {
         public Entity shipRadar;
+    }
+
+    public struct AiExploreOutput : IComponentData
+    {
+        public float3 wanderPosition;
+        public float3 nearestWormhole;
+        public bool   wanderPositionValid;
+        public bool   nearestWormholeValid;
+    }
+
+    public struct AiExplorePersonality : IComponentData
+    {
+        public float spawnForwardDistance;
+        public float wanderDestinationRadius;
+        public float wanderPositionSearchRadius;
+    }
+
+    public struct AiExplorePersonalityInitializerValues : IComponentData
+    {
+        public float2 spawnForwardDistanceMinMax;
+        public float2 wanderDestinationRadiusMinMax;
+        public float2 wanderPositionSearchRadiusMinMax;
+    }
+
+    public struct AiExploreState : IComponentData
+    {
+        public float3 wanderPosition;
     }
 
     public struct AiShipRadar : IComponentData

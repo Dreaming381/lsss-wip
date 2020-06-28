@@ -12,27 +12,31 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiDestination destination, in AiWantsToFire wantsToFire, in Translation trans,
+            Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in AiWantsToFire wantsToFire, in Translation trans,
                                                in Rotation rot, in ShipSpeedStats speedStats, in Speed speed) =>
             {
-                float3 desiredHeading      = destination.position - trans.Value;
-                bool   destinationIsBehind = math.dot(desiredHeading, math.forward(rot.Value)) < 0f;
-
                 float2 destinationTurn = float2.zero;
-                if (destinationIsBehind)
+
+                if (goalData.isValid)
                 {
-                    var desiredHeadingLocal = math.rotate(math.inverse(rot.Value), desiredHeading);
-                    destinationTurn         = math.normalizesafe(desiredHeadingLocal.xy, new float2(1f, 0f));
-                }
-                else
-                {
-                    float distanceFactor      = math.select(speed.speed / math.length(desiredHeading), 1f, destination.chase);
-                    var   desiredHeadingLocal = math.normalizesafe(math.rotate(math.inverse(rot.Value), desiredHeading));
-                    float angleToHeading      = math.acos(math.dot(desiredHeadingLocal, new float3(0f, 0f, 1f)));
-                    float angleFactor         = angleToHeading / speedStats.turnSpeed;
-                    destinationTurn           = distanceFactor * angleFactor * math.normalizesafe(desiredHeadingLocal.xy);
-                    if (math.lengthsq(destinationTurn) > 1f)
-                        destinationTurn = math.normalize(destinationTurn);
+                    float3 desiredHeading      = goalData.flyTowardsPosition - trans.Value;
+                    bool   destinationIsBehind = math.dot(desiredHeading, math.forward(rot.Value)) < 0f;
+
+                    if (destinationIsBehind)
+                    {
+                        var desiredHeadingLocal = math.rotate(math.inverse(rot.Value), desiredHeading);
+                        destinationTurn         = math.normalizesafe(desiredHeadingLocal.xy, new float2(1f, 0f));
+                    }
+                    else
+                    {
+                        float distanceFactor      = math.select(speed.speed / math.length(desiredHeading), 1f, goalData.useAggressiveSteering);
+                        var   desiredHeadingLocal = math.normalizesafe(math.rotate(math.inverse(rot.Value), desiredHeading));
+                        float angleToHeading      = math.acos(math.dot(desiredHeadingLocal, new float3(0f, 0f, 1f)));
+                        float angleFactor         = angleToHeading / speedStats.turnSpeed;
+                        destinationTurn           = distanceFactor * angleFactor * math.normalizesafe(desiredHeadingLocal.xy);
+                        if (math.lengthsq(destinationTurn) > 1f)
+                            destinationTurn = math.normalize(destinationTurn);
+                    }
                 }
 
                 finalActions.gas   = 1f;

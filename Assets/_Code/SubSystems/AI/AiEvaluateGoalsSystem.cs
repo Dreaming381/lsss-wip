@@ -12,65 +12,37 @@ namespace Lsss
 {
     public class AiEvaluateGoalsSystem : SubSystem
     {
-        struct Rng : IComponentData
-        {
-            public Random random;
-        }
-
-        EntityQuery m_query;
-
         protected override void OnUpdate()
         {
-            if (!sceneGlobalEntity.HasComponentData<Rng>())
-                sceneGlobalEntity.AddComponentData(new Rng { random = new Random(26247) });
-
-            float  arenaRadius = sceneGlobalEntity.GetComponentData<ArenaRadius>().radius;
-            var    random      = sceneGlobalEntity.GetComponentData<Rng>().random;
-            Entity sceneEntity = sceneGlobalEntity;
-
-            Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadar radar, in AiShipRadarScanResults results) =>
+            Entities.WithAll<AiTag>().ForEach((ref AiGoalOutput output, ref AiWantsToFire fire, in AiSearchAndDestroyOutput searchAndDestroy, in AiExploreOutput explore) =>
             {
-                radar.target = results.target;
+                output.flyTowardsPosition    = math.select(explore.wanderPosition, searchAndDestroy.flyTowardsPosition, searchAndDestroy.isPositionValid);
+                output.useAggressiveSteering = searchAndDestroy.isPositionValid;
+                output.isValid               = searchAndDestroy.isPositionValid || explore.wanderPositionValid;
+                fire.fire                    = searchAndDestroy.fire;
             }).ScheduleParallel();
 
-            var toRandomizeArray = new NativeArray<Entity>(m_query.CalculateEntityCount(), Allocator.TempJob);
-
-            Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((Entity entity, int entityInQueryIndex, ref AiDestination destination,
-                                                                                        ref AiWantsToFire wantsToFire, in Translation trans,
-                                                                                        in AiPersonality personality, in AiBrain brain) =>
+            Entities.WithAll<AiTag>().WithNone<AiSearchAndDestroyOutput>().ForEach((ref AiGoalOutput output, ref AiWantsToFire fire, in AiExploreOutput explore) =>
             {
-                var shipScan     = GetComponent<AiShipRadarScanResults>(brain.shipRadar);
-                wantsToFire.fire = shipScan.nearestEnemy != Entity.Null && !shipScan.friendFound;
-
-                destination.chase = false;
-                if (shipScan.target != Entity.Null)
-                {
-                    destination.position = math.forward(shipScan.targetTransform.rot) * personality.targetLeadDistance + shipScan.targetTransform.pos;
-                    destination.chase    = true;
-                }
-                else if (math.distancesq(destination.position, trans.Value) < personality.destinationRadius * personality.destinationRadius)
-                {
-                    toRandomizeArray[entityInQueryIndex] = entity;
-                }
+                output.flyTowardsPosition    = math.select(0f, explore.wanderPosition, explore.wanderPositionValid);
+                output.useAggressiveSteering = false;
+                output.isValid               = explore.wanderPositionValid;
+                fire.fire                    = false;
             }).ScheduleParallel();
 
-            Job.WithDeallocateOnJobCompletion(toRandomizeArray).WithCode(() =>
+            Entities.WithAll<AiTag>().WithNone<AiExploreOutput>().ForEach((ref AiGoalOutput output, ref AiWantsToFire fire, in AiSearchAndDestroyOutput searchAndDestroy) =>
             {
-                for (int i = 0; i < toRandomizeArray.Length; i++)
-                {
-                    if (toRandomizeArray[i] == Entity.Null)
-                        continue;
+                output.flyTowardsPosition    = math.select(0f, searchAndDestroy.flyTowardsPosition, searchAndDestroy.isPositionValid);
+                output.useAggressiveSteering = searchAndDestroy.isPositionValid;
+                output.isValid               = searchAndDestroy.isPositionValid;
+                fire.fire                    = searchAndDestroy.fire;
+            }).ScheduleParallel();
 
-                    float3        currentPos    = GetComponent<Translation>(toRandomizeArray[i]).Value;
-                    float         desiredRadius = GetComponent<AiPersonality>(toRandomizeArray[i]).newDestinationSearchRadius;
-                    float         radius        = random.NextFloat(0f, math.min(desiredRadius, arenaRadius - math.length(currentPos)));
-                    AiDestination destination;
-                    destination.position = random.NextFloat3Direction() * radius;
-                    destination.chase    = false;
-                    SetComponent(toRandomizeArray[i], destination);
-                    SetComponent(sceneEntity,         new Rng { random = random });
-                }
-            }).Schedule();
+            Entities.WithAll<AiTag>().WithNone<AiSearchAndDestroyOutput, AiExploreOutput>().ForEach((ref AiGoalOutput output, ref AiWantsToFire fire) =>
+            {
+                output.isValid = false;
+                fire.fire      = false;
+            }).ScheduleParallel();
         }
     }
 }

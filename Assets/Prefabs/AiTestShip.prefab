@@ -62,11 +62,43 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3b6fb063cb156342b9ec4228637c1d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  distanceToTravelAfterSpawn: 10
-  destinationRadius: 5
-  targetLeadDistance: 3
-  newDestinationSearchRadius: 100
+--- !u!114 &1048932922007334452
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1976401268337013721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a9172d0f817052489d3f1d0e4dbf71a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetLeadDistanceMinMax:
+    x: 0
+    y: 5
   shipRadar: {fileID: 7393536357191798422}
+--- !u!114 &4373163116324208577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1976401268337013721}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a57d69b4706b2d4db6af3aa7f57382f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnForwardDistanceMinMax:
+    x: 10
+    y: 20
+  wanderDestinationRadiusMinMax:
+    x: 3
+    y: 15
+  wanderPositionSearchRadiusMinMax:
+    x: 25
+    y: 100
 --- !u!1001 &2123522135399784735
 PrefabInstance:
   m_ObjectHideFlags: 0
