@@ -10,9 +10,8 @@ namespace Lsss.Authoring
     {
         public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
         {
-            dstManager.AddComponent<AiGoalOutput>(  entity);
-            dstManager.AddComponent<AiWantsToFire>( entity);
-            dstManager.AddComponent<AiTag>(         entity);
+            dstManager.AddComponent<AiGoalOutput>( entity);
+            dstManager.AddComponent<AiTag>(        entity);
         }
     }
 }

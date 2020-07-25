@@ -8,21 +8,20 @@ namespace Lsss
 {
     public struct AiTag : IComponentData { }
 
-    public struct AiBrain : IComponentData
-    {
-        public Entity shipRadar;
-    }
-
-    public struct AiWantsToFire : IComponentData
-    {
-        public bool fire;
-    }
-
     public struct AiGoalOutput : IComponentData
     {
         public float3 flyTowardsPosition;
         public bool   useAggressiveSteering;
         public bool   isValid;
+        public bool   fire;
+    }
+
+    public struct AiAvoidanceOutput : IComponentData
+    {
+        public float3     cosFovThresholds;
+        public BitField32 obstacleMatrix;  //5x5
+        public float      desiredSpeed;
+        public bool       isValid;
     }
 
     public struct AiSearchAndDestroyOutput : IComponentData
@@ -74,6 +73,15 @@ namespace Lsss
         public float3 wanderPosition;
     }
 
+    public unsafe struct AiAvoidObstaclesOutput : IComponentData
+    {
+        public fixed float distances[25];
+        public float3      cosFovThresholds;
+        public bool        isValid;
+    }
+
+    public struct AiRadarTag : IComponentData { }
+
     public struct AiShipRadar : IComponentData
     {
         public float distance;
@@ -99,6 +107,36 @@ namespace Lsss
         public RigidTransform nearestEnemyTransform;
     }
 
-    public struct AiRadarTag : IComponentData { }
+    public enum PointOfInterestType
+    {
+        Wormhole,
+        HangarEntrance,
+        HangarWaypoint,
+        NarrowPassage,
+        AsteroidField
+    }
+
+    public struct AiPointOfInterestRadar : IComponentData
+    {
+        public float distance;
+        public float cosFov;
+    }
+
+    public struct AiPointOfInterestRadarScanResults : IComponentData
+    {
+        //Todo: Filters?
+    }
+
+    public struct AiObstacleRadar : IComponentData
+    {
+        public float3 cosFovThresholds;
+        public float  distance;
+    }
+
+    [InternalBufferCapacity(25)]
+    public struct AiObstacleRadarScanResults : IBufferElementData
+    {
+        public float distance;
+    }
 }
 

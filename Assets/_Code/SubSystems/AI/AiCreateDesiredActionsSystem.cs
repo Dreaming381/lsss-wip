@@ -12,7 +12,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in AiWantsToFire wantsToFire, in Translation trans,
+            Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in Translation trans,
                                                in Rotation rot, in ShipSpeedStats speedStats, in Speed speed) =>
             {
                 float2 destinationTurn = float2.zero;
@@ -41,7 +41,7 @@ namespace Lsss
 
                 finalActions.gas   = 1f;
                 finalActions.turn  = destinationTurn;
-                finalActions.fire  = wantsToFire.fire;
+                finalActions.fire  = goalData.fire;
                 finalActions.boost = false;
             }).ScheduleParallel();
         }
