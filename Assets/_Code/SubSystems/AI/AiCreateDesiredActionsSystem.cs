@@ -27,6 +27,10 @@ namespace Lsss
                         var desiredHeadingLocal = math.rotate(math.inverse(rot.Value), desiredHeading);
                         destinationTurn         = math.normalizesafe(desiredHeadingLocal.xy, new float2(1f, 0f));
                     }
+                    else if (math.all(math.abs(desiredHeading) < 1E-7f))
+                    {
+                        destinationTurn = float2.zero;
+                    }
                     else
                     {
                         float distanceFactor      = math.select(speed.speed / math.length(desiredHeading), 1f, goalData.useAggressiveSteering);

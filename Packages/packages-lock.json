@@ -43,7 +43,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.dots.editor": {
-      "version": "0.8.1-preview",
+      "version": "0.8.2-preview",
       "depth": 0,
       "source": "registry",
       "dependencies": {

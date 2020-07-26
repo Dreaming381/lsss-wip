@@ -27,9 +27,19 @@ namespace Lsss
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)
                 {
-                    var   random                       = GetComponent<Rng>(sge).random;
-                    float radius                       = random.NextFloat(0f, math.min(personality.wanderPositionSearchRadius, arenaRadius - math.length(translation.Value)));
-                    state.wanderPosition               = random.NextFloat3Direction() * radius + translation.Value;
+                    var   random         = GetComponent<Rng>(sge).random;
+                    float maxValidRadius = math.min(personality.wanderPositionSearchRadius, arenaRadius - math.length(translation.Value));
+                    if (maxValidRadius < personality.wanderDestinationRadius)
+                    {
+                        float edge           = math.lerp(personality.wanderDestinationRadius, personality.wanderPositionSearchRadius, 0.1f);
+                        state.wanderPosition = edge * math.normalize(-translation.Value) + translation.Value;
+                    }
+                    else
+                    {
+                        float radius         = random.NextFloat(0f, maxValidRadius);
+                        state.wanderPosition = random.NextFloat3Direction() * radius + translation.Value;
+                    }
+
                     SetComponent(sge, new Rng { random = random });
                 }
                 output.wanderPosition      = state.wanderPosition;

@@ -26,6 +26,8 @@ namespace Latios.Systems
                 bool          error     = false;
                 foreach (var type in types)
                 {
+                    if (type.TypeIndex == ComponentType.ReadWrite<GlobalEntityData>().TypeIndex)
+                        continue;
                     if (globalEntityData.mergeMethod == MergeMethod.Overwrite || !targetEntity.HasComponent(type))
                         m_copyKit.CopyData(entity, targetEntity, type);
                     else if (globalEntityData.mergeMethod == MergeMethod.ErrorOnConflict)

@@ -23,6 +23,14 @@ PrefabInstance:
       propertyPath: m_Mesh
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 438487825707759699, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
+    - target: {fileID: 438487826003902850, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
     - target: {fileID: 438487826003902851, guid: 759f46a00509153449855e58ef8c689b, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -31,10 +39,26 @@ PrefabInstance:
       propertyPath: m_Mesh
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 438487826005359947, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
     - target: {fileID: 438487826434142370, guid: 759f46a00509153449855e58ef8c689b, type: 3}
       propertyPath: m_Mesh
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 438487826434142373, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
+    - target: {fileID: 438487826552939658, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
+    - target: {fileID: 438487826655338454, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
     - target: {fileID: 438487826655338455, guid: 759f46a00509153449855e58ef8c689b, type: 3}
       propertyPath: m_Mesh
       value: 
@@ -87,6 +111,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 438487826944446768, guid: 759f46a00509153449855e58ef8c689b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b87ac9cdc2136cb41bf05937cc9d0d08, type: 2}
     - target: {fileID: 438487826944446769, guid: 759f46a00509153449855e58ef8c689b, type: 3}
       propertyPath: m_Mesh
       value: 

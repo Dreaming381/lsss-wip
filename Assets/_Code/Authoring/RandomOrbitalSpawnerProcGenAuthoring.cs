@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using System.Collections.Generic;
+using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -6,7 +7,7 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [RequiresEntityConversion]
-    public class RandomOrbitalSpawnerProcGenAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class RandomOrbitalSpawnerProcGenAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
         public int                        spawnerCount    = 0;
         public uint                       randomSeed      = 150;
@@ -14,6 +15,11 @@ namespace Lsss.Authoring
         public float                      colliderRadius  = 15f;
         public float2                     minMaxOrbitTime = new float2(5f, 100f);
         public SpawnPointGraphicAuthoring spawnGraphicPrefab;
+
+        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
+        {
+            referencedPrefabs.Add(spawnGraphicPrefab.gameObject);
+        }
 
         public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
         {
