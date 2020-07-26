@@ -11,26 +11,26 @@ namespace Latios.PhysicsEngine
     {
         public struct LayerChunkTypeGroup
         {
-            [ReadOnly] public ArchetypeChunkComponentType<Collider>     collider;
-            [ReadOnly] public ArchetypeChunkComponentType<Translation>  translation;
-            [ReadOnly] public ArchetypeChunkComponentType<Rotation>     rotation;
-            [ReadOnly] public ArchetypeChunkComponentType<PhysicsScale> scale;
-            [ReadOnly] public ArchetypeChunkComponentType<Parent>       parent;
-            [ReadOnly] public ArchetypeChunkComponentType<LocalToWorld> localToWorld;
-            [ReadOnly] public ArchetypeChunkEntityType                  entity;
+            [ReadOnly] public ComponentTypeHandle<Collider>     collider;
+            [ReadOnly] public ComponentTypeHandle<Translation>  translation;
+            [ReadOnly] public ComponentTypeHandle<Rotation>     rotation;
+            [ReadOnly] public ComponentTypeHandle<PhysicsScale> scale;
+            [ReadOnly] public ComponentTypeHandle<Parent>       parent;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> localToWorld;
+            [ReadOnly] public EntityTypeHandle                  entity;
         }
 
         public static LayerChunkTypeGroup BuildLayerChunkTypeGroup(ComponentSystemBase system)
         {
             LayerChunkTypeGroup result = new LayerChunkTypeGroup
             {
-                collider     = system.GetArchetypeChunkComponentType<Collider>(true),
-                translation  = system.GetArchetypeChunkComponentType<Translation>(true),
-                rotation     = system.GetArchetypeChunkComponentType<Rotation>(true),
-                scale        = system.GetArchetypeChunkComponentType<PhysicsScale>(true),
-                parent       = system.GetArchetypeChunkComponentType<Parent>(true),
-                localToWorld = system.GetArchetypeChunkComponentType<LocalToWorld>(true),
-                entity       = system.GetArchetypeChunkEntityType()
+                collider     = system.GetComponentTypeHandle<Collider>(true),
+                translation  = system.GetComponentTypeHandle<Translation>(true),
+                rotation     = system.GetComponentTypeHandle<Rotation>(true),
+                scale        = system.GetComponentTypeHandle<PhysicsScale>(true),
+                parent       = system.GetComponentTypeHandle<Parent>(true),
+                localToWorld = system.GetComponentTypeHandle<LocalToWorld>(true),
+                entity       = system.GetEntityTypeHandle()
             };
             return result;
         }

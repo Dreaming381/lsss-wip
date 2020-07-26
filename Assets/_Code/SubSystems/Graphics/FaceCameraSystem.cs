@@ -23,23 +23,23 @@ namespace Lsss
                 camPos = default,
                 found  = false
             };
-            var foundCameras = new NativeArray<CamFoundData>(1, Allocator.TempJob);
+            var foundCamera = new NativeReference<CamFoundData>(Allocator.TempJob);
 
             Entities.WithAll<UnityEngine.Camera>().ForEach((in Translation translation) =>
             {
-                foundCameras[0] = new CamFoundData
+                foundCamera.Value = new CamFoundData
                 {
                     camPos = translation.Value,
                     found  = true
                 };
             }).Schedule();
-
+            var foundCameraRO = foundCamera.AsReadOnly();
             Entities.WithAll<FaceCameraTag>().ForEach((ref Rotation rotation, in LocalToWorld ltw) =>
             {
-                if (foundCameras[0].found == false)
+                if (foundCameraRO.Value.found == false)
                     return;
 
-                var    camPos    = foundCameras[0].camPos;
+                var    camPos    = foundCameraRO.Value.camPos;
                 float3 direction = math.normalize(camPos - ltw.Position);
                 if (math.abs(math.dot(direction, new float3(0f, 1f, 0f))) < 0.9999f)
                 {
@@ -47,7 +47,7 @@ namespace Lsss
                     rotation.Value = math.mul(math.inverse(parentRot), quaternion.LookRotationSafe(direction, new float3(0f, 1f, 0f)));
                 }
             }).ScheduleParallel();
-            Dependency = foundCameras.Dispose(Dependency);
+            Dependency = foundCamera.Dispose(Dependency);
         }
     }
 }

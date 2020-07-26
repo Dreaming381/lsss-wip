@@ -50,8 +50,8 @@ namespace Lsss
                 if (entityInQueryIndex < initialIndex)
                     return;
 
-                bool playerQueued = spawnQueues.playerQueue.Count > 0;
-                bool aiQueued     = spawnQueues.aiQueue.Count > 0;
+                bool playerQueued = !spawnQueues.playerQueue.IsEmpty();
+                bool aiQueued     = !spawnQueues.aiQueue.IsEmpty();
                 bool isReady      = times.pauseTime <= 0f;
 
                 if ((playerQueued || aiQueued) && isReady && safe.safe)
@@ -86,8 +86,8 @@ namespace Lsss
                 if (entityInQueryIndex >= initialIndex)
                     return;
 
-                bool playerQueued = spawnQueues.playerQueue.Count > 0;
-                bool aiQueued     = spawnQueues.aiQueue.Count > 0;
+                bool playerQueued = !spawnQueues.playerQueue.IsEmpty();
+                bool aiQueued     = !spawnQueues.aiQueue.IsEmpty();
                 bool isReady      = times.pauseTime <= 0f;
 
                 if ((playerQueued || aiQueued) && isReady && safe.safe)

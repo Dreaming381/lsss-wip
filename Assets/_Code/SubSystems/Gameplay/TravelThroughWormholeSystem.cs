@@ -78,7 +78,7 @@ namespace Lsss
                     rotCDFE[result.entityB]                           = new Rotation { Value = newRot };
 
                     //This could cause bullets to phase past ships, but will have to suffice until we have layer-scope spherecasts and the butt is fixed-length.
-                    if (prevPosCDFE.Exists(result.entityB))
+                    if (prevPosCDFE.HasComponent(result.entityB))
                     {
                         prevPosCDFE[result.entityB] = new BulletPreviousPosition { previousPosition = newPos };
                     }

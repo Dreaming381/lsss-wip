@@ -21,7 +21,7 @@ namespace Lsss
         protected override void OnUpdate()
         {
             var   ecbPackage = m_ecbSystem.CreateCommandBuffer();
-            var   ecb        = ecbPackage.ToConcurrent();
+            var   ecb        = ecbPackage.AsParallelWriter();
             float dt         = Time.DeltaTime;
 
             Entities.WithAll<ShipTag>().ForEach((int entityInQueryIndex,

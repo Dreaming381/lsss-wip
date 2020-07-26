@@ -27,7 +27,7 @@ public class LatiosBootstrap : ICustomBootstrap
         simulationSystemGroup.SortSystems();
         presentationSystemGroup.SortSystems();
 
-        BootstrapTools.UpdatePlayerLoopWithDelayedSimulation(world);
+        BootstrapTools.AddWorldToCurrentPlayerLoopWithDelayedSimulation(world);
         return true;
     }
 }

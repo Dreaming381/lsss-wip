@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -150,7 +151,8 @@ namespace Latios.PhysicsEngine
 
             if (config.hasQueryData)
             {
-                throw new InvalidOperationException("Error: Running immediate mode on an EntityQuery is not supported. Use Run instead.");
+                ThrowEntityQueryInImmediateMode();
+                layer = default;
             }
             else if (config.hasAabbsArray && config.hasBodiesArray)
             {
@@ -175,7 +177,22 @@ namespace Latios.PhysicsEngine
                 }
             }
             else
-                throw new InvalidOperationException("Error: Something went wrong with the BuildCollisionError configuration.");
+            {
+                ThrowUnknownConfiguration();
+                layer = default;
+            }
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        private static void ThrowEntityQueryInImmediateMode()
+        {
+            throw new InvalidOperationException("Running immediate mode on an EntityQuery is not supported. Use Run instead.");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        private static void ThrowUnknownConfiguration()
+        {
+            throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
 
         public static void Run(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator)
@@ -277,7 +294,7 @@ namespace Latios.PhysicsEngine
                 }
             }
             else
-                throw new InvalidOperationException("Error: Something went wrong with the BuildCollisionError configuration.");
+                throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
 
         public static JobHandle ScheduleSingle(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator, JobHandle inputDeps = default)
@@ -384,7 +401,7 @@ namespace Latios.PhysicsEngine
                 return jh;
             }
             else
-                throw new InvalidOperationException("Error: Something went wrong with the BuildCollisionError configuration.");
+                throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
 
         public static JobHandle ScheduleParallel(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator, JobHandle inputDeps = default)
@@ -517,31 +534,34 @@ namespace Latios.PhysicsEngine
                 return jh;
             }
             else
-                throw new InvalidOperationException("Error: Something went wrong with the BuildCollisionError configuration.");
+                throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
         #endregion
 
         #region Validators
+        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
         private static void ValidateSettings(this BuildCollisionLayerConfig config)
         {
             if (math.any(config.settings.worldAABB.min > config.settings.worldAABB.max))
-                throw new InvalidOperationException("Error: BuildCollisionLayer requires a valid worldBounds AABB");
+                throw new InvalidOperationException("BuildCollisionLayer requires a valid worldBounds AABB");
             if (math.any(config.settings.worldSubdivisionsPerAxis < 1))
-                throw new InvalidOperationException("Error: BuildCollisionLayer requires positive Subdivision values per axis");
+                throw new InvalidOperationException("BuildCollisionLayer requires positive Subdivision values per axis");
         }
 
+        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
         private static void ValidateOverrideAabbsAreRightLength(NativeArray<Aabb> aabbs, int count, bool query)
         {
             if (aabbs.Length != count)
                 throw new InvalidOperationException(
-                    $"Error: The number of elements in overrideAbbs does not match the { (query ? "number of entities in the query" : "number of bodies in the bodies array")}");
+                    $"The number of elements in overrideAbbs does not match the { (query ? "number of entities in the query" : "number of bodies in the bodies array")}");
         }
 
+        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
         private static void ValidateRemapArrayIsRightLength(NativeArray<int> remap, int count, bool query)
         {
             if (remap.Length != count)
                 throw new InvalidOperationException(
-                    $"Error: The number of elements in remapSrcArray does not match the { (query ? "number of entities in the query" : "number of bodies in the bodies array")}");
+                    $"The number of elements in remapSrcArray does not match the { (query ? "number of entities in the query" : "number of bodies in the bodies array")}");
         }
         #endregion
     }

@@ -41,7 +41,7 @@ namespace Lsss
                     for (int j = 0; j < linkedBuffer.Length; j++)
                     {
                         var e = linkedBuffer[j].Value;
-                        if (parentCdfe.Exists(e))
+                        if (parentCdfe.HasComponent(e))
                         {
                             var p         = parentCdfe[e];
                             parentCdfe[e] = p;

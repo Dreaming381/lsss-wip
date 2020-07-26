@@ -24,8 +24,7 @@ namespace Latios.PhysicsEngine
             set => cdfe[safeEntity.entity] = value;
         }
 
-        //Todo: Exists and HasComponent do the same thing. Why?
-        public bool Exists(SafeEntity safeEntity) => cdfe.Exists(safeEntity.entity);
+        public bool HasComponent(SafeEntity safeEntity) => cdfe.HasComponent(safeEntity.entity);
 
         public bool DidChange(SafeEntity safeEntity, uint version) => cdfe.DidChange(safeEntity.entity, version);
     }
@@ -40,7 +39,7 @@ namespace Latios.PhysicsEngine
             get => bfe[safeEntity.entity];
         }
 
-        public bool Exists(SafeEntity safeEntity) => bfe.Exists(safeEntity.entity);
+        public bool HasComponent(SafeEntity safeEntity) => bfe.HasComponent(safeEntity.entity);
     }
 
     public static class PhysicsCdfeSystemBaseExtensions

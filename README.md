@@ -1,7 +1,7 @@
 # Latios Space Shooter Sample - WIP
 This is a Unity DOTS game used to stabilize Latios Framework 0.2.0. A version of the framework is included as an embedded package. Once the game reaches a sufficient state of completeness and stability, it will be included as a sample project in Latios Framework.
 
-The Unity version is currently 2020.1.0b12
+The Unity version is currently 2020.1.0f1
 
 ## Special Project Restrictions
 The entire game is made using Unity and Unity only. That means no assets from other software are included in the project. No meshes. No textures. No sound files. All texturing is done procedurally using ShaderGraph, and meshes are composed of Unity primitives and procedural generation.
@@ -12,7 +12,7 @@ In stark contrast to my usual style, this game has no intention to establish any
 Given that I work on this in my spare time, contributions are welcome. The sooner I get this game done, the sooner I can move on to documentation and new features in the framework. No programming skills are required to help.
 
 ### Design Work
-The easiest way to contribute is to design prefabs, shader graphs, and scenes. Have a look at GameplayTest and MassiveBattleTest1 to understand how the scenes and prefabs can be put together.
+The easiest way to contribute is to design prefabs, shader graphs, and scenes. Have a look at GameplayTest and MassiveBattleTest1 to understand how the scenes and prefabs can be put together. A fun starting place is to try and create a custom faction with its own kind of ships.
 
 There are a few planned aspects not present in these scenes:
 * Interiors for spawn graphics

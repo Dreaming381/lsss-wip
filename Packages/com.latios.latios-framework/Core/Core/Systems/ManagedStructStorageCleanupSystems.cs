@@ -30,7 +30,7 @@ namespace Latios.Systems
             var collectionSysStateType = typeof(CollectionComponentSystemStateTag<>);
 
             var tagTypes = new NativeList<ComponentType>(Allocator.TempJob);
-            var sysTypes = new NativeHashMap<ComponentType, byte>(128, Allocator.TempJob);
+            var sysTypes = new NativeHashSet<ComponentType>(128, Allocator.TempJob);
 
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             foreach (var assembly in assemblies)
@@ -50,7 +50,7 @@ namespace Latios.Systems
                     {
                         GetOrCreateAndAddSystem(managedCreateType.MakeGenericType(type));
                         GetOrCreateAndAddSystem(managedDestroyType.MakeGenericType(type));
-                        sysTypes.TryAdd(ComponentType.ReadOnly(managedSysStateType.MakeGenericType(type)), 0);
+                        sysTypes.Add(ComponentType.ReadOnly(managedSysStateType.MakeGenericType(type)));
                         //tagTypes.Add(ComponentType.ReadOnly(managedTagType.MakeGenericType(type)));
                         tagTypes.Add(ComponentType.ReadOnly((Activator.CreateInstance(type) as IManagedComponent).AssociatedComponentType));
                     }
@@ -58,7 +58,7 @@ namespace Latios.Systems
                     {
                         GetOrCreateAndAddSystem(collectionCreateType.MakeGenericType(type));
                         GetOrCreateAndAddSystem(collectionDestroyType.MakeGenericType(type));
-                        sysTypes.TryAdd(ComponentType.ReadOnly(collectionSysStateType.MakeGenericType(type)), 0);
+                        sysTypes.Add(ComponentType.ReadOnly(collectionSysStateType.MakeGenericType(type)));
                         //tagTypes.Add(ComponentType.ReadOnly(collectionTagType.MakeGenericType(type)));
                         tagTypes.Add(ComponentType.ReadOnly((Activator.CreateInstance(type) as ICollectionComponent).AssociatedComponentType));
                     }
@@ -66,7 +66,7 @@ namespace Latios.Systems
             }
 
             var tags = tagTypes.ToArray();
-            var nss  = sysTypes.GetKeyArray(Allocator.Temp);
+            var nss  = sysTypes.ToNativeArray(Allocator.Temp);
             var ss   = nss.ToArray();
             nss.Dispose();  //Todo: Is this necessary? I keep getting conflicting info from Unity on Allocator.Temp
 

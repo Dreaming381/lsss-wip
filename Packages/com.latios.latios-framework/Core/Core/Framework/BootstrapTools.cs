@@ -225,70 +225,22 @@ namespace Latios
         #endregion
 
         #region PlayerLoop
-        //Mostly copied from ScriptBehaviourUpdateOrder
 
         /// <summary>
         /// Update the player loop with a world's root-level systems including FixedUpdate
         /// </summary>
         /// <param name="world">World with root-level systems that need insertion into the player loop</param>
-        /// <param name="existingPlayerLoop">Optional parameter to preserve existing player loops (e.g. ScriptBehaviourUpdateOrder.CurrentPlayerLoop)</param>
-        public static void UpdatePlayerLoopWithFixedUpdate(World world, PlayerLoopSystem? existingPlayerLoop = null)
+        public static void AddWorldToCurrentPlayerLoopWithFixedUpdate(World world)
         {
-            //Use reflection to snag the private delegate needed for this
-            var insertMethodInfo = typeof(ScriptBehaviourUpdateOrder).GetMethod("InsertManagerIntoSubsystemList",
-                                                                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            var simMethod   = insertMethodInfo.MakeGenericMethod(typeof(SimulationSystemGroup));
-            var presMethod  = insertMethodInfo.MakeGenericMethod(typeof(PresentationSystemGroup));
-            var initMethod  = insertMethodInfo.MakeGenericMethod(typeof(InitializationSystemGroup));
-            var fixedMethod = insertMethodInfo.MakeGenericMethod(typeof(FixedSimulationSystemGroup));
-
-            var playerLoop = existingPlayerLoop ?? PlayerLoop.GetDefaultPlayerLoop();
+            var playerLoop = PlayerLoop.GetCurrentPlayerLoop();
 
             if (world != null)
             {
-                // Insert the root-level systems into the appropriate PlayerLoopSystem subsystems:
-                for (var i = 0; i < playerLoop.subSystemList.Length; ++i)
-                {
-                    int subsystemListLength = playerLoop.subSystemList[i].subSystemList.Length;
-                    if (playerLoop.subSystemList[i].type == typeof(Update))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        simMethod.Invoke(null, new object[] {newSubsystemList,
-                                                             subsystemListLength + 0, world.GetOrCreateSystem<SimulationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                    else if (playerLoop.subSystemList[i].type == typeof(PreLateUpdate))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        presMethod.Invoke(null, new object[] {newSubsystemList,
-                                                              subsystemListLength + 0, world.GetOrCreateSystem<PresentationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                    else if (playerLoop.subSystemList[i].type == typeof(Initialization))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        initMethod.Invoke(null, new object[] {newSubsystemList,
-                                                              subsystemListLength + 0, world.GetOrCreateSystem<InitializationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                    else if (playerLoop.subSystemList[i].type == typeof(FixedUpdate))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        fixedMethod.Invoke(null, new object[] {newSubsystemList,
-                                                               subsystemListLength + 0, world.GetOrCreateSystem<FixedSimulationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                }
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<InitializationSystemGroup>(),  ref playerLoop, typeof(Initialization));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<SimulationSystemGroup>(),      ref playerLoop, typeof(PostLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<PresentationSystemGroup>(),    ref playerLoop, typeof(PreLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<FixedSimulationSystemGroup>(), ref playerLoop, typeof(FixedUpdate));
             }
-
             PlayerLoop.SetPlayerLoop(playerLoop);
         }
 
@@ -296,54 +248,16 @@ namespace Latios
         /// Update the PlayerLoop to run simulation after rendering.
         /// </summary>
         /// <param name="world">World with root-level systems that need insertion into the player loop</param>
-        /// <param name="existingPlayerLoop">Optional parameter to preserve existing player loops (e.g. ScriptBehaviourUpdateOrder.CurrentPlayerLoop)</param>
-        public static void UpdatePlayerLoopWithDelayedSimulation(World world, PlayerLoopSystem? existingPlayerLoop = null)
+        public static void AddWorldToCurrentPlayerLoopWithDelayedSimulation(World world)
         {
-            //Use reflection to snag the private delegate needed for this
-            var insertMethodInfo = typeof(ScriptBehaviourUpdateOrder).GetMethod("InsertManagerIntoSubsystemList",
-                                                                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-            var simMethod  = insertMethodInfo.MakeGenericMethod(typeof(SimulationSystemGroup));
-            var presMethod = insertMethodInfo.MakeGenericMethod(typeof(PresentationSystemGroup));
-            var initMethod = insertMethodInfo.MakeGenericMethod(typeof(InitializationSystemGroup));
-
-            var playerLoop = existingPlayerLoop ?? PlayerLoop.GetDefaultPlayerLoop();
+            var playerLoop = PlayerLoop.GetCurrentPlayerLoop();
 
             if (world != null)
             {
-                // Insert the root-level systems into the appropriate PlayerLoopSystem subsystems:
-                for (var i = 0; i < playerLoop.subSystemList.Length; ++i)
-                {
-                    int subsystemListLength = playerLoop.subSystemList[i].subSystemList.Length;
-                    if (playerLoop.subSystemList[i].type == typeof(PostLateUpdate))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        simMethod.Invoke(null, new object[] {newSubsystemList,
-                                                             subsystemListLength + 0, world.GetOrCreateSystem<SimulationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                    else if (playerLoop.subSystemList[i].type == typeof(PreLateUpdate))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        presMethod.Invoke(null, new object[] {newSubsystemList,
-                                                              subsystemListLength + 0, world.GetOrCreateSystem<PresentationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                    else if (playerLoop.subSystemList[i].type == typeof(Initialization))
-                    {
-                        var newSubsystemList = new PlayerLoopSystem[subsystemListLength + 1];
-                        for (var j = 0; j < subsystemListLength; ++j)
-                            newSubsystemList[j] = playerLoop.subSystemList[i].subSystemList[j];
-                        initMethod.Invoke(null, new object[] {newSubsystemList,
-                                                              subsystemListLength + 0, world.GetOrCreateSystem<InitializationSystemGroup>() });
-                        playerLoop.subSystemList[i].subSystemList = newSubsystemList;
-                    }
-                }
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<InitializationSystemGroup>(), ref playerLoop, typeof(Initialization));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<SimulationSystemGroup>(),     ref playerLoop, typeof(PostLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<PresentationSystemGroup>(),   ref playerLoop, typeof(PreLateUpdate));
             }
-
             PlayerLoop.SetPlayerLoop(playerLoop);
         }
         #endregion

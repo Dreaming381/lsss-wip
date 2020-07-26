@@ -15,10 +15,7 @@ namespace Latios.Editor
         {
             var compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true, optimizationLevel: OptimizationLevel.Debug);
 
-            //Todo: Convince Unity to use newer Roslyn so that MetadataImportOptions isn't such a pain.
-            //typeof(CSharpCompilationOptions).GetProperty("MetadataImportOptions", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(compilationOptions, 2);
-            typeof(CSharpCompilationOptions).GetMethod("WithMetadataImportOptions", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(compilationOptions,
-                                                                                                                                           new object[] { (byte)2 });
+            compilationOptions.WithMetadataImportOptions(MetadataImportOptions.All);
             typeof(CSharpCompilationOptions).GetProperty("TopLevelBinderFlags", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(compilationOptions, (uint)1 << 22);
 
             List<MetadataReference> metadataReferences = new List<MetadataReference>();

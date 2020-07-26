@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 using System;
+using System.Diagnostics;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -29,11 +30,7 @@ namespace Latios.PhysicsEngine
 
         public unsafe static implicit operator SphereCollider(Collider collider)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (collider.m_type != ColliderType.Sphere)
-                throw new InvalidOperationException("Error: Collider is not a SpphereCollider but is being casted to one.");
-#endif
-
+            CheckColliderIsCastTargetType(collider, ColliderType.Sphere);
             return collider.m_sphere;
         }
 
@@ -47,11 +44,7 @@ namespace Latios.PhysicsEngine
 
         public unsafe static implicit operator CapsuleCollider(Collider collider)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (collider.m_type != ColliderType.Capsule)
-                throw new InvalidOperationException("Error: Collider is not a CapsuleCollider but is being casted to one.");
-#endif
-
+            CheckColliderIsCastTargetType(collider, ColliderType.Capsule);
             return collider.m_capsule;
         }
 
@@ -66,11 +59,22 @@ namespace Latios.PhysicsEngine
 
         public unsafe static implicit operator CompoundCollider(Collider collider)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (collider.m_type != ColliderType.Compound)
-                throw new InvalidOperationException("Error: Collider is not a CompoundCollider but is being casted to one.");
-#endif
+            CheckColliderIsCastTargetType(collider, ColliderType.Compound);
             return new CompoundCollider(collider.m_blobRef, collider.m_storage.a.x);
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void CheckColliderIsCastTargetType(Collider c, ColliderType targetType)
+        {
+            if (c.m_type != targetType)
+            {
+                switch (targetType)
+                {
+                    case ColliderType.Sphere: throw new InvalidOperationException("Collider is not a SphereCollider but is being casted to one.");
+                    case ColliderType.Capsule: throw new InvalidOperationException("Collider is not a CapsuleCollider but is being casted to one.");
+                    case ColliderType.Compound: throw new InvalidOperationException("Collider is not a CompoundCollider but is being casted to one.");
+                }
+            }
         }
 
         #endregion TypeCasting

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Unity.Mathematics;
 
 namespace Latios.PhysicsEngine
@@ -49,8 +50,15 @@ namespace Latios.PhysicsEngine
                     CompoundCollider compound = collider;
                     return CalculateAabb(compound, transform);
                 default:
-                    throw new InvalidOperationException("Type not supported yet");
+                    ThrowUnsupportedType();
+                    return new Aabb();
             }
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        private static void ThrowUnsupportedType()
+        {
+            throw new InvalidOperationException("Collider type not supported yet");
         }
         #endregion
     }

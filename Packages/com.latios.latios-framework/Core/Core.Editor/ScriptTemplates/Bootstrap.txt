@@ -23,11 +23,11 @@ public class LatiosBootstrap : ICustomBootstrap
 		BootstrapTools.InjectUnitySystems(systems, world, simulationSystemGroup);
         BootstrapTools.InjectRootSuperSystems(systems, world, simulationSystemGroup);
 
-        initializationSystemGroup.SortSystemUpdateList();
+        initializationSystemGroup.SortSystems();
         simulationSystemGroup.SortSystems();
         presentationSystemGroup.SortSystems();
 
-        ScriptBehaviourUpdateOrder.UpdatePlayerLoop(world);
+        ScriptBehaviourUpdateOrder.AddWorldToCurrentPlayerLoop(world);
         return true;
     }
 }

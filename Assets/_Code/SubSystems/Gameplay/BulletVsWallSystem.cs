@@ -21,7 +21,7 @@ namespace Lsss
         protected override void OnUpdate()
         {
             var ecbPackage = m_ecbSystem.CreateCommandBuffer();
-            var ecb        = ecbPackage.ToConcurrent();
+            var ecb        = ecbPackage.AsParallelWriter();
 
             var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             var wallLayer   = sceneGlobalEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
@@ -35,7 +35,7 @@ namespace Lsss
 
         struct DestroyBulletsThatHitWallsProcessor : IFindPairsProcessor
         {
-            public EntityCommandBuffer.Concurrent ecb;
+            public EntityCommandBuffer.ParallelWriter ecb;
 
             public void Execute(FindPairsResult result)
             {
