@@ -42,6 +42,13 @@ namespace Lsss
         public Entity factionEntity;
     }
 
+    public struct LastAliveObjectiveTag : IComponentData { }
+
+    public struct DestroyFactionObjective : IBufferElementData
+    {
+        public Entity factionToDestroy;
+    }
+
     public struct ShipTag : IComponentData { }
 
     //Todo: Blob this if chunk utilization gets low

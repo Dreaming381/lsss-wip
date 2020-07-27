@@ -17,5 +17,13 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<HudUpdateSystem>();
         }
     }
+
+    public class UiResultsSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            GetOrCreateAndAddSystem<GameResultsSystem>();
+        }
+    }
 }
 

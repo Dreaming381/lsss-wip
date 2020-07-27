@@ -14,5 +14,14 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MassiveBattleTest1.unity
     guid: 925e3498d081c364bb605dafd2ba4991
+  - enabled: 1
+    path: Assets/Scenes/Mission Complete.unity
+    guid: 82b5a62f206e49c4dbaa81965b46017e
+  - enabled: 1
+    path: Assets/Scenes/Mission Failed.unity
+    guid: 7fdaee107c07fa946911c00c72fc435c
+  - enabled: 1
+    path: Assets/Scenes/Mission1_v0_2.unity
+    guid: 7f780167c70b2e84e9df3d2b2bc5ba14
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: b879fc492f903344394097c747df081d, type: 2}

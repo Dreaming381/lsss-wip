@@ -70,6 +70,7 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<DestroyShipsWithNoHealthSystem>();
             GetOrCreateAndAddSystem<SpawnShipsPrioritizeSystem>();
             GetOrCreateAndAddSystem<SpawnShipsDequeueSystem>();
+            GetOrCreateAndAddSystem<EvaluateMissionSystem>();
             GetOrCreateAndAddSystem<FireGunsSystem>();
         }
     }

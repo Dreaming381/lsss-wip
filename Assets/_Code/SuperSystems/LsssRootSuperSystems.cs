@@ -50,6 +50,7 @@ namespace Lsss.SuperSystems
         protected override void CreateSystems()
         {
             GetOrCreateAndAddSystem<UiMainMenuSuperSystem>();
+            GetOrCreateAndAddSystem<UiResultsSuperSystem>();
             GetOrCreateAndAddSystem<ShaderPropertySuperSystem>();
         }
     }
