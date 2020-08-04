@@ -22,6 +22,6 @@ EditorBuildSettings:
     guid: 7fdaee107c07fa946911c00c72fc435c
   - enabled: 1
     path: Assets/Scenes/Mission1_v0_2.unity
-    guid: 7f780167c70b2e84e9df3d2b2bc5ba14
+    guid: b865e2edc4ba88947a8151d2e5426eba
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: b879fc492f903344394097c747df081d, type: 2}

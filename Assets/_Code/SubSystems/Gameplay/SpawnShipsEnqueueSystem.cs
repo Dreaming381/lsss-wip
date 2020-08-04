@@ -123,7 +123,8 @@ namespace Lsss
                              Disabled>().WithNone<PlayerTag>().WithSharedComponentFilter(factionMember).ForEach((Entity entity) => { disabledShipsHashSet.Add(entity); }).Run();
             if (!disabledShipsHashSet.IsEmpty)
             {
-                bool foundShip = false;
+                Entity foundShip = Entity.Null;
+
                 Job.WithCode(() =>
                 {
                     var queueArray = spawnQueues.aiQueue.ToArray(Allocator.Temp);
@@ -131,7 +132,7 @@ namespace Lsss
                     {
                         if (disabledShipsHashSet.Contains(queueArray[i]))
                         {
-                            foundShip = true;
+                            foundShip = queueArray[i];
                             //Todo: Is there a cleaner way to remove a random element from the queue?
                             spawnQueues.aiQueue.Clear();
                             for (int j = 0; j < queueArray.Length; j++)
@@ -144,30 +145,45 @@ namespace Lsss
                         }
                     }
                 }).Run();
-                if (!foundShip)
+                if (foundShip == Entity.Null)
                 {
                     //A spawner might have it.
-                    Entity oldEntity = Entity.Null;
                     Entities.WithAll<SpawnPointTag>().ForEach((ref SpawnPayload payload) =>
                     {
-                        if (!foundShip && disabledShipsHashSet.Contains(payload.disabledShip))
+                        if (foundShip == Entity.Null && disabledShipsHashSet.Contains(payload.disabledShip))
                         {
-                            foundShip            = true;
-                            oldEntity            = payload.disabledShip;
+                            foundShip            = payload.disabledShip;
                             payload.disabledShip = player;
                         }
                     }).Run();
-                    EntityManager.DestroyEntity(oldEntity);
                 }
-                if (foundShip)
+                if (foundShip != Entity.Null)
                 {
                     EntityManager.SetEnabled(player, false);
+                    EntityManager.DestroyEntity(foundShip);
                     return true;
                 }
             }
             disabledShipsHashSet.Dispose();
 
-            //Todo: We could swap the player with an existing ship, but this could get confusing if the player prefab is not the same model as an AI prefab.
+            //Todo: Is there a more robust way to do this?
+            float  bestHealth = 0f;
+            Entity bestEntity = Entity.Null;
+            Entities.WithAll<ShipTag, AiTag>().WithSharedComponentFilter(factionMember).ForEach((Entity entity, in ShipHealth health) =>
+            {
+                if (health.health > bestHealth)
+                {
+                    bestHealth = health.health;
+                    bestEntity = entity;
+                }
+            }).Run();
+
+            if (bestEntity != Entity.Null)
+            {
+                EntityManager.RemoveComponent<AiTag>(bestEntity);
+                EntityManager.AddComponent<PlayerTag>(bestEntity);
+                return false;
+            }
 
             return false;
         }
