@@ -19,8 +19,6 @@ namespace Latios.Systems
                 isSceneFirstFrame = false
             };
             worldGlobalEntity.AddOrSetComponentData(curr);
-
-            m_rlsQuery = GetEntityQuery(typeof(RequestLoadScene));
         }
 
         protected override void OnUpdate()
@@ -30,7 +28,7 @@ namespace Latios.Systems
                 FixedString128 targetScene = new FixedString128();
                 bool           isInvalid   = false;
 
-                Entities.ForEach((ref RequestLoadScene rls) =>
+                Entities.WithStoreEntityQueryInField(ref m_rlsQuery).ForEach((ref RequestLoadScene rls) =>
                 {
                     if (rls.newScene.UTF8LengthInBytes == 0)
                         return;
@@ -45,6 +43,7 @@ namespace Latios.Systems
                     if (isInvalid)
                     {
                         UnityEngine.Debug.LogError("Multiple scenes were requested to load during the previous frame.");
+                        EntityManager.RemoveComponent<RequestLoadScene>(m_rlsQuery);
                     }
                     else
                     {
@@ -56,6 +55,7 @@ namespace Latios.Systems
                         curr.currentScene             = targetScene;
                         curr.isSceneFirstFrame        = true;
                         worldGlobalEntity.SetComponentData(curr);
+                        EntityManager.RemoveComponent<RequestLoadScene>(m_rlsQuery);
                         return;
                     }
                 }

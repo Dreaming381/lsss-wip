@@ -7,30 +7,50 @@ using Unity.Entities;
 
 namespace Latios.Systems
 {
+    internal interface ManagedComponentsReactiveSystem
+    {
+        EntityQuery Query { get; }
+    }
+
     [DisableAutoCreation]
     public class ManagedComponentsReactiveSystemGroup : RootSuperSystem
     {
-        private EntityQuery m_anythingNeedsCreationQuery;
-        private EntityQuery m_anythingNeedsDestructionQuery;
+        struct AssociatedTypeSysStateTagTypePair : IEquatable<AssociatedTypeSysStateTagTypePair>
+        {
+            public ComponentType associatedType;
+            public ComponentType sysStateTagType;
+
+            public bool Equals(AssociatedTypeSysStateTagTypePair other)
+            {
+                return associatedType == other.associatedType && sysStateTagType == other.sysStateTagType;
+            }
+        }
+
+        private EntityQuery m_allSystemsQuery;
 
         public override bool ShouldUpdateSystem()
         {
-            return (m_anythingNeedsCreationQuery.IsEmptyIgnoreFilter && m_anythingNeedsDestructionQuery.IsEmptyIgnoreFilter) == false;
+            foreach (var sys in m_systemsToUpdate)
+            {
+                var mcrs = sys as ManagedComponentsReactiveSystem;
+                if (!mcrs.Query.IsEmptyIgnoreFilter)
+                    return true;
+            }
+            return false;
+
+            //return m_allSystemsQuery.IsEmptyIgnoreFilter == false;
         }
 
         protected override void CreateSystems()
         {
-            var managedCreateType     = typeof(ManagedComponentCreateSystem<>);
-            var managedDestroyType    = typeof(ManagedComponentDestroySystem<>);
-            var collectionCreateType  = typeof(CollectionComponentCreateSystem<>);
-            var collectionDestroyType = typeof(CollectionComponentDestroySystem<>);
-            //var managedTagType         = typeof(ManagedComponentTag<>);
-            var managedSysStateType = typeof(ManagedComponentSystemStateTag<>);
-            //var collectionTagType      = typeof(CollectionComponentTag<>);
-            var collectionSysStateType = typeof(CollectionComponentSystemStateTag<>);
+            var managedCreateType         = typeof(ManagedComponentCreateSystem<>);
+            var managedDestroyType        = typeof(ManagedComponentDestroySystem<>);
+            var collectionCreateType      = typeof(CollectionComponentCreateSystem<>);
+            var collectionDestroyType     = typeof(CollectionComponentDestroySystem<>);
+            var managedSysStateTagType    = typeof(ManagedComponentSystemStateTag<>);
+            var collectionSysStateTagType = typeof(CollectionComponentSystemStateTag<>);
 
-            var tagTypes = new NativeList<ComponentType>(Allocator.TempJob);
-            var sysTypes = new NativeHashSet<ComponentType>(128, Allocator.TempJob);
+            var typePairs = new NativeHashSet<AssociatedTypeSysStateTagTypePair>(128, Allocator.TempJob);
 
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             foreach (var assembly in assemblies)
@@ -50,41 +70,48 @@ namespace Latios.Systems
                     {
                         GetOrCreateAndAddSystem(managedCreateType.MakeGenericType(type));
                         GetOrCreateAndAddSystem(managedDestroyType.MakeGenericType(type));
-                        sysTypes.Add(ComponentType.ReadOnly(managedSysStateType.MakeGenericType(type)));
-                        //tagTypes.Add(ComponentType.ReadOnly(managedTagType.MakeGenericType(type)));
-                        tagTypes.Add(ComponentType.ReadOnly((Activator.CreateInstance(type) as IManagedComponent).AssociatedComponentType));
+                        typePairs.Add(new AssociatedTypeSysStateTagTypePair
+                        {
+                            sysStateTagType = ComponentType.ReadOnly(managedSysStateTagType.MakeGenericType(type)),
+                            associatedType  = ComponentType.ReadOnly((Activator.CreateInstance(type) as IManagedComponent).AssociatedComponentType)
+                        });
                     }
                     else if (typeof(ICollectionComponent).IsAssignableFrom(type))
                     {
                         GetOrCreateAndAddSystem(collectionCreateType.MakeGenericType(type));
                         GetOrCreateAndAddSystem(collectionDestroyType.MakeGenericType(type));
-                        sysTypes.Add(ComponentType.ReadOnly(collectionSysStateType.MakeGenericType(type)));
-                        //tagTypes.Add(ComponentType.ReadOnly(collectionTagType.MakeGenericType(type)));
-                        tagTypes.Add(ComponentType.ReadOnly((Activator.CreateInstance(type) as ICollectionComponent).AssociatedComponentType));
+                        typePairs.Add(new AssociatedTypeSysStateTagTypePair
+                        {
+                            sysStateTagType = ComponentType.ReadOnly(collectionSysStateTagType.MakeGenericType(type)),
+                            associatedType  = ComponentType.ReadOnly((Activator.CreateInstance(type) as ICollectionComponent).AssociatedComponentType)
+                        });
                     }
                 }
             }
 
-            var tags = tagTypes.ToArray();
-            var nss  = sysTypes.ToNativeArray(Allocator.Temp);
-            var ss   = nss.ToArray();
-            nss.Dispose();  //Todo: Is this necessary? I keep getting conflicting info from Unity on Allocator.Temp
-
-            EntityQueryDesc descCreate = new EntityQueryDesc
+            //Todo: Bug in Unity prevents iterating over NativeHashSet (value is defaulted).
+            var               typePairsArr = typePairs.ToNativeArray(Allocator.TempJob);
+            EntityQueryDesc[] descs        = new EntityQueryDesc[typePairsArr.Length * 2];
+            int               i            = 0;
+            foreach (var pair in typePairsArr)
             {
-                Any  = tags,
-                None = ss
-            };
-            m_anythingNeedsCreationQuery = GetEntityQuery(descCreate);
-            EntityQueryDesc descDestroy  = new EntityQueryDesc
-            {
-                Any  = ss,
-                None = tags
-            };
-            m_anythingNeedsDestructionQuery = GetEntityQuery(descDestroy);
-
-            tagTypes.Dispose();
-            sysTypes.Dispose();
+                descs[i] = new EntityQueryDesc
+                {
+                    All  = new ComponentType[] { pair.associatedType },
+                    None = new ComponentType[] { pair.sysStateTagType }
+                };
+                i++;
+                descs[i] = new EntityQueryDesc
+                {
+                    All  = new ComponentType[] { pair.sysStateTagType },
+                    None = new ComponentType[] { pair.associatedType }
+                };
+                i++;
+            }
+            //Bug in Unity prevents constructing this EntityQuery because the scratch buffer is hardcoded to a size of 1024 which is not enough.
+            //m_allSystemsQuery = GetEntityQuery(descs);
+            typePairsArr.Dispose();
+            typePairs.Dispose();
         }
 
         protected override void OnDestroy()
@@ -94,9 +121,10 @@ namespace Latios.Systems
         }
     }
 
-    internal class ManagedComponentCreateSystem<T> : SubSystem where T : struct, IManagedComponent
+    internal class ManagedComponentCreateSystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, IManagedComponent
     {
         private EntityQuery m_query;
+        public EntityQuery Query => m_query;
 
         protected override void OnCreate()
         {
@@ -114,9 +142,10 @@ namespace Latios.Systems
         }
     }
 
-    internal class ManagedComponentDestroySystem<T> : SubSystem where T : struct, IManagedComponent
+    internal class ManagedComponentDestroySystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, IManagedComponent
     {
         private EntityQuery m_query;
+        public EntityQuery Query => m_query;
 
         protected override void OnCreate()
         {
@@ -134,9 +163,10 @@ namespace Latios.Systems
         }
     }
 
-    internal class CollectionComponentCreateSystem<T> : SubSystem where T : struct, ICollectionComponent
+    internal class CollectionComponentCreateSystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, ICollectionComponent
     {
         private EntityQuery m_query;
+        public EntityQuery Query => m_query;
 
         protected override void OnCreate()
         {
@@ -154,9 +184,10 @@ namespace Latios.Systems
         }
     }
 
-    internal class CollectionComponentDestroySystem<T> : SubSystem where T : struct, ICollectionComponent
+    internal class CollectionComponentDestroySystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, ICollectionComponent
     {
         private EntityQuery m_query;
+        public EntityQuery Query => m_query;
 
         protected override void OnCreate()
         {
