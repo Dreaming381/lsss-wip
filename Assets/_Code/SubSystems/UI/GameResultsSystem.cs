@@ -21,6 +21,8 @@ namespace Lsss
         {
             Entities.ForEach((GameResult result) =>
             {
+                UnityEngine.Cursor.lockState = UnityEngine.CursorLockMode.None;
+                UnityEngine.Cursor.visible   = true;
                 if (result.mainMenu)
                 {
                     m_ecbSystem.CreateCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Title and Menu" });

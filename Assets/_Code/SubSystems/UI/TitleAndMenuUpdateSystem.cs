@@ -24,7 +24,8 @@ namespace Lsss
             {
                 if (titleAndMenu.titlePanel.activeSelf)
                 {
-                    var gamepad = Gamepad.current;
+                    bool somethingPressed = false;
+                    var  gamepad          = Gamepad.current;
                     if (gamepad != null)
                     {
                         if (gamepad.buttonEast.wasPressedThisFrame ||
@@ -40,9 +41,25 @@ namespace Lsss
                             gamepad.rightShoulder.wasPressedThisFrame ||
                             gamepad.rightTrigger.wasPressedThisFrame)
                         {
-                            titleAndMenu.titlePanel.SetActive(false);
-                            titleAndMenu.menuPanel.SetActive(true);
+                            somethingPressed = true;
                         }
+                    }
+                    else
+                    {
+                        var mouse    = Mouse.current;
+                        var keyboard = Keyboard.current;
+                        if (mouse != null && keyboard != null)
+                        {
+                            if (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)
+                                somethingPressed = true;
+                            if (keyboard.anyKey.wasPressedThisFrame)
+                                somethingPressed = true;
+                        }
+                    }
+                    if (somethingPressed)
+                    {
+                        titleAndMenu.titlePanel.SetActive(false);
+                        titleAndMenu.menuPanel.SetActive(true);
                     }
                 }
                 else
