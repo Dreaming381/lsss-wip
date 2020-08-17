@@ -30,7 +30,7 @@ namespace Latios.Systems
 
                 Entities.WithStoreEntityQueryInField(ref m_rlsQuery).ForEach((ref RequestLoadScene rls) =>
                 {
-                    if (rls.newScene.UTF8LengthInBytes == 0)
+                    if (rls.newScene.Length == 0)
                         return;
                     if (targetScene.Length == 0)
                         targetScene = rls.newScene;
@@ -63,7 +63,7 @@ namespace Latios.Systems
 
             //Handle case where initial scene loads or set firstFrame to false
             var currentScene = worldGlobalEntity.GetComponentData<CurrentScene>();
-            if (currentScene.currentScene.UTF8LengthInBytes == 0)
+            if (currentScene.currentScene.Length == 0)
             {
                 currentScene.currentScene      = SceneManager.GetActiveScene().name;
                 currentScene.isSceneFirstFrame = true;
