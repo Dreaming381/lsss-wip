@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Latios;
 using Unity.Collections;
 using Unity.Entities;
+using UnityEngine.LowLevel;
+using UnityEngine.PlayerLoop;
 
 public class LatiosBootstrap : ICustomBootstrap
 {
@@ -27,7 +29,24 @@ public class LatiosBootstrap : ICustomBootstrap
         simulationSystemGroup.SortSystems();
         presentationSystemGroup.SortSystems();
 
+        //Reset playerloop so we don't infinitely add systems.
+        PlayerLoop.SetPlayerLoop(PlayerLoop.GetDefaultPlayerLoop());
+        var beginProfiling     = world.CreateSystem<Lsss.Tools.BeginFrameProfilingSystem>();
+        var beforeGpuProfiling = world.CreateSystem<Lsss.Tools.BeginGpuWaitProfilingSystem>();
+        var afterGpuProfiling  = world.CreateSystem<Lsss.Tools.EndGpuWaitProfilingSystem>();
+        var loop               = PlayerLoop.GetCurrentPlayerLoop();
+        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(beginProfiling, ref loop, typeof(Initialization));
+        PlayerLoop.SetPlayerLoop(loop);
         BootstrapTools.AddWorldToCurrentPlayerLoopWithDelayedSimulation(world);
+        loop = PlayerLoop.GetCurrentPlayerLoop();
+
+#if UNITY_EDITOR
+        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(beforeGpuProfiling, ref loop, typeof(PostLateUpdate));
+#else
+        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(beforeGpuProfiling, ref loop, typeof(UnityEngine.PlayerLoop.PostLateUpdate.PlayerEmitCanvasGeometry));
+#endif
+
+        PlayerLoop.SetPlayerLoop(loop);
         return true;
     }
 }

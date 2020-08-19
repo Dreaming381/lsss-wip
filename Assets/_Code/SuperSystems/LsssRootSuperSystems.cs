@@ -1,4 +1,5 @@
 ﻿using Latios;
+using Lsss.Tools;
 using Unity.Entities;
 using Unity.Transforms;
 
@@ -52,6 +53,7 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<UiMainMenuSuperSystem>();
             GetOrCreateAndAddSystem<UiResultsSuperSystem>();
             GetOrCreateAndAddSystem<ShaderPropertySuperSystem>();
+            GetOrCreateAndAddSystem<ProfilingDisplayUpdateSystem>();
         }
     }
 }

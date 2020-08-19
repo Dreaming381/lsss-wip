@@ -34,6 +34,10 @@
                 {
                     "Scene": "GlobalObjectId_V1-1-7f780167c70b2e84e9df3d2b2bc5ba14-102900000-0",
                     "AutoLoad": false
+                },
+                {
+                    "Scene": "GlobalObjectId_V1-1-b865e2edc4ba88947a8151d2e5426eba-102900000-0",
+                    "AutoLoad": false
                 }
             ]
         },
@@ -41,7 +45,7 @@
             "$type": "Unity.Build.Classic.ClassicBuildProfile, Unity.Build.Classic",
             "$version": 1,
             "Platform": "Windows",
-            "Configuration": 3,
+            "Configuration": 2,
             "Incremental": false
         },
         {

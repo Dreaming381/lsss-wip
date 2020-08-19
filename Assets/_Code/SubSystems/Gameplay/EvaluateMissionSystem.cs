@@ -1,5 +1,4 @@
-﻿using ICSharpCode.NRefactory.Ast;
-using Latios;
+﻿using Latios;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;

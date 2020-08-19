@@ -159,21 +159,21 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.platforms.desktop": {
-      "version": "0.6.0-preview.1",
+      "version": "0.7.0-preview.8",
       "depth": 1,
       "source": "registry",
       "dependencies": {
-        "com.unity.platforms": "0.6.0-preview.1"
+        "com.unity.platforms": "0.7.0-preview.8"
       },
       "url": "https://packages.unity.com"
     },
     "com.unity.platforms.windows": {
-      "version": "0.6.0-preview.1",
+      "version": "0.7.0-preview.8",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.platforms": "0.6.0-preview.1",
-        "com.unity.platforms.desktop": "0.6.0-preview.1"
+        "com.unity.platforms": "0.7.0-preview.8",
+        "com.unity.platforms.desktop": "0.7.0-preview.8"
       },
       "url": "https://packages.unity.com"
     },
