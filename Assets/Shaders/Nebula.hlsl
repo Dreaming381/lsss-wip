@@ -113,7 +113,6 @@ float3 DrawAllNebulas(float3 viewDirWS, float nebulaCellCount, float nebulaDensi
     float3 emissionNebula = DrawEmissionNebulas(viewDirWS, nebulaCellCount, nebulaDensity, nebulaBrightness);
 
     return dust1 + dust2 + dust3 + emissionNebula;
-    return DrawNebulaDust(viewDirWS);
 }
 
 float3 NebulaDebug(float3 viewDirWS)

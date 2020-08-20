@@ -39,6 +39,34 @@
                 #pragma fragment Frag_SpaceSky_Screen
             ENDHLSL
         }
+
+        //For fullscreen cached sky
+        Pass
+        {
+            ZWrite Off
+            ZTest LEqual
+            Blend Off
+            Cull Off
+
+            HLSLPROGRAM
+                #pragma vertex Vert_SpaceSky
+                #pragma fragment Frag_SpaceSky_ScreenCached
+            ENDHLSL
+        }
+
+        //For cubemap that caches sky
+        Pass
+        {
+            ZWrite Off
+            ZTest LEqual
+            Blend Off
+            Cull Off
+
+            HLSLPROGRAM
+                #pragma vertex Vert_SpaceSky
+                #pragma fragment Frag_SpaceSky_CubemapCached
+            ENDHLSL
+        }
     }
     Fallback Off
 }

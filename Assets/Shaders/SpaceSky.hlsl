@@ -31,6 +31,9 @@ float _nebulaCellCount;
 float _nebulaDensity;
 float _nebulaBrightness;
 
+TEXTURECUBE(_SpaceSkyCubemap);
+SAMPLER(sampler_SpaceSkyCubemap);
+
 struct SpaceSky_Attributes
 {
 	uint vertexId : SV_VertexID;
@@ -82,4 +85,34 @@ float4 Frag_SpaceSky_Screen(SpaceSky_Varyings i) : SV_Target
 {
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
     return DrawSpaceSky(i, GetCurrentExposureMultiplier());
+}
+
+float4 Frag_SpaceSky_ScreenCached(SpaceSky_Varyings i) : SV_Target
+{
+    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+    float3 viewDirWS = GetSkyViewDirWS(i.positionCS.xy);
+
+    float xOffset = abs(ddx(i.positionCS.x));
+    float yOffset = abs(ddy(i.positionCS.y));
+    float3 viewDirWSAdjacent[8];
+    viewDirWSAdjacent[0] = GetSkyViewDirWS(i.positionCS.xy + float2(xOffset, 0));
+    viewDirWSAdjacent[1] = GetSkyViewDirWS(i.positionCS.xy + float2(-xOffset, 0));
+    viewDirWSAdjacent[2] = GetSkyViewDirWS(i.positionCS.xy + float2(0, yOffset));
+    viewDirWSAdjacent[3] = GetSkyViewDirWS(i.positionCS.xy + float2(0, -yOffset));
+    viewDirWSAdjacent[4] = GetSkyViewDirWS(i.positionCS.xy + float2(xOffset, yOffset));
+    viewDirWSAdjacent[5] = GetSkyViewDirWS(i.positionCS.xy + float2(xOffset, -yOffset));
+    viewDirWSAdjacent[6] = GetSkyViewDirWS(i.positionCS.xy + float2(-xOffset, yOffset));
+    viewDirWSAdjacent[7] = GetSkyViewDirWS(i.positionCS.xy + float2(-xOffset, -yOffset));
+
+    float3 starfields = Draw4StarFields(viewDirWS, _starCellCounts, _starRadii, _starBrightnesses, _starFieldDensities, viewDirWSAdjacent);
+    viewDirWS = float3(-viewDirWS.x, -viewDirWS.y, -viewDirWS.z);
+    float3 nebulas = SAMPLE_TEXTURECUBE_LOD(_SpaceSkyCubemap, sampler_SpaceSkyCubemap, normalize(viewDirWS), 0.0).xyz;
+    return float4(nebulas + starfields, 1);
+}
+
+float4 Frag_SpaceSky_CubemapCached(SpaceSky_Varyings i) : SV_Target
+{
+    float3 viewDirWS = GetSkyViewDirWS(i.positionCS.xy);
+    float3 nebulas = DrawAllNebulas(viewDirWS, _nebulaCellCount, _nebulaDensity, _nebulaBrightness);
+    return float4(nebulas, 1);
 }
