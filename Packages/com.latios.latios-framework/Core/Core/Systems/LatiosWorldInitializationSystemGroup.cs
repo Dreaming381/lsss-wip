@@ -87,13 +87,14 @@ namespace Latios.Systems
 
         protected override void OnUpdate()
         {
-            LatiosWorld lw       = World as LatiosWorld;
-            lw.pauseForSceneLoad = false;
+            m_destroySystem.RefreshEvents();
+            LatiosWorld lw = World as LatiosWorld;
+            lw.FrameStart();
             foreach (var sys in m_systemsToUpdate)
             {
-                sys.Update();
-                if (lw.pauseForSceneLoad)
+                if (lw.paused)
                     break;
+                sys.Update();
             }
         }
     }

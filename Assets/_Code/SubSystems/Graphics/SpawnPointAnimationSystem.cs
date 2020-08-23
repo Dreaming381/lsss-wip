@@ -15,6 +15,7 @@ namespace Lsss
             Entities.ForEach((ref Rotation rot, ref Scale scale, in TimeToLive timeToLive, in SpawnPointAnimationData data) =>
             {
                 float growFactor   = math.unlerp(data.growStartTime, data.growEndTime, timeToLive.timeToLive);
+                growFactor         = math.select(growFactor, 1f, data.growStartTime == data.growEndTime);
                 float shrinkFactor = math.unlerp(0f, data.shrinkStartTime, timeToLive.timeToLive);
                 float factor       = math.saturate(math.min(growFactor, shrinkFactor));
                 bool  isGrowing    = growFactor < shrinkFactor;

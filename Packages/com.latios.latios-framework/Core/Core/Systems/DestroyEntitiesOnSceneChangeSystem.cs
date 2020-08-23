@@ -13,24 +13,33 @@ namespace Latios.Systems
 
         protected override void OnCreate()
         {
-            m_destroyQuery              = Fluent.WithAll<LatiosSceneChangeDummyTag>().Without<WorldGlobalTag>().Without<DontDestroyOnSceneChangeTag>().Build();
-            SceneManager.sceneUnloaded += RealUpdateOnSceneChange;
+            m_destroyQuery =
+                Fluent.WithAll<LatiosSceneChangeDummyTag>().Without<WorldGlobalTag>().Without<DontDestroyOnSceneChangeTag>().IncludePrefabs().IncludeDisabled().Build();
+            SceneManager.activeSceneChanged += RealUpdateOnSceneChange;
         }
 
         protected override void OnDestroy()
         {
-            SceneManager.sceneUnloaded -= RealUpdateOnSceneChange;
+            SceneManager.activeSceneChanged -= RealUpdateOnSceneChange;
         }
 
         protected override void OnUpdate()
         {
         }
 
-        private void RealUpdateOnSceneChange(Scene unloaded)
+        internal void RefreshEvents()
         {
-            if (unloaded.isSubScene)
+            SceneManager.activeSceneChanged -= RealUpdateOnSceneChange;
+            SceneManager.activeSceneChanged += RealUpdateOnSceneChange;
+        }
+
+        private void RealUpdateOnSceneChange(Scene unloaded, Scene loaded)
+        {
+            if (loaded.isSubScene)
                 return;
 
+            latiosWorld.ResumeNextFrame();
+            Debug.Log("Destroying entities on scene change");
             EntityManager.AddComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
             EntityManager.DestroyEntity(m_destroyQuery);
             EntityManager.RemoveComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);

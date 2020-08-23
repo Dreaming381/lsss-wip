@@ -9,6 +9,7 @@ namespace Latios.Systems
     public class SceneManagerSystem : SubSystem
     {
         private EntityQuery m_rlsQuery;
+        private bool        m_paused = false;
 
         protected override void OnCreate()
         {
@@ -51,9 +52,10 @@ namespace Latios.Systems
                         curr.previousScene = curr.currentScene;
                         UnityEngine.Debug.Log("Loading scene: " + targetScene);
                         SceneManager.LoadScene(targetScene.ToString());
-                        latiosWorld.pauseForSceneLoad = true;
-                        curr.currentScene             = targetScene;
-                        curr.isSceneFirstFrame        = true;
+                        latiosWorld.Pause();
+                        m_paused               = true;
+                        curr.currentScene      = targetScene;
+                        curr.isSceneFirstFrame = true;
                         worldGlobalEntity.SetComponentData(curr);
                         EntityManager.RemoveComponent<RequestLoadScene>(m_rlsQuery);
                         return;
@@ -68,8 +70,14 @@ namespace Latios.Systems
                 currentScene.currentScene      = SceneManager.GetActiveScene().name;
                 currentScene.isSceneFirstFrame = true;
             }
+            else if (m_paused)
+            {
+                m_paused = false;
+            }
             else
+            {
                 currentScene.isSceneFirstFrame = false;
+            }
             worldGlobalEntity.SetComponentData(currentScene);
         }
     }

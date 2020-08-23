@@ -9,6 +9,11 @@ namespace Lsss
         [HideInInspector] public bool retry;
         [HideInInspector] public bool mainMenu;
 
+        private void Awake()
+        {
+            Debug.Log("Results screen live");
+        }
+
         public void SetNextAction(bool isRetryAndNotMainMenu)
         {
             retry    = isRetryAndNotMainMenu;

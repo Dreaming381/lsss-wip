@@ -19,11 +19,19 @@ namespace Lsss.Tools
         protected override void OnUpdate()
         {
             var profilingData = worldGlobalEntity.GetCollectionComponent<ProfilingData>(false);
-            Entities.ForEach((ProfilerPanel panel) =>
+            Entities.ForEach((Entity entity, ProfilerPanel panel) =>
             {
-                //Strange bug in build
                 if (panel.panel == null)
+                {
+                    Debug.LogError("Exists with destroyed panel");
+                    Debug.LogError(EntityManager.Exists(entity));
+                    var types = EntityManager.GetComponentTypes(entity);
+                    foreach (var t in types)
+                    {
+                        Debug.LogError(t.GetManagedType());
+                    }
                     return;
+                }
 
                 bool toggle = Keyboard.current.pKey.wasPressedThisFrame;
                 if (toggle)

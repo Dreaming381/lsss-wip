@@ -8,7 +8,7 @@ namespace Latios.Systems
         protected override void OnUpdate()
         {
             LatiosWorld lw = World as LatiosWorld;
-            if (!lw.pauseForSceneLoad)
+            if (!lw.paused)
                 base.OnUpdate();
         }
     }

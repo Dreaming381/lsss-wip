@@ -57,7 +57,7 @@ namespace Lsss
             {
                 float orbitalRadius   = random.NextFloat(0f, 1f);
                 path.radius           = orbitalRadius * orbitalRadius * (radius - populator.colliderRadius);
-                path.center           = random.NextFloat3(0f, radius - orbitalRadius - populator.colliderRadius);
+                path.center           = random.NextFloat3Direction() * random.NextFloat(0f, radius - path.radius);
                 path.orbitPlaneNormal = random.NextFloat3Direction();
                 path.orbitSpeed       = random.NextFloat(populator.minMaxOrbitSpeed.x, populator.minMaxOrbitSpeed.y);
 

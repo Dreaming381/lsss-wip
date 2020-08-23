@@ -29,8 +29,8 @@ namespace Latios
         private SimulationSystemGroup     m_simulationSystemGroup;
         private PresentationSystemGroup   m_presentationSystemGroup;
 
-        //Todo: Refactor hack.
-        internal bool pauseForSceneLoad = false;
+        private bool m_paused          = false;
+        private bool m_resumeNextFrame = false;
 
         public LatiosWorld(string name) : base(name)
         {
@@ -52,6 +52,22 @@ namespace Latios
             m_initializationSystemGroup = GetOrCreateSystem<LatiosWorldInitializationSystemGroup>();
             m_simulationSystemGroup     = GetOrCreateSystem<LatiosSimulationSystemGroup>();
             m_presentationSystemGroup   = GetOrCreateSystem<LatiosPresentationSystemGroup>();
+        }
+
+        //Todo: Make this API public in the future.
+        internal void Pause() => m_paused                    = true;
+        internal void ResumeNextFrame() => m_resumeNextFrame = true;
+        internal bool paused => m_paused;
+        internal bool willResumeNextFrame => m_resumeNextFrame;
+
+        internal void FrameStart()
+        {
+            if (m_resumeNextFrame)
+            {
+                m_paused          = false;
+                m_resumeNextFrame = false;
+                Debug.Log("Resuming world");
+            }
         }
 
         internal void CreateNewSceneGlobalEntity()
@@ -205,7 +221,7 @@ namespace Latios
         protected override void OnUpdate()
         {
             LatiosWorld lw = World as LatiosWorld;
-            if (!lw.pauseForSceneLoad)
+            if (!lw.paused)
                 base.OnUpdate();
         }
     }
@@ -215,7 +231,7 @@ namespace Latios
         protected override void OnUpdate()
         {
             LatiosWorld lw = World as LatiosWorld;
-            if (!lw.pauseForSceneLoad)
+            if (!lw.paused)
                 base.OnUpdate();
         }
     }

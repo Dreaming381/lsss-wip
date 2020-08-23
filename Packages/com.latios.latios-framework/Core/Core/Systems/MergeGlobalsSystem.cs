@@ -9,6 +9,7 @@ namespace Latios.Systems
     public class MergeGlobalsSystem : SubSystem
     {
         private EntityDataCopyKit m_copyKit;
+        private EntityQuery       m_query;
 
         protected override void OnCreate()
         {
@@ -17,7 +18,7 @@ namespace Latios.Systems
 
         protected override void OnUpdate()
         {
-            Entities.WithStructuralChanges().ForEach((Entity entity, ref GlobalEntityData globalEntityData) =>
+            Entities.WithStoreEntityQueryInField(ref m_query).WithStructuralChanges().ForEach((Entity entity, ref GlobalEntityData globalEntityData) =>
             {
                 var types        = EntityManager.GetComponentTypes(entity, Unity.Collections.Allocator.TempJob);
                 var targetEntity = globalEntityData.globalScope == GlobalScope.World ? worldGlobalEntity : sceneGlobalEntity;
@@ -43,6 +44,7 @@ namespace Latios.Systems
                         $"Entity {entity} could not copy component {errorType.GetManagedType()} onto {(globalEntityData.globalScope == GlobalScope.World ? "world" : "scene")} entity because the component already exists and the MergeMethod was set to ErrorOnConflict.");
                 }
             }).Run();
+            EntityManager.DestroyEntity(m_query);
         }
 
         /*private EntityQuery group;
