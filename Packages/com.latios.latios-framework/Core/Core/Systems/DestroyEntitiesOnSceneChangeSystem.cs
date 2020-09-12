@@ -27,19 +27,9 @@ namespace Latios.Systems
         {
         }
 
-        internal void RefreshEvents()
-        {
-            SceneManager.activeSceneChanged -= RealUpdateOnSceneChange;
-            SceneManager.activeSceneChanged += RealUpdateOnSceneChange;
-        }
-
         private void RealUpdateOnSceneChange(Scene unloaded, Scene loaded)
         {
-            if (loaded.isSubScene)
-                return;
-
             latiosWorld.ResumeNextFrame();
-            Debug.Log("Destroying entities on scene change");
             EntityManager.AddComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
             EntityManager.DestroyEntity(m_destroyQuery);
             EntityManager.RemoveComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);

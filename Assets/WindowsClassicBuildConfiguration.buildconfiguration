@@ -45,7 +45,7 @@
             "$type": "Unity.Build.Classic.ClassicBuildProfile, Unity.Build.Classic",
             "$version": 1,
             "Platform": "Windows",
-            "Configuration": 2,
+            "Configuration": 3,
             "Incremental": false
         },
         {

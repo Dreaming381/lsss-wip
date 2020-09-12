@@ -5,7 +5,7 @@ using Unity.Entities;
 
 namespace Latios.Systems
 {
-    public class LatiosWorldInitializationSystemGroup : InitializationSystemGroup
+    public class LatiosInitializationSystemGroup : InitializationSystemGroup
     {
         private SceneManagerSystem                   m_sceneManager;
         private MergeGlobalsSystem                   m_mergeGlobals;
@@ -87,7 +87,6 @@ namespace Latios.Systems
 
         protected override void OnUpdate()
         {
-            m_destroySystem.RefreshEvents();
             LatiosWorld lw = World as LatiosWorld;
             lw.FrameStart();
             foreach (var sys in m_systemsToUpdate)
@@ -99,7 +98,7 @@ namespace Latios.Systems
         }
     }
 
-    [UpdateInGroup(typeof(LatiosWorldInitializationSystemGroup))]
+    [UpdateInGroup(typeof(LatiosInitializationSystemGroup))]
     public class LatiosSyncPointGroup : ComponentSystemGroup
     {
     }

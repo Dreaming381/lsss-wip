@@ -49,7 +49,7 @@ namespace Latios
             EntityManager.SetName(sceneGlobalEntity, "Scene Global Entity");
 #endif
 
-            m_initializationSystemGroup = GetOrCreateSystem<LatiosWorldInitializationSystemGroup>();
+            m_initializationSystemGroup = GetOrCreateSystem<LatiosInitializationSystemGroup>();
             m_simulationSystemGroup     = GetOrCreateSystem<LatiosSimulationSystemGroup>();
             m_presentationSystemGroup   = GetOrCreateSystem<LatiosPresentationSystemGroup>();
         }
@@ -66,7 +66,6 @@ namespace Latios
             {
                 m_paused          = false;
                 m_resumeNextFrame = false;
-                Debug.Log("Resuming world");
             }
         }
 

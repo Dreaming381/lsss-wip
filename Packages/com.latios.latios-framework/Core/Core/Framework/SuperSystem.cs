@@ -6,10 +6,26 @@ namespace Latios
 {
     public abstract class RootSuperSystem : SuperSystem
     {
+        bool m_recursiveContext = false;
+
         protected override void OnUpdate()
         {
-            if (ShouldUpdateSystem())
+            if (m_recursiveContext)
+                return;
+
+            bool shouldUpdate = ShouldUpdateSystem();
+            if (!shouldUpdate)
+            {
+                Enabled            = false;
+                m_recursiveContext = true;
+                Update();
+                m_recursiveContext = false;
+                Enabled            = true;
+            }
+            else
+            {
                 base.OnUpdate();
+            }
         }
     }
 
@@ -54,6 +70,12 @@ namespace Latios
                         if (latiosSys.ShouldUpdateSystem())
                         {
                             sys.Enabled = true;
+                            sys.Update();
+                        }
+                        else if (sys.Enabled)
+                        {
+                            sys.Enabled = false;
+                            //Update to invoke OnStopRunning().
                             sys.Update();
                         }
                         else
