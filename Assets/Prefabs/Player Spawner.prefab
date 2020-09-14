@@ -138,8 +138,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a468b5c704c2ba843a07df26bdcf641c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_height: 5
-  m_radius: 5
+  m_height: 6
+  m_radius: 1.25
   m_axis: 2
 --- !u!1 &6924370021084981889
 GameObject:
@@ -168,8 +168,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6924370021084981889}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 27}
-  m_LocalScale: {x: 50, y: 50, z: 50}
+  m_LocalPosition: {x: 0, y: 0, z: 7}
+  m_LocalScale: {x: 10, y: 10, z: 10}
   m_Children: []
   m_Father: {fileID: 2521310744672397629}
   m_RootOrder: 0
@@ -296,9 +296,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7659a7471bde3e244a97b5a6b9d298ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifeTime: 5
-  growTime: 1.5
+  lifeTime: 15
+  growTime: 0
   shrinkTime: 1.5
-  spawnTime: 1.5
-  growSpins: 1
+  spawnTime: 0
+  growSpins: 0
   shrinkSpins: 1

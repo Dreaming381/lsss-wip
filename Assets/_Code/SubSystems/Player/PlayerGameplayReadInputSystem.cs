@@ -24,7 +24,9 @@ namespace Lsss
                     float stickGas     = gamepad.rightStick.ReadValue().y;
                     float accel        = math.select(0f, 1f, accelDown);
                     float brake        = math.select(0f, -1f, brakeDown);
-                    desiredActions.gas = math.clamp(stickGas + accel + brake, -1f, 1f);
+                    desiredActions.gas = math.clamp(stickGas + accel + brake,
+                                                    -1f,
+                                                    1f);
 
                     desiredActions.boost = gamepad.leftTrigger.isPressed;
 
@@ -60,6 +62,16 @@ namespace Lsss
 
                         desiredActions.boost = keyboard.spaceKey.isPressed;
                         desiredActions.fire  = mouse.leftButton.isPressed;
+                    }
+                }
+
+                //Early quit
+                {
+                    var keyboard = Keyboard.current;
+                    if (keyboard.nKey.isPressed && keyboard.digit0Key.isPressed)
+                    {
+                        var ecb                                                             = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>().CreateCommandBuffer();
+                        ecb.AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Title and Menu" });
                     }
                 }
             }).WithoutBurst().Run();

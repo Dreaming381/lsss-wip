@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89345441387c4324a63c489e9edc99fe, type: 3}
   m_Name: HybridRendererSettings
   m_EditorClassIdentifier: 
-  PersistentGPUMemoryMB: 128
+  PersistentGPUMemoryMB: 512

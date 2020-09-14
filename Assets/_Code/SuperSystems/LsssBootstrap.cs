@@ -10,6 +10,9 @@ public class LatiosBootstrap : ICustomBootstrap
 {
     public bool Initialize(string defaultWorldName)
     {
+        var hybridRendererSettings                   = Unity.Rendering.HybridRendererSettings.GetOrCreateSettings();
+        hybridRendererSettings.PersistentGPUMemoryMB = 256;
+
         var world                             = new LatiosWorld(defaultWorldName);
         World.DefaultGameObjectInjectionWorld = world;
 
