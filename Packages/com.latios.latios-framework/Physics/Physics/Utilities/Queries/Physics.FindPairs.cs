@@ -1,9 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-using Unity.Burst;
-using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
+﻿using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using Unity.Mathematics;
 
 //Todo: Stream types, caches, scratchlists, and inflations
 namespace Latios.PhysicsEngine
@@ -146,6 +142,27 @@ namespace Latios.PhysicsEngine
                     processor = config.processor
                 }.Schedule(jh);
                 return jh;
+            }
+        }
+
+        public static JobHandle ScheduleParallelUnsafe<T>(this FindPairsConfig<T> config, JobHandle inputDeps = default) where T : struct, IFindPairsProcessor
+        {
+            if (config.isLayerLayer)
+            {
+                return new FindPairsInternal.LayerLayerParallelUnsafe<T>
+                {
+                    layerA    = config.layerA,
+                    layerB    = config.layerB,
+                    processor = config.processor
+                }.ScheduleParallel(3 * config.layerA.BucketCount - 2, 1, inputDeps);
+            }
+            else
+            {
+                return new FindPairsInternal.LayerSelfParallelUnsafe<T>
+                {
+                    layer     = config.layerA,
+                    processor = config.processor
+                }.ScheduleParallel(2 * config.layerA.BucketCount - 1, 1, inputDeps);
             }
         }
         #endregion Schedulers

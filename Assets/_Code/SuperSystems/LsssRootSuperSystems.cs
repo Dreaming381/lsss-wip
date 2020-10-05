@@ -41,7 +41,7 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<GraphicsTransformsSuperSystem>();
 
             //In here rather than LsssPresentationRootSuperSystem so that I can see the health readout that triggered death.
-            GetOrCreateAndAddSystem<UiGameplaySuperSystem>();
+            //GetOrCreateAndAddSystem<UiGameplaySuperSystem>();
         }
     }
 
@@ -54,6 +54,7 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<UiResultsSuperSystem>();
             GetOrCreateAndAddSystem<ShaderPropertySuperSystem>();
             GetOrCreateAndAddSystem<ProfilingDisplayUpdateSystem>();
+            GetOrCreateAndAddSystem<UiGameplaySuperSystem>();
         }
     }
 }

@@ -8,6 +8,10 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine.Profiling;
 
+//The IFindPairsProcessors only force safeToSpawn from true to false.
+//Because of this, it is safe to use the Unsafe parallel schedulers.
+//However, if the logic is ever modified, this decision needs to be re-evaluated.
+
 namespace Lsss
 {
     public class CheckSpawnPointIsSafeSystem : SubSystem
@@ -37,35 +41,35 @@ namespace Lsss
             var spawnLayer = sceneGlobalEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallel(Dependency);
+            Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
             var wallLayer = sceneGlobalEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallel(Dependency);
+            Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
             var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, bulletLayer, processor).ScheduleParallel(Dependency);
+            Dependency = Physics.FindPairs(spawnLayer, bulletLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
             var explosionLayer = sceneGlobalEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallel(Dependency);
+            Dependency = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
             var wormholeLayer = sceneGlobalEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallel(Dependency);
+            Dependency = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             //Todo: Remove hack
@@ -82,7 +86,7 @@ namespace Lsss
                 var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
                 Profiler.EndSample();
                 Profiler.BeginSample("Schedule2");
-                Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallel(Dependency);
+                Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallelUnsafe(Dependency);
                 Profiler.EndSample();
             }).WithoutBurst().Run();
 

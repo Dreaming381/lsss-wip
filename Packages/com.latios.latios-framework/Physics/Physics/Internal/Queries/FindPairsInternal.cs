@@ -114,6 +114,64 @@ namespace Latios.PhysicsEngine
                 }
             }
         }
+
+        [BurstPatcher(typeof(IFindPairsProcessor))]
+        [BurstCompile]
+        public struct LayerSelfParallelUnsafe<T> : IJobFor where T : struct, IFindPairsProcessor
+        {
+            [ReadOnly] public CollisionLayer layer;
+            public T                         processor;
+
+            public void Execute(int i)
+            {
+                if (i < layer.BucketCount)
+                {
+                    var bucket = layer.GetBucketSlices(i);
+                    SelfSweep(bucket, i, processor);
+                }
+                else
+                {
+                    i               -= layer.BucketCount;
+                    var bucket       = layer.GetBucketSlices(i);
+                    var crossBucket  = layer.GetBucketSlices(layer.BucketCount - 1);
+                    BipartiteSweep(bucket, crossBucket, i + layer.BucketCount, processor);
+                }
+            }
+        }
+
+        [BurstPatcher(typeof(IFindPairsProcessor))]
+        [BurstCompile]
+        public struct LayerLayerParallelUnsafe<T> : IJobFor where T : struct, IFindPairsProcessor
+        {
+            [ReadOnly] public CollisionLayer layerA;
+            [ReadOnly] public CollisionLayer layerB;
+            public T                         processor;
+
+            public void Execute(int i)
+            {
+                if (i < layerA.BucketCount)
+                {
+                    var bucketA = layerA.GetBucketSlices(i);
+                    var bucketB = layerB.GetBucketSlices(i);
+                    BipartiteSweep(bucketA, bucketB, i, processor);
+                }
+                else if (i < 2 * layerB.BucketCount - 1)
+                {
+                    i               -= layerB.BucketCount;
+                    var bucket       = layerB.GetBucketSlices(i);
+                    var crossBucket  = layerA.GetBucketSlices(layerA.BucketCount - 1);
+                    BipartiteSweep(crossBucket, bucket, i + layerB.BucketCount, processor);
+                }
+                else
+                {
+                    var jobIndex     = i;
+                    i               -= (2 * layerB.BucketCount - 1);
+                    var bucket       = layerA.GetBucketSlices(i);
+                    var crossBucket  = layerB.GetBucketSlices(layerB.BucketCount - 1);
+                    BipartiteSweep(bucket, crossBucket, jobIndex, processor);
+                }
+            }
+        }
         #endregion
 
         #region ImmediateMethods

@@ -4,7 +4,9 @@ namespace Latios.PhysicsEngine
 {
     internal static class QueriesLowLevelUtils
     {
-        //Todo: Copied from Unity.Physics. Understand this later.
+        //Todo: Copied from Unity.Physics. I still don't fully understand this, but it is working correctly for degenerate segments somehow.
+        //I tested with parallel segments, segments with 0-length edges and a few other weird things. It holds up with pretty good accuracy.
+        //I'm not sure where the NaNs or infinities disappear. But they do.
         // Find the closest points on a pair of line segments
         internal static void SegmentSegment(float3 pointA, float3 edgeA, float3 pointB, float3 edgeB, out float3 closestAOut, out float3 closestBOut)
         {
@@ -19,7 +21,7 @@ namespace Latios.PhysicsEngine
 
             float invDenom, invLengthASq, invLengthBSq;
             {
-                float denom  = lengthASq * lengthBSq - r * r;
+                float  denom = lengthASq * lengthBSq - r * r;
                 float3 inv   = 1.0f / new float3(denom, lengthASq, lengthBSq);
                 invDenom     = inv.x;
                 invLengthASq = inv.y;
@@ -42,3 +44,4 @@ namespace Latios.PhysicsEngine
         }
     }
 }
+
