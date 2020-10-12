@@ -14,19 +14,24 @@ namespace Lsss
         {
             var enabledShipList = new NativeList<Entity>(Allocator.TempJob);
 
-            Entities.WithAll<SpawnPointTag>().ForEach((ref SpawnPayload payload, in SpawnTimes times, in Translation trans, in Rotation rot) =>
+            var ecb = new EnableCommandBuffer(Allocator.TempJob);
+
+            Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, ref SpawnPayload payload, in SpawnTimes times) =>
             {
                 if (times.enableTime <= 0f && payload.disabledShip != Entity.Null)
                 {
                     var ship = payload.disabledShip;
-                    EntityManager.SetEnabled(ship, true);
-                    EntityManager.SetComponentData(ship, trans);
-                    EntityManager.SetComponentData(ship, rot);
+                    ecb.Add(ship);
+                    SetComponent(ship, GetComponent<Translation>(entity));
+                    SetComponent(ship, GetComponent<Rotation>(entity));
                     payload.disabledShip = Entity.Null;
 
                     enabledShipList.Add(ship);
                 }
-            }).WithStructuralChanges().Run();
+            }).Run();
+
+            ecb.Playback(EntityManager, GetBufferFromEntity<LinkedEntityGroup>(true));
+            ecb.Dispose();
 
             //Todo: It seems that if you Instantiate and then immediately disable a Transform hierarchy, the disabled entities do not get their child buffers.
             //This hack attempts to dirty the children so that the transform system picks up on this.
