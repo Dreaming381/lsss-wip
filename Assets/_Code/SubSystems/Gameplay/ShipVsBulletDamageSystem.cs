@@ -11,17 +11,9 @@ namespace Lsss
 {
     public class ShipVsBulletDamageSystem : SubSystem
     {
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
-            var ecbPackage = m_ecbSystem.CreateCommandBuffer();
-            var ecb        = ecbPackage.AsParallelWriter();
+            var dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
             var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
@@ -29,7 +21,7 @@ namespace Lsss
             {
                 bulletDamageCdfe = GetComponentDataFromEntity<Damage>(true),
                 shipHealthCdfe   = this.GetPhysicsComponentDataFromEntity<ShipHealth>(),
-                ecb              = ecb
+                dcb              = dcb
             };
 
             var backup = Dependency;
@@ -43,8 +35,6 @@ namespace Lsss
                 var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
                 Dependency    = Physics.FindPairs(bulletLayer, shipLayer, processor).ScheduleParallel(Dependency);
             }).WithoutBurst().Run();
-
-            m_ecbSystem.AddJobHandleForProducer(Dependency);
         }
 
         //Assumes A is bullet and B is ship.
@@ -53,7 +43,7 @@ namespace Lsss
             public PhysicsComponentDataFromEntity<ShipHealth> shipHealthCdfe;
             [ReadOnly] public ComponentDataFromEntity<Damage> bulletDamageCdfe;
 
-            public EntityCommandBuffer.ParallelWriter ecb;
+            public DestroyCommandBuffer.ParallelWriter dcb;
 
             public void Execute(FindPairsResult result)
             {
@@ -66,7 +56,7 @@ namespace Lsss
 
                     shipHealthCdfe[result.entityB] = health;
 
-                    ecb.DestroyEntity(result.jobIndex, result.entityA);
+                    dcb.Add(result.entityA, result.jobIndex);
                 }
             }
         }

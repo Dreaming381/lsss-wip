@@ -14,6 +14,16 @@ namespace Latios
         public ManagedEntity worldGlobalEntity { get; private set; }
         public ManagedEntity sceneGlobalEntity { get; private set; }
 
+        public SyncPointPlaybackSystem SyncPoint
+        {
+            get
+            {
+                m_activeSystemAccessedSyncPoint = true;
+                return m_syncPointPlaybackSystem;
+            }
+            set => m_syncPointPlaybackSystem = value;
+        }
+
         internal ManagedStructComponentStorage ManagedStructStorage { get { return m_componentStorage; } }
         internal CollectionComponentStorage CollectionComponentStorage { get { return m_collectionsStorage; } }
 
@@ -28,6 +38,7 @@ namespace Latios
         private InitializationSystemGroup m_initializationSystemGroup;
         private SimulationSystemGroup     m_simulationSystemGroup;
         private PresentationSystemGroup   m_presentationSystemGroup;
+        private SyncPointPlaybackSystem   m_syncPointPlaybackSystem;
 
         private bool m_paused          = false;
         private bool m_resumeNextFrame = false;
@@ -52,6 +63,7 @@ namespace Latios
             m_initializationSystemGroup = GetOrCreateSystem<LatiosInitializationSystemGroup>();
             m_simulationSystemGroup     = GetOrCreateSystem<LatiosSimulationSystemGroup>();
             m_presentationSystemGroup   = GetOrCreateSystem<LatiosPresentationSystemGroup>();
+            m_syncPointPlaybackSystem   = GetExistingSystem<SyncPointPlaybackSystem>();
         }
 
         //Todo: Make this API public in the future.
@@ -81,8 +93,10 @@ namespace Latios
             }
         }
 
-        #region CollectionDependencies
+        #region AutoDependencies
+
         private SubSystemBase m_activeSystem;
+        private bool          m_activeSystemAccessedSyncPoint;
 
         internal void UpdateOrCompleteDependency(JobHandle readHandle, JobHandle writeHandle)
         {
@@ -129,16 +143,17 @@ namespace Latios
             }
         }
 
-        internal void BeginCollectionTracking(SubSystemBase sys)
+        internal void BeginDependencyTracking(SubSystemBase sys)
         {
             if (m_activeSystem != null)
             {
                 throw new InvalidOperationException("Error: Calling Update on a SubSystem from within another SubSystem is not allowed!");
             }
-            m_activeSystem = sys;
+            m_activeSystem                  = sys;
+            m_activeSystemAccessedSyncPoint = false;
         }
 
-        internal void EndCollectionTracking(JobHandle outputDeps)
+        internal void EndDependencyTracking(JobHandle outputDeps)
         {
             m_activeSystem = null;
             if (outputDeps.IsCompleted)
@@ -149,6 +164,10 @@ namespace Latios
             else
             {
                 UpdateCollectionDependencies(outputDeps);
+                if (m_activeSystemAccessedSyncPoint)
+                {
+                    m_syncPointPlaybackSystem.AddJobHandleForProducer(outputDeps);
+                }
             }
         }
 

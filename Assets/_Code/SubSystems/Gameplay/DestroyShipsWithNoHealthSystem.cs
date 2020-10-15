@@ -10,18 +10,11 @@ namespace Lsss
 {
     public class DestroyShipsWithNoHealthSystem : SubSystem
     {
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
-            var   ecbPackage = m_ecbSystem.CreateCommandBuffer();
-            var   ecb        = ecbPackage.AsParallelWriter();
-            float dt         = Time.DeltaTime;
+            var   ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer().AsParallelWriter();
+            var   dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            float dt  = Time.DeltaTime;
 
             Entities.WithChangeFilter<ShipHealth>().ForEach((Entity entity,
                                                              int entityInQueryIndex,
@@ -31,14 +24,12 @@ namespace Lsss
             {
                 if (health.health <= 0f)
                 {
-                    ecb.DestroyEntity(entityInQueryIndex, entity);
+                    dcb.Add(entity, entityInQueryIndex);
 
                     var explosion                                                           = ecb.Instantiate(entityInQueryIndex, explosionPrefab.explosionPrefab);
                     ecb.SetComponent(entityInQueryIndex, explosion, new Translation { Value = ltw.Position });
                 }
             }).ScheduleParallel();
-
-            m_ecbSystem.AddJobHandleForProducer(Dependency);
         }
     }
 }

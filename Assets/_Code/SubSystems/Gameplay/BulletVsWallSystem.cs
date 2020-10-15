@@ -11,37 +11,27 @@ namespace Lsss
 {
     public class BulletVsWallSystem : SubSystem
     {
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
-            var ecbPackage = m_ecbSystem.CreateCommandBuffer();
-            var ecb        = ecbPackage.AsParallelWriter();
+            var dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
             var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             var wallLayer   = sceneGlobalEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
-            var processor = new DestroyBulletsThatHitWallsProcessor { ecb = ecb };
+            var processor = new DestroyBulletsThatHitWallsProcessor { dcb = dcb };
 
             Dependency = Physics.FindPairs(bulletLayer, wallLayer, processor).ScheduleParallel(Dependency);
-
-            m_ecbSystem.AddJobHandleForProducer(Dependency);
         }
 
         struct DestroyBulletsThatHitWallsProcessor : IFindPairsProcessor
         {
-            public EntityCommandBuffer.ParallelWriter ecb;
+            public DestroyCommandBuffer.ParallelWriter dcb;
 
             public void Execute(FindPairsResult result)
             {
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
-                    ecb.DestroyEntity(result.jobIndex, result.entityA);
+                    dcb.Add(result.entityA, result.jobIndex);
                 }
             }
         }

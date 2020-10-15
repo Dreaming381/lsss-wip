@@ -11,13 +11,6 @@ namespace Lsss
 {
     public class TitleAndMenuUpdateSystem : SubSystem
     {
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
             Entities.ForEach((TitleAndMenu titleAndMenu) =>
@@ -79,7 +72,7 @@ namespace Lsss
 
                 if (titleAndMenu.selectedScene.Length > 0)
                 {
-                    var ecb                                                             = m_ecbSystem.CreateCommandBuffer();
+                    var ecb                                                             = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
                     ecb.AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = titleAndMenu.selectedScene });
                 }
             }).WithoutBurst().Run();

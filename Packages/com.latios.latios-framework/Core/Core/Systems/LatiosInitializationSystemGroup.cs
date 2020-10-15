@@ -7,6 +7,7 @@ namespace Latios.Systems
 {
     public class LatiosInitializationSystemGroup : InitializationSystemGroup
     {
+        private SyncPointPlaybackSystem              m_syncPlayback;
         private SceneManagerSystem                   m_sceneManager;
         private MergeGlobalsSystem                   m_mergeGlobals;
         private DestroyEntitiesOnSceneChangeSystem   m_destroySystem;
@@ -21,6 +22,7 @@ namespace Latios.Systems
             UseLegacySortOrder = true;
 
             base.OnCreate();
+            m_syncPlayback  = World.CreateSystem<SyncPointPlaybackSystem>();
             m_sceneManager  = World.CreateSystem<SceneManagerSystem>();
             m_mergeGlobals  = World.CreateSystem<MergeGlobalsSystem>();
             m_destroySystem = World.CreateSystem<DestroyEntitiesOnSceneChangeSystem>();
@@ -37,6 +39,7 @@ namespace Latios.Systems
             m_endECB   = World.GetExistingSystem<EndInitializationEntityCommandBufferSystem>();
             RemoveSystemFromUpdateList(m_beginECB);
             RemoveSystemFromUpdateList(m_endECB);
+            RemoveSystemFromUpdateList(m_syncPlayback);
             RemoveSystemFromUpdateList(m_sceneManager);
             RemoveSystemFromUpdateList(m_mergeGlobals);
             RemoveSystemFromUpdateList(m_cleanupGroup);
@@ -46,8 +49,9 @@ namespace Latios.Systems
             systems.Remove(m_beginECB);
             systems.Remove(m_endECB);
             // Re-insert built-in systems to construct the final list
-            var finalSystemList = new List<ComponentSystemBase>(5 + systems.Count);
+            var finalSystemList = new List<ComponentSystemBase>(6 + systems.Count);
             finalSystemList.Add(m_beginECB);
+            finalSystemList.Add(m_syncPlayback);
             finalSystemList.Add(m_sceneManager);
 
             //Todo: MergeGlobals and CleanupGroup need to happen after scene loads and patches but before user code.

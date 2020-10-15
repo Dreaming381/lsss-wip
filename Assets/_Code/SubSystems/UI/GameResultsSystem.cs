@@ -10,13 +10,6 @@ namespace Lsss
 {
     public class GameResultsSystem : SubSystem
     {
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
             Entities.ForEach((GameResult result) =>
@@ -25,15 +18,13 @@ namespace Lsss
                 UnityEngine.Cursor.visible   = true;
                 if (result.mainMenu)
                 {
-                    m_ecbSystem.CreateCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Title and Menu" });
-                    m_ecbSystem.AddJobHandleForProducer(Dependency);
+                    latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Title and Menu" });
                 }
                 else if (result.retry)
                 {
-                    m_ecbSystem.CreateCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene {
+                    latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene {
                         newScene = worldGlobalEntity.GetComponentData<CurrentScene>().previous
                     });
-                    m_ecbSystem.AddJobHandleForProducer(Dependency);
                 }
             }).WithoutBurst().Run();
         }

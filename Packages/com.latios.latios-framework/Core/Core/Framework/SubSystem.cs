@@ -36,9 +36,9 @@ namespace Latios
 
         protected sealed override void OnUpdate()
         {
-            latiosWorld.BeginCollectionTracking(this);
+            latiosWorld.BeginDependencyTracking(this);
             OnUpdateInternal();
-            latiosWorld.EndCollectionTracking(Dependency);
+            latiosWorld.EndDependencyTracking(Dependency);
         }
 
         protected sealed override void OnDestroy()

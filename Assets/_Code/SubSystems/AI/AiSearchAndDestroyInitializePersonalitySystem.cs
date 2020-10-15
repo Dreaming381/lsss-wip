@@ -15,14 +15,7 @@ namespace Lsss
             public Random random;
         }
 
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
         EntityQuery m_query;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
 
         protected override void OnUpdate()
         {
@@ -31,7 +24,7 @@ namespace Lsss
 
             Entity sge = sceneGlobalEntity;
 
-            var ecb = m_ecbSystem.CreateCommandBuffer();
+            var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
 
             Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiSearchAndDestroyPersonality personality,
                                                                                         in AiSearchAndDestroyPersonalityInitializerValues initalizer) =>
@@ -42,7 +35,6 @@ namespace Lsss
             }).Schedule();
 
             ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
-            m_ecbSystem.AddJobHandleForProducer(Dependency);
         }
     }
 }

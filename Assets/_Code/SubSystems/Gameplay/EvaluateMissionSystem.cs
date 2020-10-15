@@ -23,13 +23,11 @@ namespace Lsss
             public Options status;
         }
 
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-        EntityQuery                                  m_query;
+        EntityQuery m_query;
 
         protected override void OnCreate()
         {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-            m_query     = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
+            m_query = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
         }
 
         protected override void OnUpdate()
@@ -65,13 +63,11 @@ namespace Lsss
 
             if (status.status == MissionStatus.Options.Failed)
             {
-                m_ecbSystem.CreateCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Mission Failed" });
-                m_ecbSystem.AddJobHandleForProducer(Dependency);
+                latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Mission Failed" });
             }
             else if (status.status == MissionStatus.Options.Complete)
             {
-                m_ecbSystem.CreateCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Mission Complete" });
-                m_ecbSystem.AddJobHandleForProducer(Dependency);
+                latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Mission Complete" });
             }
         }
 

@@ -11,18 +11,10 @@ namespace Lsss
 {
     public class FireGunsSystem : SubSystem
     {
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
-            var   ecbPackage = m_ecbSystem.CreateCommandBuffer();
-            var   ecb        = ecbPackage.AsParallelWriter();
-            float dt         = Time.DeltaTime;
+            var   ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer().AsParallelWriter();
+            float dt  = Time.DeltaTime;
 
             Entities.WithAll<ShipTag>().ForEach((int entityInQueryIndex,
                                                  ref ShipReloadTime reloadTimes,
@@ -57,8 +49,6 @@ namespace Lsss
                     reloadTimes.bulletsRemaining = math.select(reloadTimes.bulletsRemaining, reloadTimes.bulletsPerClip, reloadClip);
                 }
             }).ScheduleParallel();
-
-            m_ecbSystem.AddJobHandleForProducer(Dependency);
         }
     }
 }

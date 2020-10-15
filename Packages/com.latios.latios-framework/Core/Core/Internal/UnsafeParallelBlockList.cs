@@ -14,9 +14,6 @@ namespace Latios
         private readonly int m_elementsPerBlock;
         private Allocator    m_allocator;
 
-        [NativeSetThreadIndex]
-        private int m_threadIndex;
-
         private PerThreadBlockList* m_perThreadBlockLists;
 
         public UnsafeParallelBlockList(int elementSize, int elementsPerBlock, Allocator allocator)
@@ -25,7 +22,6 @@ namespace Latios
             m_elementsPerBlock = elementsPerBlock;
             m_blockSize        = elementSize * elementsPerBlock;
             m_allocator        = allocator;
-            m_threadIndex      = 0;
 
             m_perThreadBlockLists = (PerThreadBlockList*)UnsafeUtility.Malloc(64 * JobsUtility.MaxJobThreadCount, 64, allocator);
             for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
@@ -37,9 +33,10 @@ namespace Latios
             }
         }
 
-        public void Write<T>(T value) where T : unmanaged
+        //The thread index is passed in because otherwise job reflection can't inject it through a pointer.
+        public void Write<T>(T value, int threadIndex) where T : unmanaged
         {
-            var blockList = m_perThreadBlockLists + m_threadIndex;
+            var blockList = m_perThreadBlockLists + threadIndex;
             if (blockList->nextWriteAddress > blockList->lastByteAddressInBlock)
             {
                 if (blockList->elementCount == 0)

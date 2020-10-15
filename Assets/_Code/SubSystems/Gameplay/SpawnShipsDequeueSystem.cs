@@ -16,13 +16,6 @@ namespace Lsss
             public Random random;
         }
 
-        BeginInitializationEntityCommandBufferSystem m_ecbSystem;
-
-        protected override void OnCreate()
-        {
-            m_ecbSystem = World.GetExistingSystem<BeginInitializationEntityCommandBufferSystem>();
-        }
-
         protected override void OnUpdate()
         {
             if (!sceneGlobalEntity.HasComponentData<NextSpawnCounter>())
@@ -41,7 +34,7 @@ namespace Lsss
             var    spawnQueues  = sceneGlobalEntity.GetCollectionComponent<SpawnQueues>();
             int    initialIndex = sceneGlobalEntity.GetComponentData<NextSpawnCounter>().index;
             Entity nscEntity    = sceneGlobalEntity;
-            var    ecb          = m_ecbSystem.CreateCommandBuffer();
+            var    ecb          = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
 
             Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref Rotation rotation,
                                                        in Translation translation,
@@ -114,8 +107,6 @@ namespace Lsss
                     SetComponent(nscEntity, nsc);
                 }
             }).Schedule();
-
-            m_ecbSystem.AddJobHandleForProducer(Dependency);
         }
     }
 }
