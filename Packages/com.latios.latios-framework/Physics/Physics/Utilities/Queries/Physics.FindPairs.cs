@@ -23,16 +23,6 @@ namespace Latios.PhysicsEngine
         //Todo: Shorthands for calling narrow phase distance and manifold queries
     }
 
-    public struct FindPairsConfig<T> where T : struct, IFindPairsProcessor
-    {
-        internal T processor;
-
-        internal CollisionLayer layerA;
-        internal CollisionLayer layerB;
-
-        internal bool isLayerLayer;
-    }
-
     public static partial class Physics
     {
         public static FindPairsConfig<T> FindPairs<T>(CollisionLayer layer, T processor) where T : struct, IFindPairsProcessor
@@ -55,114 +45,124 @@ namespace Latios.PhysicsEngine
                 isLayerLayer = true
             };
         }
+    }
+
+    public partial struct FindPairsConfig<T> where T : struct, IFindPairsProcessor
+    {
+        internal T processor;
+
+        internal CollisionLayer layerA;
+        internal CollisionLayer layerB;
+
+        internal bool isLayerLayer;
 
         #region Schedulers
-        public static void RunImmediate<T>(this FindPairsConfig<T> config) where T : struct, IFindPairsProcessor
+        public void RunImmediate()
         {
-            if (config.isLayerLayer)
+            if (isLayerLayer)
             {
-                FindPairsInternal.RunImmediate(config.layerA, config.layerB, config.processor);
+                FindPairsInternal.RunImmediate(layerA, layerB, processor);
             }
             else
             {
-                FindPairsInternal.RunImmediate(config.layerA, config.processor);
+                FindPairsInternal.RunImmediate(layerA, processor);
             }
         }
 
-        public static void Run<T>(this FindPairsConfig<T> config) where T : struct, IFindPairsProcessor
+        public void Run()
         {
-            if (config.isLayerLayer)
+            if (isLayerLayer)
             {
-                new FindPairsInternal.LayerLayerSingle<T>
+                new FindPairsInternal.LayerLayerSingle
                 {
-                    layerA    = config.layerA,
-                    layerB    = config.layerB,
-                    processor = config.processor
+                    layerA    = layerA,
+                    layerB    = layerB,
+                    processor = processor
                 }.Run();
             }
             else
             {
-                new FindPairsInternal.LayerSelfSingle<T>
+                new FindPairsInternal.LayerSelfSingle
                 {
-                    layer     = config.layerA,
-                    processor = config.processor
+                    layer     = layerA,
+                    processor = processor
                 }.Run();
             }
         }
 
-        public static JobHandle ScheduleSingle<T>(this FindPairsConfig<T> config, JobHandle inputDeps = default) where T : struct, IFindPairsProcessor
+        public JobHandle ScheduleSingle(JobHandle inputDeps = default)
         {
-            if (config.isLayerLayer)
+            if (isLayerLayer)
             {
-                return new FindPairsInternal.LayerLayerSingle<T>
+                return new FindPairsInternal.LayerLayerSingle
                 {
-                    layerA    = config.layerA,
-                    layerB    = config.layerB,
-                    processor = config.processor
+                    layerA    = layerA,
+                    layerB    = layerB,
+                    processor = processor
                 }.Schedule(inputDeps);
             }
             else
             {
-                return new FindPairsInternal.LayerSelfSingle<T>
+                return new FindPairsInternal.LayerSelfSingle
                 {
-                    layer     = config.layerA,
-                    processor = config.processor
+                    layer     = layerA,
+                    processor = processor
                 }.Schedule(inputDeps);
             }
         }
 
-        public static JobHandle ScheduleParallel<T>(this FindPairsConfig<T> config, JobHandle inputDeps = default) where T : struct, IFindPairsProcessor
+        public JobHandle ScheduleParallel(JobHandle inputDeps = default)
         {
-            if (config.isLayerLayer)
+            if (isLayerLayer)
             {
-                JobHandle jh = new FindPairsInternal.LayerLayerPart1<T>
+                JobHandle jh = new FindPairsInternal.LayerLayerPart1
                 {
-                    layerA    = config.layerA,
-                    layerB    = config.layerB,
-                    processor = config.processor
-                }.Schedule(config.layerB.BucketCount, 1, inputDeps);
-                jh = new FindPairsInternal.LayerLayerPart2<T>
+                    layerA    = layerA,
+                    layerB    = layerB,
+                    processor = processor
+                }.Schedule(layerB.BucketCount, 1, inputDeps);
+                jh = new FindPairsInternal.LayerLayerPart2
                 {
-                    layerA    = config.layerA,
-                    layerB    = config.layerB,
-                    processor = config.processor
+                    layerA    = layerA,
+                    layerB    = layerB,
+                    processor = processor
                 }.Schedule(2, 1, jh);
                 return jh;
             }
             else
             {
-                JobHandle jh = new FindPairsInternal.LayerSelfPart1<T>
+                JobHandle jh = new FindPairsInternal.LayerSelfPart1
                 {
-                    layer     = config.layerA,
-                    processor = config.processor
-                }.Schedule(config.layerA.BucketCount, 1, inputDeps);
-                jh = new FindPairsInternal.LayerSelfPart2<T>
+                    layer     = layerA,
+                    processor = processor
+                }.Schedule(layerA.BucketCount, 1, inputDeps);
+                jh = new FindPairsInternal.LayerSelfPart2
                 {
-                    layer     = config.layerA,
-                    processor = config.processor
+                    layer     = layerA,
+                    processor = processor
                 }.Schedule(jh);
                 return jh;
             }
         }
 
-        public static JobHandle ScheduleParallelUnsafe<T>(this FindPairsConfig<T> config, JobHandle inputDeps = default) where T : struct, IFindPairsProcessor
+        public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
         {
-            if (config.isLayerLayer)
+            if (isLayerLayer)
             {
-                return new FindPairsInternal.LayerLayerParallelUnsafe<T>
+                return new FindPairsInternal.LayerLayerParallelUnsafe
                 {
-                    layerA    = config.layerA,
-                    layerB    = config.layerB,
-                    processor = config.processor
-                }.ScheduleParallel(3 * config.layerA.BucketCount - 2, 1, inputDeps);
+                    layerA    = layerA,
+                    layerB    = layerB,
+                    processor = processor
+                }.ScheduleParallel(3 * layerA.BucketCount - 2, 1, inputDeps);
             }
             else
             {
-                return new FindPairsInternal.LayerSelfParallelUnsafe<T>
+                return new FindPairsInternal.LayerSelfParallelUnsafe
                 {
-                    layer     = config.layerA,
-                    processor = config.processor
-                }.ScheduleParallel(2 * config.layerA.BucketCount - 1, 1, inputDeps);
+                    layer     = layerA,
+                    processor = processor
+                }.ScheduleParallel(2 * layerA.BucketCount - 1, 1, inputDeps);
             }
         }
         #endregion Schedulers
