@@ -90,10 +90,11 @@ namespace Lsss
         public Entity target;  //Null if needs target
         public float  preferredTargetDistance;
 
-        public float friendCrossHairsDistanceFilter;
-        public float friendCrossHairsCosFovFilter;
-        public float nearestEnemyCrossHairsDistanceFilter;
-        public float nearestEnemyCrossHairsCosFovFilter;
+        public float      friendCrossHairsDistanceFilter;
+        public float      friendCrossHairsCosFovFilter;
+        public float      nearestEnemyCrossHairsDistanceFilter;
+        public float      nearestEnemyCrossHairsCosFovFilter;
+        public quaternion crossHairsForwardDirectionBias;
     }
 
     public struct AiShipRadarScanResults : IComponentData

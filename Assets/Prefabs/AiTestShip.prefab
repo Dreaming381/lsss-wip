@@ -50,6 +50,7 @@ MonoBehaviour:
   friendlyFireDisableFieldOfView: 20
   additionalEnemyDetectionRange: 50
   additionalEnemyDetectionFieldOfView: 10
+  biasCrossHairsUsingRootForward: 0
 --- !u!114 &1048932922007334452
 MonoBehaviour:
   m_ObjectHideFlags: 0

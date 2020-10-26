@@ -225,7 +225,9 @@ namespace Lsss
                 var    radar       = radars[result.entityA];
                 float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
                 bool   isInRange   = math.lengthsq(radarToShip) < radar.friendCrossHairsDistanceFilter * radar.friendCrossHairsDistanceFilter;
-                bool   isInView    = math.dot(math.normalize(radarToShip), math.forward(result.bodyA.transform.rot)) > radar.friendCrossHairsCosFovFilter;
+                bool   isInView    =
+                    math.dot(math.normalize(radarToShip),
+                             math.forward(math.mul(result.bodyA.transform.rot, radar.crossHairsForwardDirectionBias))) > radar.friendCrossHairsCosFovFilter;
 
                 if (isInRange && isInView)
                 {
@@ -292,7 +294,7 @@ namespace Lsss
                 float radarCosFov   = math.select(radar.nearestEnemyCrossHairsCosFovFilter, radar.cosFov, useFullRange);
 
                 bool isInRange = math.lengthsq(radarToShip) < radarDistance * radarDistance;
-                bool isInView  = math.dot(math.normalize(radarToShip), math.forward(result.bodyA.transform.rot)) > radarCosFov;
+                bool isInView  = math.dot(math.normalize(radarToShip), math.forward(math.mul(result.bodyA.transform.rot, radar.crossHairsForwardDirectionBias))) > radarCosFov;
 
                 if (isInRange && isInView)
                 {
@@ -364,7 +366,9 @@ namespace Lsss
                             else
                             {
                                 var radarLtw        = ltwCdfe[radarEntity];
-                                var optimalPosition = math.forward(quaternion.LookRotationSafe(radarLtw.Forward, radarLtw.Up)) * radar.preferredTargetDistance + radarLtw.Position;
+                                var optimalPosition =
+                                    math.forward(math.mul(quaternion.LookRotationSafe(radarLtw.Forward, radarLtw.Up),
+                                                          radar.crossHairsForwardDirectionBias)) * radar.preferredTargetDistance + radarLtw.Position;
                                 if (math.distancesq(results.targetTransform.pos, optimalPosition) > math.distancesq(scannedEnemy.enemyTransform.pos, optimalPosition))
                                 {
                                     results.target          = scannedEnemy.enemy;
@@ -386,7 +390,8 @@ namespace Lsss
                             {
                                 var radarLtw = ltwCdfe[radarEntity];
                                 if (math.dot(math.normalize(scannedEnemy.enemyTransform.pos - radarLtw.Position),
-                                             math.forward(quaternion.LookRotationSafe(radarLtw.Forward, radarLtw.Up))) > radar.nearestEnemyCrossHairsCosFovFilter)
+                                             math.forward(math.mul(quaternion.LookRotationSafe(radarLtw.Forward, radarLtw.Up),
+                                                                   radar.crossHairsForwardDirectionBias))) > radar.nearestEnemyCrossHairsCosFovFilter)
                                 {
                                     results.nearestEnemy          = scannedEnemy.enemy;
                                     results.nearestEnemyTransform = scannedEnemy.enemyTransform;
