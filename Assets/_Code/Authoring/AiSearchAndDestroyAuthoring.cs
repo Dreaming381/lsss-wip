@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class AiSearchAndDestroyAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float2               targetLeadDistanceMinMax = new float2(0f, 5f);

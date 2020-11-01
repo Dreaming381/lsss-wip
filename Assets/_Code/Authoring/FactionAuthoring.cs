@@ -6,7 +6,6 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class FactionAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
         public int                totalUnits         = 10;

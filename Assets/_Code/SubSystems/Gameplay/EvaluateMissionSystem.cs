@@ -39,7 +39,7 @@ namespace Lsss
                 status = GetDestroyAllMissionStatus(entity);
 
                 m_query.SetSharedComponentFilter(new FactionMember { factionEntity = entity });
-                bool alive                                                         = m_query.CalculateChunkCount() > 0;
+                bool alive                                                         = !m_query.IsEmpty;
                 if (!alive)
                     status.status = MissionStatus.Options.Failed;
             }).WithoutBurst().Run();
@@ -49,13 +49,13 @@ namespace Lsss
                 for (int i = 0; i < dfo.Length; i++)
                 {
                     m_query.SetSharedComponentFilter(new FactionMember { factionEntity = dfo[i].factionToDestroy });
-                    bool alive                                                         = m_query.CalculateChunkCount() > 0;
+                    bool alive                                                         = !m_query.IsEmpty;
                     if (alive)
                         status.status = MissionStatus.Options.InProgress;
                 }
                 {
                     m_query.SetSharedComponentFilter(new FactionMember { factionEntity = entity });
-                    bool alive                                                         = m_query.CalculateChunkCount() > 0;
+                    bool alive                                                         = !m_query.IsEmpty;
                     if (!alive)
                         status.status = MissionStatus.Options.Failed;
                 }
@@ -79,7 +79,7 @@ namespace Lsss
                 if (entity == missionFaction)
                     return;
                 m_query.SetSharedComponentFilter(new FactionMember { factionEntity = entity });
-                bool alive                                                         = m_query.CalculateChunkCount() > 0;
+                bool alive                                                         = !m_query.IsEmpty;
                 if (alive)
                     status.status = MissionStatus.Options.InProgress;
             }).WithoutBurst().Run();

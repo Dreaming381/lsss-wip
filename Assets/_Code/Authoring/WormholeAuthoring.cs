@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class WormholeAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public WormholeAuthoring otherEnd;

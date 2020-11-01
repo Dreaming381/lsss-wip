@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Lsss
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class ArenaAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float radius;

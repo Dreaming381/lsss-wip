@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class AiExploreAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float2 spawnForwardDistanceMinMax       = new float2(10f, 20f);

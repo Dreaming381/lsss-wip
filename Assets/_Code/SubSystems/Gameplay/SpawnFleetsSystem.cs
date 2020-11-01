@@ -44,7 +44,7 @@ namespace Lsss
                 m_aiQuery.SetSharedComponentFilter(factionMember);
                 m_playerQuery.SetSharedComponentFilter(factionMember);
 
-                if (faction.playerPrefab != Entity.Null && m_playerQuery.CalculateChunkCount() > 0)
+                if (faction.playerPrefab != Entity.Null && !m_playerQuery.IsEmpty)
                 {
                     var newPlayerShip = EntityManager.Instantiate(faction.playerPrefab);
                     AddSharedComponentDataToLinkedGroup(newPlayerShip, factionMember);

@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class WallAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float damage = 100f;

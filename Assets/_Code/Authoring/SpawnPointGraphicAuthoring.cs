@@ -6,7 +6,6 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    [RequiresEntityConversion]
     public class SpawnPointGraphicAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float lifeTime   = 5f;
