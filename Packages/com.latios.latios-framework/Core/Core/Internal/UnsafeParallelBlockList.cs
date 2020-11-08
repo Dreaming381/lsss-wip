@@ -58,17 +58,39 @@ namespace Latios
             blockList->elementCount++;
         }
 
-        public int Count
+        public void* Allocate(int threadIndex)
         {
-            get
+            var blockList = m_perThreadBlockLists + threadIndex;
+            if (blockList->nextWriteAddress > blockList->lastByteAddressInBlock)
             {
-                int result = 0;
-                for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+                if (blockList->elementCount == 0)
                 {
-                    result += m_perThreadBlockLists[i].elementCount;
+                    blockList->blocks = new UnsafeList(m_allocator);
+                    blockList->blocks.SetCapacity<BlockPtr>(10);
                 }
-                return result;
+                BlockPtr newBlockPtr = new BlockPtr
+                {
+                    ptr = (byte*)UnsafeUtility.Malloc(m_blockSize, UnsafeUtility.AlignOf<byte>(), m_allocator)
+                };
+                blockList->nextWriteAddress       = newBlockPtr.ptr;
+                blockList->lastByteAddressInBlock = newBlockPtr.ptr + m_blockSize - 1;
+                blockList->blocks.Add(newBlockPtr);
             }
+
+            var result                   = blockList->nextWriteAddress;
+            blockList->nextWriteAddress += m_elementSize;
+            blockList->elementCount++;
+            return result;
+        }
+
+        public int Count()
+        {
+            int result = 0;
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+            {
+                result += m_perThreadBlockLists[i].elementCount;
+            }
+            return result;
         }
 
         public struct ElementPtr
@@ -108,6 +130,54 @@ namespace Latios
                     }
                 }
             }
+        }
+
+        public void GetElementValues<T>(NativeArray<T> values) where T : struct
+        {
+            int dst = 0;
+
+            for (int threadBlockId = 0; threadBlockId < JobsUtility.MaxJobThreadCount; threadBlockId++)
+            {
+                var blockList = m_perThreadBlockLists + threadBlockId;
+                if (blockList->elementCount > 0)
+                {
+                    int src = 0;
+                    CheckBlockCountMatchesCount(blockList->elementCount, blockList->blocks.Length);
+                    for (int blockId = 0; blockId < blockList->blocks.Length - 1; blockId++)
+                    {
+                        var address = ((BlockPtr*)blockList->blocks.Ptr)[blockId].ptr;
+                        for (int i = 0; i < m_elementsPerBlock; i++)
+                        {
+                            UnsafeUtility.CopyPtrToStructure(address, out T temp);
+                            values[dst]  = temp;
+                            address     += m_elementSize;
+                            src++;
+                            dst++;
+                        }
+                    }
+                    {
+                        var address = ((BlockPtr*)blockList->blocks.Ptr)[blockList->blocks.Length - 1].ptr;
+                        for (int i = src; i < blockList->elementCount; i++)
+                        {
+                            UnsafeUtility.CopyPtrToStructure(address, out T temp);
+                            values[dst]  = temp;
+                            address     += m_elementSize;
+                            dst++;
+                        }
+                    }
+                }
+            }
+        }
+
+        //This catches race conditions if I accidentally pass in 0 for thread index in the parallel writer because copy and paste.
+        [BurstDiscard]
+        void CheckBlockCountMatchesCount(int count, int blockCount)
+        {
+            int expectedBlocks = count / m_elementsPerBlock;
+            if (count % m_elementsPerBlock > 0)
+                expectedBlocks++;
+            if (blockCount != expectedBlocks)
+                throw new System.InvalidOperationException($"Block count: {blockCount} does not match element count: {count}");
         }
 
         [BurstCompile]
@@ -157,11 +227,6 @@ namespace Latios
             public byte*      nextWriteAddress;
             public byte*      lastByteAddressInBlock;
             public int        elementCount;
-        }
-
-        void SizeCheck()
-        {
-            var res = sizeof(UnsafeList);
         }
     }
 }

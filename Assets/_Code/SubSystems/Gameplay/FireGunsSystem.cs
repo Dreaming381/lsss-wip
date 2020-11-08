@@ -13,7 +13,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var   ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer().AsParallelWriter();
+            var   icb = latiosWorld.SyncPoint.CreateInstantiateCommandBuffer<Rotation, Translation>().AsParallelWriter();
             float dt  = Time.DeltaTime;
 
             Entities.WithAll<ShipTag>().ForEach((int entityInQueryIndex,
@@ -27,14 +27,12 @@ namespace Lsss
                 {
                     for (int i = 0; i < gunPoints.Length; i++)
                     {
-                        var             bullet                                               = ecb.Instantiate(entityInQueryIndex, bulletPrefab.bulletPrefab);
-                        CapsuleCollider collider                                             = GetComponent<Collider>(bulletPrefab.bulletPrefab);
-                        float           halfLength                                           = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
-                        var             ltw                                                  = GetComponent<LocalToWorld>(gunPoints[i].gun);
-                        var             rot                                                  = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
-                        ecb.SetComponent(entityInQueryIndex, bullet, new Rotation { Value    = rot });
-                        ecb.SetComponent(entityInQueryIndex, bullet, new Translation { Value = ltw.Position + math.forward(rot) * halfLength});
-                        //ecb.SetComponent(entityInQueryIndex, bullet, new BulletPreviousPosition { previousPosition = ltw.Position }); //Shouldn't be necessary?
+                        CapsuleCollider collider                                = GetComponent<Collider>(bulletPrefab.bulletPrefab);
+                        float           halfLength                              = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
+                        var             ltw                                     = GetComponent<LocalToWorld>(gunPoints[i].gun);
+                        var             rot                                     = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
+                        icb.Add(bulletPrefab.bulletPrefab, new Rotation { Value = rot }, new Translation { Value = ltw.Position + math.forward(rot) * halfLength },
+                                entityInQueryIndex);
                     }
 
                     reloadTimes.bulletsRemaining--;

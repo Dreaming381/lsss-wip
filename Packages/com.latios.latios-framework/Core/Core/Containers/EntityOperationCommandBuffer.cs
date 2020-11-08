@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
 
 namespace Latios
 {
@@ -25,12 +26,12 @@ namespace Latios
         //Unfortunately this name is hardcoded into Unity. No idea how EntityCommandBuffer gets away with multiple safety handles.
         AtomicSafetyHandle m_Safety;
 
-        static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<EnableCommandBuffer>();
+        static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<EntityOperationCommandBuffer>();
 
         [BurstDiscard]
         static void CreateStaticSafetyId()
         {
-            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<EnableCommandBuffer>();
+            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<EntityOperationCommandBuffer>();
         }
 
         [NativeSetClassTypeToNullOnSchedule]
@@ -43,12 +44,17 @@ namespace Latios
             public Allocator allocator;
         }
 
-        private struct EntityWithOperation : IRadixSortable32
+        private struct EntityWithOperation : IRadixSortableInt, IRadixSortableInt3
         {
             public Entity entity;
             public int    sortKey;
 
             public int GetKey() => sortKey;
+
+            public int3 GetKey3()
+            {
+                return new int3(entity.Index, entity.Version, sortKey);
+            }
         }
         #endregion
 
@@ -161,7 +167,7 @@ namespace Latios
         public int Count()
         {
             CheckReadAccess();
-            return m_blockList->Count;
+            return m_blockList->Count();
         }
 
         /// <summary>
@@ -172,10 +178,26 @@ namespace Latios
         public NativeArray<Entity> GetEntities(Allocator allocator)
         {
             CheckReadAccess();
-            int count    = m_blockList->Count;
+            int count    = m_blockList->Count();
             var entities = new NativeArray<Entity>(count, allocator, NativeArrayOptions.UninitializedMemory);
 
             GetEntities(entities);
+
+            return entities;
+        }
+
+        /// <summary>
+        /// Returns an array of entities stored in the EntityOperationCommandBuffer ordered by Entity and then by SortKey.
+        /// </summary>
+        /// <param name="allocator">The allocator to use for the returned NativeArray</param>
+        /// <returns>The array of entities stored in the EntityOperationCommandBuffer ordered by Entity and then by SortKey</returns>
+        public NativeArray<Entity> GetEntitiesSortedByEntity(Allocator allocator)
+        {
+            CheckReadAccess();
+            int count    = m_blockList->Count();
+            var entities = new NativeArray<Entity>(count, allocator, NativeArrayOptions.UninitializedMemory);
+
+            GetEntitiesSorted(entities);
 
             return entities;
         }
@@ -188,7 +210,7 @@ namespace Latios
         public void GetEntities(ref NativeList<Entity> entities, bool append = false)
         {
             CheckReadAccess();
-            int count = m_blockList->Count;
+            int count = m_blockList->Count();
 
             if (append)
             {
@@ -271,20 +293,30 @@ namespace Latios
         #region Implementations
         private void GetEntities(NativeArray<Entity> entities)
         {
-            var ptrs                      = new NativeArray<UnsafeParallelBlockList.ElementPtr>(entities.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var tempEntitiesWithOperation = new NativeArray<EntityWithOperation>(entities.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var ranks                     = new NativeArray<int>(entities.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
-            m_blockList->GetElementPtrs(ptrs);
-            for (int i = 0; i < ptrs.Length; i++)
-            {
-                //On 64 bit systems, a pointer is the same size as an Entity, so it is best to just copy the whole payload to a NativeArray.
-                UnsafeUtility.CopyPtrToStructure<EntityWithOperation>(ptrs[i].ptr, out var ewo);
-                tempEntitiesWithOperation[i] = ewo;
-            }
+            m_blockList->GetElementValues(tempEntitiesWithOperation);
 
             //Radix sort
-            RadixSort.RankSort(ranks, tempEntitiesWithOperation);
+            RadixSort.RankSortInt(ranks, tempEntitiesWithOperation);
+
+            //Copy results
+            for (int i = 0; i < ranks.Length; i++)
+            {
+                entities[i] = tempEntitiesWithOperation[ranks[i]].entity;
+            }
+        }
+
+        private void GetEntitiesSorted(NativeArray<Entity> entities)
+        {
+            var tempEntitiesWithOperation = new NativeArray<EntityWithOperation>(entities.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var ranks                     = new NativeArray<int>(entities.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+
+            m_blockList->GetElementValues(tempEntitiesWithOperation);
+
+            //Radix sort
+            RadixSort.RankSortInt3(ranks, tempEntitiesWithOperation);
 
             //Copy results
             for (int i = 0; i < ranks.Length; i++)
@@ -339,7 +371,6 @@ namespace Latios
             roots          = GetEntities(rootsAllocator);
             int count      = GetLinkedEntitiesCount(linkedFE, roots);
             linkedEntities = new NativeArray<Entity>(count, linkedAllocator, NativeArrayOptions.UninitializedMemory);
-            count          = 0;
             GetLinkedEntitiesFill(linkedFE, roots, linkedEntities);
         }
         #endregion
@@ -383,9 +414,6 @@ namespace Latios
             //More ugly Unity naming
             internal AtomicSafetyHandle m_Safety;
 #endif
-            //And more ugly Unity naming
-            //[NativeSetThreadIndex]
-            //private int m_ThreadIndex;
 
             internal ParallelWriter(UnsafeParallelBlockList* blockList, void* state)
             {

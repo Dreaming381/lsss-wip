@@ -12,7 +12,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var   ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer().AsParallelWriter();
+            var   icb = latiosWorld.SyncPoint.CreateInstantiateCommandBuffer<Translation>().AsParallelWriter();
             var   dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             float dt  = Time.DeltaTime;
 
@@ -25,9 +25,7 @@ namespace Lsss
                 if (health.health <= 0f)
                 {
                     dcb.Add(entity, entityInQueryIndex);
-
-                    var explosion                                                           = ecb.Instantiate(entityInQueryIndex, explosionPrefab.explosionPrefab);
-                    ecb.SetComponent(entityInQueryIndex, explosion, new Translation { Value = ltw.Position });
+                    icb.Add(explosionPrefab.explosionPrefab, new Translation { Value = ltw.Position }, entityInQueryIndex);
                 }
             }).ScheduleParallel();
         }

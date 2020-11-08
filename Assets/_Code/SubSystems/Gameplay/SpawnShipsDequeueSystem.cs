@@ -34,7 +34,8 @@ namespace Lsss
             var    spawnQueues  = sceneGlobalEntity.GetCollectionComponent<SpawnQueues>();
             int    initialIndex = sceneGlobalEntity.GetComponentData<NextSpawnCounter>().index;
             Entity nscEntity    = sceneGlobalEntity;
-            var    ecb          = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+            var    icb          = latiosWorld.SyncPoint.CreateInstantiateCommandBuffer<Parent>();
+            icb.AddComponentTag<LocalToParent>();
 
             Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref Rotation rotation,
                                                        in Translation translation,
@@ -61,11 +62,7 @@ namespace Lsss
                     rotation.Value = nsc.random.NextQuaternionRotation();
                     rotation.Value = quaternion.LookRotationSafe(math.forward(rotation.Value), new float3(0f, 1f, 0f));
 
-                    var graphic = ecb.Instantiate(spawnData.spawnGraphicPrefab);
-                    //ecb.SetComponent(graphic, translation);
-                    //ecb.SetComponent(graphic, rotation);
-                    ecb.AddComponent(graphic, new LocalToParent());
-                    ecb.AddComponent(graphic, new Parent { Value = entity });
+                    icb.Add(spawnData.spawnGraphicPrefab, new Parent { Value = entity });
 
                     nsc.index = entityInQueryIndex;
                     SetComponent(nscEntity, nsc);
@@ -97,11 +94,7 @@ namespace Lsss
                     rotation.Value = nsc.random.NextQuaternionRotation();
                     rotation.Value = quaternion.LookRotationSafe(math.forward(rotation.Value), new float3(0f, 1f, 0f));
 
-                    var graphic = ecb.Instantiate(spawnData.spawnGraphicPrefab);
-                    //ecb.SetComponent(graphic, translation);
-                    //ecb.SetComponent(graphic, rotation);
-                    ecb.AddComponent(graphic, new LocalToParent());
-                    ecb.AddComponent(graphic, new Parent { Value = entity });
+                    icb.Add(spawnData.spawnGraphicPrefab, new Parent { Value = entity });
 
                     nsc.index = entityInQueryIndex;
                     SetComponent(nscEntity, nsc);
