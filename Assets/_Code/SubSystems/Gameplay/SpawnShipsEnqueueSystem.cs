@@ -161,6 +161,7 @@ namespace Lsss
                 {
                     EntityManager.SetEnabled(player, false);
                     EntityManager.DestroyEntity(foundShip);
+                    disabledShipsHashSet.Dispose();
                     return true;
                 }
             }

@@ -171,7 +171,9 @@ namespace Latios
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
         public InstantiateCommandBuffer(Allocator allocator)
         {
-            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, new ComponentTypes(typeof(T0)));
+            FixedList64<ComponentType> types = new FixedList64<ComponentType>();
+            types.Add(typeof(T0));
+            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
         /// <summary>
@@ -301,7 +303,10 @@ namespace Latios
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
         public InstantiateCommandBuffer(Allocator allocator)
         {
-            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, new ComponentTypes(typeof(T0), typeof(T1)));
+            FixedList64<ComponentType> types = new FixedList64<ComponentType>();
+            types.Add(typeof(T0));
+            types.Add(typeof(T1));
+            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
         /// <summary>
@@ -434,7 +439,11 @@ namespace Latios
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
         public InstantiateCommandBuffer(Allocator allocator)
         {
-            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, new ComponentTypes(typeof(T0), typeof(T1)));
+            FixedList64<ComponentType> types = new FixedList64<ComponentType>();
+            types.Add(typeof(T0));
+            types.Add(typeof(T1));
+            types.Add(typeof(T2));
+            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
         /// <summary>
@@ -569,7 +578,12 @@ namespace Latios
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
         public InstantiateCommandBuffer(Allocator allocator)
         {
-            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, new ComponentTypes(typeof(T0), typeof(T1)));
+            FixedList64<ComponentType> types = new FixedList64<ComponentType>();
+            types.Add(typeof(T0));
+            types.Add(typeof(T1));
+            types.Add(typeof(T2));
+            types.Add(typeof(T3));
+            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
         /// <summary>
@@ -706,7 +720,13 @@ namespace Latios
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
         public InstantiateCommandBuffer(Allocator allocator)
         {
-            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, new ComponentTypes(typeof(T0), typeof(T1)));
+            FixedList64<ComponentType> types = new FixedList64<ComponentType>();
+            types.Add(typeof(T0));
+            types.Add(typeof(T1));
+            types.Add(typeof(T2));
+            types.Add(typeof(T3));
+            types.Add(typeof(T4));
+            m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
         /// <summary>

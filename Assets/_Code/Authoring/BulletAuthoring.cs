@@ -20,6 +20,7 @@ namespace Lsss.Authoring
             dstManager.AddComponentData(entity, new TimeToLiveFadeStart { fadeTimeWindow = fadeOutDuration });
             dstManager.AddComponentData(entity, new FadeProperty { fade                  = 1f });
             dstManager.AddComponent<BulletPreviousPosition>(entity);
+            dstManager.AddComponent<BulletFirer>(           entity);
             dstManager.AddComponent<BulletTag>(             entity);
         }
     }

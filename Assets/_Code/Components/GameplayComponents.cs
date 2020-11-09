@@ -120,6 +120,13 @@ namespace Lsss
         public float3 previousPosition;
     }
 
+    public struct BulletFirer : IComponentData
+    {
+        public Entity entity;
+        public int    lastImpactFrame;
+        public bool   initialized;
+    }
+
     //Todo: Replace with Spherecast
     public struct BulletCollisionLayer : ICollectionComponent
     {

@@ -40,8 +40,8 @@ namespace Latios
 
         private struct State
         {
-            public ComponentTypes typesWithData;
             public ComponentTypes tagsToAdd;
+            public FixedListInt64 typesWithData;
             public FixedListInt64 typesSizes;
             public Allocator      allocator;
             public bool           playedBack;
@@ -60,21 +60,23 @@ namespace Latios
         #endregion
 
         #region CreateDestroy
-        public InstantiateCommandBufferUntyped(Allocator allocator, ComponentTypes typesWithData) : this(allocator, typesWithData, 1)
+        public InstantiateCommandBufferUntyped(Allocator allocator, FixedList64<ComponentType> typesWithData) : this(allocator, typesWithData, 1)
         {
         }
 
-        internal InstantiateCommandBufferUntyped(Allocator allocator, ComponentTypes typesWithData, int disposeSentinalStackDepth)
+        internal InstantiateCommandBufferUntyped(Allocator allocator, FixedList64<ComponentType> componentTypesWithData, int disposeSentinalStackDepth)
         {
-            CheckComponentTypesValid(typesWithData);
             int            dataPayloadSize = 0;
             FixedListInt64 typesSizes      = new FixedListInt64();
-            for (int i = 0; i < typesWithData.Length; i++)
+            FixedListInt64 typesWithData   = new FixedListInt64();
+            for (int i = 0; i < componentTypesWithData.Length; i++)
             {
-                var size         = TypeManager.GetTypeInfo(typesWithData.GetTypeIndex(i)).ElementSize;
+                var size         = TypeManager.GetTypeInfo(componentTypesWithData[i].TypeIndex).ElementSize;
                 dataPayloadSize += size;
                 typesSizes.Add(size);
+                typesWithData.Add(componentTypesWithData[i].TypeIndex);
             }
+            CheckComponentTypesValid(BuildComponentTypesFromFixedList(typesWithData));
             m_prefabSortkeyBlockList = (UnsafeParallelBlockList*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<UnsafeParallelBlockList>(),
                                                                                       UnsafeUtility.AlignOf<UnsafeParallelBlockList>(),
                                                                                       allocator);
@@ -273,16 +275,16 @@ namespace Latios
                 indicesInChunks   = indicesInChunks,
                 componentDataPtrs = componentDataPtrs,
                 entityHandle      = entityManager.GetEntityTypeHandle(),
-                t0                = entityManager.GetDynamicComponentTypeHandle(m_state->typesWithData.GetComponentType(0))
+                t0                = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[0]))
             };
             if (m_state->typesWithData.Length > 1)
-                chunkJob.t1 = entityManager.GetDynamicComponentTypeHandle(m_state->typesWithData.GetComponentType(1));
+                chunkJob.t1 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[1]));
             if (m_state->typesWithData.Length > 2)
-                chunkJob.t2 = entityManager.GetDynamicComponentTypeHandle(m_state->typesWithData.GetComponentType(2));
+                chunkJob.t2 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[2]));
             if (m_state->typesWithData.Length > 3)
-                chunkJob.t3 = entityManager.GetDynamicComponentTypeHandle(m_state->typesWithData.GetComponentType(3));
+                chunkJob.t3 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[3]));
             if (m_state->typesWithData.Length > 4)
-                chunkJob.t4 = entityManager.GetDynamicComponentTypeHandle(m_state->typesWithData.GetComponentType(4));
+                chunkJob.t4 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[4]));
             //The remaining types apparently need to be initialized. So set them to the dummy types.
             if (m_state->typesWithData.Length <= 1)
                 chunkJob.t1 = entityManager.GetDynamicComponentTypeHandle(typeof(DummyTypeT1));
@@ -386,11 +388,12 @@ namespace Latios
                 }
                 //Step 4: Instantiate the prefabs
                 var instantiatedEntities = new NativeArray<Entity>(count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                var typesWithDataToAdd   = BuildComponentTypesFromFixedList(icb.m_state->typesWithData);
                 int startIndex           = 0;
                 for (int i = 0; i < sortedPrefabs.Length; i++)
                 {
                     var firstEntity = eet.Instantiate(sortedPrefabs[i]);
-                    eet.EntityManager.AddComponents(firstEntity, icb.m_state->typesWithData);
+                    eet.EntityManager.AddComponents(firstEntity, typesWithDataToAdd);
                     eet.EntityManager.AddComponents(firstEntity, icb.m_state->tagsToAdd);
                     instantiatedEntities[startIndex] = firstEntity;
                     startIndex++;
@@ -524,6 +527,7 @@ namespace Latios
                 byte* t0Ptr    = (byte*)t0Array.GetUnsafePtr();
                 byte* t1Ptr    = (byte*)t1Array.GetUnsafePtr();
                 byte* t2Ptr    = (byte*)t2Array.GetUnsafePtr();
+
                 for (int i = 0; i < indices.Length; i++)
                 {
                     var index   = indices[i];
@@ -600,10 +604,27 @@ namespace Latios
             }
         }
 
+#pragma warning disable CS0649
         private struct DummyTypeT1 : IComponentData { public int dummy; }
         private struct DummyTypeT2 : IComponentData { public int dummy; }
         private struct DummyTypeT3 : IComponentData { public int dummy; }
         private struct DummyTypeT4 : IComponentData { public int dummy; }
+#pragma warning restore CS0649
+
+        static ComponentTypes BuildComponentTypesFromFixedList(FixedListInt64 types)
+        {
+            switch (types.Length)
+            {
+                case 1: return new ComponentTypes(ComponentType.ReadWrite(types[0]));
+                case 2: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]));
+                case 3: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]));
+                case 4: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
+                                                  ComponentType.ReadWrite(types[3]));
+                case 5: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
+                                                  ComponentType.ReadWrite(types[3]), ComponentType.ReadWrite(types[4]));
+                default: return default;
+            }
+        }
         #endregion
 
         #region Checks
