@@ -1,5 +1,8 @@
-﻿using Unity.Burst;
+﻿using System;
+using System.Diagnostics;
+using Unity.Burst;
 using Unity.Collections;
+using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -210,6 +213,108 @@ namespace Latios.PhysicsEngine
                     BipartiteSweep(bucket, crossBucketB, jobIndex++, processor);
                 }
             }
+            #endregion
+
+            #region SafeChecks
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            [BurstCompile]
+            public struct LayerSelfPart2_WithSafety : IJobFor
+            {
+                [ReadOnly] public CollisionLayer layer;
+                public T processor;
+
+                public void Execute(int index)
+                {
+                    if (index == 0)
+                    {
+                        var crossBucket = layer.GetBucketSlices(layer.BucketCount - 1);
+                        for (int i = 0; i < layer.BucketCount - 1; i++)
+                        {
+                            var bucket = layer.GetBucketSlices(i);
+                            BipartiteSweep(bucket, crossBucket, layer.BucketCount + i, processor);
+                        }
+                    }
+                    else
+                    {
+                        EntityAliasCheck(layer);
+                    }
+                }
+            }
+
+            [BurstCompile]
+            public struct LayerLayerPart2_WithSafety : IJobParallelFor
+            {
+                [ReadOnly] public CollisionLayer layerA;
+                [ReadOnly] public CollisionLayer layerB;
+                public T processor;
+
+                public void Execute(int index)
+                {
+                    if (index == 0)
+                    {
+                        var crossBucket = layerA.GetBucketSlices(layerA.BucketCount - 1);
+                        for (int i = 0; i < layerB.BucketCount - 1; i++)
+                        {
+                            var bucket = layerB.GetBucketSlices(i);
+                            BipartiteSweep(crossBucket, bucket, layerA.BucketCount + i, processor);
+                        }
+                    }
+                    else if (index == 1)
+                    {
+                        var crossBucket = layerB.GetBucketSlices(layerB.BucketCount - 1);
+                        for (int i = 0; i < layerA.BucketCount - 1; i++)
+                        {
+                            var bucket = layerA.GetBucketSlices(i);
+                            BipartiteSweep(bucket, crossBucket, layerA.BucketCount + layerB.BucketCount + i, processor);
+                        }
+                    }
+                    else
+                    {
+                        EntityAliasCheck(layerA, layerB);
+                    }
+                }
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            private static void EntityAliasCheck(CollisionLayer layer)
+            {
+                var hashSet = new NativeHashSet<Entity>(layer.Count, Allocator.Temp);
+                for (int i = 0; i < layer.Count; i++)
+                {
+                    if (!hashSet.Add(layer.bodies[i].entity))
+                    {
+                        throw new InvalidOperationException(
+                            $"A parallel FindPairs job was scheduled using a layer containing more than one instance of Entity {layer.bodies[i].entity}");
+                    }
+                }
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            private static void EntityAliasCheck(CollisionLayer layerA, CollisionLayer layerB)
+            {
+                var hashSet = new NativeHashSet<Entity>(layerA.Count + layerB.Count, Allocator.Temp);
+                for (int i = 0; i < layerA.Count; i++)
+                {
+                    if (!hashSet.Add(layerA.bodies[i].entity))
+                    {
+                        //Note: At this point, we know the issue lies exclusively in layerA.
+                        throw new InvalidOperationException(
+                            $"A parallel FindPairs job was scheduled using a layer containing more than one instance of Entity {layerA.bodies[i].entity}");
+                    }
+                }
+                for (int i = 0; i < layerB.Count; i++)
+                {
+                    if (!hashSet.Add(layerB.bodies[i].entity))
+                    {
+                        //Note: At this point, it is unknown whether the repeating entity first showed up in layerA or layerB.
+                        throw new InvalidOperationException(
+                            $"A parallel FindPairs job was scheduled using two layers combined containing more than one instance of Entity {layerB.bodies[i].entity}");
+                    }
+                }
+            }
+#endif
+
             #endregion
 
             #region SweepMethods

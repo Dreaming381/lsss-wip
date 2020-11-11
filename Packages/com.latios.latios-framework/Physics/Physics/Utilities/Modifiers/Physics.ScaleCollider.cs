@@ -41,7 +41,7 @@ namespace Latios.PhysicsEngine
             return compound;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void CheckNoOrUniformScale(PhysicsScale scale, ColliderType type)
         {
             if (scale.state == PhysicsScale.State.NonComputable | scale.state == PhysicsScale.State.NonUniform)

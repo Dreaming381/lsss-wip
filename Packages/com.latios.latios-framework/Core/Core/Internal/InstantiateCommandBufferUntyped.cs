@@ -628,7 +628,7 @@ namespace Latios
         #endregion
 
         #region Checks
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckWriteAccess()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -636,7 +636,7 @@ namespace Latios
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckReadAccess()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -644,8 +644,8 @@ namespace Latios
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
-        void CheckComponentTypesValid(ComponentTypes types)
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void CheckComponentTypesValid(ComponentTypes types)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (types.m_masks.m_ZeroSizedMask != 0)
@@ -654,7 +654,7 @@ namespace Latios
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckEntityValid(Entity entity)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -663,7 +663,7 @@ namespace Latios
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckHasNotPlayedBack()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -672,7 +672,7 @@ namespace Latios
                     "InstantiateCommandBuffer has already been played back.");
 #endif
         }
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void ThrowTooManyTags()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -780,7 +780,7 @@ namespace Latios
                 UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             void CheckWriteAccess()
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -788,7 +788,7 @@ namespace Latios
 #endif
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             void CheckEntityValid(Entity entity)
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -797,7 +797,7 @@ namespace Latios
 #endif
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             void CheckHasNotPlayedBack()
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS

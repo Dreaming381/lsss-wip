@@ -55,7 +55,7 @@ namespace Latios.PhysicsEngine
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ThrowUnsupportedType()
         {
             throw new InvalidOperationException("Collider type not supported yet");

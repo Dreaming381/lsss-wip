@@ -173,7 +173,7 @@ namespace Latios
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private void ThrowIndexerRangeException(int i)
         {
             throw new System.ArgumentException($"simdFloat3 indexer must be in the range of 0 - 3. Was {i}");

@@ -92,7 +92,7 @@ namespace Latios
         }
         #endregion
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckDidNotPlayback()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS

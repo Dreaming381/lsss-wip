@@ -183,13 +183,13 @@ namespace Latios.PhysicsEngine
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ThrowEntityQueryInImmediateMode()
         {
             throw new InvalidOperationException("Running immediate mode on an EntityQuery is not supported. Use Run instead.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ThrowUnknownConfiguration()
         {
             throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
@@ -539,7 +539,7 @@ namespace Latios.PhysicsEngine
         #endregion
 
         #region Validators
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ValidateSettings(this BuildCollisionLayerConfig config)
         {
             if (math.any(config.settings.worldAABB.min > config.settings.worldAABB.max))
@@ -548,7 +548,7 @@ namespace Latios.PhysicsEngine
                 throw new InvalidOperationException("BuildCollisionLayer requires positive Subdivision values per axis");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ValidateOverrideAabbsAreRightLength(NativeArray<Aabb> aabbs, int count, bool query)
         {
             if (aabbs.Length != count)
@@ -556,7 +556,7 @@ namespace Latios.PhysicsEngine
                     $"The number of elements in overrideAbbs does not match the { (query ? "number of entities in the query" : "number of bodies in the bodies array")}");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ValidateRemapArrayIsRightLength(NativeArray<int> remap, int count, bool query)
         {
             if (remap.Length != count)
