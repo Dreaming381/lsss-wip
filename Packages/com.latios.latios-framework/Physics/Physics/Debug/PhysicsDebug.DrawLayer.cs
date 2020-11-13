@@ -9,55 +9,290 @@ namespace Latios.PhysicsEngine
 {
     public static partial class PhysicsDebug
     {
-        public static void DrawLayer(CollisionLayer layer)
+        public static DrawLayerConfig DrawLayer(CollisionLayer layer)
         {
-            var colors     = new NativeArray<Color>(7, Allocator.TempJob);
-            colors[0]      = Color.red;
-            colors[1]      = Color.green;
-            colors[2]      = Color.blue;
-            colors[3]      = Color.cyan;
-            colors[4]      = Color.yellow;
-            colors[5]      = Color.magenta;
-            colors[6]      = Color.black;
-            var crossColor = Color.white;
-            for (int bucketI = 0; bucketI < layer.BucketCount - 1; bucketI++)
-            {
-                Color choiceColor = colors[bucketI % 7];
-                var   slices      = layer.GetBucketSlices(bucketI);
-                for (int i = 0; i < slices.count; i++)
-                {
-                    Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], slices.yzminmaxs[i].zw));
-                    DrawAabb(aabb, choiceColor);
-                }
-            }
-            {
-                var slices = layer.GetBucketSlices(layer.BucketCount - 1);
-                for (int i = 0; i < slices.count; i++)
-                {
-                    Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], slices.yzminmaxs[i].zw));
-                    DrawAabb(aabb, crossColor);
-                }
-            }
-            colors.Dispose();
+            var colors                         = new FixedList512<Color>();
+            colors.Length                      = 7;
+            colors[0]                          = Color.red;
+            colors[1]                          = Color.green;
+            colors[2]                          = Color.blue;
+            colors[3]                          = Color.cyan;
+            colors[4]                          = Color.yellow;
+            colors[5]                          = Color.magenta;
+            colors[6]                          = Color.black;
+            var crossColor                     = Color.white;
+            return new DrawLayerConfig { layer = layer, colors = colors, crossColor = crossColor };
         }
 
-        public static void DrawFindPairs(CollisionLayer layer)
+        public struct DrawLayerConfig
         {
-            NativeHashMap<Entity, bool>          hitmap  = new NativeHashMap<Entity, bool>(layer.Count * 2, Allocator.TempJob);
-            NativeArray<DebugFindPairsHitResult> results = new NativeArray<DebugFindPairsHitResult>(layer.Count, Allocator.TempJob);
-            DebugFindPairsProcessor              job     = new DebugFindPairsProcessor { hits = hitmap };
-            new DebugFindPairsJob { processor            = job, layer = layer }.Run();
-            new DebugFindPairsProcessResultsJob { layer  = layer, hits = hitmap, results = results }.Run();
+            internal CollisionLayer      layer;
+            internal FixedList512<Color> colors;
+            internal Color               crossColor;
 
-            for (int i = 0; i < results.Length; i++)
+            public DrawLayerConfig WithColors(FixedList512<Color> colors, Color crossBucketColor)
             {
-                DrawAabb(results[i].aabb, results[i].hit ? Color.red : Color.green);
+                this.colors     = colors;
+                this.crossColor = crossBucketColor;
+                return this;
             }
-            hitmap.Dispose();
-            results.Dispose();
+
+            public void RunImmediate()
+            {
+                var job = new DebugDrawLayerJob
+                {
+                    layer      = layer,
+                    colors     = colors,
+                    crossColor = crossColor
+                };
+                for (int i = 0; i < layer.BucketCount; i++)
+                {
+                    job.Execute(i);
+                }
+            }
+
+            public void Run()
+            {
+                new DebugDrawLayerJob
+                {
+                    layer      = layer,
+                    colors     = colors,
+                    crossColor = crossColor
+                }.Run(layer.BucketCount);
+            }
+
+            public JobHandle ScheduleSingle(JobHandle inputDeps = default)
+            {
+                return new DebugDrawLayerJob
+                {
+                    layer      = layer,
+                    colors     = colors,
+                    crossColor = crossColor
+                }.Schedule(layer.BucketCount, inputDeps);
+            }
+
+            public JobHandle ScheduleParallel(JobHandle inputDeps = default)
+            {
+                return new DebugDrawLayerJob
+                {
+                    layer      = layer,
+                    colors     = colors,
+                    crossColor = crossColor
+                }.ScheduleParallel(layer.BucketCount, 1, inputDeps);
+            }
         }
 
-        private static void DrawAabb(Aabb aabb, Color color)
+        public static DrawFindPairsConfig DrawFindPairs(CollisionLayer layer)
+        {
+            return new DrawFindPairsConfig
+            {
+                layerA       = layer,
+                hitColor     = Color.red,
+                missColor    = Color.green,
+                drawMisses   = true,
+                isLayerLayer = false
+            };
+        }
+
+        public static DrawFindPairsConfig DrawFindPairs(CollisionLayer layerA, CollisionLayer layerB)
+        {
+            return new DrawFindPairsConfig
+            {
+                layerA       = layerA,
+                layerB       = layerB,
+                hitColor     = Color.red,
+                missColor    = Color.green,
+                drawMisses   = true,
+                isLayerLayer = true
+            };
+        }
+
+        public struct DrawFindPairsConfig
+        {
+            internal CollisionLayer layerA;
+            internal CollisionLayer layerB;
+            internal Color          hitColor;
+            internal Color          missColor;
+            internal bool           drawMisses;
+            internal bool           isLayerLayer;
+
+            public DrawFindPairsConfig WithColors(Color overlapColor, Color nonOverlapColor, bool drawNonOverlapping = true)
+            {
+                hitColor   = overlapColor;
+                missColor  = nonOverlapColor;
+                drawMisses = drawNonOverlapping;
+                return this;
+            }
+
+            public void RunImmediate()
+            {
+                if (isLayerLayer)
+                {
+                    var hitArrayA = new NativeBitArray(layerA.Count, Allocator.Temp, NativeArrayOptions.ClearMemory);
+                    var hitArrayB = new NativeBitArray(layerB.Count, Allocator.Temp, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerLayerProcessor { hitArrayA = hitArrayA, hitArrayB = hitArrayB };
+                    Physics.FindPairs(layerA, layerB, processor).RunImmediate();
+                    var job = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArrayA,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    };
+                    for (int i = 0; i < layerA.Count; i++)
+                    {
+                        job.Execute(i);
+                    }
+                    job.hitArray = hitArrayB;
+                    job.layer    = layerB;
+                    for (int i = 0; i < layerB.Count; i++)
+                    {
+                        job.Execute(i);
+                    }
+                }
+                else
+                {
+                    var hitArray  = new NativeBitArray(layerA.Count, Allocator.Temp, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerSelfProcessor { hitArray = hitArray };
+                    Physics.FindPairs(layerA, processor).RunImmediate();
+                    var job = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArray,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    };
+                    for (int i = 0; i < layerA.Count; i++)
+                    {
+                        job.Execute(i);
+                    }
+                }
+            }
+
+            public void Run()
+            {
+                if (isLayerLayer)
+                {
+                    var hitArrayA = new NativeBitArray(layerA.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var hitArrayB = new NativeBitArray(layerB.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerLayerProcessor { hitArrayA = hitArrayA, hitArrayB = hitArrayB };
+                    Physics.FindPairs(layerA, layerB, processor).Run();
+                    var job = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArrayA,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    };
+                    job.Run(layerA.Count);
+                    job.hitArray = hitArrayB;
+                    job.layer    = layerB;
+                    job.Run(layerB.Count);
+                    hitArrayA.Dispose();
+                    hitArrayB.Dispose();
+                }
+                else
+                {
+                    var hitArray  = new NativeBitArray(layerA.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerSelfProcessor { hitArray = hitArray };
+                    Physics.FindPairs(layerA, processor).Run();
+                    new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArray,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    }.Run(layerA.Count);
+                    hitArray.Dispose();
+                }
+            }
+
+            public JobHandle ScheduleSingle(JobHandle inputDeps = default)
+            {
+                if (isLayerLayer)
+                {
+                    var hitArrayA = new NativeBitArray(layerA.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var hitArrayB = new NativeBitArray(layerB.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerLayerProcessor { hitArrayA = hitArrayA, hitArrayB = hitArrayB };
+                    var jh        = Physics.FindPairs(layerA, layerB, processor).ScheduleSingle(inputDeps);
+                    var job       = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArrayA,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    };
+                    jh           = job.Schedule(layerA.Count, jh);
+                    job.hitArray = hitArrayB;
+                    job.layer    = layerB;
+                    jh           = job.Schedule(layerB.Count, jh);
+                    jh           = hitArrayA.Dispose(jh);
+                    return hitArrayB.Dispose(jh);
+                }
+                else
+                {
+                    var hitArray  = new NativeBitArray(layerA.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerSelfProcessor { hitArray = hitArray };
+                    var jh        = Physics.FindPairs(layerA, processor).ScheduleSingle(inputDeps);
+                    jh            = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArray,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    }.Schedule(layerA.Count, jh);
+                    return hitArray.Dispose(jh);
+                }
+            }
+
+            public JobHandle ScheduleParallel(JobHandle inputDeps = default)
+            {
+                if (isLayerLayer)
+                {
+                    var hitArrayA = new NativeBitArray(layerA.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var hitArrayB = new NativeBitArray(layerB.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerLayerProcessor { hitArrayA = hitArrayA, hitArrayB = hitArrayB };
+                    var jh        = Physics.FindPairs(layerA, layerB, processor).ScheduleSingle(inputDeps);
+                    var job       = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArrayA,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    };
+                    jh           = job.ScheduleParallel(layerA.Count, 64, jh);
+                    job.hitArray = hitArrayB;
+                    job.layer    = layerB;
+                    jh           = job.ScheduleParallel(layerB.Count, 64, jh);
+                    jh           = hitArrayA.Dispose(jh);
+                    return hitArrayB.Dispose(jh);
+                }
+                else
+                {
+                    var hitArray  = new NativeBitArray(layerA.Count, Allocator.TempJob, NativeArrayOptions.ClearMemory);
+                    var processor = new DebugFindPairsLayerSelfProcessor { hitArray = hitArray };
+                    var jh        = Physics.FindPairs(layerA, processor).ScheduleSingle(inputDeps);
+                    jh            = new DebugFindPairsDrawJob
+                    {
+                        layer      = layerA,
+                        hitArray   = hitArray,
+                        hitColor   = hitColor,
+                        missColor  = missColor,
+                        drawMisses = drawMisses
+                    }.ScheduleParallel(layerA.Count, 64, jh);
+                    return hitArray.Dispose(jh);
+                }
+            }
+        }
+
+        public static void DrawAabb(Aabb aabb, Color color)
         {
             float3 leftTopFront     = new float3(aabb.min.x, aabb.max.y, aabb.min.z);
             float3 rightTopFront    = new float3(aabb.max.x, aabb.max.y, aabb.min.z);
@@ -84,54 +319,85 @@ namespace Latios.PhysicsEngine
             Debug.DrawLine(rightBottomFront, rightBottomBack,  color);
         }
 
-        #region DrawFindPairsUtils
+        #region DrawLayerUtils
         [BurstCompile]
-        internal struct DebugFindPairsProcessor : IFindPairsProcessor
+        private struct DebugDrawLayerJob : IJobFor
         {
-            public NativeHashMap<Entity, bool> hits;
+            [ReadOnly] public CollisionLayer layer;
+            public FixedList512<Color>       colors;
+            public Color                     crossColor;
+
+            public void Execute(int index)
+            {
+                if (index < layer.BucketCount - 1)
+                {
+                    Color color  = colors[index % colors.Length];
+                    var   slices = layer.GetBucketSlices(index);
+                    for (int i = 0; i < slices.count; i++)
+                    {
+                        Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], slices.yzminmaxs[i].zw));
+                        DrawAabb(aabb, color);
+                    }
+                }
+                else
+                {
+                    Color color  = crossColor;
+                    var   slices = layer.GetBucketSlices(index);
+                    for (int i = 0; i < slices.count; i++)
+                    {
+                        Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], slices.yzminmaxs[i].zw));
+                        DrawAabb(aabb, color);
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region DrawFindPairsUtils
+        internal struct DebugFindPairsLayerSelfProcessor : IFindPairsProcessor
+        {
+            public NativeBitArray hitArray;
 
             public void Execute(FindPairsResult result)
             {
-                hits.TryAdd(result.bodyA.entity, true);
-                hits.TryAdd(result.bodyB.entity, true);
+                hitArray.Set(result.bodyAIndex, true);
+                hitArray.Set(result.bodyBIndex, true);
+            }
+        }
+
+        private struct DebugFindPairsLayerLayerProcessor : IFindPairsProcessor
+        {
+            public NativeBitArray hitArrayA;
+            public NativeBitArray hitArrayB;
+
+            public void Execute(FindPairsResult result)
+            {
+                hitArrayA.Set(result.bodyAIndex, true);
+                hitArrayB.Set(result.bodyBIndex, true);
             }
         }
 
         [BurstCompile]
-        private struct DebugFindPairsJob : IJob
+        private struct DebugFindPairsDrawJob : IJobFor
         {
-            public DebugFindPairsProcessor processor;
-            public CollisionLayer          layer;
+            [ReadOnly] public CollisionLayer layer;
+            [ReadOnly] public NativeBitArray hitArray;
+            public Color                     hitColor;
+            public Color                     missColor;
+            public bool                      drawMisses;
 
-            public void Execute()
+            public void Execute(int i)
             {
-                Physics.FindPairs(layer, processor).RunImmediate();
-            }
-        }
-
-        private struct DebugFindPairsHitResult
-        {
-            public Aabb aabb;
-            public bool hit;
-        }
-
-        [BurstCompile]
-        private struct DebugFindPairsProcessResultsJob : IJob
-        {
-            [ReadOnly] public CollisionLayer              layer;
-            [ReadOnly] public NativeHashMap<Entity, bool> hits;
-            public NativeArray<DebugFindPairsHitResult>   results;
-
-            public void Execute()
-            {
-                for (int i = 0; i < layer.Count; i++)
+                float3 min  = new float3(layer.xmins[i], layer.yzminmaxs[i].xy);
+                float3 max  = new float3(layer.xmaxs[i], layer.yzminmaxs[i].zw);
+                var    aabb = new Aabb(min, max);
+                if (hitArray.IsSet(i))
                 {
-                    var res = new DebugFindPairsHitResult
-                    {
-                        aabb = new Aabb(new float3(layer.xmins[i], layer.yzminmaxs[i].xy), new float3(layer.xmaxs[i], layer.yzminmaxs[i].zw)),
-                        hit  = hits.ContainsKey(layer.bodies[i].entity),
-                    };
-                    results[i] = res;
+                    DrawAabb(aabb, hitColor);
+                }
+                else if (drawMisses)
+                {
+                    DrawAabb(aabb, missColor);
                 }
             }
         }

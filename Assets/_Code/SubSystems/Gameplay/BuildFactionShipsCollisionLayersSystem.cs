@@ -44,7 +44,7 @@ namespace Lsss
             {
                 var layer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(factionEntity, true);
                 CompleteDependency();
-                PhysicsDebug.DrawLayer(layer.layer);
+                PhysicsDebug.DrawLayer(layer.layer).Run();
             }).WithoutBurst().Run();
         }
     }

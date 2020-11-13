@@ -44,7 +44,7 @@ namespace Lsss
         {
             var layer = sceneGlobalEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
             CompleteDependency();
-            PhysicsDebug.DrawLayer(layer);
+            PhysicsDebug.DrawLayer(layer).Run();
             UnityEngine.Debug.Log("SpawnPoints in layer: " + layer.Count);
         }
     }
