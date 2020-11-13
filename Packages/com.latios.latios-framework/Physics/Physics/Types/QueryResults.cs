@@ -19,6 +19,8 @@ namespace Latios.PhysicsEngine
         public float3 normalA;
         public float3 normalB;
         public float  distance;
+        public int    subColliderIndexA;
+        public int    subColliderIndexB;
     }
 
     public struct RaycastResult

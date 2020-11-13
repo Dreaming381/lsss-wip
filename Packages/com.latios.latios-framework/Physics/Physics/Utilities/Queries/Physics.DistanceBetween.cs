@@ -103,9 +103,10 @@ namespace Latios.PhysicsEngine
                                               math.mul(compoundTransform, blob.transforms[i]),
                                               math.min(result.distance, maxDistance),
                                               out var newResult);
-                newHit &= newResult.distance < result.distance;
-                hit    |= newHit;
-                result  = newHit ? newResult : result;
+                newResult.subColliderIndexB  = i;
+                newHit                      &= newResult.distance < result.distance;
+                hit                         |= newHit;
+                result                       = newHit ? newResult : result;
             }
             return hit;
         }
@@ -141,9 +142,10 @@ namespace Latios.PhysicsEngine
                                               math.mul(compoundTransform, blob.transforms[i]),
                                               math.min(result.distance, maxDistance),
                                               out var newResult);
-                newHit &= newResult.distance < result.distance;
-                hit    |= newHit;
-                result  = newHit ? newResult : result;
+                result.subColliderIndexB  = i;
+                newHit                   &= newResult.distance < result.distance;
+                hit                      |= newHit;
+                result                    = newHit ? newResult : result;
             }
             return hit;
         }
@@ -179,9 +181,10 @@ namespace Latios.PhysicsEngine
                                               bTransform,
                                               math.min(result.distance, maxDistance),
                                               out var newResult);
-                newHit &= newResult.distance < result.distance;
-                hit    |= newHit;
-                result  = newHit ? newResult : result;
+                result.subColliderIndexA  = i;
+                newHit                   &= newResult.distance < result.distance;
+                hit                      |= newHit;
+                result                    = newHit ? newResult : result;
             }
             return hit;
         }
@@ -192,11 +195,13 @@ namespace Latios.PhysicsEngine
         {
             return new ColliderDistanceResult
             {
-                hitpointA = resultToFlip.hitpointB,
-                hitpointB = resultToFlip.hitpointA,
-                normalA   = resultToFlip.normalB,
-                normalB   = resultToFlip.normalA,
-                distance  = resultToFlip.distance
+                hitpointA         = resultToFlip.hitpointB,
+                hitpointB         = resultToFlip.hitpointA,
+                normalA           = resultToFlip.normalB,
+                normalB           = resultToFlip.normalA,
+                distance          = resultToFlip.distance,
+                subColliderIndexA = resultToFlip.subColliderIndexB,
+                subColliderIndexB = resultToFlip.subColliderIndexA
             };
         }
 

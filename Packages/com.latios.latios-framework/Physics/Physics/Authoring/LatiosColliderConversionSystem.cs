@@ -173,6 +173,7 @@ namespace Latios.PhysicsEngine.Authoring.Systems
             int2 newRange = new int2(colliders.Length, 0);
             foreach (var unityCollider in unityColliders)
             {
+                DeclareDependency(root, unityCollider);
                 if ((unityCollider is UnityEngine.SphereCollider || unityCollider is UnityEngine.CapsuleCollider) == false)
                 {
                     throw new InvalidOperationException(
