@@ -128,6 +128,16 @@ namespace Latios
             return new simdFloat3 { m_float3s = new float4x3(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z) };
         }
 
+        public static simdFloat3 operator *(simdFloat3 lhs, float4 rhs)
+        {
+            return new simdFloat3 { m_float3s = new float4x3(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs) };
+        }
+
+        public static simdFloat3 operator *(float4 lhs, simdFloat3 rhs)
+        {
+            return new simdFloat3 { m_float3s = new float4x3(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z) };
+        }
+
         public static simdFloat3 operator *(simdFloat3 lhs, simdFloat3 rhs)
         {
             return new simdFloat3 { m_float3s = lhs.m_float3s * rhs.m_float3s };

@@ -26,6 +26,16 @@ namespace Latios.PhysicsEngine
             return hit;
         }
 
+        public static bool Raycast(Ray ray, BoxCollider box, RigidTransform boxTransform, out RaycastResult result)
+        {
+            var  rayInBoxSpace = Ray.TransformRay(math.inverse(boxTransform), ray);
+            bool hit           = Raycasting.RaycastBox(rayInBoxSpace, box, out float fraction, out float3 normal);
+            result.position    = math.lerp(ray.start, ray.end, fraction);
+            result.normal      = math.rotate(boxTransform, normal);
+            result.distance    = math.distance(ray.start, result.position);
+            return hit;
+        }
+
         public static bool Raycast(Ray ray, CompoundCollider compound, RigidTransform compoundTransform, out RaycastResult result)
         {
             result                     = default;

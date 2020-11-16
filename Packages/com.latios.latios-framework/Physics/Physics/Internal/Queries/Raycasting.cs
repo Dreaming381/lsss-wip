@@ -103,6 +103,32 @@ namespace Latios.PhysicsEngine
             return hit1 | hit2;
         }
 
+        //Note: Unity.Physics does not have an equivalent for this. It raycasts against the convex polygon.
+        public static bool RaycastBox(Ray ray, BoxCollider box, out float fraction, out float3 normal)
+        {
+            Aabb aabb = new Aabb(box.center - box.halfSize, box.center + box.halfSize);
+            if (RaycastAabb(ray, aabb, out fraction))
+            {
+                //Idea: Calculate the distance from the hitpoint to each plane of the AABB.
+                //The smallest distance is what we consider the plane we actually hit.
+                //Also, mask out planes whose normal does not face against the ray.
+                //Todo: Is that last step necessary?
+                float3 hitpoint            = ray.start + ray.displacement * fraction;
+                bool3  signPositive        = ray.displacement > 0f;
+                bool3  signNegative        = ray.displacement < 0f;
+                float3 alignedFaces        = math.select(aabb.min, aabb.max, signNegative);
+                float3 faceDistances       = math.abs(alignedFaces - hitpoint) + math.select(float.MaxValue, 0f, signNegative | signPositive);  //mask out faces the ray is parallel with
+                float  closestFaceDistance = math.cmin(faceDistances);
+                normal                     = math.select(float3.zero, new float3(1f), closestFaceDistance == faceDistances) * math.select(-1f, 1f, signNegative);  //The normal should be opposite to the ray direction
+                return true;
+            }
+            else
+            {
+                normal = float3.zero;
+                return false;
+            }
+        }
+
         public static bool4 Raycast2d4Circles(Ray2d ray, float4 xCenter, float4 yCenter, float radius, out float4 fractions)
         {
             float4 deltaX           = ray.start.x - xCenter;

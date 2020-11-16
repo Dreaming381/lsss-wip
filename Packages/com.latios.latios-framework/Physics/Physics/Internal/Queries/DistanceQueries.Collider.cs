@@ -36,7 +36,7 @@ namespace Latios.PhysicsEngine
         #endregion Sphere
 
         #region Capsule
-        public static bool DistanceBetween(SphereCollider sphere, CapsuleCollider capsule, float maxDistance, out ColliderDistanceResultInternal result)
+        public static bool DistanceBetween(CapsuleCollider capsule, SphereCollider sphere, float maxDistance, out ColliderDistanceResultInternal result)
         {
             //Strategy: Project p onto the capsule's line clamped to the segment. Then inflate point on line as sphere
             float3 edge                   = capsule.pointB - capsule.pointA;
@@ -45,8 +45,8 @@ namespace Latios.PhysicsEngine
             float  edgeLengthSq           = math.lengthsq(edge);
             dot                           = math.clamp(dot, 0f, edgeLengthSq);
             float3         pointOnSegment = capsule.pointA + edge * dot / edgeLengthSq;
-            SphereCollider sphereB        = new SphereCollider(pointOnSegment, capsule.radius);
-            return DistanceBetween(sphere, sphereB, maxDistance, out result);
+            SphereCollider sphereA        = new SphereCollider(pointOnSegment, capsule.radius);
+            return DistanceBetween(sphereA, sphere, maxDistance, out result);
         }
 
         public static bool DistanceBetween(CapsuleCollider capsuleA, CapsuleCollider capsuleB, float maxDistance, out ColliderDistanceResultInternal result)
@@ -61,6 +61,31 @@ namespace Latios.PhysicsEngine
             return DistanceBetween(sphereA, sphereB, maxDistance, out result);
         }
         #endregion Capsule
+
+        #region Box
+        public static bool DistanceBetween(BoxCollider box, SphereCollider sphere, float maxDistance, out ColliderDistanceResultInternal result)
+        {
+            bool   hit     = DistanceBetween(sphere.center, box, maxDistance + sphere.radius, out PointDistanceResultInternal pointDistanceResult);
+            float3 normalB = math.normalizesafe(pointDistanceResult.hitpoint - sphere.center, -pointDistanceResult.normal);
+            result         = new ColliderDistanceResultInternal
+            {
+                distance  = pointDistanceResult.distance - sphere.radius,
+                hitpointA = pointDistanceResult.hitpoint,
+                hitpointB = sphere.center + normalB * sphere.radius,
+                normalA   = pointDistanceResult.normal,
+                normalB   = normalB,
+            };
+            return hit;
+        }
+
+        //The following is defined in DistanceQuerieis.Collider.BoxCapsule
+        //public static bool DistanceBetween(BoxCollider box, CapsuleCollider capsule, float maxDistance, out ColliderDistanceResultInternal result)
+
+        public static bool DistanceBetween(BoxCollider boxA, BoxCollider boxB, float maxDistance, out ColliderDistanceResultInternal result)
+        {
+            throw new NotImplementedException();
+        }
+        #endregion Box
     }
 }
 

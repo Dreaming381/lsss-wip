@@ -376,7 +376,7 @@ namespace Latios
         #endregion
 
         #region Checks
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckWriteAccess()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -384,7 +384,7 @@ namespace Latios
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckReadAccess()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -434,7 +434,7 @@ namespace Latios
                 m_blockList->Write(new EntityWithOperation { entity = entity, sortKey = sortKey }, m_ThreadIndex);
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             void CheckWriteAccess()
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS

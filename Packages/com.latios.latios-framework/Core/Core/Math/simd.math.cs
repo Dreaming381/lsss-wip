@@ -21,6 +21,23 @@ namespace Latios
             return new simdFloat3 { m_float3s = new float4x3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x) };
         }
 
+        public static float4 distancesq(simdFloat3 a, simdFloat3 b)
+        {
+            var t = a - b;
+            return dot(t, t);
+        }
+
+        public static float4 lengthsq(simdFloat3 a) => dot(a, a);
+
+        public static simdFloat3 select(simdFloat3 a, simdFloat3 b, bool4 c)
+        {
+            simdFloat3 result = default;
+            result.x          = math.select(a.x, b.x, c);
+            result.y          = math.select(a.y, b.y, c);
+            result.z          = math.select(a.z, b.z, c);
+            return result;
+        }
+
         public static simdFloat3 transform(RigidTransform transform, simdFloat3 positions)
         {
             simdFloat3 t       = 2 * cross(transform.rot.value.xyz, positions);

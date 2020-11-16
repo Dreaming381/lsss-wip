@@ -1,7 +1,7 @@
 ﻿using System;
 using Unity.Mathematics;
 
-//Todo: Assert A != B
+//Note: A == B seems to work with SegmentSegmentDistance
 namespace Latios.PhysicsEngine
 {
     [Serializable]

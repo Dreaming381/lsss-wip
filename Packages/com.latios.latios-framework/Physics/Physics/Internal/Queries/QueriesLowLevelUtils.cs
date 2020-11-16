@@ -42,6 +42,37 @@ namespace Latios.PhysicsEngine
             closestAOut = pointA + fracA * edgeA;
             closestBOut = pointB + fracB * edgeB;
         }
+
+        internal static void SegmentSegment(simdFloat3 pointA, simdFloat3 edgeA, simdFloat3 pointB, simdFloat3 edgeB, out simdFloat3 closestAOut, out simdFloat3 closestBOut)
+        {
+            simdFloat3 diff = pointB - pointA;
+
+            float4 r         = simd.dot(edgeA, edgeB);
+            float4 s1        = simd.dot(edgeA, diff);
+            float4 s2        = simd.dot(edgeB, diff);
+            float4 lengthASq = simd.lengthsq(edgeA);
+            float4 lengthBSq = simd.lengthsq(edgeB);
+
+            float4 invDenom, invLengthASq, invLengthBSq;
+            {
+                float4 denom = lengthASq * lengthBSq - r * r;
+                invDenom     = 1.0f / denom;
+                invLengthASq = 1.0f / lengthASq;
+                invLengthBSq = 1.0f / lengthBSq;
+            }
+
+            float4 fracA = (s1 * lengthBSq - s2 * r) * invDenom;
+            fracA        = math.clamp(fracA, 0.0f, 1.0f);
+
+            float4 fracB = fracA * (invLengthBSq * r) - invLengthBSq * s2;
+            fracB        = math.clamp(fracB, 0.0f, 1.0f);
+
+            fracA = fracB * invLengthASq * r + invLengthASq * s1;
+            fracA = math.clamp(fracA, 0.0f, 1.0f);
+
+            closestAOut = pointA + fracA * edgeA;
+            closestBOut = pointB + fracB * edgeB;
+        }
     }
 }
 
