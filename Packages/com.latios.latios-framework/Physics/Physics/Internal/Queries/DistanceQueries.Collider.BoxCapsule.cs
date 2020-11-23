@@ -9,9 +9,8 @@ namespace Latios.PhysicsEngine
         {
             float3 osPointA = capsule.pointA - box.center;  //os = origin space
             float3 osPointB = capsule.pointB - box.center;
-            float3 closestPointOnBox;
-
-            float3 closestPointOnSegment;
+            float3 pointsPointOnBox;
+            float3 pointsPointOnSegment;
             //Step 1: Points vs Planes
             {
                 float3 distancesToMin = math.max(osPointA, osPointB) + box.halfSize;
@@ -21,19 +20,19 @@ namespace Latios.PhysicsEngine
                 bool3  bestAxisMask   = bestDistance == minDistances;
                 //Prioritize y first, then z, then x if multiple distances perfectly match.
                 //Todo: Should this be configurabe?
-                bestAxisMask.xz       &= !bestAxisMask.y;
-                bestAxisMask.x        &= !bestAxisMask.z;
-                float3 zeroMask        = math.select(0f, 1f, bestAxisMask);
-                bool   useMin          = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
-                float  aOnAxis         = math.dot(osPointA, zeroMask);
-                float  bOnAxis         = math.dot(osPointB, zeroMask);
-                bool   aIsGreater      = aOnAxis > bOnAxis;
-                closestPointOnSegment  = math.select(osPointA, osPointB, useMin ^ aIsGreater);
-                closestPointOnBox      = math.select(closestPointOnSegment, math.select(1f, -1f, useMin), bestAxisMask);
-                closestPointOnBox      = math.clamp(closestPointOnBox, -box.halfSize, box.halfSize);
+                bestAxisMask.xz      &= !bestAxisMask.y;
+                bestAxisMask.x       &= !bestAxisMask.z;
+                float3 zeroMask       = math.select(0f, 1f, bestAxisMask);
+                bool   useMin         = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
+                float  aOnAxis        = math.dot(osPointA, zeroMask);
+                float  bOnAxis        = math.dot(osPointB, zeroMask);
+                bool   aIsGreater     = aOnAxis > bOnAxis;
+                pointsPointOnSegment  = math.select(osPointA, osPointB, useMin ^ aIsGreater);
+                pointsPointOnBox      = math.select(pointsPointOnSegment, math.select(box.halfSize, -box.halfSize, useMin), bestAxisMask);
+                pointsPointOnBox      = math.clamp(pointsPointOnBox, -box.halfSize, box.halfSize);
             }
-            float signedDistanceSq = math.distancesq(closestPointOnSegment, closestPointOnBox);
-            signedDistanceSq       = math.select(signedDistanceSq, -signedDistanceSq, math.all(math.abs(closestPointOnSegment) < box.halfSize));
+            float signedDistanceSq = math.distancesq(pointsPointOnSegment, pointsPointOnBox);
+            signedDistanceSq       = math.select(signedDistanceSq, -signedDistanceSq, math.all(math.abs(pointsPointOnSegment) < box.halfSize));
             //Step 2: Edge vs Edges
             //Todo: We could inline the SegmentSegment invocations to simplify the initial dot products.
             float3     capsuleEdge     = osPointB - osPointA;
@@ -125,8 +124,8 @@ namespace Latios.PhysicsEngine
             float3 bestPointOnBox               = math.select(bestAbPointOnBox, bestCdPointOnBox, cdBeatsAb);
             bool   pointsBeatEdges              = signedDistanceSq < bestSignedDistanceSq;
             bestSignedDistanceSq                = math.select(bestSignedDistanceSq, signedDistanceSq, pointsBeatEdges);
-            bestPointOnSegment                  = math.select(bestPointOnSegment, closestPointOnSegment, pointsBeatEdges);
-            bestPointOnBox                      = math.select(bestPointOnBox, closestPointOnBox, pointsBeatEdges);
+            bestPointOnSegment                  = math.select(bestPointOnSegment, pointsPointOnSegment, pointsBeatEdges);
+            bestPointOnBox                      = math.select(bestPointOnBox, pointsPointOnBox, pointsBeatEdges);
 
             //Step 4: Build result
             float3 boxNormal = math.normalize(math.select(0f, 1f, bestPointOnBox == box.halfSize));

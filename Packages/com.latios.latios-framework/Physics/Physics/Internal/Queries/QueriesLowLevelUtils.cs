@@ -73,6 +73,68 @@ namespace Latios.PhysicsEngine
             closestAOut = pointA + fracA * edgeA;
             closestBOut = pointB + fracB * edgeB;
         }
+
+        internal static void OriginAabb8Points(float3 aabb, simdFloat3 points03, simdFloat3 points47, out float3 closestAOut, out float3 closestBOut)
+        {
+            bool4 minXMask0347 = points03.x <= points47.x;
+            bool4 minYMask0347 = points03.y <= points47.y;
+            bool4 minZMask0347 = points03.z <= points47.z;
+
+            var minX0347 = simd.select(points47, points03, minXMask0347);
+            var maxX0347 = simd.select(points03, points47, minXMask0347);
+            var minY0347 = simd.select(points47, points03, minYMask0347);
+            var maxY0347 = simd.select(points03, points47, minYMask0347);
+            var minZ0347 = simd.select(points47, points03, minZMask0347);
+            var maxZ0347 = simd.select(points03, points47, minZMask0347);
+
+            float minXValue = math.cmin(minX0347.x);
+            float maxXValue = math.cmax(maxX0347.x);
+            float minYValue = math.cmin(minY0347.y);
+            float maxYValue = math.cmax(maxY0347.y);
+            float minZValue = math.cmin(minZ0347.z);
+            float maxZValue = math.cmax(maxZ0347.z);
+
+            int3 minIndicesFrom0347;
+            int3 maxIndicesFrom0347;
+            minIndicesFrom0347.x = math.tzcnt(math.bitmask(minXValue == minX0347.x));
+            maxIndicesFrom0347.x = math.tzcnt(math.bitmask(maxXValue == maxX0347.x));
+            minIndicesFrom0347.y = math.tzcnt(math.bitmask(minYValue == minY0347.y));
+            maxIndicesFrom0347.y = math.tzcnt(math.bitmask(maxYValue == maxY0347.y));
+            minIndicesFrom0347.z = math.tzcnt(math.bitmask(minZValue == minZ0347.z));
+            maxIndicesFrom0347.z = math.tzcnt(math.bitmask(maxZValue == maxZ0347.z));
+
+            var bestMins = simd.shuffle(minX0347,
+                                        minX0347,
+                                        (math.ShuffleComponent)minIndicesFrom0347.x,
+                                        (math.ShuffleComponent)minIndicesFrom0347.y,
+                                        (math.ShuffleComponent)minIndicesFrom0347.z,
+                                        (math.ShuffleComponent)minIndicesFrom0347.x);
+            var bestMaxs = simd.shuffle(maxX0347,
+                                        maxX0347,
+                                        (math.ShuffleComponent)maxIndicesFrom0347.x,
+                                        (math.ShuffleComponent)maxIndicesFrom0347.y,
+                                        (math.ShuffleComponent)maxIndicesFrom0347.z,
+                                        (math.ShuffleComponent)maxIndicesFrom0347.x);
+
+            float3 minValues = new float3(minXValue, minYValue, minZValue);
+            float3 maxValues = new float3(maxXValue, maxYValue, maxZValue);
+
+            float3 distancesToMin = minValues + aabb;
+            float3 distancesToMax = aabb - maxValues;
+            float3 minDistances   = math.min(distancesToMin, distancesToMax);
+            float3 bestDistance   = math.cmin(minDistances);
+            bool3  bestAxisMask   = bestDistance == minDistances;
+            //Prioritize y first, then z, then x if multiple distances perfectly match.
+            //Todo: Should this be configurabe?
+            bestAxisMask.xz  &= !bestAxisMask.y;
+            bestAxisMask.x   &= !bestAxisMask.z;
+            float3 zeroMask   = math.select(0f, 1f, bestAxisMask);
+            bool   useMin     = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
+            int    bestIndex  = math.tzcnt(math.bitmask(new bool4(bestAxisMask, true)));
+            closestBOut       = math.select(bestMaxs[bestIndex], bestMins[bestIndex], useMin);
+            closestAOut       = math.select(closestBOut, math.select(aabb, -aabb, useMin), bestAxisMask);
+            closestAOut       = math.clamp(closestAOut, -aabb, aabb);
+        }
     }
 }
 

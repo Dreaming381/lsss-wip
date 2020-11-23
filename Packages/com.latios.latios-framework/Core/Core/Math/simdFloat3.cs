@@ -58,6 +58,12 @@ namespace Latios
             m_float3s.c2 = new float4(a.z, b.z, c.z, d.z);
         }
 
+        public static simdFloat3 operator -(simdFloat3 value)
+        {
+            value.m_float3s = -value.m_float3s;
+            return value;
+        }
+
         public static simdFloat3 operator +(simdFloat3 lhs, float rhs)
         {
             return new simdFloat3 { m_float3s = lhs.m_float3s + rhs };
@@ -172,21 +178,16 @@ namespace Latios
         {
             get
             {
-                switch(i)
-                {
-                    case 0: return a;
-                    case 1: return b;
-                    case 2: return c;
-                    case 3: return d;
-                    default: ThrowIndexerRangeException(i); return new float3();
-                }
+                CheckIndex(i);
+                return new float3(x[i], y[i], z[i]);
             }
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        private void ThrowIndexerRangeException(int i)
+        private void CheckIndex(int i)
         {
-            throw new System.ArgumentException($"simdFloat3 indexer must be in the range of 0 - 3. Was {i}");
+            if (i > 3 || i < 0)
+                throw new System.ArgumentException($"simdFloat3 indexer must be in the range of 0 - 3. Was {i}");
         }
     }
 }
