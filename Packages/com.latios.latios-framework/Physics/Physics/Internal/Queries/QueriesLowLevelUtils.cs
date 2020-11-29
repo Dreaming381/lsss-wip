@@ -74,7 +74,7 @@ namespace Latios.PhysicsEngine
             closestBOut = pointB + fracB * edgeB;
         }
 
-        internal static void OriginAabb8Points(float3 aabb, simdFloat3 points03, simdFloat3 points47, out float3 closestAOut, out float3 closestBOut)
+        internal static void OriginAabb8Points(float3 aabb, simdFloat3 points03, simdFloat3 points47, out float3 closestAOut, out float3 closestBOut, out float axisDistanceOut)
         {
             bool4 minXMask0347 = points03.x <= points47.x;
             bool4 minYMask0347 = points03.y <= points47.y;
@@ -119,10 +119,10 @@ namespace Latios.PhysicsEngine
             float3 minValues = new float3(minXValue, minYValue, minZValue);
             float3 maxValues = new float3(maxXValue, maxYValue, maxZValue);
 
-            float3 distancesToMin = minValues + aabb;
-            float3 distancesToMax = aabb - maxValues;
+            float3 distancesToMin = maxValues + aabb;
+            float3 distancesToMax = aabb - minValues;
             float3 minDistances   = math.min(distancesToMin, distancesToMax);
-            float3 bestDistance   = math.cmin(minDistances);
+            float  bestDistance   = math.cmin(minDistances);
             bool3  bestAxisMask   = bestDistance == minDistances;
             //Prioritize y first, then z, then x if multiple distances perfectly match.
             //Todo: Should this be configurabe?
@@ -131,9 +131,26 @@ namespace Latios.PhysicsEngine
             float3 zeroMask   = math.select(0f, 1f, bestAxisMask);
             bool   useMin     = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
             int    bestIndex  = math.tzcnt(math.bitmask(new bool4(bestAxisMask, true)));
-            closestBOut       = math.select(bestMaxs[bestIndex], bestMins[bestIndex], useMin);
+            closestBOut       = math.select(bestMins[bestIndex], bestMaxs[bestIndex], useMin);
             closestAOut       = math.select(closestBOut, math.select(aabb, -aabb, useMin), bestAxisMask);
             closestAOut       = math.clamp(closestAOut, -aabb, aabb);
+            axisDistanceOut   = -bestDistance;
+        }
+
+        public static bool4 ArePointsInsideObb(simdFloat3 points, simdFloat3 obbNormals, float3 distances, float3 halfWidths)
+        {
+            float3 positives  = distances + halfWidths;
+            float3 negatives  = distances - halfWidths;
+            var    dots       = simd.dot(points, obbNormals.aaaa);
+            bool4  results    = dots <= positives.x;
+            results          &= dots >= negatives.x;
+            dots              = simd.dot(points, obbNormals.bbbb);
+            results          &= dots <= positives.y;
+            results          &= dots >= negatives.y;
+            dots              = simd.dot(points, obbNormals.cccc);
+            results          &= dots <= positives.z;
+            results          &= dots >= negatives.z;
+            return results;
         }
     }
 }

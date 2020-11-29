@@ -78,13 +78,16 @@ namespace Latios.PhysicsEngine
             return hit;
         }
 
-        //The following is defined in DistanceQuerieis.Collider.BoxCapsule
+        //The following is defined in DistanceQueries.Collider.BoxCapsule
         //public static bool DistanceBetween(BoxCollider box, CapsuleCollider capsule, float maxDistance, out ColliderDistanceResultInternal result)
 
-        public static bool DistanceBetween(BoxCollider boxA, BoxCollider boxB, float maxDistance, out ColliderDistanceResultInternal result)
-        {
-            throw new NotImplementedException();
-        }
+        //The following is defined in DistanceQueries.Collider.BoxBox
+        //public static bool DistanceBetween(BoxCollider boxA,
+        //                                   BoxCollider boxB,
+        //                                   RigidTransform bInASpace,
+        //                                   RigidTransform aInBSpace,
+        //                                   float maxDistance,
+        //                                   out ColliderDistanceResultInternal result)
         #endregion Box
     }
 }

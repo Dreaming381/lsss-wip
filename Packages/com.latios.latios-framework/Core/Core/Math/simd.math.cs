@@ -38,12 +38,39 @@ namespace Latios
             return result;
         }
 
-        public static float3 shuffle(simdFloat3 left, simdFloat3 right, math.ShuffleComponent shuffleA)
-        {
+        /*public static float3 shuffle(simdFloat3 left, simdFloat3 right, math.ShuffleComponent shuffleA)
+           {
             float3 result = default;
             result.x      = math.shuffle(left.x, right.x, shuffleA);
             result.y      = math.shuffle(left.y, right.y, shuffleA);
             result.z      = math.shuffle(left.z, right.z, shuffleA);
+            return result;
+           }
+
+           public static simdFloat3 shuffle(simdFloat3 left,
+                                         simdFloat3 right,
+                                         math.ShuffleComponent shuffleA,
+                                         math.ShuffleComponent shuffleB,
+                                         math.ShuffleComponent shuffleC,
+                                         math.ShuffleComponent shuffleD)
+           {
+            simdFloat3 result = default;
+            result.x          = math.shuffle(left.x, right.x, shuffleA, shuffleB, shuffleC, shuffleD);
+            result.y          = math.shuffle(left.y, right.y, shuffleA, shuffleB, shuffleC, shuffleD);
+            result.z          = math.shuffle(left.z, right.z, shuffleA, shuffleB, shuffleC, shuffleD);
+            return result;
+           }*/
+
+        public static float3 shuffle(simdFloat3 left, simdFloat3 right, math.ShuffleComponent shuffleA)
+        {
+            int  code     = (int)shuffleA;
+            bool useRight = code > 3;
+            int  index    = code & 3;
+
+            float3 result = default;
+            result.x      = math.select(left.x, right.x, useRight)[index];
+            result.y      = math.select(left.y, right.y, useRight)[index];
+            result.z      = math.select(left.z, right.z, useRight)[index];
             return result;
         }
 
@@ -54,10 +81,20 @@ namespace Latios
                                          math.ShuffleComponent shuffleC,
                                          math.ShuffleComponent shuffleD)
         {
+            int4  code     = new int4((int)shuffleA, (int)shuffleB, (int)shuffleC, (int)shuffleD);
+            bool4 useRight = code > 3;
+            int4  index    = code & 3;
+
             simdFloat3 result = default;
-            result.x          = math.shuffle(left.x, right.x, shuffleA, shuffleB, shuffleC, shuffleD);
-            result.y          = math.shuffle(left.y, right.y, shuffleA, shuffleB, shuffleC, shuffleD);
-            result.z          = math.shuffle(left.z, right.z, shuffleA, shuffleB, shuffleC, shuffleD);
+            float4     l      = new float4(left.x[index.x], left.x[index.y], left.x[index.z], left.x[index.w]);
+            float4     r      = new float4(right.x[index.x], right.x[index.y], right.x[index.z], right.x[index.w]);
+            result.x          = math.select(l, r, useRight);
+            l                 = new float4(left.y[index.x], left.y[index.y], left.y[index.z], left.y[index.w]);
+            r                 = new float4(right.y[index.x], right.y[index.y], right.y[index.z], right.y[index.w]);
+            result.y          = math.select(l, r, useRight);
+            l                 = new float4(left.z[index.x], left.z[index.y], left.z[index.z], left.z[index.w]);
+            r                 = new float4(right.z[index.x], right.z[index.y], right.z[index.z], right.z[index.w]);
+            result.z          = math.select(l, r, useRight);
             return result;
         }
 

@@ -48,6 +48,20 @@ namespace Latios.PhysicsEngine
             return collider.m_capsule;
         }
 
+        public unsafe static implicit operator Collider(BoxCollider boxCollider)
+        {
+            Collider collider = default;
+            collider.m_type   = ColliderType.Box;
+            collider.m_box    = boxCollider;
+            return collider;
+        }
+
+        public unsafe static implicit operator BoxCollider(Collider collider)
+        {
+            CheckColliderIsCastTargetType(collider, ColliderType.Box);
+            return collider.m_box;
+        }
+
         public unsafe static implicit operator Collider(CompoundCollider compoundCollider)
         {
             Collider collider      = default;
@@ -72,6 +86,7 @@ namespace Latios.PhysicsEngine
                 {
                     case ColliderType.Sphere: throw new InvalidOperationException("Collider is not a SphereCollider but is being casted to one.");
                     case ColliderType.Capsule: throw new InvalidOperationException("Collider is not a CapsuleCollider but is being casted to one.");
+                    case ColliderType.Box: throw new InvalidOperationException("Collider is not a BoxCollider but is being casted to one.");
                     case ColliderType.Compound: throw new InvalidOperationException("Collider is not a CompoundCollider but is being casted to one.");
                 }
             }

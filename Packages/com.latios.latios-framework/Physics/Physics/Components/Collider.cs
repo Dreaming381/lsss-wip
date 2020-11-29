@@ -12,7 +12,7 @@ namespace Latios.PhysicsEngine
         //Convex Primitive types
         Sphere = 0,
         Capsule = 1,
-        //Box = 2,
+        Box = 2,
         //Triangle = 3,
         //Quad = 4,
         //Cylinder = 5
@@ -47,6 +47,9 @@ namespace Latios.PhysicsEngine
 
         [FieldOffset(0)]
         CapsuleCollider m_capsule;
+
+        [FieldOffset(0)]
+        BoxCollider m_box;
 
         //Todo: Make this a BlobAssetReference for all generic collider blobs.
         [FieldOffset(48)]

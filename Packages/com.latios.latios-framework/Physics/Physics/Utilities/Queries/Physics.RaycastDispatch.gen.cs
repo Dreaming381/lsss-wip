@@ -29,6 +29,11 @@ namespace Latios.PhysicsEngine
                     CapsuleCollider col = collider;
                     return Raycast(ray, col, colliderTransform, out result);
                 }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return Raycast(ray, col, colliderTransform, out result);
+                }
                 case ColliderType.Compound:
                 {
                     CompoundCollider col = collider;

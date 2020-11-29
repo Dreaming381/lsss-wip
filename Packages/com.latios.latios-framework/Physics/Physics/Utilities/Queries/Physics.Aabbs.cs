@@ -20,6 +20,11 @@ namespace Latios.PhysicsEngine
             return new Aabb(math.min(a, b) - capsule.radius, math.max(a, b) + capsule.radius);
         }
 
+        public static Aabb CalculateAabb(BoxCollider box, RigidTransform transform)
+        {
+            return TransformAabb(new float4x4(transform), box.center, box.halfSize);
+        }
+
         public static Aabb CalculateAabb(CompoundCollider compound, RigidTransform transform)
         {
             var    local = compound.compoundColliderBlob.Value.localAabb;
@@ -46,6 +51,9 @@ namespace Latios.PhysicsEngine
                 case ColliderType.Capsule:
                     CapsuleCollider capsule = collider;
                     return CalculateAabb(capsule, transform);
+                case ColliderType.Box:
+                    BoxCollider box = collider;
+                    return CalculateAabb(box, transform);
                 case ColliderType.Compound:
                     CompoundCollider compound = collider;
                     return CalculateAabb(compound, transform);

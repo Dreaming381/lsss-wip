@@ -34,6 +34,11 @@ namespace Latios.PhysicsEngine
                     CapsuleCollider col = collider;
                     return DistanceBetween(col, colliderTransform, sphere, sphereTransform, maxDistance, out result);
                 }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, sphere, sphereTransform, maxDistance, out result);
+                }
                 case ColliderType.Compound:
                 {
                     CompoundCollider col = collider;
@@ -64,6 +69,11 @@ namespace Latios.PhysicsEngine
                     CapsuleCollider col = collider;
                     return DistanceBetween(sphere, sphereTransform, col, colliderTransform, maxDistance, out result);
                 }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return DistanceBetween(sphere, sphereTransform, col, colliderTransform, maxDistance, out result);
+                }
                 case ColliderType.Compound:
                 {
                     CompoundCollider col = collider;
@@ -91,6 +101,11 @@ namespace Latios.PhysicsEngine
                 case ColliderType.Capsule:
                 {
                     CapsuleCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, capsule, capsuleTransform, maxDistance, out result);
+                }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
                     return DistanceBetween(col, colliderTransform, capsule, capsuleTransform, maxDistance, out result);
                 }
                 case ColliderType.Compound:
@@ -123,6 +138,11 @@ namespace Latios.PhysicsEngine
                     CapsuleCollider col = collider;
                     return DistanceBetween(capsule, capsuleTransform, col, colliderTransform, maxDistance, out result);
                 }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return DistanceBetween(capsule, capsuleTransform, col, colliderTransform, maxDistance, out result);
+                }
                 case ColliderType.Compound:
                 {
                     CompoundCollider col = collider;
@@ -133,7 +153,75 @@ namespace Latios.PhysicsEngine
                     return false;
             }
         }
+        public static bool DistanceBetween(Collider collider,
+                                           RigidTransform colliderTransform,
+                                           BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            switch (collider.type)
+            {
+                case ColliderType.Sphere:
+                {
+                    SphereCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, box, boxTransform, maxDistance, out result);
+                }
+                case ColliderType.Capsule:
+                {
+                    CapsuleCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, box, boxTransform, maxDistance, out result);
+                }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, box, boxTransform, maxDistance, out result);
+                }
+                case ColliderType.Compound:
+                {
+                    CompoundCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, box, boxTransform, maxDistance, out result);
+                }
+                default:
+                    result = default;
+                    return false;
+            }
+        }
 
+        public static bool DistanceBetween(BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           Collider collider,
+                                           RigidTransform colliderTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            switch (collider.type)
+            {
+                case ColliderType.Sphere:
+                {
+                    SphereCollider col = collider;
+                    return DistanceBetween(box, boxTransform, col, colliderTransform, maxDistance, out result);
+                }
+                case ColliderType.Capsule:
+                {
+                    CapsuleCollider col = collider;
+                    return DistanceBetween(box, boxTransform, col, colliderTransform, maxDistance, out result);
+                }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return DistanceBetween(box, boxTransform, col, colliderTransform, maxDistance, out result);
+                }
+                case ColliderType.Compound:
+                {
+                    CompoundCollider col = collider;
+                    return DistanceBetween(box, boxTransform, col, colliderTransform, maxDistance, out result);
+                }
+                default:
+                    result = default;
+                    return false;
+            }
+        }
         public static bool DistanceBetween(Collider collider,
                                            RigidTransform colliderTransform,
                                            CompoundCollider compound,
@@ -151,6 +239,11 @@ namespace Latios.PhysicsEngine
                 case ColliderType.Capsule:
                 {
                     CapsuleCollider col = collider;
+                    return DistanceBetween(col, colliderTransform, compound, compoundTransform, maxDistance, out result);
+                }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
                     return DistanceBetween(col, colliderTransform, compound, compoundTransform, maxDistance, out result);
                 }
                 case ColliderType.Compound:
@@ -183,6 +276,11 @@ namespace Latios.PhysicsEngine
                     CapsuleCollider col = collider;
                     return DistanceBetween(compound, compoundTransform, col, colliderTransform, maxDistance, out result);
                 }
+                case ColliderType.Box:
+                {
+                    BoxCollider col = collider;
+                    return DistanceBetween(compound, compoundTransform, col, colliderTransform, maxDistance, out result);
+                }
                 case ColliderType.Compound:
                 {
                     CompoundCollider col = collider;
@@ -211,6 +309,11 @@ namespace Latios.PhysicsEngine
                 case ColliderType.Capsule:
                 {
                     CapsuleCollider colA = colliderA;
+                    return DistanceBetween(colA, aTransform, colliderB, bTransform, maxDistance, out result);
+                }
+                case ColliderType.Box:
+                {
+                    BoxCollider colA = colliderA;
                     return DistanceBetween(colA, aTransform, colliderB, bTransform, maxDistance, out result);
                 }
                 case ColliderType.Compound:

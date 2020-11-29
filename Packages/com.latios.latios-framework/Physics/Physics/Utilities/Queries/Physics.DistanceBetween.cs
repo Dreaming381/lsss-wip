@@ -83,6 +83,95 @@ namespace Latios.PhysicsEngine
         }
         #endregion
 
+        #region Box
+        public static bool DistanceBetween(BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           SphereCollider sphere,
+                                           RigidTransform sphereTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            var            boxWorldToLocal        = math.inverse(boxTransform);
+            float3         sphereCenterInBoxSpace = math.transform(boxWorldToLocal, sphere.center + sphereTransform.pos);
+            SphereCollider sphereInBoxSpace       = new SphereCollider(sphereCenterInBoxSpace, sphere.radius);
+            bool           hit                    = DistanceQueries.DistanceBetween(box,
+                                                                          sphereInBoxSpace,
+                                                                          maxDistance,
+                                                                          out DistanceQueries.ColliderDistanceResultInternal localResult);
+            result = new ColliderDistanceResult
+            {
+                hitpointA = math.transform(boxTransform, localResult.hitpointA),
+                hitpointB = math.transform(boxTransform, localResult.hitpointB),
+                normalA   = math.rotate(boxTransform, localResult.normalA),
+                normalB   = math.rotate(boxTransform, localResult.normalB),
+                distance  = localResult.distance
+            };
+            return hit;
+        }
+
+        public static bool DistanceBetween(SphereCollider sphere,
+                                           RigidTransform sphereTransform,
+                                           BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            bool hit = DistanceBetween(box, boxTransform, sphere, sphereTransform, maxDistance, out ColliderDistanceResult flipResult);
+            result   = FlipResult(flipResult);
+            return hit;
+        }
+
+        public static bool DistanceBetween(BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           CapsuleCollider capsule,
+                                           RigidTransform capsuleTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            var boxWorldToLocal        = math.inverse(boxTransform);
+            var capInBoxSpaceTransform = math.mul(boxWorldToLocal, capsuleTransform);
+            var capsuleInBoxSpace      = new CapsuleCollider(math.transform(capInBoxSpaceTransform, capsule.pointA),
+                                                             math.transform(capInBoxSpaceTransform, capsule.pointB),
+                                                             capsule.radius);
+            bool hit = DistanceQueries.DistanceBetween(box, capsuleInBoxSpace, maxDistance, out DistanceQueries.ColliderDistanceResultInternal localResult);
+            result   = BinAResultToWorld(localResult, boxTransform);
+            return hit;
+        }
+
+        public static bool DistanceBetween(CapsuleCollider capsule,
+                                           RigidTransform capsuleTransform,
+                                           BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            bool hit = DistanceBetween(box, boxTransform, capsule, capsuleTransform, maxDistance, out ColliderDistanceResult flipResult);
+            result   = FlipResult(flipResult);
+            return hit;
+        }
+
+        public static bool DistanceBetween(BoxCollider boxA,
+                                           RigidTransform aTransform,
+                                           BoxCollider boxB,
+                                           RigidTransform bTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            var aWorldToLocal      = math.inverse(aTransform);
+            var bWorldToLocal      = math.inverse(bTransform);
+            var bInASpaceTransform = math.mul(aWorldToLocal, bTransform);
+            var aInBSpaceTransform = math.mul(bWorldToLocal, aTransform);
+            var hit                = DistanceQueries.DistanceBetween(boxA,
+                                                                     boxB,
+                                                                     bInASpaceTransform,
+                                                                     aInBSpaceTransform,
+                                                                     maxDistance,
+                                                                     out DistanceQueries.ColliderDistanceResultInternal localResult);
+            result = BinAResultToWorld(localResult, aTransform);
+            return hit;
+        }
+        #endregion
+
         #region Compound
         public static bool DistanceBetween(CompoundCollider compound,
                                            RigidTransform compoundTransform,
@@ -144,10 +233,10 @@ namespace Latios.PhysicsEngine
                                               math.min(result.distance, maxDistance),
                                               out var newResult);
 
-                result.subColliderIndexA  = i;
-                newHit                   &= newResult.distance < result.distance;
-                hit                      |= newHit;
-                result                    = newHit ? newResult : result;
+                newResult.subColliderIndexA  = i;
+                newHit                      &= newResult.distance < result.distance;
+                hit                         |= newHit;
+                result                       = newHit ? newResult : result;
             }
             return hit;
         }
@@ -160,6 +249,46 @@ namespace Latios.PhysicsEngine
                                            out ColliderDistanceResult result)
         {
             bool hit = DistanceBetween(compound, compoundTransform, capsule, capsuleTransform, maxDistance, out var flipResult);
+            result   = FlipResult(flipResult);
+            return hit;
+        }
+
+        public static bool DistanceBetween(CompoundCollider compound,
+                                           RigidTransform compoundTransform,
+                                           BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            bool hit        = false;
+            result          = default;
+            result.distance = float.MaxValue;
+            ref var blob    = ref compound.compoundColliderBlob.Value;
+            for (int i = 0; i < blob.colliders.Length; i++)
+            {
+                bool newHit = DistanceBetween(blob.colliders[i],
+                                              math.mul(compoundTransform, blob.transforms[i]),
+                                              box,
+                                              boxTransform,
+                                              maxDistance,
+                                              out var newResult);
+
+                newResult.subColliderIndexA  = i;
+                newHit                      &= newResult.distance < result.distance;
+                hit                         |= newHit;
+                result                       = newHit ? newResult : result;
+            }
+            return hit;
+        }
+
+        public static bool DistanceBetween(BoxCollider box,
+                                           RigidTransform boxTransform,
+                                           CompoundCollider compound,
+                                           RigidTransform compoundTransform,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            bool hit = DistanceBetween(compound, compoundTransform, box, boxTransform, maxDistance, out var flipResult);
             result   = FlipResult(flipResult);
             return hit;
         }
@@ -183,10 +312,11 @@ namespace Latios.PhysicsEngine
                                               bTransform,
                                               math.min(result.distance, maxDistance),
                                               out var newResult);
-                result.subColliderIndexA  = i;
-                newHit                   &= newResult.distance < result.distance;
-                hit                      |= newHit;
-                result                    = newHit ? newResult : result;
+
+                newResult.subColliderIndexA  = i;
+                newHit                      &= newResult.distance < result.distance;
+                hit                         |= newHit;
+                result                       = newHit ? newResult : result;
             }
             return hit;
         }
