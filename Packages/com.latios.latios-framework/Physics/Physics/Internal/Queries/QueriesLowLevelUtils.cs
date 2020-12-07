@@ -100,16 +100,9 @@ namespace Latios.PhysicsEngine
 
             float3 distancesToMin = maxValues + aabb;
             float3 distancesToMax = aabb - minValues;
-            float3 minDistances   = math.min(distancesToMin, distancesToMax);
-            float  bestDistance   = math.cmin(minDistances);
-            bool3  bestAxisMask   = bestDistance == minDistances;
-            //Prioritize y first, then z, then x if multiple distances perfectly match.
-            //Todo: Should this be configurabe?
-            //bestAxisMask.xz  &= !bestAxisMask.y;
-            //bestAxisMask.x   &= !bestAxisMask.z;
-            //float3 zeroMask   = math.select(0f, 1f, bestAxisMask);
-            //bool   useMin     = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
-            //int    bestIndex  = math.tzcnt(math.bitmask(new bool4(bestAxisMask, true)));
+            float3 bestDistances  = math.min(distancesToMin, distancesToMax);
+            float  bestDistance   = math.cmin(bestDistances);
+            bool3  bestAxisMask   = bestDistance == bestDistances;
 
             //Step 2: Find the point that matches the bestDistance for the bestDistanceMask and has the least deviation when clamped to the AABB
             simdFloat3 distancesToMin03 = points03 + aabb;

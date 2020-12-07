@@ -13,7 +13,7 @@ using UnityCollider = UnityEngine.Collider;
 
 namespace Latios.PhysicsEngine.Authoring.Systems
 {
-    [ConverterVersion("latios", 1)]
+    [ConverterVersion("latios", 2)]
     public class LatiosColliderConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
@@ -174,10 +174,10 @@ namespace Latios.PhysicsEngine.Authoring.Systems
             foreach (var unityCollider in unityColliders)
             {
                 DeclareDependency(root, unityCollider);
-                if ((unityCollider is UnityEngine.SphereCollider || unityCollider is UnityEngine.CapsuleCollider) == false)
+                if ((unityCollider is UnityEngine.SphereCollider || unityCollider is UnityEngine.CapsuleCollider || unityCollider is UnityEngine.BoxCollider) == false)
                 {
                     throw new InvalidOperationException(
-                        $"GameObject Conversion Error: Failed to convert {unityCollider}. Compound Colliders may only be composed of Sphere and Capsule Colliders. Other collider types may be supported in a future version.");
+                        $"GameObject Conversion Error: Failed to convert {unityCollider}. Compound Colliders may only be composed of Sphere, Capsule, and Box Colliders. Other collider types may be supported in a future version.");
                 }
                 if (!unityCollider.transform.IsChildOf(root.transform))
                 {
@@ -194,7 +194,8 @@ namespace Latios.PhysicsEngine.Authoring.Systems
                 //Calculate transform
 
                 float3 scale = (float3)unityCollider.transform.lossyScale / root.transform.lossyScale;
-                if (math.cmax(scale) - math.cmin(scale) > 1.0E-5f)
+                if ((unityCollider is UnityEngine.SphereCollider || unityCollider is UnityEngine.CapsuleCollider) &&
+                    math.cmax(scale) - math.cmin(scale) > 1.0E-5f)
                 {
                     throw new InvalidOperationException(
                         $"GameObject Conversion Error: Failed to convert {unityCollider}. Only uniform scale is permitted on Sphere and Capsule colliders.");
@@ -235,6 +236,14 @@ namespace Latios.PhysicsEngine.Authoring.Systems
                         pointB = (float3)unityCapsule.center + ((unityCapsule.height / 2f - unityCapsule.radius) * unityCapsule.transform.lossyScale.x * dir),
                         pointA = (float3)unityCapsule.center - ((unityCapsule.height / 2f - unityCapsule.radius) * unityCapsule.transform.lossyScale.x * dir),
                         radius = unityCapsule.radius * scale.x
+                    });
+                }
+                else if (unityCollider is UnityEngine.BoxCollider unityBox)
+                {
+                    colliders.Add(new BoxCollider
+                    {
+                        center   = unityBox.center,
+                        halfSize = unityBox.size * scale / 2f
                     });
                 }
                 newRange.y++;

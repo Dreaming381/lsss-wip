@@ -5,7 +5,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.unity.entities": "0.14.0-preview.19",
+        "com.unity.entities": "0.16.0-preview.21",
         "com.unity.code-analysis": "0.1.2-preview"
       }
     },

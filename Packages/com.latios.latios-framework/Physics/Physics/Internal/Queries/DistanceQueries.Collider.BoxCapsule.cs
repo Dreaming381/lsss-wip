@@ -16,15 +16,15 @@ namespace Latios.PhysicsEngine
             {
                 float3 distancesToMin = math.max(osPointA, osPointB) + box.halfSize;
                 float3 distancesToMax = box.halfSize - math.min(osPointA, osPointB);
-                float3 minDistances   = math.min(distancesToMin, distancesToMax);
-                float  bestDistance   = math.cmin(minDistances);
-                bool3  bestAxisMask   = bestDistance == minDistances;
+                float3 bestDistances  = math.min(distancesToMin, distancesToMax);
+                float  bestDistance   = math.cmin(bestDistances);
+                bool3  bestAxisMask   = bestDistance == bestDistances;
                 //Prioritize y first, then z, then x if multiple distances perfectly match.
                 //Todo: Should this be configurabe?
                 bestAxisMask.xz      &= !bestAxisMask.y;
                 bestAxisMask.x       &= !bestAxisMask.z;
                 float3 zeroMask       = math.select(0f, 1f, bestAxisMask);
-                bool   useMin         = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
+                bool   useMin         = (bestDistances * zeroMask).Equals(distancesToMin * zeroMask);
                 float  aOnAxis        = math.dot(osPointA, zeroMask);
                 float  bOnAxis        = math.dot(osPointB, zeroMask);
                 bool   aIsGreater     = aOnAxis > bOnAxis;
@@ -35,18 +35,19 @@ namespace Latios.PhysicsEngine
             }
             float signedDistanceSq = math.distancesq(pointsPointOnSegment, pointsPointOnBox);
             signedDistanceSq       = math.select(signedDistanceSq, -signedDistanceSq, axisDistance <= 0f);
+
             //Step 2: Edge vs Edges
             //Todo: We could inline the SegmentSegment invocations to simplify the initial dot products.
             float3     capsuleEdge     = osPointB - osPointA;
             simdFloat3 simdCapsuleEdge = new simdFloat3(capsuleEdge);
             simdFloat3 simdOsPointA    = new simdFloat3(osPointA);
             //x-axes
-            simdFloat3 boxPointAx = new simdFloat3(new float3(-box.halfSize.x, box.halfSize.y, box.halfSize.z),
+            simdFloat3 boxPointsX = new simdFloat3(new float3(-box.halfSize.x, box.halfSize.y, box.halfSize.z),
                                                    new float3(-box.halfSize.x, box.halfSize.y, -box.halfSize.z),
                                                    new float3(-box.halfSize.x, -box.halfSize.y, box.halfSize.z),
                                                    new float3(-box.halfSize.x, -box.halfSize.y, -box.halfSize.z));
-            simdFloat3 simdBoxEdgeX = new simdFloat3(new float3(2f * box.halfSize.x, 0f, 0f));
-            QueriesLowLevelUtils.SegmentSegment(simdOsPointA, simdCapsuleEdge, boxPointAx, simdBoxEdgeX, out simdFloat3 closestAx, out simdFloat3 closestBx);
+            simdFloat3 boxEdgesX = new simdFloat3(new float3(2f * box.halfSize.x, 0f, 0f));
+            QueriesLowLevelUtils.SegmentSegment(simdOsPointA, simdCapsuleEdge, boxPointsX, boxEdgesX, out simdFloat3 edgesClosestAsX, out simdFloat3 edgesClosestBsX);
             simdFloat3 boxNormalsX = new simdFloat3(new float3(0f, math.SQRT2 / 2f, math.SQRT2 / 2f),
                                                     new float3(0f, math.SQRT2 / 2f, -math.SQRT2 / 2f),
                                                     new float3(0f, -math.SQRT2 / 2f, math.SQRT2 / 2f),
@@ -56,78 +57,83 @@ namespace Latios.PhysicsEngine
             //Orientations of the line which do penetrate are not valid.
             //If we constrain the capsule edge to be perpendicular, normalize it, and then compute the dot product, we can compare that to the necessary 45 degree angle
             //where penetration occurs. Parallel lines are excluded because either we want to record a capsule point (step 1) or a perpendicular edge on the box.
-            bool   notParallelX      = !capsuleEdge.yz.Equals(float2.zero);
-            float4 alignmentsX       = simd.dot(math.normalize(new float3(0f, capsuleEdge.yz)), boxNormalsX);
-            bool4  xValid            = (math.abs(alignmentsX) <= math.SQRT2 / 2f) & notParallelX;
-            float4 signedDistanceSqX = simd.distancesq(closestAx, closestBx);
-            bool4  insideX           = (math.abs(closestAx.x) <= box.halfSize.x) & (math.abs(closestAx.y) <= box.halfSize.y) & (math.abs(closestAx.z) <= box.halfSize.z);
-            signedDistanceSqX        = math.select(signedDistanceSqX, -signedDistanceSqX, insideX);
-            signedDistanceSqX        = math.select(float.MaxValue, signedDistanceSqX, xValid);
+            bool   notParallelX       = !capsuleEdge.yz.Equals(float2.zero);
+            float4 alignmentsX        = simd.dot(math.normalize(new float3(0f, capsuleEdge.yz)), boxNormalsX);
+            bool4  validsX            = (math.abs(alignmentsX) <= math.SQRT2 / 2f) & notParallelX;
+            float4 signedDistancesSqX = simd.distancesq(edgesClosestAsX, edgesClosestBsX);
+            bool4  insidesX           =
+                (math.abs(edgesClosestAsX.x) <= box.halfSize.x) & (math.abs(edgesClosestAsX.y) <= box.halfSize.y) & (math.abs(edgesClosestAsX.z) <= box.halfSize.z);
+            signedDistancesSqX = math.select(signedDistancesSqX, -signedDistancesSqX, insidesX);
+            signedDistancesSqX = math.select(float.MaxValue, signedDistancesSqX, validsX);
+
             //y-axis
-            simdFloat3 boxPointAy = new simdFloat3(new float3(box.halfSize.x, -box.halfSize.y, box.halfSize.z),
+            simdFloat3 boxPointsY = new simdFloat3(new float3(box.halfSize.x, -box.halfSize.y, box.halfSize.z),
                                                    new float3(box.halfSize.x, -box.halfSize.y, -box.halfSize.z),
                                                    new float3(-box.halfSize.x, -box.halfSize.y, box.halfSize.z),
                                                    new float3(-box.halfSize.x, -box.halfSize.y, -box.halfSize.z));
-            simdFloat3 simdBoxEdgeY = new simdFloat3(new float3(0f, 2f * box.halfSize.y, 0f));
-            QueriesLowLevelUtils.SegmentSegment(simdOsPointA, simdCapsuleEdge, boxPointAy, simdBoxEdgeY, out simdFloat3 closestAy, out simdFloat3 closestBy);
+            simdFloat3 boxEdgesY = new simdFloat3(new float3(0f, 2f * box.halfSize.y, 0f));
+            QueriesLowLevelUtils.SegmentSegment(simdOsPointA, simdCapsuleEdge, boxPointsY, boxEdgesY, out simdFloat3 edgesClosestAsY, out simdFloat3 edgesClosestBsY);
             simdFloat3 boxNormalsY = new simdFloat3(new float3(math.SQRT2 / 2f, 0f, math.SQRT2 / 2f),
                                                     new float3(math.SQRT2 / 2f, 0f, -math.SQRT2 / 2f),
                                                     new float3(-math.SQRT2 / 2f, 0f, math.SQRT2 / 2f),
                                                     new float3(-math.SQRT2 / 2f, 0f, -math.SQRT2 / 2f));
-            bool   notParallelY      = !capsuleEdge.xz.Equals(float2.zero);
-            float4 alignmentsY       = simd.dot(math.normalize(new float3(capsuleEdge.x, 0f, capsuleEdge.z)), boxNormalsY);
-            bool4  yValid            = (math.abs(alignmentsY) <= math.SQRT2 / 2f) & notParallelY;
-            float4 signedDistanceSqY = simd.distancesq(closestAy, closestBy);
-            bool4  insideY           = (math.abs(closestAy.x) <= box.halfSize.x) & (math.abs(closestAy.y) <= box.halfSize.y) & (math.abs(closestAy.z) <= box.halfSize.z);
-            signedDistanceSqY        = math.select(signedDistanceSqY, -signedDistanceSqY, insideY);
-            signedDistanceSqY        = math.select(float.MaxValue, signedDistanceSqY, yValid);
+            bool   notParallelY       = !capsuleEdge.xz.Equals(float2.zero);
+            float4 alignmentsY        = simd.dot(math.normalize(new float3(capsuleEdge.x, 0f, capsuleEdge.z)), boxNormalsY);
+            bool4  validsY            = (math.abs(alignmentsY) <= math.SQRT2 / 2f) & notParallelY;
+            float4 signedDistancesSqY = simd.distancesq(edgesClosestAsY, edgesClosestBsY);
+            bool4  insidesY           =
+                (math.abs(edgesClosestAsY.x) <= box.halfSize.x) & (math.abs(edgesClosestAsY.y) <= box.halfSize.y) & (math.abs(edgesClosestAsY.z) <= box.halfSize.z);
+            signedDistancesSqY = math.select(signedDistancesSqY, -signedDistancesSqY, insidesY);
+            signedDistancesSqY = math.select(float.MaxValue, signedDistancesSqY, validsY);
+
             //z-axis
-            simdFloat3 boxPointAz = new simdFloat3(new float3(box.halfSize.x, box.halfSize.y, -box.halfSize.z),
+            simdFloat3 boxPointsZ = new simdFloat3(new float3(box.halfSize.x, box.halfSize.y, -box.halfSize.z),
                                                    new float3(box.halfSize.x, -box.halfSize.y, -box.halfSize.z),
                                                    new float3(-box.halfSize.x, box.halfSize.y, -box.halfSize.z),
                                                    new float3(-box.halfSize.x, -box.halfSize.y, -box.halfSize.z));
-            simdFloat3 simdBoxEdgeZ = new simdFloat3(new float3(0f, 0f, 2f * box.halfSize.z));
-            QueriesLowLevelUtils.SegmentSegment(simdOsPointA, simdCapsuleEdge, boxPointAz, simdBoxEdgeZ, out simdFloat3 closestAz, out simdFloat3 closestBz);
+            simdFloat3 boxEdgesZ = new simdFloat3(new float3(0f, 0f, 2f * box.halfSize.z));
+            QueriesLowLevelUtils.SegmentSegment(simdOsPointA, simdCapsuleEdge, boxPointsZ, boxEdgesZ, out simdFloat3 edgesClosestAsZ, out simdFloat3 edgesClosestBsZ);
             simdFloat3 boxNormalsZ = new simdFloat3(new float3(math.SQRT2 / 2f, math.SQRT2 / 2f, 0f),
                                                     new float3(math.SQRT2 / 2f, -math.SQRT2 / 2f, 0f),
                                                     new float3(-math.SQRT2 / 2f, math.SQRT2 / 2f, 0f),
                                                     new float3(-math.SQRT2 / 2f, -math.SQRT2 / 2f, 0f));
-            bool   notParallelZ      = !capsuleEdge.xy.Equals(float2.zero);
-            float4 alignmentsZ       = simd.dot(math.normalize(new float3(capsuleEdge.xy, 0f)), boxNormalsZ);
-            bool4  zValid            = (math.abs(alignmentsZ) <= math.SQRT2 / 2f) & notParallelZ;
-            float4 signedDistanceSqZ = simd.distancesq(closestAz, closestBz);
-            bool4  insideZ           = (math.abs(closestAz.x) <= box.halfSize.x) & (math.abs(closestAz.y) <= box.halfSize.y) & (math.abs(closestAz.z) <= box.halfSize.z);
-            signedDistanceSqZ        = math.select(signedDistanceSqZ, -signedDistanceSqZ, insideZ);
-            signedDistanceSqZ        = math.select(float.MaxValue, signedDistanceSqZ, zValid);
+            bool   notParallelZ       = !capsuleEdge.xy.Equals(float2.zero);
+            float4 alignmentsZ        = simd.dot(math.normalize(new float3(capsuleEdge.xy, 0f)), boxNormalsZ);
+            bool4  validsZ            = (math.abs(alignmentsZ) <= math.SQRT2 / 2f) & notParallelZ;
+            float4 signedDistancesSqZ = simd.distancesq(edgesClosestAsZ, edgesClosestBsZ);
+            bool4  insidesZ           =
+                (math.abs(edgesClosestAsZ.x) <= box.halfSize.x) & (math.abs(edgesClosestAsZ.y) <= box.halfSize.y) & (math.abs(edgesClosestAsZ.z) <= box.halfSize.z);
+            signedDistancesSqZ = math.select(signedDistancesSqZ, -signedDistancesSqZ, insidesZ);
+            signedDistancesSqZ = math.select(float.MaxValue, signedDistancesSqZ, validsZ);
 
             //Step 3: Find best result
-            float4     bestAxisSignedDistanceSq = signedDistanceSqX;
-            simdFloat3 bestAxisPointOnSegment   = closestAx;
-            simdFloat3 bestAxisPointOnBox       = closestBx;
-            bool4      yWins                    = (signedDistanceSqY < bestAxisSignedDistanceSq) ^ ((bestAxisSignedDistanceSq < 0f) & (signedDistanceSqY < 0f));
-            bestAxisSignedDistanceSq            = math.select(bestAxisSignedDistanceSq, signedDistanceSqY, yWins);
-            bestAxisPointOnSegment              = simd.select(bestAxisPointOnSegment, closestAy, yWins);
-            bestAxisPointOnBox                  = simd.select(bestAxisPointOnBox, closestBy, yWins);
-            bool4 zWins                         = (signedDistanceSqZ < bestAxisSignedDistanceSq) ^ ((bestAxisSignedDistanceSq < 0f) & (signedDistanceSqZ < 0f));
-            bestAxisSignedDistanceSq            = math.select(bestAxisSignedDistanceSq, signedDistanceSqZ, zWins);
-            bestAxisPointOnSegment              = simd.select(bestAxisPointOnSegment, closestAz, zWins);
-            bestAxisPointOnBox                  = simd.select(bestAxisPointOnBox, closestBz, zWins);
-            bool   bBeatsA                      = (bestAxisSignedDistanceSq.y < bestAxisSignedDistanceSq.x) ^ (math.all(bestAxisSignedDistanceSq.xy < 0f));
-            bool   dBeatsC                      = (bestAxisSignedDistanceSq.w < bestAxisSignedDistanceSq.z) ^ (math.all(bestAxisSignedDistanceSq.zw < 0f));
-            float  bestAbSignedDistanceSq       = math.select(bestAxisSignedDistanceSq.x, bestAxisSignedDistanceSq.y, bBeatsA);
-            float  bestCdSignedDistanceSq       = math.select(bestAxisSignedDistanceSq.z, bestAxisSignedDistanceSq.w, dBeatsC);
-            float3 bestAbPointOnSegment         = math.select(bestAxisPointOnSegment.a, bestAxisPointOnSegment.b, bBeatsA);
-            float3 bestCdPointOnSegment         = math.select(bestAxisPointOnSegment.c, bestAxisPointOnSegment.d, dBeatsC);
-            float3 bestAbPointOnBox             = math.select(bestAxisPointOnBox.a, bestAxisPointOnBox.b, bBeatsA);
-            float3 bestCdPointOnBox             = math.select(bestAxisPointOnBox.c, bestAxisPointOnBox.d, dBeatsC);
-            bool   cdBeatsAb                    = (bestCdSignedDistanceSq < bestAbSignedDistanceSq) ^ ((bestCdSignedDistanceSq < 0f) & (bestAbSignedDistanceSq < 0f));
-            float  bestSignedDistanceSq         = math.select(bestAbSignedDistanceSq, bestCdSignedDistanceSq, cdBeatsAb);
-            float3 bestPointOnSegment           = math.select(bestAbPointOnSegment, bestCdPointOnSegment, cdBeatsAb);
-            float3 bestPointOnBox               = math.select(bestAbPointOnBox, bestCdPointOnBox, cdBeatsAb);
-            bool   pointsBeatEdges              = (signedDistanceSq <= bestSignedDistanceSq) ^ ((signedDistanceSq < 0f) & (bestSignedDistanceSq < 0f));
-            bestSignedDistanceSq                = math.select(bestSignedDistanceSq, signedDistanceSq, pointsBeatEdges);
-            bestPointOnSegment                  = math.select(bestPointOnSegment, pointsPointOnSegment, pointsBeatEdges);
-            bestPointOnBox                      = math.select(bestPointOnBox, pointsPointOnBox, pointsBeatEdges);
+            float4     bestAxisSignedDistancesSq = signedDistancesSqX;
+            simdFloat3 bestAxisPointsOnSegment   = edgesClosestAsX;
+            simdFloat3 bestAxisPointsOnBox       = edgesClosestBsX;
+            bool4      yWins                     = (signedDistancesSqY < bestAxisSignedDistancesSq) ^ ((bestAxisSignedDistancesSq < 0f) & (signedDistancesSqY < 0f));
+            bestAxisSignedDistancesSq            = math.select(bestAxisSignedDistancesSq, signedDistancesSqY, yWins);
+            bestAxisPointsOnSegment              = simd.select(bestAxisPointsOnSegment, edgesClosestAsY, yWins);
+            bestAxisPointsOnBox                  = simd.select(bestAxisPointsOnBox, edgesClosestBsY, yWins);
+            bool4 zWins                          = (signedDistancesSqZ < bestAxisSignedDistancesSq) ^ ((bestAxisSignedDistancesSq < 0f) & (signedDistancesSqZ < 0f));
+            bestAxisSignedDistancesSq            = math.select(bestAxisSignedDistancesSq, signedDistancesSqZ, zWins);
+            bestAxisPointsOnSegment              = simd.select(bestAxisPointsOnSegment, edgesClosestAsZ, zWins);
+            bestAxisPointsOnBox                  = simd.select(bestAxisPointsOnBox, edgesClosestBsZ, zWins);
+            bool   bBeatsA                       = (bestAxisSignedDistancesSq.y < bestAxisSignedDistancesSq.x) ^ (math.all(bestAxisSignedDistancesSq.xy < 0f));
+            bool   dBeatsC                       = (bestAxisSignedDistancesSq.w < bestAxisSignedDistancesSq.z) ^ (math.all(bestAxisSignedDistancesSq.zw < 0f));
+            float  bestAbSignedDistanceSq        = math.select(bestAxisSignedDistancesSq.x, bestAxisSignedDistancesSq.y, bBeatsA);
+            float  bestCdSignedDistanceSq        = math.select(bestAxisSignedDistancesSq.z, bestAxisSignedDistancesSq.w, dBeatsC);
+            float3 bestAbPointOnSegment          = math.select(bestAxisPointsOnSegment.a, bestAxisPointsOnSegment.b, bBeatsA);
+            float3 bestCdPointOnSegment          = math.select(bestAxisPointsOnSegment.c, bestAxisPointsOnSegment.d, dBeatsC);
+            float3 bestAbPointOnBox              = math.select(bestAxisPointsOnBox.a, bestAxisPointsOnBox.b, bBeatsA);
+            float3 bestCdPointOnBox              = math.select(bestAxisPointsOnBox.c, bestAxisPointsOnBox.d, dBeatsC);
+            bool   cdBeatsAb                     = (bestCdSignedDistanceSq < bestAbSignedDistanceSq) ^ ((bestCdSignedDistanceSq < 0f) & (bestAbSignedDistanceSq < 0f));
+            float  bestSignedDistanceSq          = math.select(bestAbSignedDistanceSq, bestCdSignedDistanceSq, cdBeatsAb);
+            float3 bestPointOnSegment            = math.select(bestAbPointOnSegment, bestCdPointOnSegment, cdBeatsAb);
+            float3 bestPointOnBox                = math.select(bestAbPointOnBox, bestCdPointOnBox, cdBeatsAb);
+            bool   pointsBeatEdges               = (signedDistanceSq <= bestSignedDistanceSq) ^ ((signedDistanceSq < 0f) & (bestSignedDistanceSq < 0f));
+            bestSignedDistanceSq                 = math.select(bestSignedDistanceSq, signedDistanceSq, pointsBeatEdges);
+            bestPointOnSegment                   = math.select(bestPointOnSegment, pointsPointOnSegment, pointsBeatEdges);
+            bestPointOnBox                       = math.select(bestPointOnBox, pointsPointOnBox, pointsBeatEdges);
 
             //Step 4: Build result
             float3 boxNormal     = math.normalize(math.select(0f, 1f, bestPointOnBox == box.halfSize) + math.select(0f, -1f, bestPointOnBox == -box.halfSize));

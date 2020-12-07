@@ -1,10 +1,11 @@
 # Latios Space Shooter Sample - WIP
 
-This is a Unity DOTS game used to stabilize Latios Framework 0.2.0 and now
-serves as an example project. A version of the framework is included as an
+This is an open game project using Unity DOTS. It is used to develop new
+features and improvements in Latios Framework (currently 0.3.0) as well as
+serve as an example project. A version of the framework is included as an
 embedded package.
 
-The Unity version is currently 2020.1.0f1
+The Unity version is currently 2020.1.9f1
 
 Feel free to clone, play with, and customize this game however you like! There
 are many features exposed in the project but not used in the release version of
@@ -22,7 +23,7 @@ files. All texturing is done procedurally using ShaderGraph, and meshes are
 composed of Unity primitives and procedural generation.
 
 In stark contrast to my usual style, this game has no intention to establish any
-significant lore or storyline.
+significant lore or storyline. However, feel free to contribute your own!
 
 ## Contributing
 
@@ -56,8 +57,8 @@ aspects people can dare try to contribute to:
 -   Editor Tools (I suck at writing these. If you don't suck at them, I envy
     your skills!)
 
--   DSP Graph Audio (I just haven't had time to dig into this much yet. Talk to
-    me if you are interested in helping in this area!)
+-   Procedural audio clip generation (I just need the clips to be available
+    during game object conversion)
 
 -   Advanced AI (I have a basic AI in place which I will continue to develop.
     However, a faction could use a different AI instead. The only requirement to

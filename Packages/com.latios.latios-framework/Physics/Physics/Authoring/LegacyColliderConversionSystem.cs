@@ -3,7 +3,7 @@ using Unity.Mathematics;
 
 namespace Latios.PhysicsEngine.Authoring.Systems
 {
-    [ConverterVersion("latios", 1)]
+    [ConverterVersion("latios", 2)]
     public class LegacyColliderConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
@@ -57,6 +57,19 @@ namespace Latios.PhysicsEngine.Authoring.Systems
                     radius = goCap.radius * goCap.transform.lossyScale.x
                 };
                 DstEntityManager.AddComponentData(entity, icdCap);
+            });
+
+            Entities.WithNone<DontConvertColliderTag>().ForEach((UnityEngine.BoxCollider goBox) =>
+            {
+                float3 lossyScale = goBox.transform.lossyScale;
+
+                Entity   entity = GetPrimaryEntity(goBox);
+                Collider icdBox = new BoxCollider
+                {
+                    center   = goBox.center,
+                    halfSize = goBox.size * lossyScale / 2f
+                };
+                DstEntityManager.AddComponentData(entity, icdBox);
             });
         }
     }
