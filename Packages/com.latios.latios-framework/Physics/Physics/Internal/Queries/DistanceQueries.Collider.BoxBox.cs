@@ -46,7 +46,7 @@ namespace Latios.PhysicsEngine
             aBottomPoints.y           = -boxA.halfSize.y;
             aTopPoints.y              = boxA.halfSize.y;
             aTopPoints.z              = math.select(-boxA.halfSize.z, boxA.halfSize.z, new bool4(true, false, true, false));
-            aBottomPoints.z           = bTopPoints.z;
+            aBottomPoints.z           = aTopPoints.z;
             aTopPoints               += boxA.center;
             aBottomPoints            += boxA.center;
             var aTopPointsInBOS       = simd.transform(aInBSpace, aTopPoints) - boxB.center;
@@ -74,6 +74,7 @@ namespace Latios.PhysicsEngine
             //For box B, use a simd dot product and mask it against the best result. The first 1 index and last 1 index are taken. In most cases, these are the same, which is fine.
             //It is also worth noting that unlike a true SAT, directionality matters here, so we want to find the separating axis directionally oriented from a to b to get the correct closest features.
             //That's the max dot for a and the min dot for b.
+            //For edges vs edges, in which the edges are intersecting, one of the closest points must be inside the other box.
             float3     bCenterInASpace  = math.transform(bInASpace, boxB.center) - boxA.center;
             simdFloat3 normalsA         = new simdFloat3(new float3(1f, 0f, 0f), new float3(0f, 1f, 0f), new float3(0f, 0f, 1f), new float3(1f, 0f, 0f));
             simdFloat3 normalsB         = simd.mul(bInASpace.rot, normalsA);
@@ -135,8 +136,8 @@ namespace Latios.PhysicsEngine
             var                   dotsXX        = simd.dot(bLeftPointsInAOS, axisXX);
             float                 bestDotXX     = math.cmin(dotsXX);
             int                   dotsMaskXX    = math.bitmask(dotsXX == bestDotXX);
-            math.ShuffleComponent bIndexXX      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskXX) - 28));
-            math.ShuffleComponent bExtraIndexXX = (math.ShuffleComponent)math.tzcnt(dotsMaskXX);
+            math.ShuffleComponent bIndexXX      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskXX), 0, 3);
+            math.ShuffleComponent bExtraIndexXX = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskXX) - 28), 0, 3);
             simdFloat3            bPointsXX     = simd.shuffle(bLeftPointsInAOS, bLeftPointsInAOS, bIndexXX, bExtraIndexXX, bIndexXX, bExtraIndexXX);
             simdFloat3            bEdgesXX      = simd.shuffle(bRightPointsInAOS, bRightPointsInAOS, bIndexXX, bExtraIndexXX, bIndexXX, bExtraIndexXX) - bPointsXX;
             simdFloat3            bNormalsXX    = simd.shuffle(bNormalsX, bNormalsX, bIndexXX, bExtraIndexXX, bIndexXX, bExtraIndexXX);
@@ -158,8 +159,8 @@ namespace Latios.PhysicsEngine
             var                   dotsXY        = simd.dot(bBottomPointsInAOS, axisXY);
             float                 bestDotXY     = math.cmin(dotsXY);
             int                   dotsMaskXY    = math.bitmask(dotsXY == bestDotXY);
-            math.ShuffleComponent bIndexXY      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskXY) - 28));
-            math.ShuffleComponent bExtraIndexXY = (math.ShuffleComponent)math.tzcnt(dotsMaskXY);
+            math.ShuffleComponent bIndexXY      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskXY), 0, 3);
+            math.ShuffleComponent bExtraIndexXY = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskXY) - 28), 0, 3);
             simdFloat3            bPointsXY     = simd.shuffle(bBottomPointsInAOS, bBottomPointsInAOS, bIndexXY, bExtraIndexXY, bIndexXY, bExtraIndexXY);
             simdFloat3            bEdgesXY      = simd.shuffle(bTopPointsInAOS, bTopPointsInAOS, bIndexXY, bExtraIndexXY, bIndexXY, bExtraIndexXY) - bPointsXY;
             simdFloat3            bNormalsXY    = simd.shuffle(bNormalsY, bNormalsY, bIndexXY, bExtraIndexXY, bIndexXY, bExtraIndexXY);
@@ -181,8 +182,8 @@ namespace Latios.PhysicsEngine
             var                   dotsXZ        = simd.dot(bFrontPointsInAOS, axisXZ);
             float                 bestDotXZ     = math.cmin(dotsXZ);
             int                   dotsMaskXZ    = math.bitmask(dotsXZ == bestDotXZ);
-            math.ShuffleComponent bIndexXZ      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskXZ) - 28));
-            math.ShuffleComponent bExtraIndexXZ = (math.ShuffleComponent)math.tzcnt(dotsMaskXZ);
+            math.ShuffleComponent bIndexXZ      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskXZ), 0, 3);
+            math.ShuffleComponent bExtraIndexXZ = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskXZ) - 28), 0, 3);
             simdFloat3            bPointsXZ     = simd.shuffle(bFrontPointsInAOS, bFrontPointsInAOS, bIndexXZ, bExtraIndexXZ, bIndexXZ, bExtraIndexXZ);
             simdFloat3            bEdgesXZ      = simd.shuffle(bBackPointsInAOS, bBackPointsInAOS, bIndexXZ, bExtraIndexXZ, bIndexXZ, bExtraIndexXZ) - bPointsXZ;
             simdFloat3            bNormalsXZ    = simd.shuffle(bNormalsZ, bNormalsZ, bIndexXZ, bExtraIndexXZ, bIndexXZ, bExtraIndexXZ);
@@ -205,8 +206,8 @@ namespace Latios.PhysicsEngine
             var                   dotsYX        = simd.dot(bLeftPointsInAOS, axisYX);
             float                 bestDotYX     = math.cmin(dotsYX);
             int                   dotsMaskYX    = math.bitmask(dotsYX == bestDotYX);
-            math.ShuffleComponent bIndexYX      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskYX) - 28));
-            math.ShuffleComponent bExtraIndexYX = (math.ShuffleComponent)math.tzcnt(dotsMaskYX);
+            math.ShuffleComponent bIndexYX      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskYX), 0, 3);
+            math.ShuffleComponent bExtraIndexYX = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskYX) - 28), 0, 3);
             simdFloat3            bPointsYX     = simd.shuffle(bLeftPointsInAOS, bLeftPointsInAOS, bIndexYX, bExtraIndexYX, bIndexYX, bExtraIndexYX);
             simdFloat3            bEdgesYX      = simd.shuffle(bRightPointsInAOS, bRightPointsInAOS, bIndexYX, bExtraIndexYX, bIndexYX, bExtraIndexYX) - bPointsYX;
             simdFloat3            bNormalsYX    = simd.shuffle(bNormalsX, bNormalsX, bIndexYX, bExtraIndexYX, bIndexYX, bExtraIndexYX);
@@ -228,8 +229,8 @@ namespace Latios.PhysicsEngine
             var                   dotsYY        = simd.dot(bBottomPointsInAOS, axisYY);
             float                 bestDotYY     = math.cmin(dotsYY);
             int                   dotsMaskYY    = math.bitmask(dotsYY == bestDotYY);
-            math.ShuffleComponent bIndexYY      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskYY) - 28));
-            math.ShuffleComponent bExtraIndexYY = (math.ShuffleComponent)math.tzcnt(dotsMaskYY);
+            math.ShuffleComponent bIndexYY      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskYY), 0, 3);
+            math.ShuffleComponent bExtraIndexYY = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskYY) - 28), 0, 3);
             simdFloat3            bPointsYY     = simd.shuffle(bBottomPointsInAOS, bBottomPointsInAOS, bIndexYY, bExtraIndexYY, bIndexYY, bExtraIndexYY);
             simdFloat3            bEdgesYY      = simd.shuffle(bTopPointsInAOS, bTopPointsInAOS, bIndexYY, bExtraIndexYY, bIndexYY, bExtraIndexYY) - bPointsYY;
             simdFloat3            bNormalsYY    = simd.shuffle(bNormalsY, bNormalsY, bIndexYY, bExtraIndexYY, bIndexYY, bExtraIndexYY);
@@ -251,8 +252,8 @@ namespace Latios.PhysicsEngine
             var                   dotsYZ        = simd.dot(bFrontPointsInAOS, axisYZ);
             float                 bestDotYZ     = math.cmin(dotsYZ);
             int                   dotsMaskYZ    = math.bitmask(dotsYZ == bestDotYZ);
-            math.ShuffleComponent bIndexYZ      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskYZ) - 28));
-            math.ShuffleComponent bExtraIndexYZ = (math.ShuffleComponent)math.tzcnt(dotsMaskYZ);
+            math.ShuffleComponent bIndexYZ      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskYZ), 0, 3);
+            math.ShuffleComponent bExtraIndexYZ = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskYZ) - 28), 0, 3);
             simdFloat3            bPointsYZ     = simd.shuffle(bFrontPointsInAOS, bFrontPointsInAOS, bIndexYZ, bExtraIndexYZ, bIndexYZ, bExtraIndexYZ);
             simdFloat3            bEdgesYZ      = simd.shuffle(bBackPointsInAOS, bBackPointsInAOS, bIndexYZ, bExtraIndexYZ, bIndexYZ, bExtraIndexYZ) - bPointsYZ;
             simdFloat3            bNormalsYZ    = simd.shuffle(bNormalsZ, bNormalsZ, bIndexYZ, bExtraIndexYZ, bIndexYZ, bExtraIndexYZ);
@@ -275,8 +276,8 @@ namespace Latios.PhysicsEngine
             var                   dotsZX        = simd.dot(bLeftPointsInAOS, axisZX);
             float                 bestDotZX     = math.cmin(dotsZX);
             int                   dotsMaskZX    = math.bitmask(dotsZX == bestDotZX);
-            math.ShuffleComponent bIndexZX      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskZX) - 28));
-            math.ShuffleComponent bExtraIndexZX = (math.ShuffleComponent)math.tzcnt(dotsMaskZX);
+            math.ShuffleComponent bIndexZX      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskZX), 0, 3);
+            math.ShuffleComponent bExtraIndexZX = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskZX) - 28), 0, 3);
             simdFloat3            bPointsZX     = simd.shuffle(bLeftPointsInAOS, bLeftPointsInAOS, bIndexZX, bExtraIndexZX, bIndexZX, bExtraIndexZX);
             simdFloat3            bEdgesZX      = simd.shuffle(bRightPointsInAOS, bRightPointsInAOS, bIndexZX, bExtraIndexZX, bIndexZX, bExtraIndexZX) - bPointsZX;
             simdFloat3            bNormalsZX    = simd.shuffle(bNormalsX, bNormalsX, bIndexZX, bExtraIndexZX, bIndexZX, bExtraIndexZX);
@@ -298,8 +299,8 @@ namespace Latios.PhysicsEngine
             var                   dotsZY        = simd.dot(bBottomPointsInAOS, axisZY);
             float                 bestDotZY     = math.cmin(dotsZY);
             int                   dotsMaskZY    = math.bitmask(dotsZY == bestDotZY);
-            math.ShuffleComponent bIndexZY      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskZY) - 28));
-            math.ShuffleComponent bExtraIndexZY = (math.ShuffleComponent)math.tzcnt(dotsMaskZY);
+            math.ShuffleComponent bIndexZY      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskZY), 0, 3);
+            math.ShuffleComponent bExtraIndexZY = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskZY) - 28), 0, 3);
             simdFloat3            bPointsZY     = simd.shuffle(bBottomPointsInAOS, bBottomPointsInAOS, bIndexZY, bExtraIndexZY, bIndexZY, bExtraIndexZY);
             simdFloat3            bEdgesZY      = simd.shuffle(bTopPointsInAOS, bTopPointsInAOS, bIndexZY, bExtraIndexZY, bIndexZY, bExtraIndexZY) - bPointsZY;
             simdFloat3            bNormalsZY    = simd.shuffle(bNormalsY, bNormalsY, bIndexZY, bExtraIndexZY, bIndexZY, bExtraIndexZY);
@@ -321,8 +322,8 @@ namespace Latios.PhysicsEngine
             var                   dotsZZ        = simd.dot(bFrontPointsInAOS, axisZZ);
             float                 bestDotZZ     = math.cmin(dotsZZ);
             int                   dotsMaskZZ    = math.bitmask(dotsZZ == bestDotZZ);
-            math.ShuffleComponent bIndexZZ      = (math.ShuffleComponent)(3 - (math.lzcnt(dotsMaskZZ) - 28));
-            math.ShuffleComponent bExtraIndexZZ = (math.ShuffleComponent)math.tzcnt(dotsMaskZZ);
+            math.ShuffleComponent bIndexZZ      = (math.ShuffleComponent)math.clamp(math.tzcnt(dotsMaskZZ), 0, 3);
+            math.ShuffleComponent bExtraIndexZZ = (math.ShuffleComponent)math.clamp(3 - (math.lzcnt(dotsMaskZZ) - 28), 0, 3);
             simdFloat3            bPointsZZ     = simd.shuffle(bFrontPointsInAOS, bFrontPointsInAOS, bIndexZZ, bExtraIndexZZ, bIndexZZ, bExtraIndexZZ);
             simdFloat3            bEdgesZZ      = simd.shuffle(bBackPointsInAOS, bBackPointsInAOS, bIndexZZ, bExtraIndexZZ, bIndexZZ, bExtraIndexZZ) - bPointsZZ;
             simdFloat3            bNormalsZZ    = simd.shuffle(bNormalsZ, bNormalsZ, bIndexZZ, bExtraIndexZZ, bIndexZZ, bExtraIndexZZ);
@@ -338,6 +339,7 @@ namespace Latios.PhysicsEngine
             simdFloat3 bestEdgeClosestAs   = xxClosestAOut;
             simdFloat3 bestEdgeClosestBs   = xxClosestBOut;
             simdFloat3 bestNormalsBs       = bNormalsXX;
+            int4       bestEdgeIds         = 0;
 
             bool4 newEdgeIsBetter  = (xySignedDistanceSq < bestEdgeDistancesSq) ^ ((xySignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter       &= !invalid03.y;
@@ -345,6 +347,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs      = simd.select(bestEdgeClosestAs, xyClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs      = simd.select(bestEdgeClosestBs, xyClosestBOut, newEdgeIsBetter);
             bestNormalsBs          = simd.select(bestNormalsBs, bNormalsXY, newEdgeIsBetter);
+            bestEdgeIds            = math.select(bestEdgeIds, 1, newEdgeIsBetter);
 
             newEdgeIsBetter      = (xzSignedDistanceSq < bestEdgeDistancesSq) ^ ((xzSignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid03.z;
@@ -352,6 +355,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, xzClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, xzClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsXZ, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 2, newEdgeIsBetter);
 
             newEdgeIsBetter      = (yxSignedDistanceSq < bestEdgeDistancesSq) ^ ((yxSignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid03.w;
@@ -359,6 +363,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, yxClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, yxClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsYX, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 3, newEdgeIsBetter);
 
             newEdgeIsBetter      = (yySignedDistanceSq < bestEdgeDistancesSq) ^ ((yySignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid47.x;
@@ -366,6 +371,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, yyClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, yyClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsYY, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 4, newEdgeIsBetter);
 
             newEdgeIsBetter      = (yzSignedDistanceSq < bestEdgeDistancesSq) ^ ((yzSignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid47.y;
@@ -373,6 +379,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, yzClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, yzClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsYZ, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 5, newEdgeIsBetter);
 
             newEdgeIsBetter      = (zxSignedDistanceSq < bestEdgeDistancesSq) ^ ((zxSignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid47.z;
@@ -380,6 +387,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, zxClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, zxClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsZX, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 6, newEdgeIsBetter);
 
             newEdgeIsBetter      = (zySignedDistanceSq < bestEdgeDistancesSq) ^ ((zySignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid47.w;
@@ -387,6 +395,7 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, zyClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, zyClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsZY, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 7, newEdgeIsBetter);
 
             newEdgeIsBetter      = (zzSignedDistanceSq < bestEdgeDistancesSq) ^ ((zzSignedDistanceSq < 0f) & (bestEdgeDistancesSq < 0f));
             newEdgeIsBetter     &= !invalid8;
@@ -394,15 +403,14 @@ namespace Latios.PhysicsEngine
             bestEdgeClosestAs    = simd.select(bestEdgeClosestAs, zzClosestAOut, newEdgeIsBetter);
             bestEdgeClosestBs    = simd.select(bestEdgeClosestBs, zzClosestBOut, newEdgeIsBetter);
             bestNormalsBs        = simd.select(bestNormalsBs, bNormalsZZ, newEdgeIsBetter);
+            bestEdgeIds          = math.select(bestEdgeIds, 8, newEdgeIsBetter);
 
             float  bestEdgeSignedDistanceSq = math.cmin(bestEdgeDistancesSq);
             int    bestIndex                = math.tzcnt(math.bitmask(bestEdgeSignedDistanceSq == bestEdgeDistancesSq));
             float3 bestEdgeClosestA         = bestEdgeClosestAs[bestIndex];
             float3 bestEdgeClosestB         = bestEdgeClosestBs[bestIndex];
             float3 bestEdgeBNormal          = bestNormalsBs[bestIndex];
-            UnityEngine.Debug.Log($"distance xx: {xxSignedDistanceSq}");
-            UnityEngine.Debug.Log($"valid xx: {!invalid03.x}");
-            UnityEngine.Debug.Log($"inside xx:{ insideXX}");
+            int    bestId                   = bestEdgeIds[bestIndex];
 
             simdFloat3 topUnnormals    = default;
             simdFloat3 bottomUnnormals = default;
@@ -419,22 +427,75 @@ namespace Latios.PhysicsEngine
             pointsNormalAFromAInB        = math.normalize(pointsNormalAFromAInB);
             float3 pointsNormalBFromAInB = math.select(0f, 1f, pointsClosestBOutInB == boxB.halfSize) + math.select(0f, -1f, pointsClosestBOutInB == -boxB.halfSize);
             pointsNormalBFromAInB        = math.normalize(math.rotate(bInASpace, pointsNormalBFromAInB));
+            float3 pointsNormalAFromBInA =
+                math.normalize(math.select(0f, 1f, pointsClosestAOutInA == boxA.halfSize) + math.select(0f, -1f, pointsClosestAOutInA == -boxA.halfSize));
+            float3 bestEdgeANormal          = math.normalize(math.select(0f, 1f, bestEdgeClosestA == boxA.halfSize) + math.select(0f, -1f, bestEdgeClosestA == -boxA.halfSize));
+            int    matchedBIndexFromEdgeTop =
+                math.tzcnt(math.bitmask((bestEdgeClosestB.x == bTopPointsInAOS.x) & (bestEdgeClosestB.y == bTopPointsInAOS.y) & (bestEdgeClosestB.z == bTopPointsInAOS.z)));
+            int matchedBIndexFromEdgeBottom =
+                math.tzcnt(math.bitmask((bestEdgeClosestB.x ==
+                                         bBottomPointsInAOS.x) & (bestEdgeClosestB.y == bBottomPointsInAOS.y) & (bestEdgeClosestB.z == bBottomPointsInAOS.z))) + 4;
+            int    matchedBIndexFromEdge = math.select(matchedBIndexFromEdgeTop, matchedBIndexFromEdgeBottom, matchedBIndexFromEdgeBottom < 8);
+            float3 edgeBNormalAsCorner   = simd.shuffle(topUnnormals, bottomUnnormals, (math.ShuffleComponent)math.clamp(matchedBIndexFromEdge, 0, 7));
+            edgeBNormalAsCorner          = math.normalize(edgeBNormalAsCorner);
+            bestEdgeBNormal              = math.select(bestEdgeBNormal, edgeBNormalAsCorner, matchedBIndexFromEdge < 8);
 
-            bool pointsInAIsBetter = (pointsSignedDistanceSqInA <= bestEdgeSignedDistanceSq) ^ ((pointsSignedDistanceSqInA < 0f) & (bestEdgeSignedDistanceSq < 0f));
-            //pointsInAIsBetter           = true;  //debug
-            float  bestSignedDistanceSq = math.select(bestEdgeSignedDistanceSq, pointsSignedDistanceSqInA, pointsInAIsBetter);
-            float3 bestClosestA         = math.select(bestEdgeClosestA, pointsClosestAOutInA, pointsInAIsBetter);
-            float3 bestClosestB         = math.select(bestEdgeClosestB, pointsClosestBOutInA, pointsInAIsBetter);
-            float3 bestNormalB          = math.select(bestEdgeBNormal, pointsNormalBFromBInA, pointsInAIsBetter);
+            /*bool pointsInAIsBetter = (pointsSignedDistanceSqInA <= bestEdgeSignedDistanceSq) ^ ((pointsSignedDistanceSqInA < 0f) & (bestEdgeSignedDistanceSq < 0f));
+               //pointsInAIsBetter           = true;  //debug
+               float  bestSignedDistanceSq = math.select(bestEdgeSignedDistanceSq, pointsSignedDistanceSqInA, pointsInAIsBetter);
+               float3 bestClosestA         = math.select(bestEdgeClosestA, pointsClosestAOutInA, pointsInAIsBetter);
+               float3 bestClosestB         = math.select(bestEdgeClosestB, pointsClosestBOutInA, pointsInAIsBetter);
+               float3 bestNormalB          = math.select(bestEdgeBNormal, pointsNormalBFromBInA, pointsInAIsBetter);
+               bestId                      = math.select(bestId, 9, pointsInAIsBetter);
 
-            float3 bestNormalA = math.normalize(math.select(0f, 1f, bestClosestA == boxA.halfSize) + math.select(0f, -1f, bestClosestA == -boxA.halfSize));
+               float3 bestNormalA = math.normalize(math.select(0f, 1f, bestClosestA == boxA.halfSize) + math.select(0f, -1f, bestClosestA == -boxA.halfSize));
 
-            bool bInAIsBetter    = (bestSignedDistanceSq <= pointsSignedDistanceSqInB) ^ ((pointsSignedDistanceSqInA < 0f) & (bestSignedDistanceSq < 0f));
-            bestSignedDistanceSq = math.select(pointsSignedDistanceSqInB, bestSignedDistanceSq, bInAIsBetter);
-            bestClosestA         = math.select(math.transform(bInASpace, pointsClosestAOutInB + boxB.center), bestClosestA + boxA.center, bInAIsBetter);
-            bestClosestB         = math.select(math.transform(bInASpace, pointsClosestBOutInB + boxB.center), bestClosestB + boxA.center, bInAIsBetter);
-            bestNormalA          = math.select(pointsNormalAFromAInB, bestNormalA, bInAIsBetter);
-            bestNormalB          = math.select(pointsNormalBFromAInB, bestNormalB, bInAIsBetter);
+               bool bInAIsBetter    = (bestSignedDistanceSq < pointsSignedDistanceSqInB) ^ ((pointsSignedDistanceSqInB < 0f) & (bestSignedDistanceSq < 0f));
+               bestSignedDistanceSq = math.select(pointsSignedDistanceSqInB, bestSignedDistanceSq, bInAIsBetter);
+               bestClosestA         = math.select(math.transform(bInASpace, pointsClosestAOutInB + boxB.center), bestClosestA + boxA.center, bInAIsBetter);
+               bestClosestB         = math.select(math.transform(bInASpace, pointsClosestBOutInB + boxB.center), bestClosestB + boxA.center, bInAIsBetter);
+               bestNormalA          = math.select(pointsNormalAFromAInB, bestNormalA, bInAIsBetter);
+               bestNormalB          = math.select(pointsNormalBFromAInB, bestNormalB, bInAIsBetter);
+               bestId               = math.select(bestId, 10, !bInAIsBetter);*/
+
+            bool bInAIsBetter  = math.sign(axisDistanceOutInA) > math.sign(axisDistanceOutInB);
+            bInAIsBetter      |= (math.sign(axisDistanceOutInA) == math.sign(axisDistanceOutInB)) & (math.abs(pointsSignedDistanceSqInA) <= math.abs(pointsSignedDistanceSqInB));
+            //bool bInAIsBetter              = axisDistanceOutInA > axisDistanceOutInB;
+            //bInAIsBetter                  |= (axisDistanceOutInA == axisDistanceOutInB) & (math.abs(pointsSignedDistanceSqInA) <= math.abs(pointsSignedDistanceSqInB));
+            float  pointsSignedDistanceSq = math.select(pointsSignedDistanceSqInB, pointsSignedDistanceSqInA, bInAIsBetter);
+            float3 pointsClosestA         = math.select(math.transform(bInASpace, pointsClosestAOutInB + boxB.center), pointsClosestAOutInA + boxA.center, bInAIsBetter);
+            float3 pointsClosestB         = math.select(math.transform(bInASpace, pointsClosestBOutInB + boxB.center), pointsClosestBOutInA + boxA.center, bInAIsBetter);
+            float3 pointsNormalA          = math.select(pointsNormalAFromAInB, pointsNormalAFromBInA, bInAIsBetter);
+            float3 pointsNormalB          = math.select(pointsNormalBFromAInB, pointsNormalBFromBInA, bInAIsBetter);
+            int    pointsBestId           = math.select(10, 9, bInAIsBetter);
+
+            float3 bestEdgeAxis         = simd.shuffle(axes03, axes47, (math.ShuffleComponent)(bestId & 7));
+            bestEdgeAxis                = math.select(bestEdgeAxis, axes8, bestId == 8);
+            float4 satEdgeDots          = simd.dot(bestEdgeAxis, new simdFloat3(0f, bCenterInASpace, bestEdgeClosestA, bestEdgeClosestB));
+            float  bestEdgeAxisDistance = -( satEdgeDots.z - satEdgeDots.w);  //Huh. That simplified. Defs optimization potential here.
+
+            bool pointsIsBetter  = (pointsSignedDistanceSq >= bestEdgeSignedDistanceSq) & (pointsSignedDistanceSq < 0f);
+            pointsIsBetter      |= (pointsSignedDistanceSq <= bestEdgeSignedDistanceSq + math.EPSILON) & (pointsSignedDistanceSq >= 0f);  //Bias by epsilon because edges are prone to precision issues
+            //pointsIsBetter      |= (pointsSignedDistanceSq <= bestEdgeAxisDistance * math.abs(bestEdgeAxisDistance)) & (bestEdgeAxisDistance < 0f);
+            //bool pointsIsBetter          = (pointsSignedDistanceSq <= bestEdgeSignedDistanceSq) ^ ((pointsSignedDistanceSq < 0f) & (bestEdgeSignedDistanceSq < 0f));
+            //pointsIsBetter              &= pointsSignedDistanceSq >= bestEdgeAxisDistance * math.abs(bestEdgeAxisDistance);
+            float  bestSignedDistanceSq = math.select(bestEdgeSignedDistanceSq, pointsSignedDistanceSq, pointsIsBetter);
+            float3 bestClosestA         = math.select(bestEdgeClosestA + boxA.center, pointsClosestA, pointsIsBetter);
+            float3 bestClosestB         = math.select(bestEdgeClosestB + boxA.center, pointsClosestB, pointsIsBetter);
+            float3 bestNormalA          = math.select(bestEdgeANormal, pointsNormalA, pointsIsBetter);
+            float3 bestNormalB          = math.select(math.rotate(bInASpace, bestEdgeBNormal), pointsNormalB, pointsIsBetter);
+            bestId                      = math.select(bestId, pointsBestId, pointsIsBetter);
+
+            UnityEngine.Debug.Log($"Best id: {bestId}");
+            UnityEngine.Debug.Log(
+                $"PointsA: {pointsSignedDistanceSqInA}, PointsB: {pointsSignedDistanceSqInB}, bestEdge: {bestEdgeSignedDistanceSq}");
+            UnityEngine.Debug.Log($"PointsA axis: {axisDistanceOutInA}, PointsB axis: {axisDistanceOutInB}, edgeAxis: {bestEdgeAxisDistance * math.abs(bestEdgeAxisDistance)}");
+            UnityEngine.Debug.Log($"pointsClosestA: {pointsClosestA}, pointsClosestB: {pointsClosestB}, pointsId: {pointsBestId}");
+            UnityEngine.Debug.Log($"EdgesInA A: {bestEdgeClosestA}, B: {bestEdgeClosestB}, id {bestEdgeIds[bestIndex]}");
+            //UnityEngine.Debug.Log($"ZY Dists Sq: {zySignedDistanceSq}, aLeftZy: {aLeftOnZY}, aLeftExtraOnZY {aLeftExtraOnZY}");  //a correct
+            //UnityEngine.Debug.Log($"bZy: {bPointsZY.a}, bExtraZy: {bPointsZY.b}");
+            UnityEngine.Debug.Log(
+                $"Eval: {pointsClosestB.x == bTopPointsInAOS.x}, {pointsClosestB.y == bTopPointsInAOS.y}, {pointsClosestB.z == bTopPointsInAOS.z}");
 
             //Step 4: Build result
             result = new ColliderDistanceResultInternal

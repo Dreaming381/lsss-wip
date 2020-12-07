@@ -76,6 +76,7 @@ namespace Latios.PhysicsEngine
 
         internal static void OriginAabb8Points(float3 aabb, simdFloat3 points03, simdFloat3 points47, out float3 closestAOut, out float3 closestBOut, out float axisDistanceOut)
         {
+            //Step 1: Find the minimum axis distance
             bool4 minXMask0347 = points03.x <= points47.x;
             bool4 minYMask0347 = points03.y <= points47.y;
             bool4 minZMask0347 = points03.z <= points47.z;
@@ -94,28 +95,6 @@ namespace Latios.PhysicsEngine
             float minZValue = math.cmin(minZ0347.z);
             float maxZValue = math.cmax(maxZ0347.z);
 
-            int3 minIndicesFrom0347;
-            int3 maxIndicesFrom0347;
-            minIndicesFrom0347.x = math.tzcnt(math.bitmask(minXValue == minX0347.x));
-            maxIndicesFrom0347.x = math.tzcnt(math.bitmask(maxXValue == maxX0347.x));
-            minIndicesFrom0347.y = math.tzcnt(math.bitmask(minYValue == minY0347.y));
-            maxIndicesFrom0347.y = math.tzcnt(math.bitmask(maxYValue == maxY0347.y));
-            minIndicesFrom0347.z = math.tzcnt(math.bitmask(minZValue == minZ0347.z));
-            maxIndicesFrom0347.z = math.tzcnt(math.bitmask(maxZValue == maxZ0347.z));
-
-            var bestMins = simd.shuffle(minX0347,
-                                        minX0347,
-                                        (math.ShuffleComponent)minIndicesFrom0347.x,
-                                        (math.ShuffleComponent)minIndicesFrom0347.y,
-                                        (math.ShuffleComponent)minIndicesFrom0347.z,
-                                        (math.ShuffleComponent)minIndicesFrom0347.x);
-            var bestMaxs = simd.shuffle(maxX0347,
-                                        maxX0347,
-                                        (math.ShuffleComponent)maxIndicesFrom0347.x,
-                                        (math.ShuffleComponent)maxIndicesFrom0347.y,
-                                        (math.ShuffleComponent)maxIndicesFrom0347.z,
-                                        (math.ShuffleComponent)maxIndicesFrom0347.x);
-
             float3 minValues = new float3(minXValue, minYValue, minZValue);
             float3 maxValues = new float3(maxXValue, maxYValue, maxZValue);
 
@@ -126,15 +105,73 @@ namespace Latios.PhysicsEngine
             bool3  bestAxisMask   = bestDistance == minDistances;
             //Prioritize y first, then z, then x if multiple distances perfectly match.
             //Todo: Should this be configurabe?
-            bestAxisMask.xz  &= !bestAxisMask.y;
-            bestAxisMask.x   &= !bestAxisMask.z;
-            float3 zeroMask   = math.select(0f, 1f, bestAxisMask);
-            bool   useMin     = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
-            int    bestIndex  = math.tzcnt(math.bitmask(new bool4(bestAxisMask, true)));
-            closestBOut       = math.select(bestMins[bestIndex], bestMaxs[bestIndex], useMin);
-            closestAOut       = math.select(closestBOut, math.select(aabb, -aabb, useMin), bestAxisMask);
-            closestAOut       = math.clamp(closestAOut, -aabb, aabb);
-            axisDistanceOut   = -bestDistance;
+            //bestAxisMask.xz  &= !bestAxisMask.y;
+            //bestAxisMask.x   &= !bestAxisMask.z;
+            //float3 zeroMask   = math.select(0f, 1f, bestAxisMask);
+            //bool   useMin     = (minDistances * zeroMask).Equals(distancesToMin * zeroMask);
+            //int    bestIndex  = math.tzcnt(math.bitmask(new bool4(bestAxisMask, true)));
+
+            //Step 2: Find the point that matches the bestDistance for the bestDistanceMask and has the least deviation when clamped to the AABB
+            simdFloat3 distancesToMin03 = points03 + aabb;
+            simdFloat3 distancesToMax03 = aabb - points03;
+            simdFloat3 distancesToMin47 = points47 + aabb;
+            simdFloat3 distancesToMax47 = aabb - points47;
+
+            bool4 matchesMinX03 = (bestDistance == distancesToMin03.x) & bestAxisMask.x;
+            bool4 matchesMinY03 = (bestDistance == distancesToMin03.y) & bestAxisMask.y;
+            bool4 matchesMinZ03 = (bestDistance == distancesToMin03.z) & bestAxisMask.z;
+            bool4 matchesX03    = matchesMinX03 | (bestDistance == distancesToMax03.x) & bestAxisMask.x;
+            bool4 matchesY03    = matchesMinY03 | (bestDistance == distancesToMax03.y) & bestAxisMask.y;
+            bool4 matchesZ03    = matchesMinZ03 | (bestDistance == distancesToMax03.z) & bestAxisMask.z;
+
+            bool4 matchesMinX47 = (bestDistance == distancesToMin47.x) & bestAxisMask.x;
+            bool4 matchesMinY47 = (bestDistance == distancesToMin47.y) & bestAxisMask.y;
+            bool4 matchesMinZ47 = (bestDistance == distancesToMin47.z) & bestAxisMask.z;
+            bool4 matchesX47    = matchesMinX47 | (bestDistance == distancesToMax47.x) & bestAxisMask.x;
+            bool4 matchesY47    = matchesMinY47 | (bestDistance == distancesToMax47.y) & bestAxisMask.y;
+            bool4 matchesZ47    = matchesMinZ47 | (bestDistance == distancesToMax47.z) & bestAxisMask.z;
+
+            float4 diffXValues03 = points03.x - math.clamp(points03.x, -aabb.x, aabb.x);
+            float4 diffYValues03 = points03.y - math.clamp(points03.y, -aabb.y, aabb.y);
+            float4 diffZValues03 = points03.z - math.clamp(points03.z, -aabb.z, aabb.z);
+            float4 diffXValues47 = points47.x - math.clamp(points47.x, -aabb.x, aabb.x);
+            float4 diffYValues47 = points47.y - math.clamp(points47.y, -aabb.y, aabb.y);
+            float4 diffZValues47 = points47.z - math.clamp(points47.z, -aabb.z, aabb.z);
+
+            float4 distSqYZ03 = math.select(float.MaxValue, diffYValues03 * diffYValues03 + diffZValues03 * diffZValues03, matchesX03);
+            float4 distSqXZ03 = math.select(float.MaxValue, diffXValues03 * diffXValues03 + diffZValues03 * diffZValues03, matchesY03);
+            float4 distSqXY03 = math.select(float.MaxValue, diffXValues03 * diffXValues03 + diffYValues03 * diffYValues03, matchesZ03);
+            float4 distSqYZ47 = math.select(float.MaxValue, diffYValues47 * diffYValues47 + diffZValues47 * diffZValues47, matchesX47);
+            float4 distSqXZ47 = math.select(float.MaxValue, diffXValues47 * diffXValues47 + diffZValues47 * diffZValues47, matchesY47);
+            float4 distSqXY47 = math.select(float.MaxValue, diffXValues47 * diffXValues47 + diffYValues47 * diffYValues47, matchesZ47);
+
+            bool4  useY03          = distSqXZ03 < distSqYZ03;
+            float4 bestDistSq03    = math.select(distSqYZ03, distSqXZ03, useY03);
+            bool4  matchesMin03    = matchesMinX03 ^ ((matchesMinX03 ^ matchesMinY03) & useY03);  //math.select(matchesMinX03, matchesMinY03, useY03);
+            bool4  useZ03          = distSqXY03 < bestDistSq03;
+            bestDistSq03           = math.select(bestDistSq03, distSqXY03, useZ03);
+            matchesMin03           = matchesMin03 ^ ((matchesMin03 ^ matchesMinZ03) & useZ03);
+            float bestDistSqFrom03 = math.cmin(bestDistSq03);
+            int   index03          = math.clamp(math.tzcnt(math.bitmask(bestDistSqFrom03 == bestDistSq03)), 0, 3);
+
+            bool4  useY47          = distSqXZ47 < distSqYZ47;
+            float4 bestDistSq47    = math.select(distSqYZ47, distSqXZ47, useY47);
+            bool4  matchesMin47    = matchesMinX47 ^ ((matchesMinX47 ^ matchesMinY47) & useY47);  //math.select(matchesMinX47, matchesMinY47, useY47);
+            bool4  useZ47          = distSqXY47 < bestDistSq47;
+            bestDistSq47           = math.select(bestDistSq47, distSqXY47, useZ47);
+            matchesMin47           = matchesMin47 ^ ((matchesMin47 ^ matchesMinZ47) & useZ47);
+            float bestDistSqFrom47 = math.cmin(bestDistSq47);
+            int   index47          = math.clamp(math.tzcnt(math.bitmask(bestDistSqFrom47 == bestDistSq47)), 0, 3) + 4;
+
+            bool                  use47      = bestDistSqFrom47 < bestDistSqFrom03;
+            math.ShuffleComponent bestIndex  = (math.ShuffleComponent)math.select(index03, index47, use47);
+            bool4                 matchesMin = matchesMin03 ^ ((matchesMin03 ^ matchesMin47) & use47);
+            bool                  useMin     = matchesMin[((int)bestIndex) & 3];
+
+            closestBOut     = simd.shuffle(points03, points47, bestIndex);
+            closestAOut     = math.select(closestBOut, math.select(aabb, -aabb, useMin), bestAxisMask);
+            closestAOut     = math.clamp(closestAOut, -aabb, aabb);
+            axisDistanceOut = -bestDistance;
         }
 
         public static bool4 ArePointsInsideObb(simdFloat3 points, simdFloat3 obbNormals, float3 distances, float3 halfWidths)
