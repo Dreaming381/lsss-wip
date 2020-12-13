@@ -48,8 +48,9 @@ MonoBehaviour:
   preferredTargetDistance: 15
   friendlyFireDisableRange: 100
   friendlyFireDisableFieldOfView: 20
-  additionalEnemyDetectionRange: 50
-  additionalEnemyDetectionFieldOfView: 10
+  enemyCrossHairsRange: 50
+  enemyCrossHairsFieldOfView: 10
+  biasCrossHairsUsingRootForward: 1
 --- !u!114 &159207917134653333
 MonoBehaviour:
   m_ObjectHideFlags: 0
