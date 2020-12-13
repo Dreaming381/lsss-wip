@@ -1,9 +1,9 @@
 # Latios Space Shooter Sample - WIP
 
 This is an open game project using Unity DOTS. It is used to develop new
-features and improvements in Latios Framework (currently 0.3.0) as well as
-serve as an example project. A version of the framework is included as an
-embedded package.
+features and improvements in Latios Framework (currently 0.3.0) as well as serve
+as an example project. A version of the framework is included as an embedded
+package.
 
 The Unity version is currently 2020.1.9f1
 
@@ -17,10 +17,11 @@ You can download the latest binary version of the game here:
 
 ## Special Project Restrictions
 
-The entire game is made using Unity and Unity only. That means no assets from
-other software are included in the project. No meshes. No textures. No sound
-files. All texturing is done procedurally using ShaderGraph, and meshes are
-composed of Unity primitives and procedural generation.
+All assets in the game can be modified either directly in Unity (free UPM
+package tools count) or via text editors. No other tools should be required.
+Currently, meshes are procedurally generated from built-in primitives. All
+texturing is done procedurally using ShaderGraph. Sound Effects are generated
+from USFXR and music is composed using CSound.
 
 In stark contrast to my usual style, this game has no intention to establish any
 significant lore or storyline. However, feel free to contribute your own!
@@ -57,9 +58,6 @@ aspects people can dare try to contribute to:
 -   Editor Tools (I suck at writing these. If you don't suck at them, I envy
     your skills!)
 
--   Procedural audio clip generation (I just need the clips to be available
-    during game object conversion)
-
 -   Advanced AI (I have a basic AI in place which I will continue to develop.
     However, a faction could use a different AI instead. The only requirement to
     an AI is it needs to write to \`ShipDesiredActions\`. Feel free to add any
@@ -76,3 +74,9 @@ can clean up your branch for you.
 This project is licensed under the same licenses which govern the
 Latios-Framework repository:
 <https://github.com/Dreaming381/Latios-Framework/blob/master/LICENSE.md>
+
+## Third Party Notices
+
+This project includes CSoundUnity via UPM which is licensed under LGPL 2.1.
+
+This project includes USFXR via UPM which is licensed under Apache License 2.0.

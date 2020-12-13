@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.csound.csoundunity": {
+      "version": "https://github.com/rorywalsh/CsoundUnity.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "686c51410c86d2208048cc44125660836edfd010"
+    },
     "com.latios.latiosframework": {
       "version": "file:com.latios.latios-framework",
       "depth": 0,
@@ -8,6 +15,18 @@
         "com.unity.entities": "0.16.0-preview.21",
         "com.unity.code-analysis": "0.1.2-preview"
       }
+    },
+    "com.unity.audio.dspgraph": {
+      "version": "0.1.0-preview.16",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.burst": "1.3.7",
+        "com.unity.media.utilities": "0.1.0-preview.8",
+        "com.unity.modules.audio": "1.0.0",
+        "com.unity.modules.video": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
       "version": "1.3.7",
@@ -77,7 +96,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ext.nunit": {
-      "version": "1.0.0",
+      "version": "1.0.6",
       "depth": 1,
       "source": "registry",
       "dependencies": {},
@@ -93,7 +112,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ide.visualstudio": {
-      "version": "2.0.2",
+      "version": "2.0.5",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
@@ -107,7 +126,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.inputsystem": {
-      "version": "1.0.0",
+      "version": "1.0.1",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
@@ -128,6 +147,16 @@
       "depth": 0,
       "source": "registry",
       "dependencies": {},
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.media.utilities": {
+      "version": "0.1.0-preview.8",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.mathematics": "1.2.1",
+        "com.unity.burst": "1.3.7"
+      },
       "url": "https://packages.unity.com"
     },
     "com.unity.nuget.mono-cecil": {
@@ -295,11 +324,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.test-framework": {
-      "version": "1.1.16",
+      "version": "1.1.20",
       "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.ext.nunit": "1.0.0",
+        "com.unity.ext.nunit": "1.0.6",
         "com.unity.modules.imgui": "1.0.0",
         "com.unity.modules.jsonserialize": "1.0.0"
       },
@@ -316,7 +345,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.textmeshpro": {
-      "version": "3.0.1",
+      "version": "3.0.3",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -355,6 +384,13 @@
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
+    },
+    "usfxr": {
+      "version": "https://github.com/grapefrukt/usfxr.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "4359aeb6301dd1a75f6e5b38eb7707460740db0a"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",
