@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Objects/Spaceship")]
     public class SpaceshipAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
         [Header("Speed")]

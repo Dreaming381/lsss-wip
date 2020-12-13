@@ -17,7 +17,8 @@
         "UnityEngine.UI",
         "Unity.Transforms",
         "Unity.Transforms.Hybrid",
-        "Unity.Mathematics.Extensions"
+        "Unity.Mathematics.Extensions",
+        "Unity.usfxr"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

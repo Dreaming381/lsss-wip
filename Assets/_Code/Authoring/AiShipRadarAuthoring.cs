@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/AI/Radar")]
     public class AiShipRadarAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float fieldOfView                    = 90f;

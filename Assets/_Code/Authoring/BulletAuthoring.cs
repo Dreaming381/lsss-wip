@@ -4,6 +4,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Objects/Bullet")]
     public class BulletAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float travelDistance  = 100f;

@@ -6,6 +6,7 @@ using UnityEngine.UI;
 
 namespace Lsss.Tools
 {
+    [AddComponentMenu("LSSS/UI/Profiler Panel")]
     public class ProfilerPanel : MonoBehaviour
     {
         public GameObject panel;

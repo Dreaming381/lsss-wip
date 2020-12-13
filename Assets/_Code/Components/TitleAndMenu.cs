@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Lsss
 {
+    [AddComponentMenu("LSSS/UI/Title and Menu")]
     public class TitleAndMenu : MonoBehaviour
     {
         public GameObject titlePanel;

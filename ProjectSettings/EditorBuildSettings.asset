@@ -15,22 +15,22 @@ EditorBuildSettings:
     path: Assets/Scenes/Mission Failed.unity
     guid: 7fdaee107c07fa946911c00c72fc435c
   - enabled: 1
-    path: Assets/Scenes/Mission1_v0_2.unity
+    path: Assets/Scenes/v2/Mission1_v0_2.unity
     guid: b865e2edc4ba88947a8151d2e5426eba
   - enabled: 1
-    path: Assets/Scenes/Mission2_v0_2.unity
+    path: Assets/Scenes/v2/Mission2_v0_2.unity
     guid: a17c495293dd0dd4c887e99431e125dd
   - enabled: 1
-    path: Assets/Scenes/Mission3_v0_2.unity
+    path: Assets/Scenes/v2/Mission3_v0_2.unity
     guid: 7f780167c70b2e84e9df3d2b2bc5ba14
   - enabled: 1
-    path: Assets/Scenes/Mission4_v0_2.unity
+    path: Assets/Scenes/v2/Mission4_v0_2.unity
     guid: e9e53440097fe8f40a5f6ca4f0fb1181
   - enabled: 1
-    path: Assets/Scenes/Mission5_v0_2.unity
+    path: Assets/Scenes/v2/Mission5_v0_2.unity
     guid: 73b8017ba0a0e0e49b17c08e6c0bd3b0
   - enabled: 1
-    path: Assets/Scenes/Mission6_v0_2.unity
+    path: Assets/Scenes/v2/Mission6_v0_2.unity
     guid: b750279bd0ae5c045a694f19c2840336
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: b879fc492f903344394097c747df081d, type: 2}

@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Spawning/Fleet Spawner")]
     public class FleetSpawnPointAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
         public FactionAuthoring           faction;

@@ -14,6 +14,7 @@ namespace Latios.PhysicsEngine.Authoring
     }
 
     [DisallowMultipleComponent]
+    [AddComponentMenu("Latios/Physics/Collider")]
     public class LatiosColliderAuthoring : MonoBehaviour
     {
         public AuthoringColliderTypes colliderType = AuthoringColliderTypes.None;

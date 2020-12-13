@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Spawning/Orbital Spawner")]
     public class OrbitalSpawnPointAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
         public float3                     center;

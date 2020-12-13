@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [RequireComponent(typeof(MeshFilter))]
+    [AddComponentMenu("LSSS/Mesh Builders/Capsule")]
     public class CapsuleMeshAuthoring : MonoBehaviour
     {
         public enum DirectionAxis

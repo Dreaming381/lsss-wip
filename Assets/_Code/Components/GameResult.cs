@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Lsss
 {
+    [AddComponentMenu("LSSS/UI/Game Result")]
     public class GameResult : MonoBehaviour
     {
         [HideInInspector] public bool retry;

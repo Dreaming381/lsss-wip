@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Spawning/Fleet Spawner Slot")]
     public class FleetSpawnSlotAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public bool spawnPlayer = false;

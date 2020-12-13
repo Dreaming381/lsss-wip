@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Player/Mission Objective")]
     public class MissionObjectiveAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public bool destroyAllFactions = true;

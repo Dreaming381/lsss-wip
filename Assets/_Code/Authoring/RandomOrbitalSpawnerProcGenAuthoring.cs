@@ -6,6 +6,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("LSSS/Spawning/Orbital Spawner Random Generator")]
     public class RandomOrbitalSpawnerProcGenAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
     {
         public int                        spawnerCount    = 0;

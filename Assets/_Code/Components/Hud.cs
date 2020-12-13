@@ -4,6 +4,7 @@ using UnityEngine.UI;
 
 namespace Lsss
 {
+    [AddComponentMenu("LSSS/UI/HUD")]
     public class Hud : MonoBehaviour
     {
         public RectTransform boostBar;
