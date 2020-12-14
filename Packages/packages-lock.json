@@ -13,7 +13,8 @@
       "source": "embedded",
       "dependencies": {
         "com.unity.entities": "0.16.0-preview.21",
-        "com.unity.code-analysis": "0.1.2-preview"
+        "com.unity.code-analysis": "0.1.2-preview",
+        "com.unity.audio.dspgraph": "0.1.0-preview.16"
       }
     },
     "com.unity.audio.dspgraph": {
