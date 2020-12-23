@@ -60,11 +60,24 @@ namespace Lsss
                     var gamepad = Gamepad.current;
                     {
                         if (gamepad != null)
-                            if (gamepad.bButton.wasPressedThisFrame || gamepad.crossButton.wasPressedThisFrame)
+                        {
+                            if (titleAndMenu.eventSystem.currentSelectedGameObject == null || !titleAndMenu.eventSystem.currentSelectedGameObject.activeInHierarchy)
+                            {
+                                if (titleAndMenu.menuPanel.activeSelf)
+                                {
+                                    titleAndMenu.firstMissionButton.Select();
+                                }
+                                else
+                                {
+                                    titleAndMenu.musicSlider.Select();
+                                }
+                            }
+                            if (gamepad.bButton.wasPressedThisFrame)
                             {
                                 titleAndMenu.menuPanel.SetActive(false);
                                 titleAndMenu.titlePanel.SetActive(true);
                             }
+                        }
                     }
                 }
                 float a                             = 0.75f * (float)math.sin(Time.ElapsedTime / titleAndMenu.pulsePeriod * 2d * math.PI_DBL) + 0.5f;

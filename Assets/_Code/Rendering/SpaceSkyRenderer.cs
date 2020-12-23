@@ -27,6 +27,7 @@ namespace Lsss.Graphics
         int  m_renderForCubemapCount   = 0;
         int  m_prevHashCode            = 0;
         bool m_prevHashCodeInitialized = false;
+        int  m_cubemapSize             = 4096;
 
         private static int kCubemapPass       = 0;
         private static int kScreenPass        = 1;
@@ -35,8 +36,10 @@ namespace Lsss.Graphics
 
         public override void Build()
         {
+            m_cubemapSize = GetCubemapResolutionFromQualityLevel(QualitySettings.GetQualityLevel());
+
             m_spaceSkyMaterial             = CoreUtils.CreateEngineMaterial("Hidden/SpaceSky");
-            m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(4096);
+            m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize);
         }
 
         public override void Cleanup()
@@ -47,6 +50,16 @@ namespace Lsss.Graphics
 
         protected override bool Update(BuiltinSkyParameters builtinParams)
         {
+            var newResolution = GetCubemapResolutionFromQualityLevel(QualitySettings.GetQualityLevel());
+            if (m_cubemapSize != newResolution)
+            {
+                CoreUtils.Destroy(m_spaceSkyCubemapRenderTexture);
+                m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize);
+                m_prevHashCodeInitialized      = false;
+                m_cubemapSize                  = newResolution;
+                return true;
+            }
+
             return false;
         }
 
@@ -86,9 +99,9 @@ namespace Lsss.Graphics
                 var lookAt      = Matrix4x4.LookAt(Vector3.zero, CoreUtils.lookAtList[m_renderForCubemapCount], CoreUtils.upVectorList[m_renderForCubemapCount]);
                 var worldToView = lookAt * Matrix4x4.Scale(new Vector3(1.0f, 1.0f, -1.0f));  // Need to scale -1.0 on Z to match what is being done in the camera.wolrdToCameraMatrix API. ...
 
-                var cubemapResolution  = 4096f;
-                var cubemapScreenSize  = new Vector4(cubemapResolution, cubemapResolution, 1.0f / cubemapResolution, 1.0f / cubemapResolution);
-                var pixelViewDirMatrix = ComputePixelCoordToWorldSpaceViewDirectionMatrix(0.5f * Mathf.PI, Vector2.zero, cubemapScreenSize, worldToView, true);
+                float cubemapResolution  = m_cubemapSize;
+                var   cubemapScreenSize  = new Vector4(cubemapResolution, cubemapResolution, 1.0f / cubemapResolution, 1.0f / cubemapResolution);
+                var   pixelViewDirMatrix = ComputePixelCoordToWorldSpaceViewDirectionMatrix(0.5f * Mathf.PI, Vector2.zero, cubemapScreenSize, worldToView, true);
                 m_spaceSkyMaterialProperties.SetMatrix(_PixelCoordToViewDirWS, pixelViewDirMatrix);
                 CoreUtils.SetRenderTarget(builtinParams.commandBuffer, m_spaceSkyCubemapRenderTexture, ClearFlag.None, 0, (CubemapFace)m_renderForCubemapCount);
                 CoreUtils.DrawFullScreen(builtinParams.commandBuffer, m_spaceSkyMaterial, m_spaceSkyMaterialProperties, kCubemapCachedPass);
@@ -149,6 +162,17 @@ namespace Lsss.Graphics
 
             // Transpose for HLSL.
             return Matrix4x4.Transpose(worldToViewMatrix.transpose * viewSpaceRasterTransform);
+        }
+
+        int GetCubemapResolutionFromQualityLevel(int qualityLevel)
+        {
+            switch (qualityLevel)
+            {
+                case 0: return 1024;
+                case 1: return 2048;
+                case 2: return 4096;
+                default: return 4096;
+            }
         }
     }
 }

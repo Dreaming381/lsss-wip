@@ -19,8 +19,8 @@ namespace Lsss
                 {
                     desiredActions.turn = gamepad.leftStick.ReadValue();
 
-                    bool  accelDown    = gamepad.aButton.isPressed || gamepad.crossButton.isPressed;
-                    bool  brakeDown    = gamepad.bButton.isPressed || gamepad.squareButton.isPressed;
+                    bool  accelDown    = gamepad.aButton.isPressed;
+                    bool  brakeDown    = gamepad.bButton.isPressed;
                     float stickGas     = gamepad.rightStick.ReadValue().y;
                     float accel        = math.select(0f, 1f, accelDown);
                     float brake        = math.select(0f, -1f, brakeDown);
