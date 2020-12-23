@@ -140,25 +140,25 @@ namespace Latios.PhysicsEngine
 
             bool4  useY03          = distSqXZ03 < distSqYZ03;
             float4 bestDistSq03    = math.select(distSqYZ03, distSqXZ03, useY03);
-            bool4  matchesMin03    = matchesMinX03 ^ ((matchesMinX03 ^ matchesMinY03) & useY03);  //math.select(matchesMinX03, matchesMinY03, useY03);
+            bool4  matchesMin03    = math.select(matchesMinX03, matchesMinY03, useY03);
             bool4  useZ03          = distSqXY03 < bestDistSq03;
             bestDistSq03           = math.select(bestDistSq03, distSqXY03, useZ03);
-            matchesMin03           = matchesMin03 ^ ((matchesMin03 ^ matchesMinZ03) & useZ03);
+            matchesMin03           = math.select(matchesMin03, matchesMinZ03, useZ03);
             float bestDistSqFrom03 = math.cmin(bestDistSq03);
             int   index03          = math.clamp(math.tzcnt(math.bitmask(bestDistSqFrom03 == bestDistSq03)), 0, 3);
 
             bool4  useY47          = distSqXZ47 < distSqYZ47;
             float4 bestDistSq47    = math.select(distSqYZ47, distSqXZ47, useY47);
-            bool4  matchesMin47    = matchesMinX47 ^ ((matchesMinX47 ^ matchesMinY47) & useY47);  //math.select(matchesMinX47, matchesMinY47, useY47);
+            bool4  matchesMin47    = math.select(matchesMinX47, matchesMinY47, useY47);
             bool4  useZ47          = distSqXY47 < bestDistSq47;
             bestDistSq47           = math.select(bestDistSq47, distSqXY47, useZ47);
-            matchesMin47           = matchesMin47 ^ ((matchesMin47 ^ matchesMinZ47) & useZ47);
+            matchesMin47           = math.select(matchesMin47, matchesMinZ47, useZ47);
             float bestDistSqFrom47 = math.cmin(bestDistSq47);
             int   index47          = math.clamp(math.tzcnt(math.bitmask(bestDistSqFrom47 == bestDistSq47)), 0, 3) + 4;
 
             bool                  use47      = bestDistSqFrom47 < bestDistSqFrom03;
             math.ShuffleComponent bestIndex  = (math.ShuffleComponent)math.select(index03, index47, use47);
-            bool4                 matchesMin = matchesMin03 ^ ((matchesMin03 ^ matchesMin47) & use47);
+            bool4                 matchesMin = math.select(matchesMin03, matchesMin47, use47);
             bool                  useMin     = matchesMin[((int)bestIndex) & 3];
 
             closestBOut     = simd.shuffle(points03, points47, bestIndex);
