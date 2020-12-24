@@ -33,11 +33,9 @@ namespace Latios.PhysicsEngine
                                                    out float pointsAxisDistanceInA);
             float pointsSignedDistanceSqInA = math.distancesq(pointsClosestAInA, pointsClosestBInA);
             pointsSignedDistanceSqInA       = math.select(pointsSignedDistanceSqInA, -pointsSignedDistanceSqInA, pointsAxisDistanceInA <= 0f);
-            bool4 bTopMatch                 =
-                (bTopPointsInAOS.x == pointsClosestBInA.x) & (bTopPointsInAOS.y == pointsClosestBInA.y) & (bTopPointsInAOS.z == pointsClosestBInA.z);
-            bool4 bBottomMatch =
-                (bBottomPointsInAOS.x == pointsClosestBInA.x) & (bBottomPointsInAOS.y == pointsClosestBInA.y) & (bBottomPointsInAOS.z == pointsClosestBInA.z);
-            int bInABIndex = math.tzcnt((math.bitmask(bBottomMatch) << 4) | math.bitmask(bTopMatch));
+            bool4 bTopMatch                 = bTopPointsInAOS == pointsClosestBInA;
+            bool4 bBottomMatch              = bBottomPointsInAOS == pointsClosestBInA;
+            int   bInABIndex                = math.tzcnt((math.bitmask(bBottomMatch) << 4) | math.bitmask(bTopMatch));
 
             simdFloat3 aTopPoints     = default;
             simdFloat3 aBottomPoints  = default;
@@ -60,11 +58,9 @@ namespace Latios.PhysicsEngine
                                                    out float pointsAxisDistanceInB);
             float pointsSignedDistanceSqInB = math.distancesq(pointsClosestAInB, pointsClosestBInB);
             pointsSignedDistanceSqInB       = math.select(pointsSignedDistanceSqInB, -pointsSignedDistanceSqInB, pointsAxisDistanceInB <= 0f);
-            bool4 aTopMatch                 =
-                (aTopPointsInBOS.x == pointsClosestAInB.x) & (aTopPointsInBOS.y == pointsClosestAInB.y) & (aTopPointsInBOS.z == pointsClosestAInB.z);
-            bool4 aBottomMatch =
-                (aBottomPointsInBOS.x == pointsClosestAInB.x) & (aBottomPointsInBOS.y == pointsClosestAInB.y) & (aBottomPointsInBOS.z == pointsClosestAInB.z);
-            int aInBAIndex = math.tzcnt((math.bitmask(aBottomMatch) << 4) | math.bitmask(aTopMatch));
+            bool4 aTopMatch                 = aTopPointsInBOS == pointsClosestAInB;
+            bool4 aBottomMatch              = aBottomPointsInBOS == pointsClosestAInB;
+            int   aInBAIndex                = math.tzcnt((math.bitmask(aBottomMatch) << 4) | math.bitmask(aTopMatch));
 
             //Step 2: Edges vs edges
 
@@ -84,8 +80,8 @@ namespace Latios.PhysicsEngine
             edgeAxes03                  = simd.select(-edgeAxes03, edgeAxes03, simd.dot(edgeAxes03, bCenterInASpace) >= 0f);
             edgeAxes47                  = simd.select(-edgeAxes47, edgeAxes47, simd.dot(edgeAxes47, bCenterInASpace) >= 0f);
             edgeAxes8                   = math.select(-edgeAxes8, edgeAxes8, math.dot(edgeAxes8, bCenterInASpace) >= 0f);
-            bool4      edgeInvalids03   = (edgeAxes03.x == 0f) & (edgeAxes03.y == 0f) & (edgeAxes03.z == 0f);
-            bool4      edgeInvalids47   = (edgeAxes47.x == 0f) & (edgeAxes47.y == 0f) & (edgeAxes47.z == 0f);
+            bool4      edgeInvalids03   = edgeAxes03 == 0f;
+            bool4      edgeInvalids47   = edgeAxes47 == 0f;
             bool       edgeInvalids8    = edgeAxes8.Equals(float3.zero);
             simdFloat3 bLeftPointsInAOS = simd.shuffle(bTopPointsInAOS,
                                                        bBottomPointsInAOS,
@@ -429,16 +425,13 @@ namespace Latios.PhysicsEngine
             pointsNormalBFromAInB        = math.normalize(math.rotate(bInASpace, pointsNormalBFromAInB));
             float3 pointsNormalAFromBInA =
                 math.normalize(math.select(0f, 1f, pointsClosestAInA == boxA.halfSize) + math.select(0f, -1f, pointsClosestAInA == -boxA.halfSize));
-            float3 bestEdgeNormalA          = math.normalize(math.select(0f, 1f, bestEdgeClosestA == boxA.halfSize) + math.select(0f, -1f, bestEdgeClosestA == -boxA.halfSize));
-            int    matchedBIndexFromEdgeTop =
-                math.tzcnt(math.bitmask((bestEdgeClosestB.x == bTopPointsInAOS.x) & (bestEdgeClosestB.y == bTopPointsInAOS.y) & (bestEdgeClosestB.z == bTopPointsInAOS.z)));
-            int matchedBIndexFromEdgeBottom =
-                math.tzcnt(math.bitmask((bestEdgeClosestB.x ==
-                                         bBottomPointsInAOS.x) & (bestEdgeClosestB.y == bBottomPointsInAOS.y) & (bestEdgeClosestB.z == bBottomPointsInAOS.z))) + 4;
-            int    matchedIndexBFromEdge = math.select(matchedBIndexFromEdgeTop, matchedBIndexFromEdgeBottom, matchedBIndexFromEdgeBottom < 8);
-            float3 edgeNormalBAsCorner   = simd.shuffle(topUnnormals, bottomUnnormals, (math.ShuffleComponent)math.clamp(matchedIndexBFromEdge, 0, 7));
-            edgeNormalBAsCorner          = math.normalize(edgeNormalBAsCorner);
-            bestEdgeNormalB              = math.select(bestEdgeNormalB, edgeNormalBAsCorner, matchedIndexBFromEdge < 8);
+            float3 bestEdgeNormalA             = math.normalize(math.select(0f, 1f, bestEdgeClosestA == boxA.halfSize) + math.select(0f, -1f, bestEdgeClosestA == -boxA.halfSize));
+            int    matchedBIndexFromEdgeTop    = math.tzcnt(math.bitmask(bestEdgeClosestB == bTopPointsInAOS));
+            int    matchedBIndexFromEdgeBottom = math.tzcnt(math.bitmask((bestEdgeClosestB == bBottomPointsInAOS))) + 4;
+            int    matchedIndexBFromEdge       = math.select(matchedBIndexFromEdgeTop, matchedBIndexFromEdgeBottom, matchedBIndexFromEdgeBottom < 8);
+            float3 edgeNormalBAsCorner         = simd.shuffle(topUnnormals, bottomUnnormals, (math.ShuffleComponent)math.clamp(matchedIndexBFromEdge, 0, 7));
+            edgeNormalBAsCorner                = math.normalize(edgeNormalBAsCorner);
+            bestEdgeNormalB                    = math.select(bestEdgeNormalB, edgeNormalBAsCorner, matchedIndexBFromEdge < 8);
 
             bool bInAIsBetter  = math.sign(pointsAxisDistanceInA) > math.sign(pointsAxisDistanceInB);
             bInAIsBetter      |=

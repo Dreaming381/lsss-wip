@@ -21,6 +21,16 @@ namespace Latios
             return new simdFloat3 { m_float3s = new float4x3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x) };
         }
 
+        public static float4 distancesq(simdFloat3 a, float3 b)
+        {
+            var t = a - b;
+            return dot(t, t);
+        }
+        public static float4 distancesq(float3 a, simdFloat3 b)
+        {
+            var t = a - b;
+            return dot(t, t);
+        }
         public static float4 distancesq(simdFloat3 a, simdFloat3 b)
         {
             var t = a - b;
