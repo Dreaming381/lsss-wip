@@ -11,6 +11,11 @@ namespace Lsss
 {
     public class HudUpdateSystem : SubSystem
     {
+        struct CachedShipBaseHealth : IComponentData
+        {
+            public float health;
+        }
+
         StringBuilder m_healthBuilder      = new StringBuilder();
         StringBuilder m_bulletCountBuilder = new StringBuilder();
         StringBuilder m_factionsBuilder    = new StringBuilder();
@@ -19,7 +24,8 @@ namespace Lsss
 
         protected override void OnCreate()
         {
-            m_shipsQuery = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>(true).IncludeDisabled().Build();
+            m_shipsQuery                                                         = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>(true).IncludeDisabled().Build();
+            worldGlobalEntity.AddComponentData(new CachedShipBaseHealth { health = 0f });
         }
 
         protected override void OnUpdate()
@@ -33,14 +39,16 @@ namespace Lsss
             if (hud == null)
                 return;
 
-            bool playerFound = false;
-            Entities.WithAll<PlayerTag>().ForEach((in ShipHealth health, in ShipReloadTime bullets, in ShipBoostTank boost, in ShipSpeedStats stats) =>
+            bool   playerFound = false;
+            float  healthValue = 0f;
+            Entity wge         = worldGlobalEntity;
+            Entities.WithAll<PlayerTag>().ForEach((in ShipHealth health, in ShipBaseHealth baseHealth, in ShipReloadTime bullets, in ShipBoostTank boost, in ShipSpeedStats stats) =>
             {
                 playerFound = true;
 
-                m_healthBuilder.Clear();
-                m_healthBuilder.Append(health.health);
-                hud.health.SetText(m_healthBuilder);
+                healthValue = health.health;
+                SetComponent(wge,
+                             new CachedShipBaseHealth { health = baseHealth.baseHealth });
 
                 m_bulletCountBuilder.Clear();
                 m_bulletCountBuilder.Append(bullets.bulletsRemaining);
@@ -50,6 +58,12 @@ namespace Lsss
                 localScale.y            = boost.boost / stats.boostCapacity;
                 hud.boostBar.localScale = localScale;
             }).WithoutBurst().Run();
+
+            m_healthBuilder.Clear();
+            m_healthBuilder.Append(healthValue);
+            m_healthBuilder.Append('/');
+            m_healthBuilder.Append(worldGlobalEntity.GetComponentData<CachedShipBaseHealth>().health);
+            hud.health.SetText(m_healthBuilder);
 
             if (playerFound)
             {

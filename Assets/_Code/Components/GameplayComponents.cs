@@ -73,6 +73,11 @@ namespace Lsss
         public float health;
     }
 
+    public struct ShipBaseHealth : IComponentData
+    {
+        public float baseHealth;
+    }
+
     [InternalBufferCapacity(8)]
     public struct ShipGunPoint : IBufferElementData
     {

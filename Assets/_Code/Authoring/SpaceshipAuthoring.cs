@@ -68,6 +68,7 @@ namespace Lsss.Authoring
             dstManager.AddComponentData(entity, new Speed { speed         = 0f });
 
             dstManager.AddComponentData(entity, new ShipHealth { health                   = health });
+            dstManager.AddComponentData(entity, new ShipBaseHealth { baseHealth           = health });
             dstManager.AddComponentData(entity, new Damage { damage                       = collisionDamageToOther });
             dstManager.AddComponentData(entity, new CameraMountPoint { mountPoint         = conversionSystem.TryGetPrimaryEntity(cameraMountPoint) });
             dstManager.AddComponentData(entity, new ShipExplosionPrefab { explosionPrefab = conversionSystem.TryGetPrimaryEntity(explosionPrefab) });
