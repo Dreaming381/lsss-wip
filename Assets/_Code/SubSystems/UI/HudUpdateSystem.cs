@@ -81,24 +81,57 @@ namespace Lsss
             }
             hud.blackFade.color = new UnityEngine.Color(0f, 0f, 0f, hud.blackFadeControl);
 
-            m_factionsBuilder.Clear();
+            //m_factionsBuilder.Clear();
+            NativeList<FixedString64> factionNames  = new NativeList<FixedString64>(Allocator.TempJob);
+            NativeList<int>           factionCounts = new NativeList<int>(Allocator.TempJob);
             Entities.WithAll<FactionTag>().ForEach((Entity entity, in Faction faction) =>
             {
                 var factionMember = new FactionMember { factionEntity = entity };
                 m_shipsQuery.SetSharedComponentFilter(factionMember);
-                int liveCount = m_shipsQuery.CalculateEntityCount();
+                factionCounts.Add(m_shipsQuery.CalculateEntityCount() + faction.remainingReinforcements);
+                factionNames.Add(faction.name);
 
                 //Todo: StringBuilder extension for FixedString?
-                foreach (var c in faction.name)
-                {
-                    m_factionsBuilder.Append((char)c.value);
-                }
+                //foreach (var c in faction.name)
+                //{
+                //m_factionsBuilder.Append((char)c.value);
+                //}
 
-                m_factionsBuilder.Append('\t');
-                m_factionsBuilder.Append(faction.remainingReinforcements + liveCount);
-                m_factionsBuilder.Append('\n');
+                //m_factionsBuilder.Append('\t');
+                //m_factionsBuilder.Append(faction.remainingReinforcements + liveCount);
+                //m_factionsBuilder.Append('\n');
             }).WithoutBurst().Run();
+
+            m_factionsBuilder.Clear();
+            foreach (var n in factionNames)
+            {
+                m_factionsBuilder.Append(n);
+                m_factionsBuilder.Append('\t');
+                m_factionsBuilder.Append('0');
+                m_factionsBuilder.Append('\n');
+            }
             hud.factions.SetText(m_factionsBuilder);
+            var preferredWidth = hud.factions.GetPreferredValues().x;
+            var realWidth      = hud.factions.rectTransform.rect.width;
+            int ratio          = (int)(100f * preferredWidth / realWidth);
+            m_factionsBuilder.Clear();
+            for (int i = 0; i < factionNames.Length; i++)
+            {
+                m_factionsBuilder.Append(factionNames[i]);
+                m_factionsBuilder.Append('<');
+                m_factionsBuilder.Append('p');
+                m_factionsBuilder.Append('o');
+                m_factionsBuilder.Append('s');
+                m_factionsBuilder.Append('=');
+                m_factionsBuilder.Append(ratio);
+                m_factionsBuilder.Append('%');
+                m_factionsBuilder.Append('>');
+                m_factionsBuilder.Append(factionCounts[i]);
+                m_factionsBuilder.Append('\n');
+            }
+            hud.factions.SetText(m_factionsBuilder);
+            factionNames.Dispose();
+            factionCounts.Dispose();
         }
     }
 }
