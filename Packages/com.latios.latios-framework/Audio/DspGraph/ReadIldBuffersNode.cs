@@ -8,7 +8,7 @@ using Unity.Mathematics;
 namespace Latios.Audio
 {
     [BurstCompile(CompileSynchronously = true)]
-    public unsafe struct ReadIldBuffersNode : IAudioKernel<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders>
+    internal unsafe struct ReadIldBuffersNode : IAudioKernel<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders>
     {
         public enum Parameters
         {
@@ -71,7 +71,9 @@ namespace Latios.Audio
                 {
                     bool useLeft               = outputChannelIndex < m_ildBuffer.leftBufferChannels.Length;
                     int  ildBufferChannelIndex = math.select(outputChannelIndex - m_ildBuffer.leftBufferChannels.Length, outputChannelIndex, useLeft);
-                    var  ildBufferChannel      = useLeft ? m_ildBuffer.leftBufferChannels[ildBufferChannelIndex] : m_ildBuffer.rightBufferChannels[ildBufferChannelIndex];
+                    var  ildBufferChannel      =
+                        useLeft ? m_ildBuffer.leftBufferChannels[ildBufferChannelIndex] : m_ildBuffer.rightBufferChannels[
+                            ildBufferChannelIndex];
 
                     int bufferOffset  = m_ildBuffer.subframesPerFrame * (m_currentFrame - m_ildBuffer.frame) + m_currentSubframe;
                     bufferOffset     *= outputBuffer.Length;
@@ -99,7 +101,8 @@ namespace Latios.Audio
         }
     }
 
-    internal unsafe struct MixWithDfgNodeUpdate : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>
+    internal unsafe struct MixWithDfgNodeUpdate : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders,
+                                                                     ReadIldBuffersNode>
     {
         public IldBuffer ildBuffer;
 

@@ -9,7 +9,8 @@
         "Unity.Jobs",
         "Unity.Mathematics",
         "Unity.Media.Utilities",
-        "Unity.Transforms"
+        "Unity.Transforms",
+        "Unity.Entities.Hybrid"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
