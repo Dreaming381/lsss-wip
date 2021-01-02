@@ -42,6 +42,8 @@ namespace Latios.Audio
         public BlobArray<float> samplesRight;
         public BlobArray<int>   loopedOffsets;
         public int              sampleRate;
+
+        public bool isStereo => samplesRight.Length == samplesLeftOrMono.Length;
     }
 
     //This does not need to be systemstate because the audio system doesn't care if the entity is destroyed.
