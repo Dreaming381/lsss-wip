@@ -11,6 +11,7 @@ namespace Latios.Audio
     {
         const double ITD_TIME = 0.0007;
 
+        //Parallel
         [BurstCompile]
         public struct SampleOneshotClipsJob : IJobParallelForDefer
         {
@@ -57,6 +58,7 @@ namespace Latios.Audio
                         float weight = itdWeights[itd] * channelWeight;
 
                         double itdOffset = math.lerp(-itdMaxOffset, itdMaxOffset, itd / (double)(itdWeights.Length - 1));
+                        itdOffset        = math.select(itdOffset, 0, itdWeights.Length == 1);
 
                         int jumpFrames = audioFrame - spawnFrame;
 
@@ -114,6 +116,7 @@ namespace Latios.Audio
             }
         }
 
+        //Parallel
         [BurstCompile]
         public struct SampleLoopedClipsJob : IJobParallelForDefer
         {
@@ -158,8 +161,9 @@ namespace Latios.Audio
                     {
                         float weight = itdWeights[itd] * channelWeight;
 
-                        double itdOffset     = math.lerp(-itdMaxOffset, itdMaxOffset, itd / (double)(itdWeights.Length - 1));
-                        ulong  samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame;
+                        double itdOffset    = math.lerp(-itdMaxOffset, itdMaxOffset, itd / (double)(itdWeights.Length - 1));
+                        itdOffset           = math.select(itdOffset, 0, itdWeights.Length == 1);
+                        ulong samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame;
 
                         if (clip.sampleRate == sampleRate)
                         {

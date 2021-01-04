@@ -1,4 +1,5 @@
-﻿using Unity.Burst;
+﻿using System.Diagnostics;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -110,9 +111,10 @@ namespace Latios.PhysicsEngine
                 }
             }
 
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             private void ErrorCase()
             {
-                throw new System.InvalidOperationException("Error: BuildCollisionLayer.Part1FromQueryJob received an invalid EntityQuery");
+                throw new System.InvalidOperationException("BuildCollisionLayer.Part1FromQueryJob received an invalid EntityQuery");
             }
 
             private void ProcessNoTransform(ArchetypeChunk chunk, int firstEntityIndex)

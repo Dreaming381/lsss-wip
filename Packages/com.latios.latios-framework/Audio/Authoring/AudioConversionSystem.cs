@@ -126,7 +126,7 @@ namespace Latios.Audio.Authoring
                         {
                             DstEntityManager.AddComponentData(entity, new AudioSourceLooped
                             {
-                                clip            = blob,
+                                m_clip            = blob,
                                 innerRange      = authoring.innerRange,
                                 outerRange      = authoring.outerRange,
                                 rangeFadeMargin = authoring.rangeFadeMargin,

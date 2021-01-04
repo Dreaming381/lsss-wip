@@ -35,5 +35,27 @@ namespace Latios.Audio
         public short      numChannels;
         public short      subFramesPerFrame;
     }
+
+    internal struct ListenerWithTransform
+    {
+        public AudioListener  listener;
+        public RigidTransform transform;
+    }
+
+    internal struct OneshotEmitter
+    {
+        public AudioSourceOneShot     source;
+        public RigidTransform         transform;
+        public AudioSourceEmitterCone cone;
+        public bool                   useCone;
+    }
+
+    internal struct LoopedEmitter
+    {
+        public AudioSourceLooped      source;
+        public RigidTransform         transform;
+        public AudioSourceEmitterCone cone;
+        public bool                   useCone;
+    }
 }
 

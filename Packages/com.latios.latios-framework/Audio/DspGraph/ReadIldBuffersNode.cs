@@ -28,7 +28,9 @@ namespace Latios.Audio
 
         public void Initialize()
         {
-            m_currentFrame       = 0;
+            //We start on frame 1 so that a buffer ID and frame of both 0 means uninitialized.
+            //The audio components use this at the time of writing this comment.
+            m_currentFrame       = 1;
             m_currentSubframe    = 0;
             m_lastPlayedBufferID = -1;
             m_ildBuffer          = default;

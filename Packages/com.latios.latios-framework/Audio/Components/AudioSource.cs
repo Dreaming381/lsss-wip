@@ -8,23 +8,54 @@ namespace Latios.Audio
     public struct AudioSourceLooped : IComponentData
     {
         //Internal until we can detect changes. Will likely require a separate component.
-        internal BlobAssetReference<AudioClipBlob> clip;
-        internal int                               loopOffsetIndex;
+        internal BlobAssetReference<AudioClipBlob> m_clip;
+        internal int                               m_loopOffsetIndex;
         public float                               volume;
         public float                               innerRange;
         public float                               outerRange;
         public float                               rangeFadeMargin;
+        internal bool                              m_initialized;
+
+        public BlobAssetReference<AudioClipBlob> clip
+        {
+            get => m_clip;
+            set
+            {
+                if (m_clip != value)
+                {
+                    m_initialized     = false;
+                    m_loopOffsetIndex = 0;
+                    m_clip            = value;
+                }
+            }
+        }
     }
 
     public struct AudioSourceOneShot : IComponentData
     {
-        internal BlobAssetReference<AudioClipBlob> clip;
-        internal int                               spawnedAudioFrame;
-        internal int                               spawnedBufferId;
+        internal BlobAssetReference<AudioClipBlob> m_clip;
+        internal int                               m_spawnedAudioFrame;
+        internal int                               m_spawnedBufferId;
         public float                               volume;
         public float                               innerRange;
         public float                               outerRange;
         public float                               rangeFadeMargin;
+
+        public BlobAssetReference<AudioClipBlob> clip
+        {
+            get => m_clip;
+            set
+            {
+                if (m_clip != value)
+                {
+                    m_spawnedAudioFrame = 0;
+                    m_spawnedBufferId   = 0;
+                    m_clip              = value;
+                }
+            }
+        }
+
+        internal bool isInitialized => (m_spawnedBufferId != 0) | (m_spawnedBufferId != m_spawnedAudioFrame);
     }
 
     public struct AudioSourceEmitterCone : IComponentData
@@ -36,7 +67,7 @@ namespace Latios.Audio
 
     public struct AudioSourceDestroyOneShotWhenFinished : IComponentData { }
 
-    internal struct AudioClipBlob
+    public struct AudioClipBlob
     {
         public BlobArray<float> samplesLeftOrMono;
         public BlobArray<float> samplesRight;
@@ -45,8 +76,5 @@ namespace Latios.Audio
 
         public bool isStereo => samplesRight.Length == samplesLeftOrMono.Length;
     }
-
-    //This does not need to be systemstate because the audio system doesn't care if the entity is destroyed.
-    internal struct AudioSourceInitialized : IComponentData { }
 }
 
