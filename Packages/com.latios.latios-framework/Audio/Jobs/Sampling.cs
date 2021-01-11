@@ -57,7 +57,8 @@ namespace Latios.Audio
                     {
                         float weight = itdWeights[itd] * channelWeight;
 
-                        double itdOffset = math.lerp(-itdMaxOffset, itdMaxOffset, itd / (double)(itdWeights.Length - 1));
+                        double itdOffset = math.lerp(0, -itdMaxOffset, itd / (double)(itdWeights.Length - 1));
+                        itdOffset        = math.select(itdOffset, math.lerp(-itdMaxOffset, 0, itd / (double)(itdWeights.Length - 1)), isRightChannel);
                         itdOffset        = math.select(itdOffset, 0, itdWeights.Length == 1);
 
                         int jumpFrames = audioFrame - spawnFrame;
@@ -161,7 +162,8 @@ namespace Latios.Audio
                     {
                         float weight = itdWeights[itd] * channelWeight;
 
-                        double itdOffset    = math.lerp(-itdMaxOffset, itdMaxOffset, itd / (double)(itdWeights.Length - 1));
+                        double itdOffset    = math.lerp(0, -itdMaxOffset, itd / (double)(itdWeights.Length - 1));
+                        itdOffset           = math.select(itdOffset, math.lerp(-itdMaxOffset, 0, itd / (double)(itdWeights.Length - 1)), isRightChannel);
                         itdOffset           = math.select(itdOffset, 0, itdWeights.Length == 1);
                         ulong samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame;
 

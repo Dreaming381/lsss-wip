@@ -8,7 +8,6 @@ namespace Latios.Audio
     public struct AudioListener : IComponentData
     {
         public float volume;
-        public float range;
         public int   audioFramesPerUpdate;
         public int   audioSubframesPerFrame;
 
@@ -26,8 +25,8 @@ namespace Latios.Audio
 
         internal FixedList512<float4> anglesPerLeftChannel;
         internal FixedList512<float4> anglesPerRightChannel;
-        internal FixedListFloat128    attenuationsPerLeftChannel;
-        internal FixedListFloat128    attenuationsPerRightChannel;
+        internal FixedListFloat128    panFilterRatiosPerLeftChannel;
+        internal FixedListFloat128    panFilterRatiosPerRightChannel;
 
         public void AddFilterToChannel(FrequencyFilter filter, int channelIndex, bool isRightChannel)
         {
@@ -51,33 +50,33 @@ namespace Latios.Audio
                    channelIndicesRight == other.channelIndicesRight &&
                    anglesPerLeftChannel == other.anglesPerLeftChannel &&
                    anglesPerRightChannel == other.anglesPerRightChannel &&
-                   attenuationsPerLeftChannel == other.attenuationsPerLeftChannel &&
-                   attenuationsPerRightChannel == other.attenuationsPerRightChannel;
+                   panFilterRatiosPerLeftChannel == other.panFilterRatiosPerLeftChannel &&
+                   panFilterRatiosPerRightChannel == other.panFilterRatiosPerRightChannel;
         }
 
-        public void AddChannel(float2 minMaxHorizontalAngleInRadiansCounterClockwiseFromRight, float2 minMaxVerticalAngleInRadians, float attenuation, bool isRightChannel)
+        public void AddChannel(float2 minMaxHorizontalAngleInRadiansCounterClockwiseFromRight, float2 minMaxVerticalAngleInRadians, float panFilterRatio, bool isRightChannel)
         {
             if (isRightChannel)
             {
                 anglesPerRightChannel.Add(new float4(minMaxHorizontalAngleInRadiansCounterClockwiseFromRight, minMaxVerticalAngleInRadians));
-                attenuationsPerRightChannel.Add(attenuation);
+                panFilterRatiosPerRightChannel.Add(panFilterRatio);
             }
             else
             {
                 anglesPerLeftChannel.Add(new float4(minMaxHorizontalAngleInRadiansCounterClockwiseFromRight, minMaxVerticalAngleInRadians));
-                attenuationsPerLeftChannel.Add(attenuation);
+                panFilterRatiosPerLeftChannel.Add(panFilterRatio);
             }
         }
 
-        public void SetChannelAttenuation(float attenuation, int channelIndex, bool isRightChannel)
+        public void SetChannelAttenuation(float panFilterRatio, int channelIndex, bool isRightChannel)
         {
             if (isRightChannel)
             {
-                attenuationsPerRightChannel[channelIndex] = attenuation;
+                panFilterRatiosPerRightChannel[channelIndex] = panFilterRatio;
             }
             else
             {
-                attenuationsPerLeftChannel[channelIndex] = attenuation;
+                panFilterRatiosPerLeftChannel[channelIndex] = panFilterRatio;
             }
         }
     }

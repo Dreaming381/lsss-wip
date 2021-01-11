@@ -8,7 +8,6 @@ namespace Latios.Audio.Authoring
     public class LatiosAudioListenerAuthoring : MonoBehaviour, IConvertGameObjectToEntity
     {
         public float volume                 = 1f;
-        public float range                  = 100f;
         public int   audioFramesPerUpdate   = 3;
         public int   audioSubframesPerFrame = 1;
 
@@ -43,7 +42,6 @@ namespace Latios.Audio.Authoring
             dstManager.AddComponentData(entity, new AudioListener
             {
                 volume                        = volume,
-                range                         = range,
                 audioFramesPerUpdate          = audioFramesPerUpdate,
                 audioSubframesPerFrame        = audioSubframesPerFrame,
                 interAuralTimeDelayResolution = 2,
