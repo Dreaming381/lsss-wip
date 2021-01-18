@@ -16,18 +16,20 @@ namespace Latios.Audio
         [BurstCompile]
         public struct OneshotsJob : IJobParallelForBatch
         {
-            [ReadOnly] public NativeList<ListenerWithTransform>               listenersWithTransforms;
-            [ReadOnly] public NativeArray<OneshotEmitter>                     emitters;
-            [NativeDisableParallelForRestriction] public NativeArray<Weights> weights;
-            public NativeStream.Writer                                        ranges;  //int3: listener, emitterStart, emitterCount
+            [ReadOnly] public NativeList<ListenerWithTransform> listenersWithTransforms;
+            [ReadOnly] public NativeArray<OneshotEmitter>       emitters;
+            public NativeStream.Writer                          weights;
+            public NativeStream.Writer                          listenerEmitterPairs;  //int2: listener, emitter
 
             public void Execute(int startIndex, int count)
             {
+                var scratchCache = new NativeList<float4>(Allocator.Temp);
+
                 var baseWeights = new NativeArray<Weights>(listenersWithTransforms.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);
                 for (int i = 0; i < listenersWithTransforms.Length; i++)
                 {
-                    int c = listenersWithTransforms[i].listener.ildProfile.anglesPerLeftChannel.Length +
-                            listenersWithTransforms[i].listener.ildProfile.anglesPerRightChannel.Length;
+                    int c = listenersWithTransforms[i].listener.ildProfile.Value.anglesPerLeftChannel.Length +
+                            listenersWithTransforms[i].listener.ildProfile.Value.anglesPerRightChannel.Length;
                     Weights w = default;
                     for (int j = 0; j < c; j++)
                     {
@@ -42,8 +44,8 @@ namespace Latios.Audio
                     baseWeights[i] = w;
                 }
 
-                ranges.BeginForEachIndex(startIndex / BATCH_SIZE);
-                var activeRanges = new NativeArray<int2>(listenersWithTransforms.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);
+                listenerEmitterPairs.BeginForEachIndex(startIndex / BATCH_SIZE);
+                weights.BeginForEachIndex(startIndex / BATCH_SIZE);
 
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
@@ -64,24 +66,16 @@ namespace Latios.Audio
                                 useCone         = emitter.useCone,
                                 volume          = emitter.source.volume
                             };
-                            ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j));
+                            ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j), scratchCache);
 
-                            weights[i * listenersWithTransforms.Length + j] = w;
-
-                            if (activeRanges[j].y == 0)
-                                activeRanges[j] = new int2(i, 1);
-                            else
-                                activeRanges[j] += new int2(0, 1);
-                        }
-                        else if (activeRanges[j].y > 0)
-                        {
-                            ranges.Write(new int3(j, activeRanges[j]));
-                            activeRanges[j] = int2.zero;
+                            weights.Write(w);
+                            listenerEmitterPairs.Write(new float2(j, i));
                         }
                     }
                 }
 
-                ranges.EndForEachIndex();
+                listenerEmitterPairs.EndForEachIndex();
+                weights.EndForEachIndex();
             }
         }
 
@@ -90,18 +84,20 @@ namespace Latios.Audio
         [BurstCompile]
         public struct LoopedJob : IJobParallelForBatch
         {
-            [ReadOnly] public NativeList<ListenerWithTransform>               listenersWithTransforms;
-            [ReadOnly] public NativeArray<LoopedEmitter>                      emitters;
-            [NativeDisableParallelForRestriction] public NativeArray<Weights> weights;
-            public NativeStream.Writer                                        ranges;  //int3: listener, emitterStart, emitterCount
+            [ReadOnly] public NativeList<ListenerWithTransform> listenersWithTransforms;
+            [ReadOnly] public NativeArray<LoopedEmitter>        emitters;
+            public NativeStream.Writer                          weights;
+            public NativeStream.Writer                          listenerEmitterPairs;  //int2: listener, emitter
 
             public void Execute(int startIndex, int count)
             {
+                var scratchCache = new NativeList<float4>(Allocator.Temp);
+
                 var baseWeights = new NativeArray<Weights>(listenersWithTransforms.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);
                 for (int i = 0; i < listenersWithTransforms.Length; i++)
                 {
-                    int c = listenersWithTransforms[i].listener.ildProfile.anglesPerLeftChannel.Length +
-                            listenersWithTransforms[i].listener.ildProfile.anglesPerRightChannel.Length;
+                    int c = listenersWithTransforms[i].listener.ildProfile.Value.anglesPerLeftChannel.Length +
+                            listenersWithTransforms[i].listener.ildProfile.Value.anglesPerRightChannel.Length;
                     Weights w = default;
                     for (int j = 0; j < c; j++)
                     {
@@ -116,8 +112,8 @@ namespace Latios.Audio
                     baseWeights[i] = w;
                 }
 
-                ranges.BeginForEachIndex(startIndex / BATCH_SIZE);
-                var activeRanges = new NativeArray<int2>(listenersWithTransforms.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);
+                listenerEmitterPairs.BeginForEachIndex(startIndex / BATCH_SIZE);
+                weights.BeginForEachIndex(startIndex / BATCH_SIZE);
 
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
@@ -138,24 +134,16 @@ namespace Latios.Audio
                                 useCone         = emitter.useCone,
                                 volume          = emitter.source.volume
                             };
-                            ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j));
+                            ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j), scratchCache);
 
-                            weights[i * listenersWithTransforms.Length + j] = w;
-
-                            if (activeRanges[j].y == 0)
-                                activeRanges[j] = new int2(i, 1);
-                            else
-                                activeRanges[j] += new int2(0, 1);
-                        }
-                        else if (activeRanges[j].y > 0)
-                        {
-                            ranges.Write(new int3(j, activeRanges[j]));
-                            activeRanges[j] = int2.zero;
+                            weights.Write(w);
+                            listenerEmitterPairs.Write(new float2(j, i));
                         }
                     }
                 }
 
-                ranges.EndForEachIndex();
+                listenerEmitterPairs.EndForEachIndex();
+                weights.EndForEachIndex();
             }
         }
 
@@ -171,7 +159,7 @@ namespace Latios.Audio
             public bool                   useCone;
         }
 
-        private static void ComputeWeights(ref Weights weights, EmitterParameters emitter, in ListenerWithTransform listener)
+        private static void ComputeWeights(ref Weights weights, EmitterParameters emitter, in ListenerWithTransform listener, NativeList<float4> scratchCache)
         {
             float volume = emitter.volume * listener.listener.volume;
 
@@ -232,12 +220,12 @@ namespace Latios.Audio
                 angles.y      = math.atan2(yz.y, yz.x);
 
                 //First, find if there is a perfect match
-                for (int i = 0; i < listener.listener.ildProfile.anglesPerLeftChannel.Length; i++)
+                for (int i = 0; i < listener.listener.ildProfile.Value.anglesPerLeftChannel.Length; i++)
                 {
-                    bool perfectMatch = math.all(((angles >= listener.listener.ildProfile.anglesPerLeftChannel[i].xz) &
-                                                  (angles <= listener.listener.ildProfile.anglesPerLeftChannel[i].yw)) |
-                                                 ((angles + 2f * math.PI >= listener.listener.ildProfile.anglesPerLeftChannel[i].xz) &
-                                                  (angles + 2f * math.PI <= listener.listener.ildProfile.anglesPerLeftChannel[i].yw)));
+                    bool perfectMatch = math.all(((angles >= listener.listener.ildProfile.Value.anglesPerLeftChannel[i].xz) &
+                                                  (angles <= listener.listener.ildProfile.Value.anglesPerLeftChannel[i].yw)) |
+                                                 ((angles + 2f * math.PI >= listener.listener.ildProfile.Value.anglesPerLeftChannel[i].xz) &
+                                                  (angles + 2f * math.PI <= listener.listener.ildProfile.Value.anglesPerLeftChannel[i].yw)));
                     if (perfectMatch)
                     {
                         weights.channelWeights[i] = 1f;  //The ratio gets applied graph-side.
@@ -245,15 +233,15 @@ namespace Latios.Audio
                     }
                 }
 
-                for (int i = 0; i < listener.listener.ildProfile.anglesPerRightChannel.Length; i++)
+                for (int i = 0; i < listener.listener.ildProfile.Value.anglesPerRightChannel.Length; i++)
                 {
-                    bool perfectMatch = math.all(((angles >= listener.listener.ildProfile.anglesPerRightChannel[i].xz) &
-                                                  (angles <= listener.listener.ildProfile.anglesPerRightChannel[i].yw)) |
-                                                 ((angles + 2f * math.PI >= listener.listener.ildProfile.anglesPerRightChannel[i].xz) &
-                                                  (angles + 2f * math.PI <= listener.listener.ildProfile.anglesPerRightChannel[i].yw)));
+                    bool perfectMatch = math.all(((angles >= listener.listener.ildProfile.Value.anglesPerRightChannel[i].xz) &
+                                                  (angles <= listener.listener.ildProfile.Value.anglesPerRightChannel[i].yw)) |
+                                                 ((angles + 2f * math.PI >= listener.listener.ildProfile.Value.anglesPerRightChannel[i].xz) &
+                                                  (angles + 2f * math.PI <= listener.listener.ildProfile.Value.anglesPerRightChannel[i].yw)));
                     if (perfectMatch)
                     {
-                        weights.channelWeights[i + listener.listener.ildProfile.anglesPerLeftChannel.Length] = 1f;  //The ratio gets applied graph-side.
+                        weights.channelWeights[i + listener.listener.ildProfile.Value.anglesPerLeftChannel.Length] = 1f;  //The ratio gets applied graph-side.
                         return;
                     }
                 }
@@ -265,8 +253,13 @@ namespace Latios.Audio
                 FixedListFloat128 candidateDistances  = default;
 
                 //Find our limits
-                var                 leftChannelDeltas   = listener.listener.ildProfile.anglesPerLeftChannel;
-                var                 rightChannelDeltas  = listener.listener.ildProfile.anglesPerRightChannel;
+                scratchCache.Clear();
+                int lengthLeft  = listener.listener.ildProfile.Value.anglesPerLeftChannel.Length;
+                int lengthRight = listener.listener.ildProfile.Value.anglesPerRightChannel.Length;
+                scratchCache.AddRangeFromBlob(ref listener.listener.ildProfile.Value.anglesPerLeftChannel);
+                scratchCache.AddRangeFromBlob(ref listener.listener.ildProfile.Value.anglesPerRightChannel);
+                var                 leftChannelDeltas   = scratchCache.AsArray().GetSubArray(0, lengthLeft);
+                var                 rightChannelDeltas  = scratchCache.AsArray().GetSubArray(lengthLeft, lengthRight);
                 FixedList512<bool2> leftChannelInsides  = default;
                 FixedList512<bool2> rightChannelInsides = default;
                 for (int i = 0; i < leftChannelDeltas.Length; i++)

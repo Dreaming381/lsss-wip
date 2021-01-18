@@ -12,6 +12,13 @@ namespace Latios.Audio.Authoring
     [ConverterVersion("Latios", 1)]
     public class AudioConversionSystem : GameObjectConversionSystem
     {
+        protected override void OnUpdate()
+        {
+            ConvertBatchedClips();
+            ConvertListeners();
+        }
+
+        #region Batched Clips
         struct AudioClipComputationData
         {
             public Hash128                           hash;
@@ -19,7 +26,7 @@ namespace Latios.Audio.Authoring
             public BlobAssetReference<AudioClipBlob> blob;
         }
 
-        protected override void OnUpdate()
+        void ConvertBatchedClips()
         {
             var clipList = new List<AudioClip>();
 
@@ -59,19 +66,19 @@ namespace Latios.Audio.Authoring
                     clipList.Add(authoring.clip);
                     hashes.Add(hash);
                 });
-                foreach(var job  in  jobs)
+                foreach (var job in jobs)
                 {
                     job.samples.Dispose();
                     job.hash.Dispose();
                 }
                 using (var computationDataArray = computationContext.GetSettings(Allocator.TempJob))
                 {
-                    var     samples       = new NativeList<float>(Allocator.TempJob);
-                    var     ranges        = new NativeArray<int2>(computationDataArray.Length, Allocator.TempJob);
-                    var     rates         = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
-                    var     channelCounts = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
-                    var     offsets       = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
-                    for(int i             = 0; i < computationDataArray.Length; i++)
+                    var samples       = new NativeList<float>(Allocator.TempJob);
+                    var ranges        = new NativeArray<int2>(computationDataArray.Length, Allocator.TempJob);
+                    var rates         = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
+                    var channelCounts = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
+                    var offsets       = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
+                    for (int i = 0; i < computationDataArray.Length; i++)
                     {
                         var clip           = clipList[computationDataArray[i].index];
                         var samplesManaged = new float[clip.samples * clip.channels];
@@ -126,7 +133,7 @@ namespace Latios.Audio.Authoring
                         {
                             DstEntityManager.AddComponentData(entity, new AudioSourceLooped
                             {
-                                m_clip            = blob,
+                                m_clip          = blob,
                                 innerRange      = authoring.innerRange,
                                 outerRange      = authoring.outerRange,
                                 rangeFadeMargin = authoring.rangeFadeMargin,
@@ -208,6 +215,67 @@ namespace Latios.Audio.Authoring
                 computationDataArray[index] = computationData;
             }
         }
+        #endregion
+
+        #region Listeners
+        struct IldProfileComputationData
+        {
+            public Hash128 hash;
+            public int     index;
+        }
+
+        void ConvertListeners()
+        {
+            var profileList           = new List<AudioIldProfileBuilder>();
+            var profileHashDictionary = new Dictionary<AudioIldProfileBuilder, Hash128>();
+
+            using (var computationContext = new BlobAssetComputationContext<IldProfileComputationData, IldProfileBlob>(BlobAssetStore, 128, Allocator.Temp))
+            {
+                int index = 0;
+                Entities.ForEach((LatiosAudioListenerAuthoring authoring) =>
+                {
+                    Hash128 hash = default;
+                    if (profileHashDictionary.TryGetValue(authoring.listenerResponseProfile, out var foundHash))
+                        hash = foundHash;
+                    else
+                        hash = authoring.listenerResponseProfile.ComputeHash();
+                    computationContext.AssociateBlobAssetWithUnityObject(hash, authoring.gameObject);
+                    if (computationContext.NeedToComputeBlobAsset(hash))
+                    {
+                        computationContext.AddBlobAssetToCompute(hash, new IldProfileComputationData { hash = hash, index = index });
+                    }
+                    profileList.Add(authoring.listenerResponseProfile);
+                    profileHashDictionary.Add(authoring.listenerResponseProfile, hash);
+                    index++;
+                });
+
+                using (var computationDataArray = computationContext.GetSettings(Allocator.TempJob))
+                {
+                    for (int i = 0; i < computationDataArray.Length; i++)
+                    {
+                        var blob = profileList[computationDataArray[i].index].ComputeBlob();
+                        computationContext.AddComputedBlobAsset(computationDataArray[i].hash, blob);
+                    }
+
+                    Entities.ForEach((LatiosAudioListenerAuthoring authoring) =>
+                    {
+                        var hash = profileHashDictionary[authoring.listenerResponseProfile];
+                        computationContext.GetBlobAsset(hash, out var blob);
+
+                        var entity = GetPrimaryEntity(authoring);
+                        DstEntityManager.AddComponentData(entity, new AudioListener
+                        {
+                            audioFramesPerUpdate          = authoring.audioFramesPerUpdate,
+                            audioSubframesPerFrame        = authoring.audioSubframesPerFrame,
+                            volume                        = authoring.volume,
+                            interAuralTimeDelayResolution = authoring.interauralTimeDelayResolution,
+                            ildProfile                    = blob
+                        });
+                    });
+                }
+            }
+        }
+        #endregion
     }
 }
 

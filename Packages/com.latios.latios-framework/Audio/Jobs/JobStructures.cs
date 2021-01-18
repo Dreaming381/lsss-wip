@@ -17,14 +17,28 @@ namespace Latios.Audio
 
         public unsafe override int GetHashCode()
         {
-            return (int)((ulong)clip.GetUnsafePtr() >> 4) + 23 * spawnFrameOrOffsetIndex;
+            return new int2((int)((ulong)clip.GetUnsafePtr() >> 4), spawnFrameOrOffsetIndex).GetHashCode();
         }
     }
 
     internal struct Weights
     {
-        public FixedListFloat128 channelWeights;
-        public FixedListFloat512 itdWeights;
+        public FixedListFloat512 channelWeights;
+        public FixedListFloat128 itdWeights;
+
+        public static Weights operator + (Weights a, Weights b)
+        {
+            Weights result = a;
+            for (int i = 0; i < a.channelWeights.Length; i++)
+            {
+                result.channelWeights[i] += b.channelWeights[i];
+            }
+            for (int i = 0; i < a.itdWeights.Length; i++)
+            {
+                result.itdWeights[i] += b.itdWeights[i];
+            }
+            return result;
+        }
     }
 
     internal struct ListenerBufferParameters
