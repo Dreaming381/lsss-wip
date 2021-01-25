@@ -5,11 +5,10 @@ using UnityEngine;
 namespace Latios.Audio.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("Latios/Audio/Audio Listener")]
     public class LatiosAudioListenerAuthoring : MonoBehaviour
     {
-        public float volume                 = 1f;
-        public int   audioFramesPerUpdate   = 3;
-        public int   audioSubframesPerFrame = 1;
+        public float volume = 1f;
 
         [Range(0, 15)]
         public int interauralTimeDelayResolution = 2;

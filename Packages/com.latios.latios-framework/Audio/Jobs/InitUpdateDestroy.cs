@@ -18,14 +18,17 @@ namespace Latios.Audio
             [ReadOnly] public ComponentTypeHandle<AudioSourceOneShot> oneshotHandle;
             [ReadOnly] public EntityTypeHandle                        entityHandle;
             [ReadOnly] public NativeReference<int>                    audioFrame;
+            [ReadOnly] public ComponentDataFromEntity<AudioSettings>  settingsCdfe;
+            public Entity                                             worldBlackboardEntity;
             public int                                                sampleRate;
-            public int                                                samplesPerFrame;
+            public int                                                samplesPerSubframe;
 
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
-                var oneshots       = chunk.GetNativeArray(oneshotHandle);
-                var entities       = chunk.GetNativeArray(entityHandle);
-                var lastAudioFrame = audioFrame.Value - 1;
+                var oneshots        = chunk.GetNativeArray(oneshotHandle);
+                var entities        = chunk.GetNativeArray(entityHandle);
+                var lastAudioFrame  = audioFrame.Value - 1;
+                int samplesPerFrame = samplesPerSubframe * settingsCdfe[worldBlackboardEntity].audioSubframesPerFrame;
                 for (int i = 0; i < oneshots.Length; i++)
                 {
                     var    os           = oneshots[i];
@@ -58,10 +61,10 @@ namespace Latios.Audio
                     for (int i = 0; i < chunk.Count; i++)
                     {
                         var l = listeners[i];
-                        if (l.volume > 0f)
+                        //This culling desyncs the listener indices from the graph handling logic.
+                        //Todo: Figure out how to bring this optimization back.
+                        //if (l.volume > 0f)
                         {
-                            l.audioFramesPerUpdate                                           = math.max(l.audioFramesPerUpdate, 1);
-                            l.audioSubframesPerFrame                                         = math.max(l.audioSubframesPerFrame, 1);
                             l.interAuralTimeDelayResolution                                  = math.max(l.interAuralTimeDelayResolution, 0);
                             var ltw                                                          = ltws[i];
                             var transform                                                    = new RigidTransform(quaternion.LookRotation(ltw.Forward, ltw.Up), ltw.Position);
@@ -82,10 +85,10 @@ namespace Latios.Audio
                     for (int i = 0; i < chunk.Count; i++)
                     {
                         var l = listeners[i];
-                        if (l.volume > 0f)
+                        //This culling desyncs the listener indices from the graph handling logic.
+                        //Todo: Figure out how to bring this optimization back.
+                        //if (l.volume > 0f)
                         {
-                            l.audioFramesPerUpdate          = math.max(l.audioFramesPerUpdate, 1);
-                            l.audioSubframesPerFrame        = math.max(l.audioSubframesPerFrame, 1);
                             l.interAuralTimeDelayResolution = math.max(l.interAuralTimeDelayResolution, 0);
 
                             var transform = RigidTransform.identity;

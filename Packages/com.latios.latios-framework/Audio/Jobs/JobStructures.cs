@@ -43,11 +43,10 @@ namespace Latios.Audio
 
     internal struct ListenerBufferParameters
     {
-        public int        bufferStart;
-        public BitField32 channelIsRight;
-        public int        samplesPerChannel;
-        public short      numChannels;
-        public short      subFramesPerFrame;
+        public int bufferStart;
+        public int leftChannelsCount;
+        public int samplesPerChannel;
+        public int subFramesPerFrame;
     }
 
     internal struct ListenerWithTransform

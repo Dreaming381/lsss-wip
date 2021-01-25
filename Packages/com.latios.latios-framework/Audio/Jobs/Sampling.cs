@@ -22,10 +22,12 @@ namespace Latios.Audio
             [ReadOnly] public NativeArray<ListenerBufferParameters> listenerBufferParameters;
             [ReadOnly] public NativeArray<int2>                     forIndexToListenerAndChannelIndices;
 
+            [ReadOnly] public NativeReference<int> audioFrame;
+
             [NativeDisableParallelForRestriction] public NativeArray<float> outputSamplesMegaBuffer;
 
             public int sampleRate;
-            public int audioFrame;
+
             public int samplesPerSubframe;
 
             public void Execute(int forIndex)
@@ -34,7 +36,7 @@ namespace Latios.Audio
                 int  channelIndex             = forIndexToListenerAndChannelIndices[forIndex].y;
                 var  targetListenerParameters = listenerBufferParameters[listenerIndex];
                 int  samplesPerFrame          = samplesPerSubframe * targetListenerParameters.subFramesPerFrame;
-                bool isRightChannel           = targetListenerParameters.channelIsRight.IsSet(channelIndex);
+                bool isRightChannel           = targetListenerParameters.leftChannelsCount <= channelIndex;
 
                 var outputSamples = outputSamplesMegaBuffer.GetSubArray(targetListenerParameters.bufferStart + targetListenerParameters.samplesPerChannel * channelIndex,
                                                                         targetListenerParameters.samplesPerChannel);
@@ -61,7 +63,7 @@ namespace Latios.Audio
                         itdOffset        = math.select(itdOffset, math.lerp(-itdMaxOffset, 0, itd / (double)(itdWeights.Length - 1)), isRightChannel);
                         itdOffset        = math.select(itdOffset, 0, itdWeights.Length == 1);
 
-                        int jumpFrames = audioFrame - spawnFrame;
+                        int jumpFrames = audioFrame.Value - spawnFrame;
 
                         if (clip.sampleRate == sampleRate)
                         {
@@ -128,10 +130,11 @@ namespace Latios.Audio
             [ReadOnly] public NativeArray<ListenerBufferParameters> listenerBufferParameters;
             [ReadOnly] public NativeArray<int2>                     forIndexToListenerAndChannelIndices;
 
+            [ReadOnly] public NativeReference<int> audioFrame;
+
             [NativeDisableParallelForRestriction] public NativeArray<float> outputSamplesMegaBuffer;
 
             public int sampleRate;
-            public int audioFrame;
             public int samplesPerSubframe;
 
             public void Execute(int forIndex)
@@ -140,7 +143,7 @@ namespace Latios.Audio
                 int  channelIndex             = forIndexToListenerAndChannelIndices[forIndex].y;
                 var  targetListenerParameters = listenerBufferParameters[listenerIndex];
                 int  samplesPerFrame          = samplesPerSubframe * targetListenerParameters.subFramesPerFrame;
-                bool isRightChannel           = targetListenerParameters.channelIsRight.IsSet(channelIndex);
+                bool isRightChannel           = targetListenerParameters.leftChannelsCount <= channelIndex;
 
                 var outputSamples = outputSamplesMegaBuffer.GetSubArray(targetListenerParameters.bufferStart + targetListenerParameters.samplesPerChannel * channelIndex,
                                                                         targetListenerParameters.samplesPerChannel);
@@ -165,7 +168,7 @@ namespace Latios.Audio
                         double itdOffset    = math.lerp(0, -itdMaxOffset, itd / (double)(itdWeights.Length - 1));
                         itdOffset           = math.select(itdOffset, math.lerp(-itdMaxOffset, 0, itd / (double)(itdWeights.Length - 1)), isRightChannel);
                         itdOffset           = math.select(itdOffset, 0, itdWeights.Length == 1);
-                        ulong samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame;
+                        ulong samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame.Value;
 
                         if (clip.sampleRate == sampleRate)
                         {

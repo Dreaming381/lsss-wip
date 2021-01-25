@@ -22,13 +22,15 @@ namespace Latios.Audio
             Highshelf
         }
 
-        public static DSPNode Create(DSPCommandBlock block, FilterType type, int channelsPerPort)
+        public static DSPNode Create(DSPCommandBlock block, FilterType type, float cutoff, float q, float gainInDbs, int channelsPerPort)
         {
-            var node = block.CreateDSPNode<StateVariableFilterNode.Parameters, StateVariableFilterNode.Providers, StateVariableFilterNode>();
+            var node = block.CreateDSPNode<Parameters, Providers, StateVariableFilterNode>();
             block.AddInletPort(node, channelsPerPort);
             block.AddOutletPort(node, channelsPerPort);
-            block.SetFloat<StateVariableFilterNode.Parameters, StateVariableFilterNode.Providers, StateVariableFilterNode>(node, StateVariableFilterNode.Parameters.FilterType,
-                                                                                                                           (float)type);
+            block.SetFloat<Parameters, Providers, StateVariableFilterNode>(node, Parameters.FilterType, (float)type);
+            block.SetFloat<Parameters, Providers, StateVariableFilterNode>(node, Parameters.Cutoff,     cutoff);
+            block.SetFloat<Parameters, Providers, StateVariableFilterNode>(node, Parameters.Q,          q);
+            block.SetFloat<Parameters, Providers, StateVariableFilterNode>(node, Parameters.GainInDBs,  gainInDbs);
 
             return node;
         }

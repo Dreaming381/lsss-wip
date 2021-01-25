@@ -19,7 +19,7 @@ namespace Latios.Audio
             Unused
         }
 
-        internal BitField64 m_rightChannelMask;
+        internal int m_leftChannelCount;
 
         public void Initialize()
         {
@@ -38,11 +38,8 @@ namespace Latios.Audio
                 {
                     leftBuffer[i] = 0f;
                 }
-                for (int c = 0; c < context.Inputs.Count; c++)
+                for (int c = 0; c < math.min(context.Inputs.Count, m_leftChannelCount); c++)
                 {
-                    if (m_rightChannelMask.IsSet(c))
-                        continue;
-
                     var inputBuffer = context.Inputs.GetSampleBuffer(c).GetBuffer(0);
                     for (int i = 0; i < leftBuffer.Length; i++)
                     {
@@ -57,11 +54,8 @@ namespace Latios.Audio
                 {
                     rightBuffer[i] = 0f;
                 }
-                for (int c = 0; c < context.Inputs.Count; c++)
+                for (int c = m_leftChannelCount; c < context.Inputs.Count; c++)
                 {
-                    if (!m_rightChannelMask.IsSet(c))
-                        continue;
-
                     var inputBuffer = context.Inputs.GetSampleBuffer(c).GetBuffer(0);
                     for (int i = 0; i < rightBuffer.Length; i++)
                     {
@@ -99,13 +93,14 @@ namespace Latios.Audio
         }
     }
 
+    [BurstCompile]
     internal unsafe struct MixPortsToStereoNodeUpdate : IAudioKernelUpdate<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>
     {
-        public BitField64 rightChannelMask;
+        public int leftChannelCount;
 
         public void Update(ref MixPortsToStereoNode audioKernel)
         {
-            audioKernel.m_rightChannelMask = rightChannelMask;
+            audioKernel.m_leftChannelCount = leftChannelCount;
         }
     }
 }

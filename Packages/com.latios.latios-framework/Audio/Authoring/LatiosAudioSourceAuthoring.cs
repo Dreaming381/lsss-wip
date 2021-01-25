@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Latios.Audio.Authoring
 {
     [DisallowMultipleComponent]
+    [AddComponentMenu("Latios/Audio/Audio Source")]
     public class LatiosAudioSourceAuthoring : MonoBehaviour
     {
         public AudioClip clip;

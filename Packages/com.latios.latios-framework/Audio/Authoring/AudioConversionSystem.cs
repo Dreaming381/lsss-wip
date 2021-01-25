@@ -33,7 +33,7 @@ namespace Latios.Audio.Authoring
             using (var computationContext = new BlobAssetComputationContext<AudioClipComputationData, AudioClipBlob>(BlobAssetStore, 128, Allocator.Temp))
             {
                 var hashes     = new NativeList<Hash128>(Allocator.Persistent);
-                var jobs       = new NativeList<ComputeAudioClipHashesJob>(Allocator.Persistent);
+                var jobs       = new List<ComputeAudioClipHashesJob>();
                 var jobHandles = new NativeList<JobHandle>(Allocator.Persistent);
                 Entities.ForEach((LatiosAudioSourceAuthoring authoring) =>
                 {
@@ -106,6 +106,7 @@ namespace Latios.Audio.Authoring
                     ranges.Dispose();
                     rates.Dispose();
                     channelCounts.Dispose();
+                    offsets.Dispose();
 
                     index = 0;
                     Entities.ForEach((LatiosAudioSourceAuthoring authoring) =>
@@ -151,6 +152,7 @@ namespace Latios.Audio.Authoring
                         }
                     });
                 }
+                hashes.Dispose();
             }
         }
 
@@ -265,8 +267,6 @@ namespace Latios.Audio.Authoring
                         var entity = GetPrimaryEntity(authoring);
                         DstEntityManager.AddComponentData(entity, new AudioListener
                         {
-                            audioFramesPerUpdate          = authoring.audioFramesPerUpdate,
-                            audioSubframesPerFrame        = authoring.audioSubframesPerFrame,
                             volume                        = authoring.volume,
                             interAuralTimeDelayResolution = authoring.interauralTimeDelayResolution,
                             ildProfile                    = blob

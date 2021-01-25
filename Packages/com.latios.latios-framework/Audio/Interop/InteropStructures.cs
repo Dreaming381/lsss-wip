@@ -10,15 +10,15 @@ namespace Latios.Audio
         public float* buffer;
     }
 
-    internal struct IldBuffer
+    internal unsafe struct IldBuffer
     {
-        public FixedList128<IldBufferChannel> leftBufferChannels;
-        public FixedList128<IldBufferChannel> rightBufferChannels;
-        public int                            frame;
-        public int                            bufferId;
-        public int                            framesInBuffer;
-        public int                            subframesPerFrame;
-        public bool                           warnIfStarved;
+        public IldBufferChannel* bufferChannels;
+        public int               channelCount;
+        public int               frame;
+        public int               bufferId;
+        public int               framesInBuffer;
+        public int               subframesPerFrame;
+        public bool              warnIfStarved;
     }
 }
 

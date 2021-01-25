@@ -1,4 +1,5 @@
-﻿using Unity.Audio;
+﻿using System.Threading;
+using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -26,6 +27,7 @@ namespace Latios.Audio
         IldBuffer m_ildBuffer;
 
         internal IldBuffer m_queuedIldBuffer;
+        internal long*     m_packedFrameCounterBufferId;
 
         public void Initialize()
         {
@@ -54,8 +56,10 @@ namespace Latios.Audio
             for (int outputChannelIndex = 0; outputChannelIndex < context.Outputs.Count; outputChannelIndex++)
             {
                 var channelOutput = context.Outputs.GetSampleBuffer(outputChannelIndex);
-                var outputBuffer  = channelOutput.GetBuffer(0);
-                if (m_ildBuffer.leftBufferChannels.Length + m_ildBuffer.rightBufferChannels.Length < context.Outputs.Count)
+                if (channelOutput.Channels <= 0)
+                    continue;
+                var outputBuffer = channelOutput.GetBuffer(0);
+                if (m_ildBuffer.channelCount <= outputChannelIndex)
                 {
                     for (int i = 0; i < outputBuffer.Length; i++)
                     {
@@ -72,11 +76,7 @@ namespace Latios.Audio
                 }
                 else
                 {
-                    bool useLeft               = outputChannelIndex < m_ildBuffer.leftBufferChannels.Length;
-                    int  ildBufferChannelIndex = math.select(outputChannelIndex - m_ildBuffer.leftBufferChannels.Length, outputChannelIndex, useLeft);
-                    var  ildBufferChannel      =
-                        useLeft ? m_ildBuffer.leftBufferChannels[ildBufferChannelIndex] : m_ildBuffer.rightBufferChannels[
-                            ildBufferChannelIndex];
+                    var ildBufferChannel = m_ildBuffer.bufferChannels[outputChannelIndex];
 
                     int bufferOffset  = m_ildBuffer.subframesPerFrame * (m_currentFrame - m_ildBuffer.frame) + m_currentSubframe;
                     bufferOffset     *= outputBuffer.Length;
@@ -95,7 +95,9 @@ namespace Latios.Audio
 
             if (m_currentSubframe == 0)
             {
-                //Todo: Dispatch both to the ECS job chain for realtime audio frame updates and to the main thread for buffer disposal.
+                long     packed   = (long)m_currentFrame + ((long)m_lastPlayedBufferID) << 32;
+                ref long location = ref UnsafeUtility.AsRef<long>(m_packedFrameCounterBufferId);
+                Interlocked.Exchange(ref location, packed);
             }
         }
 
@@ -104,14 +106,26 @@ namespace Latios.Audio
         }
     }
 
-    internal unsafe struct MixWithDfgNodeUpdate : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders,
-                                                                     ReadIldBuffersNode>
+    [BurstCompile]
+    internal unsafe struct ReadIldBuffersNodeUpdate : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders,
+                                                                         ReadIldBuffersNode>
     {
         public IldBuffer ildBuffer;
 
         public void Update(ref ReadIldBuffersNode audioKernel)
         {
             audioKernel.m_queuedIldBuffer = ildBuffer;
+        }
+    }
+
+    [BurstCompile]
+    internal unsafe struct SetReadIldBuffersNodePackedFrameBufferId : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>
+    {
+        public long* ptr;
+
+        public void Update(ref ReadIldBuffersNode audioKernel)
+        {
+            audioKernel.m_packedFrameCounterBufferId = ptr;
         }
     }
 }

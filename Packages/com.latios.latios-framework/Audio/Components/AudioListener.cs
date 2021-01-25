@@ -8,8 +8,6 @@ namespace Latios.Audio
     public struct AudioListener : IComponentData
     {
         public float volume;
-        public int   audioFramesPerUpdate;
-        public int   audioSubframesPerFrame;
 
         public int                                interAuralTimeDelayResolution;
         public BlobAssetReference<IldProfileBlob> ildProfile;

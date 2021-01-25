@@ -32,7 +32,7 @@ namespace Latios.Audio.Authoring
             }
         }
 
-        protected void SetChannelAttenuation(float panFilterRatio, int channelIndex, bool isRightChannel)
+        protected void SetChannelPanFilterRatio(float panFilterRatio, int channelIndex, bool isRightChannel)
         {
             if (isRightChannel)
             {

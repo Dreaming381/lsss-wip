@@ -10,7 +10,7 @@ namespace Latios.Audio.Authoring
             //left unblocked
             AddChannel(new float2(math.PI / 2f, math.PI * 1.25f), new float2(-math.PI, math.PI), 1f, false);
             //left fully blocked
-            AddChannel(new float2(-math.PI / 4f, math.PI / 4f),   new float2(-math.PI, math.PI), 1f, false);
+            AddChannel(new float2(-math.PI / 4f, math.PI / 4f),   new float2(-math.PI, math.PI), 0f, false);
             AddFilterToChannel(new FrequencyFilter
             {
                 cutoff         = 1500f,
@@ -21,7 +21,7 @@ namespace Latios.Audio.Authoring
             //right unblocked
             AddChannel(new float2(-math.PI / 4f, math.PI / 2f),      new float2(-math.PI, math.PI), 1f, true);
             //right fully blocked
-            AddChannel(new float2(math.PI * 0.75f, math.PI * 1.25f), new float2(-math.PI, math.PI), 1f, true);
+            AddChannel(new float2(math.PI * 0.75f, math.PI * 1.25f), new float2(-math.PI, math.PI), 0f, true);
             AddFilterToChannel(new FrequencyFilter
             {
                 cutoff         = 1500f,
