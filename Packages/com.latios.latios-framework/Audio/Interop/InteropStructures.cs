@@ -1,5 +1,6 @@
 ﻿using System;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -12,6 +13,7 @@ namespace Latios.Audio
 
     internal unsafe struct IldBuffer
     {
+        [NativeDisableUnsafePtrRestriction]
         public IldBufferChannel* bufferChannels;
         public int               channelCount;
         public int               frame;

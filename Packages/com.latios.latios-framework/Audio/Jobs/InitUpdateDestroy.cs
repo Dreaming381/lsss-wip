@@ -34,7 +34,7 @@ namespace Latios.Audio
                     var    os           = oneshots[i];
                     int    playedFrames = lastAudioFrame - os.m_spawnedAudioFrame;
                     double resampleRate = os.clip.Value.sampleRate / (double)sampleRate;
-                    if (os.clip.Value.samplesLeftOrMono.Length < resampleRate * playedFrames * samplesPerFrame)
+                    if (os.isInitialized && os.clip.Value.samplesLeftOrMono.Length < resampleRate * playedFrames * samplesPerFrame)
                     {
                         dcb.Add(entities[i], chunkIndex);
                     }
@@ -107,18 +107,18 @@ namespace Latios.Audio
         //Parallel
         //Todo: It might be worth it to cull here rather than write to the emitters array.
         [BurstCompile]
-        public struct UpdateOneshotsJob : IJobChunk
+        public struct UpdateOneshotsJob : IJobEntityBatchWithIndex
         {
-            public ComponentTypeHandle<AudioSourceOneShot>      oneshotHandle;
-            public ComponentTypeHandle<AudioSourceEmitterCone>  coneHandle;
-            [ReadOnly] public ComponentTypeHandle<Translation>  translationHandle;
-            [ReadOnly] public ComponentTypeHandle<Rotation>     rotationHandle;
-            [ReadOnly] public ComponentTypeHandle<Parent>       parentHandle;
-            [ReadOnly] public ComponentTypeHandle<LocalToWorld> ltwHandle;
-            public NativeArray<OneshotEmitter>                  emitters;
-            [ReadOnly] public NativeReference<int>              audioFrame;
-            [ReadOnly] public NativeReference<int>              lastConsumedBufferId;
-            public int                                          bufferId;
+            public ComponentTypeHandle<AudioSourceOneShot>                oneshotHandle;
+            [ReadOnly] public ComponentTypeHandle<AudioSourceEmitterCone> coneHandle;
+            [ReadOnly] public ComponentTypeHandle<Translation>            translationHandle;
+            [ReadOnly] public ComponentTypeHandle<Rotation>               rotationHandle;
+            [ReadOnly] public ComponentTypeHandle<Parent>                 parentHandle;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld>           ltwHandle;
+            public NativeArray<OneshotEmitter>                            emitters;
+            [ReadOnly] public NativeReference<int>                        audioFrame;
+            [ReadOnly] public NativeReference<int>                        lastConsumedBufferId;
+            public int                                                    bufferId;
 
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
@@ -197,7 +197,7 @@ namespace Latios.Audio
             {
                 var                    oneshots = chunk.GetNativeArray(oneshotHandle);
                 AudioSourceEmitterCone cone     = default;
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new OneshotEmitter
                     {
@@ -213,7 +213,7 @@ namespace Latios.Audio
             {
                 var oneshots = chunk.GetNativeArray(oneshotHandle);
                 var cones    = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new OneshotEmitter
                     {
@@ -230,7 +230,7 @@ namespace Latios.Audio
                 var oneshots  = chunk.GetNativeArray(oneshotHandle);
                 var rotations = chunk.GetNativeArray(rotationHandle);
                 var cones     = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new OneshotEmitter
                     {
@@ -247,7 +247,7 @@ namespace Latios.Audio
                 var                    oneshots     = chunk.GetNativeArray(oneshotHandle);
                 var                    translations = chunk.GetNativeArray(translationHandle);
                 AudioSourceEmitterCone cone         = default;
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new OneshotEmitter
                     {
@@ -264,7 +264,7 @@ namespace Latios.Audio
                 var oneshots     = chunk.GetNativeArray(oneshotHandle);
                 var translations = chunk.GetNativeArray(translationHandle);
                 var cones        = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new OneshotEmitter
                     {
@@ -282,7 +282,7 @@ namespace Latios.Audio
                 var translations = chunk.GetNativeArray(translationHandle);
                 var rotations    = chunk.GetNativeArray(rotationHandle);
                 var cones        = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new OneshotEmitter
                     {
@@ -299,7 +299,7 @@ namespace Latios.Audio
                 var                    oneshots = chunk.GetNativeArray(oneshotHandle);
                 var                    ltws     = chunk.GetNativeArray(ltwHandle);
                 AudioSourceEmitterCone cone     = default;
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     var ltw                        = ltws[i];
                     emitters[firstEntityIndex + i] = new OneshotEmitter
@@ -317,7 +317,7 @@ namespace Latios.Audio
                 var oneshots = chunk.GetNativeArray(oneshotHandle);
                 var ltws     = chunk.GetNativeArray(ltwHandle);
                 var cones    = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     var ltw                        = ltws[i];
                     emitters[firstEntityIndex + i] = new OneshotEmitter
@@ -342,16 +342,16 @@ namespace Latios.Audio
         [BurstCompile]
         public struct UpdateLoopedsJob : IJobChunk
         {
-            public ComponentTypeHandle<AudioSourceLooped>       loopedHandle;
-            public ComponentTypeHandle<AudioSourceEmitterCone>  coneHandle;
-            [ReadOnly] public ComponentTypeHandle<Translation>  translationHandle;
-            [ReadOnly] public ComponentTypeHandle<Rotation>     rotationHandle;
-            [ReadOnly] public ComponentTypeHandle<Parent>       parentHandle;
-            [ReadOnly] public ComponentTypeHandle<LocalToWorld> ltwHandle;
-            public NativeArray<LoopedEmitter>                   emitters;
-            [ReadOnly] public NativeReference<int>              audioFrame;
-            [ReadOnly] public NativeReference<int>              lastConsumedBufferId;
-            public int                                          bufferId;
+            public ComponentTypeHandle<AudioSourceLooped>                 loopedHandle;
+            [ReadOnly] public ComponentTypeHandle<AudioSourceEmitterCone> coneHandle;
+            [ReadOnly] public ComponentTypeHandle<Translation>            translationHandle;
+            [ReadOnly] public ComponentTypeHandle<Rotation>               rotationHandle;
+            [ReadOnly] public ComponentTypeHandle<Parent>                 parentHandle;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld>           ltwHandle;
+            public NativeArray<LoopedEmitter>                             emitters;
+            [ReadOnly] public NativeReference<int>                        audioFrame;
+            [ReadOnly] public NativeReference<int>                        lastConsumedBufferId;
+            public int                                                    bufferId;
 
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
@@ -441,7 +441,7 @@ namespace Latios.Audio
             {
                 var                    loopeds = chunk.GetNativeArray(loopedHandle);
                 AudioSourceEmitterCone cone    = default;
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new LoopedEmitter
                     {
@@ -457,7 +457,7 @@ namespace Latios.Audio
             {
                 var loopeds = chunk.GetNativeArray(loopedHandle);
                 var cones   = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new LoopedEmitter
                     {
@@ -474,7 +474,7 @@ namespace Latios.Audio
                 var loopeds   = chunk.GetNativeArray(loopedHandle);
                 var rotations = chunk.GetNativeArray(rotationHandle);
                 var cones     = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new LoopedEmitter
                     {
@@ -491,7 +491,7 @@ namespace Latios.Audio
                 var                    loopeds      = chunk.GetNativeArray(loopedHandle);
                 var                    translations = chunk.GetNativeArray(translationHandle);
                 AudioSourceEmitterCone cone         = default;
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new LoopedEmitter
                     {
@@ -508,7 +508,7 @@ namespace Latios.Audio
                 var loopeds      = chunk.GetNativeArray(loopedHandle);
                 var translations = chunk.GetNativeArray(translationHandle);
                 var cones        = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new LoopedEmitter
                     {
@@ -526,7 +526,7 @@ namespace Latios.Audio
                 var translations = chunk.GetNativeArray(translationHandle);
                 var rotations    = chunk.GetNativeArray(rotationHandle);
                 var cones        = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     emitters[firstEntityIndex + i] = new LoopedEmitter
                     {
@@ -543,7 +543,7 @@ namespace Latios.Audio
                 var                    loopeds = chunk.GetNativeArray(loopedHandle);
                 var                    ltws    = chunk.GetNativeArray(ltwHandle);
                 AudioSourceEmitterCone cone    = default;
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     var ltw                        = ltws[i];
                     emitters[firstEntityIndex + i] = new LoopedEmitter
@@ -561,7 +561,7 @@ namespace Latios.Audio
                 var loopeds = chunk.GetNativeArray(loopedHandle);
                 var ltws    = chunk.GetNativeArray(ltwHandle);
                 var cones   = chunk.GetNativeArray(coneHandle);
-                for (int i = 0; i < chunk.Capacity; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     var ltw                        = ltws[i];
                     emitters[firstEntityIndex + i] = new LoopedEmitter

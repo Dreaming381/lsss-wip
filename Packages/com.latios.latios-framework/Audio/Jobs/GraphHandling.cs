@@ -30,7 +30,8 @@ namespace Latios.Audio
             }
         }
 
-        [BurstCompile]
+        //Temporary workaround: DSPGraph updates can't be scheduled from Burst
+        //[BurstCompile]
         public struct UpdateListenersGraphJob : IJob
         {
             [ReadOnly] public NativeArray<Entity>                    listenerEntities;

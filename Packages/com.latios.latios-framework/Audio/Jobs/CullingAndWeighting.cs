@@ -66,10 +66,11 @@ namespace Latios.Audio
                                 useCone         = emitter.useCone,
                                 volume          = emitter.source.volume
                             };
-                            ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j), scratchCache);
+                            //ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j), scratchCache);
+                            ComputeWeights(ref w, e, listenersWithTransforms[j], scratchCache);
 
                             weights.Write(w);
-                            listenerEmitterPairs.Write(new float2(j, i));
+                            listenerEmitterPairs.Write(new int2(j, i));
                         }
                     }
                 }
@@ -134,10 +135,10 @@ namespace Latios.Audio
                                 useCone         = emitter.useCone,
                                 volume          = emitter.source.volume
                             };
-                            ComputeWeights(ref w, e, in listenersWithTransforms.ElementAt(j), scratchCache);
+                            ComputeWeights(ref w, e, listenersWithTransforms[j], scratchCache);
 
                             weights.Write(w);
-                            listenerEmitterPairs.Write(new float2(j, i));
+                            listenerEmitterPairs.Write(new int2(j, i));
                         }
                     }
                 }
@@ -159,7 +160,7 @@ namespace Latios.Audio
             public bool                   useCone;
         }
 
-        private static void ComputeWeights(ref Weights weights, EmitterParameters emitter, in ListenerWithTransform listener, NativeList<float4> scratchCache)
+        private static void ComputeWeights(ref Weights weights, EmitterParameters emitter, ListenerWithTransform listener, NativeList<float4> scratchCache)
         {
             float volume = emitter.volume * listener.listener.volume;
 

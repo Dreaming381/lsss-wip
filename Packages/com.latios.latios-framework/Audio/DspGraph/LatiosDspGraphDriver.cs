@@ -45,10 +45,19 @@ namespace Latios.Audio
 
         public void Dispose()
         {
-            Graph.Dispose();
+            UnityEngine.Debug.Log("Driver.Dispose");
+
+            if (Graph.Valid)
+            {
+                UnityEngine.Debug.Log("Disposing graph");
+                Graph.Dispose();
+            }
+
             // TODO: This currently throws, needs yet another fix in unity
             if (m_DeinterleavedBuffer.IsCreated)
+            {
                 m_DeinterleavedBuffer.Dispose();
+            }
         }
     }
 }

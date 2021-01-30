@@ -62,18 +62,20 @@ namespace Latios.Audio
                         double itdOffset = math.lerp(0, -itdMaxOffset, itd / (double)(itdWeights.Length - 1));
                         itdOffset        = math.select(itdOffset, math.lerp(-itdMaxOffset, 0, itd / (double)(itdWeights.Length - 1)), isRightChannel);
                         itdOffset        = math.select(itdOffset, 0, itdWeights.Length == 1);
-
-                        int jumpFrames = audioFrame.Value - spawnFrame;
-
-                        if (clip.sampleRate == sampleRate)
+                        if (weight > 0f)
                         {
-                            int clipStart = jumpFrames * samplesPerFrame + (int)math.round(itdOffset);
-                            SampleMatchedRate(ref clip, clipStart, isRightChannel, weight, outputSamples);
-                        }
-                        else
-                        {
-                            double clipStart = jumpFrames * clipSamplesPerFrame + itdOffset;
-                            SampleMismatchedRate(ref clip, clipStart, clipSampleStride, isRightChannel, weight, outputSamples);
+                            int jumpFrames = audioFrame.Value - spawnFrame;
+
+                            if (clip.sampleRate == sampleRate)
+                            {
+                                int clipStart = jumpFrames * samplesPerFrame + (int)math.round(itdOffset);
+                                SampleMatchedRate(ref clip, clipStart, isRightChannel, weight, outputSamples);
+                            }
+                            else
+                            {
+                                double clipStart = jumpFrames * clipSamplesPerFrame + itdOffset;
+                                SampleMismatchedRate(ref clip, clipStart, clipSampleStride, isRightChannel, weight, outputSamples);
+                            }
                         }
                     }
                 }
@@ -107,14 +109,14 @@ namespace Latios.Audio
 
                 for (int i = 0; i < output.Length; i++)
                 {
-                    double pos         = clipStart + clipSampleStride * i;
-                    int    posLeft     = (int)pos;
-                    int    posRight    = posLeft + 1;
-                    int    safeLeft    = math.clamp(posLeft, 0, clipSamples.Length - 1);
-                    int    safeRight   = math.clamp(posRight, 0, clipSamples.Length - 1);
-                    float  leftSample  = math.select(0f, clipSamples[safeLeft], posLeft == safeLeft);
-                    float  rightSample = math.select(0f, clipSamples[safeRight], posRight == safeRight);
-                    output[i]          = math.lerp(leftSample, rightSample, (float)math.frac(pos)) * weight;
+                    double pos          = clipStart + clipSampleStride * i;
+                    int    posLeft      = (int)pos;
+                    int    posRight     = posLeft + 1;
+                    int    safeLeft     = math.clamp(posLeft, 0, clipSamples.Length - 1);
+                    int    safeRight    = math.clamp(posRight, 0, clipSamples.Length - 1);
+                    float  leftSample   = math.select(0f, clipSamples[safeLeft], posLeft == safeLeft);
+                    float  rightSample  = math.select(0f, clipSamples[safeRight], posRight == safeRight);
+                    output[i]          += math.lerp(leftSample, rightSample, (float)math.frac(pos)) * weight;
                 }
             }
         }
@@ -170,27 +172,30 @@ namespace Latios.Audio
                         itdOffset           = math.select(itdOffset, 0, itdWeights.Length == 1);
                         ulong samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame.Value;
 
-                        if (clip.sampleRate == sampleRate)
+                        if (weight > 0f)
                         {
-                            int clipStart = (int)(samplesPlayed % (ulong)clip.samplesLeftOrMono.Length) + (int)math.round(itdOffset);
-                            SampleMatchedRate(ref clip, clipStart, isRightChannel, weight, outputSamples);
-                        }
-                        else
-                        {
-                            double clipLengthInOutputSamples      = clip.samplesLeftOrMono.Length * clipSampleStride;
-                            ulong  clipLengthInOutputSamplesFloor = (ulong)clipLengthInOutputSamples;
-                            ulong  loops                          = samplesPlayed / clipLengthInOutputSamplesFloor;
-                            ulong  currentLoopSamples             = samplesPlayed - (loops * clipLengthInOutputSamplesFloor);
-                            double clipStart                      = currentLoopSamples + loops * math.frac(clipLengthInOutputSamples) + itdOffset + loopOffset;
-                            while (clipStart < 0)
+                            if (clip.sampleRate == sampleRate)
                             {
-                                clipStart += clipLengthInOutputSamples;
+                                int clipStart = (int)(samplesPlayed % (ulong)clip.samplesLeftOrMono.Length) + (int)math.round(itdOffset);
+                                SampleMatchedRate(ref clip, clipStart, isRightChannel, weight, outputSamples);
                             }
-                            while (clipStart >= clipLengthInOutputSamples)
+                            else
                             {
-                                clipStart -= clipLengthInOutputSamples;
+                                double clipLengthInOutputSamples      = clip.samplesLeftOrMono.Length * clipSampleStride;
+                                ulong  clipLengthInOutputSamplesFloor = (ulong)clipLengthInOutputSamples;
+                                ulong  loops                          = samplesPlayed / clipLengthInOutputSamplesFloor;
+                                ulong  currentLoopSamples             = samplesPlayed - (loops * clipLengthInOutputSamplesFloor);
+                                double clipStart                      = currentLoopSamples + loops * math.frac(clipLengthInOutputSamples) + itdOffset + loopOffset;
+                                while (clipStart < 0)
+                                {
+                                    clipStart += clipLengthInOutputSamples;
+                                }
+                                while (clipStart >= clipLengthInOutputSamples)
+                                {
+                                    clipStart -= clipLengthInOutputSamples;
+                                }
+                                SampleMismatchedRate(ref clip, clipStart, clipSampleStride, isRightChannel, weight, outputSamples);
                             }
-                            SampleMismatchedRate(ref clip, clipStart, clipSampleStride, isRightChannel, weight, outputSamples);
                         }
                     }
                 }
@@ -223,12 +228,12 @@ namespace Latios.Audio
 
                 for (int i = 0; i < output.Length; i++)
                 {
-                    double pos         = clipStart + clipSampleStride * i;
-                    int    posLeft     = (int)pos % clipSamples.Length;
-                    int    posRight    = (posLeft + 1) % clipSamples.Length;  //This handles wraparound between last sample and first sample
-                    float  leftSample  = clipSamples[posLeft];
-                    float  rightSample = clipSamples[posRight];
-                    output[i]          = math.lerp(leftSample, rightSample, (float)math.frac(pos)) * weight;
+                    double pos          = clipStart + clipSampleStride * i;
+                    int    posLeft      = (int)pos % clipSamples.Length;
+                    int    posRight     = (posLeft + 1) % clipSamples.Length;  //This handles wraparound between last sample and first sample
+                    float  leftSample   = clipSamples[posLeft];
+                    float  rightSample  = clipSamples[posRight];
+                    output[i]          += math.lerp(leftSample, rightSample, (float)math.frac(pos)) * weight;
                 }
             }
         }

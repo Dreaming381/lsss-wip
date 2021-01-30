@@ -13,7 +13,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            Entities.ForEach((TitleAndMenu titleAndMenu) =>
+            Entities.ForEach((TitleAndMenu titleAndMenu, in TitleAndMenuResources resources) =>
             {
                 if (titleAndMenu.titlePanel.activeSelf)
                 {
@@ -53,6 +53,8 @@ namespace Lsss
                     {
                         titleAndMenu.titlePanel.SetActive(false);
                         titleAndMenu.menuPanel.SetActive(true);
+                        var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+                        ecb.Instantiate(resources.blipSoundEffect);
                     }
                 }
                 else
@@ -76,6 +78,8 @@ namespace Lsss
                             {
                                 titleAndMenu.menuPanel.SetActive(false);
                                 titleAndMenu.titlePanel.SetActive(true);
+                                var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+                                ecb.Instantiate(resources.blipSoundEffect);
                             }
                         }
                     }

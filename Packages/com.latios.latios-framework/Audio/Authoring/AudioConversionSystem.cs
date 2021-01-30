@@ -14,6 +14,16 @@ namespace Latios.Audio.Authoring
     {
         protected override void OnUpdate()
         {
+            //Temporary workaround
+            var tempList = new NativeList<int>(Allocator.TempJob);
+            for (int i = 0; i < 5; i++)
+                tempList.Add(i);
+            unsafe
+            {
+                var result = xxHash3.Hash128(tempList.GetUnsafePtr(), tempList.Length * 4);
+            }
+            tempList.Dispose();
+
             ConvertBatchedClips();
             ConvertListeners();
         }
@@ -96,7 +106,8 @@ namespace Latios.Audio.Authoring
                         ranges               = ranges,
                         rates                = rates,
                         channelCounts        = channelCounts,
-                        computationDataArray = computationDataArray
+                        computationDataArray = computationDataArray,
+                        offsetCounts         = offsets
                     }.ScheduleParallel(ranges.Length, 1, default).Complete();
                     foreach (var data in computationDataArray)
                     {
@@ -159,9 +170,9 @@ namespace Latios.Audio.Authoring
         [BurstCompile]
         struct ComputeAudioClipHashesJob : IJob
         {
-            [ReadOnly] public NativeArray<float>     samples;
-            [ReadOnly] public NativeReference<uint2> hash;
-            public int                               frequency;
+            [ReadOnly] public NativeArray<float> samples;
+            public NativeReference<uint2>        hash;
+            public int                           frequency;
 
             public unsafe void Execute()
             {
@@ -204,7 +215,7 @@ namespace Latios.Audio.Authoring
                         blobLeft[i / channelCounts[index]] = samples[ranges[index].x + i];
                     }
                 }
-                int offsetCount = offsetCounts[index];
+                int offsetCount = math.max(offsetCounts[index], 1);
                 int stride      = blobLeft.Length / offsetCount;
                 var offsets     = builder.Allocate(ref root.loopedOffsets, offsetCount);
                 for (int i = 0; i < offsetCount; i++)
@@ -231,12 +242,16 @@ namespace Latios.Audio.Authoring
             var profileList           = new List<AudioIldProfileBuilder>();
             var profileHashDictionary = new Dictionary<AudioIldProfileBuilder, Hash128>();
 
+            var defaultProfileBuilder = DefaultIldProfileBuilder.CreateInstance<DefaultIldProfileBuilder>();
+
             using (var computationContext = new BlobAssetComputationContext<IldProfileComputationData, IldProfileBlob>(BlobAssetStore, 128, Allocator.Temp))
             {
                 int index = 0;
                 Entities.ForEach((LatiosAudioListenerAuthoring authoring) =>
                 {
                     Hash128 hash = default;
+                    if (authoring.listenerResponseProfile == null)
+                        authoring.listenerResponseProfile = defaultProfileBuilder;
                     if (profileHashDictionary.TryGetValue(authoring.listenerResponseProfile, out var foundHash))
                         hash = foundHash;
                     else

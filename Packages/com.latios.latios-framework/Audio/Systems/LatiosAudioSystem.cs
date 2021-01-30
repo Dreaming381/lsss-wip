@@ -14,6 +14,7 @@ namespace Latios.Audio.Systems
     {
         private DSPGraph             m_graph;
         private LatiosDSPGraphDriver m_driver;
+        private AudioOutputHandle    m_outputHandle;
         private int                  m_sampleRate;
         private int                  m_samplesPerSubframe;
 
@@ -48,14 +49,16 @@ namespace Latios.Audio.Systems
             m_lastReadBufferId           = new NativeReference<int>(Allocator.Persistent);
             m_buffersInFlight            = new List<ManagedIldBuffer>();
 
+            worldGlobalEntity.AddComponentData(new AudioSettings { audioFramesPerUpdate = 3, audioSubframesPerFrame = 1, logWarningIfBuffersAreStarved = true });
+
             //Create graph and driver
             var format   = ChannelEnumConverter.GetSoundFormatFromSpeakerMode(UnityEngine.AudioSettings.speakerMode);
             var channels = ChannelEnumConverter.GetChannelCountFromSoundFormat(format);
             UnityEngine.AudioSettings.GetDSPBufferSize(out m_samplesPerSubframe, out _);
-            m_sampleRate = UnityEngine.AudioSettings.outputSampleRate;
-            m_graph      = DSPGraph.Create(format, channels, m_samplesPerSubframe, m_sampleRate);
-            m_driver     = new LatiosDSPGraphDriver { Graph = m_graph };
-            m_driver.AttachToDefaultOutput();
+            m_sampleRate   = UnityEngine.AudioSettings.outputSampleRate;
+            m_graph        = DSPGraph.Create(format, channels, m_samplesPerSubframe, m_sampleRate);
+            m_driver       = new LatiosDSPGraphDriver { Graph = m_graph };
+            m_outputHandle = m_driver.AttachToDefaultOutput();
 
             var commandBlock = m_graph.CreateCommandBlock();
             m_mixNode        = commandBlock.CreateDSPNode<MixStereoPortsNode.Parameters, MixStereoPortsNode.SampleProviders, MixStereoPortsNode>();
@@ -70,11 +73,26 @@ namespace Latios.Audio.Systems
             }
             commandBlock.Complete();
 
+            //Create queries
             m_aliveListenersQuery                = Fluent.WithAll<AudioListener>(true).Build();
             m_deadListenersQuery                 = Fluent.Without<AudioListener>().WithAll<ListenerGraphState>().Build();
             m_oneshotsToDestroyWhenFinishedQuery = Fluent.WithAll<AudioSourceOneShot>().WithAll<AudioSourceDestroyOneShotWhenFinished>(true).Build();
             m_oneshotsQuery                      = Fluent.WithAll<AudioSourceOneShot>().Build();
             m_loopedQuery                        = Fluent.WithAll<AudioSourceLooped>().Build();
+
+            //Force initialization of Burst
+            commandBlock  = m_graph.CreateCommandBlock();
+            var dummyNode = commandBlock.CreateDSPNode<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>();
+            StateVariableFilterNode.Create(commandBlock, StateVariableFilterNode.FilterType.Bandpass, 0f, 0f, 0f, 1);
+            commandBlock.UpdateAudioKernel<MixPortsToStereoNodeUpdate, MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>(
+                new MixPortsToStereoNodeUpdate { leftChannelCount = 0 },
+                dummyNode);
+            commandBlock.UpdateAudioKernel<ReadIldBuffersNodeUpdate, ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>(new ReadIldBuffersNodeUpdate
+            {
+                ildBuffer = new IldBuffer(),
+            },
+                                                                                                                                                            m_ildNode);
+            commandBlock.Cancel();
         }
 
         protected override void OnUpdate()
@@ -84,6 +102,7 @@ namespace Latios.Audio.Systems
             //Query arrays
             var aliveListenerEntities = m_aliveListenersQuery.ToEntityArrayAsync(Allocator.TempJob, out JobHandle aliveListenerEntitiesJH);
             var deadListenerEntities  = m_deadListenersQuery.ToEntityArrayAsync(Allocator.TempJob, out JobHandle deadListenerEntitiesJH);
+            var listenerEntitiesJH    = JobHandle.CombineDependencies(aliveListenerEntitiesJH, deadListenerEntitiesJH);
 
             //Type handles
             var entityHandle      = GetEntityTypeHandle();
@@ -148,7 +167,7 @@ namespace Latios.Audio.Systems
                 rotationHandle          = rotationHandle,
                 ltwHandle               = ltwHandle,
                 listenersWithTransforms = listenersWithTransforms
-            }.Schedule(m_aliveListenersQuery, ecsJH);
+            }.ScheduleSingle(m_aliveListenersQuery, ecsJH);
 
             var captureFrameJH = new GraphHandling.CaptureIldFrameJob
             {
@@ -182,7 +201,7 @@ namespace Latios.Audio.Systems
                 outputSamplesMegaBufferChannels     = ildBuffer.channels,
                 bufferId                            = m_currentBufferId,
                 samplesPerSubframe                  = m_samplesPerSubframe
-            }.Schedule(JobHandle.CombineDependencies(captureListenersJH, captureFrameJH));
+            }.Schedule(JobHandle.CombineDependencies(captureListenersJH, captureFrameJH, listenerEntitiesJH));
 
             var destroyOneshotsJH = new InitUpdateDestroy.DestroyOneshotsWhenFinishedJob
             {
@@ -208,7 +227,7 @@ namespace Latios.Audio.Systems
                 lastConsumedBufferId = m_lastReadBufferId,
                 bufferId             = m_currentBufferId,
                 emitters             = oneshotEmitters
-            }.ScheduleParallel(m_oneshotsQuery, destroyOneshotsJH);
+            }.ScheduleParallel(m_oneshotsQuery, 1, destroyOneshotsJH);
 
             var updateLoopedJH = new InitUpdateDestroy.UpdateLoopedsJob
             {
@@ -285,7 +304,7 @@ namespace Latios.Audio.Systems
                 sampleRate                          = m_sampleRate,
                 samplesPerSubframe                  = m_samplesPerSubframe,
                 audioFrame                          = m_audioFrame
-            }.Schedule(forIndexToListenerAndChannelIndices, 1, oneshotSamplingJH);
+            }.Schedule(forIndexToListenerAndChannelIndices, 1, JobHandle.CombineDependencies(oneshotSamplingJH, loopedBatchingJH));
 
             var shipItJH = new GraphHandling.SubmitToDspGraphJob
             {
@@ -298,6 +317,8 @@ namespace Latios.Audio.Systems
                                                        );
 
             var disposeJobHandles = new NativeList<JobHandle>(Allocator.TempJob);
+            disposeJobHandles.Add(aliveListenerEntities.Dispose(updateListenersGraphJH));
+            disposeJobHandles.Add(deadListenerEntities.Dispose(updateListenersGraphJH));
             disposeJobHandles.Add(listenersWithTransforms.Dispose(JobHandle.CombineDependencies(oneshotsCullingWeightingJH, loopedCullingWeightingJH)));
             disposeJobHandles.Add(listenerBufferParameters.Dispose(loopedSamplingJH));
             disposeJobHandles.Add(forIndexToListenerAndChannelIndices.Dispose(loopedSamplingJH));
@@ -329,10 +350,14 @@ namespace Latios.Audio.Systems
 
             m_lastUpdateJobHandle = JobHandle.CombineDependencies(disposeJobHandles);
             disposeJobHandles.Dispose();
+
+            m_buffersInFlight.Add(ildBuffer);
         }
 
         protected override void OnDestroy()
         {
+            UnityEngine.Debug.Log("AudioSystem.OnDestroy");
+            AudioOutputExtensions.DisposeOutputHook(ref m_outputHandle);
             m_driver.Dispose();
 
             m_lastUpdateJobHandle.Complete();

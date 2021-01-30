@@ -1,0 +1,103 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5286906351711432027
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7423245387444590865}
+  - component: {fileID: 2804096735026321696}
+  - component: {fileID: 4379868630859820786}
+  m_Layer: 0
+  m_Name: UIClickSfx
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7423245387444590865
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5286906351711432027}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2804096735026321696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5286906351711432027}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectSettings:
+    waveType: 4
+    masterVolume: 1
+    attackTime: 0.03
+    sustainTime: 0.07
+    sustainPunch: 0
+    decayTime: 0.12
+    startFrequency: 0.72999996
+    minFrequency: 0
+    slide: 0
+    deltaSlide: 0
+    vibratoDepth: 0
+    vibratoSpeed: 0
+    changeAmount: 0
+    changeSpeed: 0
+    squareDuty: 0.26999998
+    dutySweep: 0
+    repeatSpeed: 0
+    phaserOffset: 0
+    phaserSweep: 0
+    lpFilterCutoff: 1
+    lpFilterCutoffSweep: 0
+    lpFilterResonance: 0
+    hpFilterCutoff: 0.099999994
+    hpFilterCutoffSweep: 0
+    changeRepeat: 0
+    changeAmount2: 0
+    changeSpeed2: 0
+    compressionAmount: 0.29999998
+    overtones: 0
+    overtoneFalloff: 0
+    bitCrush: 0
+    bitCrushSweep: 0
+--- !u!114 &4379868630859820786
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5286906351711432027}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clip: {fileID: 0}
+  oneShot: 1
+  autoDestroyOnFinish: 1
+  volume: 1
+  innerRange: 5
+  outerRange: 25
+  rangeFadeMargin: 1
+  voices: 0
+  useCone: 0
+  innerAngle: 30
+  outerAngle: 60
+  outerAngleVolume: 0

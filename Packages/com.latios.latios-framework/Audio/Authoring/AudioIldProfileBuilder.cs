@@ -164,7 +164,7 @@ namespace Latios.Audio.Authoring
             }
         }
 
-        private void Awake()
+        private void OnEnable()
         {
             m_filtersLeft                    = new NativeList<FrequencyFilter>(Allocator.Persistent);
             m_filtersRight                   = new NativeList<FrequencyFilter>(Allocator.Persistent);
@@ -176,9 +176,8 @@ namespace Latios.Audio.Authoring
             m_panFilterRatiosPerRightChannel = new NativeList<float>(Allocator.Persistent);
         }
 
-        private void OnDestroy()
+        private void OnDisable()
         {
-            if (m_computedHash && !m_blobProfile.IsCreated)
             {
                 m_filtersLeft.Dispose();
                 m_filtersRight.Dispose();

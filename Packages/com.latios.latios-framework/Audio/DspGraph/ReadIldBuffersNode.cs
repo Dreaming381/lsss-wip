@@ -27,7 +27,9 @@ namespace Latios.Audio
         IldBuffer m_ildBuffer;
 
         internal IldBuffer m_queuedIldBuffer;
-        internal long*     m_packedFrameCounterBufferId;
+
+        [NativeDisableUnsafePtrRestriction]
+        internal long* m_packedFrameCounterBufferId;
 
         public void Initialize()
         {
@@ -49,8 +51,8 @@ namespace Latios.Audio
             {
                 m_currentSubframe = 0;
                 m_currentFrame++;
-                m_lastPlayedBufferID = m_ildBuffer.bufferId;
                 m_ildBuffer          = m_queuedIldBuffer;
+                m_lastPlayedBufferID = m_ildBuffer.bufferId;  //we need to report the buffer we just consumed, the audio system knows to keep that one around yet
             }
 
             for (int outputChannelIndex = 0; outputChannelIndex < context.Outputs.Count; outputChannelIndex++)
@@ -95,7 +97,7 @@ namespace Latios.Audio
 
             if (m_currentSubframe == 0)
             {
-                long     packed   = (long)m_currentFrame + ((long)m_lastPlayedBufferID) << 32;
+                long     packed   = m_currentFrame + (((long)m_lastPlayedBufferID) << 32);
                 ref long location = ref UnsafeUtility.AsRef<long>(m_packedFrameCounterBufferId);
                 Interlocked.Exchange(ref location, packed);
             }
@@ -121,6 +123,7 @@ namespace Latios.Audio
     [BurstCompile]
     internal unsafe struct SetReadIldBuffersNodePackedFrameBufferId : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>
     {
+        [NativeDisableUnsafePtrRestriction]
         public long* ptr;
 
         public void Update(ref ReadIldBuffersNode audioKernel)

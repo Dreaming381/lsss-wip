@@ -18,7 +18,8 @@
         "Unity.Transforms",
         "Unity.Transforms.Hybrid",
         "Unity.Mathematics.Extensions",
-        "Unity.usfxr"
+        "Unity.usfxr",
+        "Latios.Audio"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

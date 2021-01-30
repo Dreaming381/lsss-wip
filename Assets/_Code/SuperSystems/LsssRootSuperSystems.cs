@@ -40,6 +40,9 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<ProcessGameplayEventsSuperSystem>();
             GetOrCreateAndAddSystem<GraphicsTransformsSuperSystem>();
 
+            //Temporary
+            GetOrCreateAndAddSystem<Latios.Audio.Systems.LatiosAudioSystem>();
+
             //In here rather than LsssPresentationRootSuperSystem so that I can see the health readout that triggered death.
             //GetOrCreateAndAddSystem<UiGameplaySuperSystem>();
         }
