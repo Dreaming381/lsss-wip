@@ -138,6 +138,7 @@ namespace Latios.PhysicsEngine.Authoring.Systems
 
                         var targetEntity = GetPrimaryEntity(colliderAuthoring);
 
+                        DeclareDependency(colliderAuthoring, colliderAuthoring.transform);
                         float3 scale = colliderAuthoring.transform.lossyScale;
                         if (scale.x != scale.y || scale.x != scale.z)
                         {
@@ -174,6 +175,7 @@ namespace Latios.PhysicsEngine.Authoring.Systems
             foreach (var unityCollider in unityColliders)
             {
                 DeclareDependency(root, unityCollider);
+                DeclareDependency(root, unityCollider.transform);
                 if ((unityCollider is UnityEngine.SphereCollider || unityCollider is UnityEngine.CapsuleCollider || unityCollider is UnityEngine.BoxCollider) == false)
                 {
                     throw new InvalidOperationException(

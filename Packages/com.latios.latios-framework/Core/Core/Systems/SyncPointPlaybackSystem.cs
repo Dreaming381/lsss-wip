@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -160,7 +161,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Entity,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_entityCommandBuffers.Add(ecb);
@@ -174,7 +175,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Enable,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_enableCommandBuffers.Add(ecb);
@@ -188,7 +189,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Disable,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_disableCommandBuffers.Add(dcb);
@@ -202,7 +203,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Destroy,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_destroyCommandBuffers.Add(dcb);
@@ -216,7 +217,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateNoData,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersWithoutData.Add(icb);
@@ -230,7 +231,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -244,7 +245,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -259,7 +260,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -274,7 +275,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -289,7 +290,7 @@ namespace Latios.Systems
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = ExecutingSystemType,
+                requestingSystemType = World.ExecutingSystemType(),
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);

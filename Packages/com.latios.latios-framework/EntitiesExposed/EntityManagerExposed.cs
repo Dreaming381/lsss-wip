@@ -1,7 +1,7 @@
 ﻿using System;
-using Unity.Entities;
+using Unity.Collections;
 
-namespace Latios
+namespace Unity.Entities.Exposed
 {
     public unsafe struct EntityLocationInChunk : IEquatable<EntityLocationInChunk>, IComparable<EntityLocationInChunk>
     {
@@ -25,8 +25,9 @@ namespace Latios
         }
     }
 
-    public static unsafe class LatiosEntityManagerExtensions
+    public static unsafe class EntityManagerExposed
     {
+        [BurstCompatible]
         public static EntityLocationInChunk GetEntityLocationInChunk(this EntityManager entityManager, Entity entity)
         {
             var ecs           = entityManager.GetCheckedEntityDataAccess()->EntityComponentStore;
