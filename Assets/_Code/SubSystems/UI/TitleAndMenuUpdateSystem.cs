@@ -90,7 +90,7 @@ namespace Lsss
                 if (titleAndMenu.selectedScene.Length > 0)
                 {
                     var ecb                                                             = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
-                    ecb.AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = titleAndMenu.selectedScene });
+                    ecb.AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = titleAndMenu.selectedScene });
                 }
             }).WithoutBurst().Run();
         }

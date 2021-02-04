@@ -18,8 +18,8 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneGlobalEntity.HasComponentData<NextSpawnCounter>())
-                sceneGlobalEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
+            if (!sceneBlackboardEntity.HasComponentData<NextSpawnCounter>())
+                sceneBlackboardEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
 
             float dt = Time.DeltaTime;
             Entities.WithAll<SpawnPointTag>().ForEach((ref SpawnTimes spawnTimes) =>
@@ -31,9 +31,9 @@ namespace Lsss
                 spawnTimes.pauseTime  = math.max(spawnTimes.pauseTime, 0f);
             }).Schedule();
 
-            var    spawnQueues  = sceneGlobalEntity.GetCollectionComponent<SpawnQueues>();
-            int    initialIndex = sceneGlobalEntity.GetComponentData<NextSpawnCounter>().index;
-            Entity nscEntity    = sceneGlobalEntity;
+            var    spawnQueues  = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
+            int    initialIndex = sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
+            Entity nscEntity    = sceneBlackboardEntity;
             var    icb          = latiosWorld.SyncPoint.CreateInstantiateCommandBuffer<Parent>();
             icb.AddComponentTag<LocalToParent>();
 

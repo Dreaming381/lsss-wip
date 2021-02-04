@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -28,13 +28,13 @@ namespace Lsss
                 }
             }).ScheduleParallel();
 
-            var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
                 bulletDamageCdfe = GetComponentDataFromEntity<Damage>(true),
-                bulletFirerCdfe  = this.GetPhysicsComponentDataFromEntity<BulletFirer>(),
-                shipHealthCdfe   = this.GetPhysicsComponentDataFromEntity<ShipHealth>(),
+                bulletFirerCdfe  = GetComponentDataFromEntity<BulletFirer>(),
+                shipHealthCdfe   = GetComponentDataFromEntity<ShipHealth>(),
                 dcb              = dcb,
                 frameId          = frameId
             };

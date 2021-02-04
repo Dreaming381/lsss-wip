@@ -154,7 +154,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2a1c6def24f38545ac83721fed8b9a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  globalScope: 1
+  blackboardScope: 1
   mergeMethod: 0
 --- !u!114 &168690311
 MonoBehaviour:
@@ -196,7 +196,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 8
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!43 &174044001
+--- !u!43 &300042822
 Mesh:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -370,7 +370,7 @@ PrefabInstance:
     - target: {fileID: 1889298094670209308, guid: cb42ad775c0542744b8b0f11d66cca7e, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 174044001}
+      objectReference: {fileID: 300042822}
     - target: {fileID: 2521310744672397629, guid: cb42ad775c0542744b8b0f11d66cca7e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

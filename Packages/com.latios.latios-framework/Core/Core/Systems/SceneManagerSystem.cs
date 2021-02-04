@@ -19,7 +19,7 @@ namespace Latios.Systems
                 previousScene     = new FixedString128(),
                 isSceneFirstFrame = false
             };
-            worldGlobalEntity.AddOrSetComponentData(curr);
+            worldBlackboardEntity.AddOrSetComponentData(curr);
         }
 
         protected override void OnUpdate()
@@ -48,7 +48,7 @@ namespace Latios.Systems
                     }
                     else
                     {
-                        var curr           = worldGlobalEntity.GetComponentData<CurrentScene>();
+                        var curr           = worldBlackboardEntity.GetComponentData<CurrentScene>();
                         curr.previousScene = curr.currentScene;
                         UnityEngine.Debug.Log("Loading scene: " + targetScene);
                         SceneManager.LoadScene(targetScene.ToString());
@@ -56,7 +56,7 @@ namespace Latios.Systems
                         m_paused               = true;
                         curr.currentScene      = targetScene;
                         curr.isSceneFirstFrame = true;
-                        worldGlobalEntity.SetComponentData(curr);
+                        worldBlackboardEntity.SetComponentData(curr);
                         EntityManager.RemoveComponent<RequestLoadScene>(m_rlsQuery);
                         return;
                     }
@@ -64,7 +64,7 @@ namespace Latios.Systems
             }
 
             //Handle case where initial scene loads or set firstFrame to false
-            var currentScene = worldGlobalEntity.GetComponentData<CurrentScene>();
+            var currentScene = worldBlackboardEntity.GetComponentData<CurrentScene>();
             if (currentScene.currentScene.Length == 0)
             {
                 currentScene.currentScene      = SceneManager.GetActiveScene().name;
@@ -78,7 +78,7 @@ namespace Latios.Systems
             {
                 currentScene.isSceneFirstFrame = false;
             }
-            worldGlobalEntity.SetComponentData(currentScene);
+            worldBlackboardEntity.SetComponentData(currentScene);
         }
     }
 }

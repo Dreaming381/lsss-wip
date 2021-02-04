@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -42,9 +42,9 @@ namespace Lsss
             Dependency = bodies.Dispose(Dependency);
 
             var bcl = new BulletCollisionLayer { layer = layer };
-            if (sceneGlobalEntity.HasCollectionComponent<BulletCollisionLayer>())
+            if (sceneBlackboardEntity.HasCollectionComponent<BulletCollisionLayer>())
             {
-                sceneGlobalEntity.SetCollectionComponentAndDisposeOld(bcl);
+                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
             }
             else
             {
@@ -52,7 +52,7 @@ namespace Lsss
                 //At least this only happens on the first frame of the scene.
                 CompleteDependency();
 
-                sceneGlobalEntity.AddCollectionComponent(bcl);
+                sceneBlackboardEntity.AddCollectionComponent(bcl);
             }
         }
     }
@@ -61,7 +61,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var layer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var layer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             CompleteDependency();
             PhysicsDebug.DrawLayer(layer).Run();
             //UnityEngine.Debug.Log("Bullets in layer: " + layer.Count);

@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Latios.Audio.Authoring;
+using Latios.Myri.Authoring;
 using usfxr;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -16,7 +16,7 @@ namespace Lsss.Authoring
 
         public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
         {
-            var audioSource  = GetComponent<LatiosAudioSourceAuthoring>();
+            var audioSource  = GetComponent<AudioSourceAuthoring>();
             audioSource.clip = SfxrPlayer.GetClip(effectSettings);
         }
     }

@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -15,8 +15,8 @@ namespace Lsss
         {
             var dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
-            var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
-            var wallLayer   = sceneGlobalEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var wallLayer   = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var processor = new DestroyBulletsThatHitWallsProcessor { dcb = dcb };
 

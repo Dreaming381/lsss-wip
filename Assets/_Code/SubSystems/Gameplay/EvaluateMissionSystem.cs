@@ -63,11 +63,11 @@ namespace Lsss
 
             if (status.status == MissionStatus.Options.Failed)
             {
-                latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Mission Failed" });
+                latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Mission Failed" });
             }
             else if (status.status == MissionStatus.Options.Complete)
             {
-                latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Mission Complete" });
+                latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Mission Complete" });
             }
         }
 

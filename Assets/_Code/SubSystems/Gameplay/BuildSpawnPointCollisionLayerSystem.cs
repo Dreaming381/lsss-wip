@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -23,9 +23,9 @@ namespace Lsss
         {
             Dependency          = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var spawnPointLayer = new SpawnPointCollisionLayer { layer = layer };
-            if (sceneGlobalEntity.HasCollectionComponent<SpawnPointCollisionLayer>())
+            if (sceneBlackboardEntity.HasCollectionComponent<SpawnPointCollisionLayer>())
             {
-                sceneGlobalEntity.SetCollectionComponentAndDisposeOld(spawnPointLayer);
+                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(spawnPointLayer);
             }
             else
             {
@@ -33,7 +33,7 @@ namespace Lsss
                 //At least this only happens on the first frame of the scene.
                 CompleteDependency();
 
-                sceneGlobalEntity.AddCollectionComponent(spawnPointLayer);
+                sceneBlackboardEntity.AddCollectionComponent(spawnPointLayer);
             }
         }
     }
@@ -42,7 +42,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var layer = sceneGlobalEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
+            var layer = sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
             CompleteDependency();
             PhysicsDebug.DrawLayer(layer).Run();
             UnityEngine.Debug.Log("SpawnPoints in layer: " + layer.Count);

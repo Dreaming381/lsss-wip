@@ -32,7 +32,7 @@ namespace Lsss
 
         public override bool ShouldUpdateSystem()
         {
-            var currentScene = worldGlobalEntity.GetComponentData<CurrentScene>();
+            var currentScene = worldBlackboardEntity.GetComponentData<CurrentScene>();
             return currentScene.isFirstFrame;
         }
 

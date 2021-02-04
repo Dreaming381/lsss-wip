@@ -24,8 +24,8 @@ namespace Lsss
 
         protected override void OnCreate()
         {
-            m_shipsQuery                                                         = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>(true).IncludeDisabled().Build();
-            worldGlobalEntity.AddComponentData(new CachedShipBaseHealth { health = 0f });
+            m_shipsQuery                                                             = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>(true).IncludeDisabled().Build();
+            worldBlackboardEntity.AddComponentData(new CachedShipBaseHealth { health = 0f });
         }
 
         protected override void OnUpdate()
@@ -41,13 +41,13 @@ namespace Lsss
 
             bool   playerFound = false;
             float  healthValue = 0f;
-            Entity wge         = worldGlobalEntity;
+            Entity wbe         = worldBlackboardEntity;
             Entities.WithAll<PlayerTag>().ForEach((in ShipHealth health, in ShipBaseHealth baseHealth, in ShipReloadTime bullets, in ShipBoostTank boost, in ShipSpeedStats stats) =>
             {
                 playerFound = true;
 
                 healthValue = health.health;
-                SetComponent(wge,
+                SetComponent(wbe,
                              new CachedShipBaseHealth { health = baseHealth.baseHealth });
 
                 m_bulletCountBuilder.Clear();
@@ -62,7 +62,7 @@ namespace Lsss
             m_healthBuilder.Clear();
             m_healthBuilder.Append(healthValue);
             m_healthBuilder.Append('/');
-            m_healthBuilder.Append(worldGlobalEntity.GetComponentData<CachedShipBaseHealth>().health);
+            m_healthBuilder.Append(worldBlackboardEntity.GetComponentData<CachedShipBaseHealth>().health);
             hud.health.SetText(m_healthBuilder);
 
             if (playerFound)
@@ -71,7 +71,7 @@ namespace Lsss
             }
             else
             {
-                var queues = sceneGlobalEntity.GetCollectionComponent<SpawnQueues>(true);
+                var queues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>(true);
                 CompleteDependency();
                 if (queues.playerQueue.Count == 0)
                 {

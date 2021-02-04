@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -58,9 +58,9 @@ namespace Lsss
 
             ApplyWarpZoneDataProcessor processor = new ApplyWarpZoneDataProcessor
             {
-                boundsCdfe         = this.GetPhysicsComponentDataFromEntity<RenderBounds>(),
-                positionRadiusCdfe = this.GetPhysicsComponentDataFromEntity<GravityWarpZonePositionRadiusProperty>(),
-                paramsCdfe         = this.GetPhysicsComponentDataFromEntity<GravityWarpZoneParamsProperty>(),
+                boundsCdfe         = GetComponentDataFromEntity<RenderBounds>(),
+                positionRadiusCdfe = GetComponentDataFromEntity<GravityWarpZonePositionRadiusProperty>(),
+                paramsCdfe         = GetComponentDataFromEntity<GravityWarpZoneParamsProperty>(),
                 warpZoneCdfe       = GetComponentDataFromEntity<GravityWarpZone>()
             };
 

@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -29,7 +29,7 @@ namespace Lsss
 
             var processor = new SpawnPointIsNotSafeProcessor
             {
-                safeToSpawnCdfe = this.GetPhysicsComponentDataFromEntity<SafeToSpawn>()
+                safeToSpawnCdfe = GetComponentDataFromEntity<SafeToSpawn>()
             };
 
             var closeProcessor = new SpawnPointsAreTooCloseProcessor
@@ -38,35 +38,35 @@ namespace Lsss
             };
 
             Profiler.BeginSample("Fetch");
-            var spawnLayer = sceneGlobalEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
+            var spawnLayer = sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
             Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
-            var wallLayer = sceneGlobalEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var wallLayer = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
             Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
-            var bulletLayer = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
             Dependency = Physics.FindPairs(spawnLayer, bulletLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
-            var explosionLayer = sceneGlobalEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            var explosionLayer = sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
             Dependency = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
-            var wormholeLayer = sceneGlobalEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            var wormholeLayer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             Profiler.EndSample();
             Profiler.BeginSample("Schedule");
             Dependency = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(Dependency);

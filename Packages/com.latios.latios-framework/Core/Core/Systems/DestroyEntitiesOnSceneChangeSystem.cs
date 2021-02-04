@@ -14,7 +14,7 @@ namespace Latios.Systems
         protected override void OnCreate()
         {
             m_destroyQuery =
-                Fluent.WithAll<LatiosSceneChangeDummyTag>().Without<WorldGlobalTag>().Without<DontDestroyOnSceneChangeTag>().IncludePrefabs().IncludeDisabled().Build();
+                Fluent.WithAll<LatiosSceneChangeDummyTag>().Without<WorldBlackboardTag>().Without<DontDestroyOnSceneChangeTag>().IncludePrefabs().IncludeDisabled().Build();
             SceneManager.activeSceneChanged += RealUpdateOnSceneChange;
         }
 
@@ -33,7 +33,7 @@ namespace Latios.Systems
             EntityManager.AddComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
             EntityManager.DestroyEntity(m_destroyQuery);
             EntityManager.RemoveComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
-            latiosWorld.CreateNewSceneGlobalEntity();
+            latiosWorld.CreateNewSceneBlackboardEntity();
         }
     }
 }

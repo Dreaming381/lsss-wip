@@ -2,7 +2,7 @@
 using System.Linq;
 using Debug = UnityEngine.Debug;
 using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -37,7 +37,7 @@ namespace Lsss
             }).WithoutBurst().Run();
             var factionEntities = m_factions.ToEntityArray(Allocator.TempJob);
 
-            var wallLayer            = sceneGlobalEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var wallLayer            = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             var radarsCdfe           = GetComponentDataFromEntity<AiShipRadar>(true);
             var radarScanResultsCdfe = GetComponentDataFromEntity<AiShipRadarScanResults>(false);
             var ltwCdfe              = GetComponentDataFromEntity<LocalToWorld>(true);

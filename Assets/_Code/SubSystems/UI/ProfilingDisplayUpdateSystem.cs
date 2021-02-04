@@ -18,7 +18,7 @@ namespace Lsss.Tools
 
         protected override void OnUpdate()
         {
-            var profilingData = worldGlobalEntity.GetCollectionComponent<ProfilingData>(false);
+            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
             Entities.ForEach((Entity entity, ProfilerPanel panel) =>
             {
                 if (panel.panel == null)

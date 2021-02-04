@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -18,7 +18,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            float arenaRadius = sceneGlobalEntity.GetComponentData<ArenaRadius>().radius;
+            float arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
 
             Entities.WithStoreEntityQueryInField(ref m_populatorQuery).ForEach((ref OrbitalSpawnPointProcGen populator) =>
             {

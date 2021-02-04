@@ -13,7 +13,7 @@ namespace Lsss
         protected override void OnUpdate()
         {
             var dt          = Time.DeltaTime;
-            var arenaRadius = sceneGlobalEntity.GetComponentData<ArenaRadius>().radius;
+            var arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
 
             Entities.WithAll<ShipTag>().ForEach((ref Translation translation,
                                                  ref Rotation rotation,

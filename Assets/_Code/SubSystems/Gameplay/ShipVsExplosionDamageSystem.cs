@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,12 +13,12 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var explosionLayer = sceneGlobalEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            var explosionLayer = sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
 
             var processor = new DamageHitShipsProcessor
             {
                 explosionDamageCdfe = GetComponentDataFromEntity<Damage>(true),
-                shipHealthCdfe      = this.GetPhysicsComponentDataFromEntity<ShipHealth>(),
+                shipHealthCdfe      = GetComponentDataFromEntity<ShipHealth>(),
             };
 
             var backup = Dependency;

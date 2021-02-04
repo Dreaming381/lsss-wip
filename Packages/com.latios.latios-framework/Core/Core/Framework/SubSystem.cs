@@ -11,8 +11,8 @@ namespace Latios
     {
         public LatiosWorld latiosWorld { get; private set; }
 
-        public ManagedEntity sceneGlobalEntity => latiosWorld.sceneGlobalEntity;
-        public ManagedEntity worldGlobalEntity => latiosWorld.worldGlobalEntity;
+        public BlackboardEntity sceneBlackboardEntity => latiosWorld.sceneBlackboardEntity;
+        public BlackboardEntity worldBlackboardEntity => latiosWorld.worldBlackboardEntity;
 
         public FluentQuery Fluent => this.Fluent();
 

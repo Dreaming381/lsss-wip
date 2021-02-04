@@ -71,7 +71,7 @@ namespace Lsss
                     if (keyboard.nKey.isPressed && keyboard.digit0Key.isPressed)
                     {
                         var ecb                                                             = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
-                        ecb.AddComponent(sceneGlobalEntity, new RequestLoadScene { newScene = "Title and Menu" });
+                        ecb.AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Title and Menu" });
                     }
                 }
             }).WithoutBurst().Run();

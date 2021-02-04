@@ -2,7 +2,8 @@
     "name": "Lsss",
     "references": [
         "Latios.Core",
-        "Latios.Physics",
+        "Latios.Psyshock",
+        "Latios.Myri",
         "Unity.Burst",
         "Unity.Collections",
         "Unity.Entities",
@@ -18,8 +19,7 @@
         "Unity.Transforms",
         "Unity.Transforms.Hybrid",
         "Unity.Mathematics.Extensions",
-        "Unity.usfxr",
-        "Latios.Audio"
+        "Unity.usfxr"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

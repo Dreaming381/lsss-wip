@@ -9,7 +9,7 @@ namespace Latios.Systems
     {
         private SyncPointPlaybackSystem              m_syncPlayback;
         private SceneManagerSystem                   m_sceneManager;
-        private MergeGlobalsSystem                   m_mergeGlobals;
+        private MergeBlackboardsSystem                   m_mergeGlobals;
         private DestroyEntitiesOnSceneChangeSystem   m_destroySystem;
         private ManagedComponentsReactiveSystemGroup m_cleanupGroup;
         private LatiosSyncPointGroup                 m_syncGroup;
@@ -26,7 +26,7 @@ namespace Latios.Systems
             base.OnCreate();
             m_syncPlayback  = World.CreateSystem<SyncPointPlaybackSystem>();
             m_sceneManager  = World.CreateSystem<SceneManagerSystem>();
-            m_mergeGlobals  = World.CreateSystem<MergeGlobalsSystem>();
+            m_mergeGlobals  = World.CreateSystem<MergeBlackboardsSystem>();
             m_destroySystem = World.CreateSystem<DestroyEntitiesOnSceneChangeSystem>();
             m_cleanupGroup  = World.CreateSystem<ManagedComponentsReactiveSystemGroup>();
             m_syncGroup     = World.GetOrCreateSystem<LatiosSyncPointGroup>();

@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -31,9 +31,9 @@ namespace Lsss
             Dependency         = Physics.BuildCollisionLayer(bodies).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             Dependency         = bodies.Dispose(Dependency);
             var explosionLayer = new ExplosionCollisionLayer { layer = layer };
-            if (sceneGlobalEntity.HasCollectionComponent<ExplosionCollisionLayer>())
+            if (sceneBlackboardEntity.HasCollectionComponent<ExplosionCollisionLayer>())
             {
-                sceneGlobalEntity.SetCollectionComponentAndDisposeOld(explosionLayer);
+                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(explosionLayer);
             }
             else
             {
@@ -41,7 +41,7 @@ namespace Lsss
                 //At least this only happens on the first frame of the scene.
                 CompleteDependency();
 
-                sceneGlobalEntity.AddCollectionComponent(explosionLayer);
+                sceneBlackboardEntity.AddCollectionComponent(explosionLayer);
             }
         }
     }

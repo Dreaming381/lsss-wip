@@ -13,7 +13,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var spawnQueues = sceneGlobalEntity.GetCollectionComponent<SpawnQueues>(false);
+            var spawnQueues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>(false);
 
             Job.WithCode(() =>
             {

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -31,7 +31,7 @@ namespace Lsss
 
             var processor = new DamageCollidingShipsProcessor
             {
-                shipHealthCdfe = this.GetPhysicsComponentDataFromEntity<ShipHealth>(),
+                shipHealthCdfe = GetComponentDataFromEntity<ShipHealth>(),
                 shipDamageCdfe = GetComponentDataFromEntity<Damage>()
             };
 

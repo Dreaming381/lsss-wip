@@ -11,8 +11,8 @@ namespace Latios
 {
     public class LatiosWorld : World
     {
-        public ManagedEntity worldGlobalEntity { get; private set; }
-        public ManagedEntity sceneGlobalEntity { get; private set; }
+        public BlackboardEntity worldBlackboardEntity { get; private set; }
+        public BlackboardEntity sceneBlackboardEntity { get; private set; }
 
         public SyncPointPlaybackSystem SyncPoint
         {
@@ -50,14 +50,14 @@ namespace Latios
             //BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentTag<>),            typeof(ICollectionComponent));
             BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentSystemStateTag<>), typeof(ICollectionComponent));
 
-            worldGlobalEntity = new ManagedEntity(EntityManager.CreateEntity(), EntityManager);
-            sceneGlobalEntity = new ManagedEntity(EntityManager.CreateEntity(), EntityManager);
-            worldGlobalEntity.AddComponentData(new WorldGlobalTag());
-            sceneGlobalEntity.AddComponentData(new SceneGlobalTag());
+            worldBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
+            sceneBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
+            worldBlackboardEntity.AddComponentData(new WorldBlackboardTag());
+            sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());
 
 #if UNITY_EDITOR
-            EntityManager.SetName(worldGlobalEntity, "World Global Entity");
-            EntityManager.SetName(sceneGlobalEntity, "Scene Global Entity");
+            EntityManager.SetName(worldBlackboardEntity, "World Global Entity");
+            EntityManager.SetName(sceneBlackboardEntity, "Scene Global Entity");
 #endif
 
             m_initializationSystemGroup = GetOrCreateSystem<LatiosInitializationSystemGroup>();
@@ -81,14 +81,14 @@ namespace Latios
             }
         }
 
-        internal void CreateNewSceneGlobalEntity()
+        internal void CreateNewSceneBlackboardEntity()
         {
-            if (!EntityManager.Exists(sceneGlobalEntity) || !sceneGlobalEntity.HasComponentData<SceneGlobalTag>())
+            if (!EntityManager.Exists(sceneBlackboardEntity) || !sceneBlackboardEntity.HasComponentData<SceneBlackboardTag>())
             {
-                sceneGlobalEntity = new ManagedEntity(EntityManager.CreateEntity(), EntityManager);
-                sceneGlobalEntity.AddComponentData(new SceneGlobalTag());
+                sceneBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
+                sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());
 #if UNITY_EDITOR
-                EntityManager.SetName(sceneGlobalEntity, "Scene Global Entity");
+                EntityManager.SetName(sceneBlackboardEntity, "Scene Global Entity");
 #endif
             }
         }

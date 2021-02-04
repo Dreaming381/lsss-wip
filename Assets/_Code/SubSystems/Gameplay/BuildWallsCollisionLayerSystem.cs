@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -24,7 +24,7 @@ namespace Lsss
             //Todo: Use different dirtying mechanism instead of change filter.
             //Change filter forces a sync point on transform system which is surprisingly expensive.
             return true;
-            //if (!sceneGlobalEntity.HasCollectionComponent<WallCollisionLayer>())
+            //if (!sceneBlackboardEntity.HasCollectionComponent<WallCollisionLayer>())
             //    return true;
             //return m_query.CalculateChunkCount() > 0;
         }
@@ -34,12 +34,12 @@ namespace Lsss
             m_query.ResetFilter();
             Dependency = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var wcl    = new WallCollisionLayer { layer = layer };
-            if (sceneGlobalEntity.HasCollectionComponent<WallCollisionLayer>())
-                sceneGlobalEntity.SetCollectionComponentAndDisposeOld(wcl);
+            if (sceneBlackboardEntity.HasCollectionComponent<WallCollisionLayer>())
+                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
             else
             {
                 CompleteDependency();
-                sceneGlobalEntity.AddCollectionComponent(wcl);
+                sceneBlackboardEntity.AddCollectionComponent(wcl);
             }
             m_query.AddChangedVersionFilter(typeof(LocalToWorld));
         }

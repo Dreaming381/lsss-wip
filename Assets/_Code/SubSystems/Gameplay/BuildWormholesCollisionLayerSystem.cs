@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -24,7 +24,7 @@ namespace Lsss
             //Todo: Use different dirtying mechanism instead of change filter.
             //Change filter forces a sync point on transform system which is surprisingly expensive.
             return true;
-            //if (!sceneGlobalEntity.HasCollectionComponent<WormholeCollisionLayer>())
+            //if (!sceneBlackboardEntity.HasCollectionComponent<WormholeCollisionLayer>())
             //    return true;
             //return m_query.CalculateChunkCount() > 0;
         }
@@ -34,12 +34,12 @@ namespace Lsss
             m_query.ResetFilter();
             Dependency = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var wcl    = new WormholeCollisionLayer { layer = layer };
-            if (sceneGlobalEntity.HasCollectionComponent<WormholeCollisionLayer>())
-                sceneGlobalEntity.SetCollectionComponentAndDisposeOld(wcl);
+            if (sceneBlackboardEntity.HasCollectionComponent<WormholeCollisionLayer>())
+                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
             else
             {
                 CompleteDependency();
-                sceneGlobalEntity.AddCollectionComponent(wcl);
+                sceneBlackboardEntity.AddCollectionComponent(wcl);
             }
             m_query.AddChangedVersionFilter(typeof(LocalToWorld));
         }
@@ -49,7 +49,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var layer = sceneGlobalEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            var layer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             CompleteDependency();
             PhysicsDebug.DrawLayer(layer).Run();
             UnityEngine.Debug.Log("Wormholes in layer: " + layer.Count);

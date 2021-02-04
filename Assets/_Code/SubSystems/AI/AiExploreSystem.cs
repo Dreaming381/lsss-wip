@@ -17,17 +17,17 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneGlobalEntity.HasComponentData<Rng>())
-                sceneGlobalEntity.AddComponentData(new Rng { random = new Random(06117105) });
+            if (!sceneBlackboardEntity.HasComponentData<Rng>())
+                sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(06117105) });
 
-            float  arenaRadius = sceneGlobalEntity.GetComponentData<ArenaRadius>().radius;
-            Entity sge         = sceneGlobalEntity;
+            float  arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+            Entity sbe         = sceneBlackboardEntity;
 
             Entities.WithAll<AiTag>().ForEach((ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality, in Translation translation) =>
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)
                 {
-                    var   random         = GetComponent<Rng>(sge).random;
+                    var   random         = GetComponent<Rng>(sbe).random;
                     float maxValidRadius = math.min(personality.wanderPositionSearchRadius, arenaRadius - math.length(translation.Value));
                     if (maxValidRadius < personality.wanderDestinationRadius)
                     {
@@ -40,7 +40,7 @@ namespace Lsss
                         state.wanderPosition = random.NextFloat3Direction() * radius + translation.Value;
                     }
 
-                    SetComponent(sge, new Rng { random = random });
+                    SetComponent(sbe, new Rng { random = random });
                 }
                 output.wanderPosition      = state.wanderPosition;
                 output.wanderPositionValid = true;

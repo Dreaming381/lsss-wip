@@ -43,9 +43,9 @@ namespace Lsss
             bool needPlayer = m_oldPlayerShipQuery.IsEmptyIgnoreFilter;
 
             SpawnQueues spawnQueues = default;
-            if (sceneGlobalEntity.HasCollectionComponent<SpawnQueues>())
+            if (sceneBlackboardEntity.HasCollectionComponent<SpawnQueues>())
             {
-                spawnQueues = sceneGlobalEntity.GetCollectionComponent<SpawnQueues>();
+                spawnQueues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
             }
             else
             {
@@ -53,7 +53,7 @@ namespace Lsss
                 spawnQueues.aiQueue                   = new NativeQueue<Entity>(Allocator.Persistent);
                 spawnQueues.newAiEntitiesToPrioritize = new NativeList<Entity>(Allocator.Persistent);
                 spawnQueues.factionRanges             = new NativeList<SpawnQueues.FactionRanges>(Allocator.Persistent);
-                sceneGlobalEntity.AddCollectionComponent(spawnQueues);
+                sceneBlackboardEntity.AddCollectionComponent(spawnQueues);
             }
 
             Entities.WithStructuralChanges().WithAll<FactionTag>().ForEach((Entity entity, ref Faction faction) =>

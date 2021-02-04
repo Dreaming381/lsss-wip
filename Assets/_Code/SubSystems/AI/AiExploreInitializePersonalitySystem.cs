@@ -19,25 +19,25 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneGlobalEntity.HasComponentData<Rng>())
-                sceneGlobalEntity.AddComponentData(new Rng { random = new Random(34910143) });
+            if (!sceneBlackboardEntity.HasComponentData<Rng>())
+                sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(34910143) });
 
-            Entity sge = sceneGlobalEntity;
+            Entity sbe = sceneBlackboardEntity;
 
             var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
 
-            float arenaRadius = sceneGlobalEntity.GetComponentData<ArenaRadius>().radius;
+            float arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiExplorePersonality personality,
                                                                                         ref AiExploreState state,
                                                                                         in AiExplorePersonalityInitializerValues initalizer,
                                                                                         in Translation trans,
                                                                                         in Rotation rot) =>
             {
-                var random                             = GetComponent<Rng>(sge).random;
+                var random                             = GetComponent<Rng>(sbe).random;
                 personality.spawnForwardDistance       = random.NextFloat(initalizer.spawnForwardDistanceMinMax.x, initalizer.spawnForwardDistanceMinMax.y);
                 personality.wanderDestinationRadius    = random.NextFloat(initalizer.wanderDestinationRadiusMinMax.x, initalizer.wanderDestinationRadiusMinMax.y);
                 personality.wanderPositionSearchRadius = random.NextFloat(initalizer.wanderPositionSearchRadiusMinMax.x, initalizer.wanderPositionSearchRadiusMinMax.y);
-                SetComponent(sge, new Rng { random     = random });
+                SetComponent(sbe, new Rng { random     = random });
 
                 var targetPosition   = math.forward(rot.Value) * (personality.spawnForwardDistance + personality.wanderDestinationRadius) + trans.Value;
                 var radius           = math.length(targetPosition);

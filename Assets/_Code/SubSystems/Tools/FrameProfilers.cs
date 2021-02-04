@@ -75,7 +75,7 @@ namespace Lsss.Tools
                 image          = new NativeArray<Color32>(256 * 256, Allocator.Persistent),
                 barValues      = new NativeArray<float>(kBarsPerGraph * 2, Allocator.Persistent)
             };
-            worldGlobalEntity.AddCollectionComponent(profilingData);
+            worldBlackboardEntity.AddCollectionComponent(profilingData);
         }
 
         bool m_firstFrame = true;
@@ -90,7 +90,7 @@ namespace Lsss.Tools
             }
             m_sampleCounter++;
 
-            var profilingData = worldGlobalEntity.GetCollectionComponent<ProfilingData>(false);
+            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
             CompleteDependency();
             if (m_firstFrame)
             {
@@ -171,7 +171,7 @@ namespace Lsss.Tools
                 barValues  = profilingData.barValues,
             }.Schedule(jh);
 
-            worldGlobalEntity.UpdateJobDependency<ProfilingData>(jh, false);
+            worldBlackboardEntity.UpdateJobDependency<ProfilingData>(jh, false);
         }
 
         [BurstCompile]
@@ -436,7 +436,7 @@ namespace Lsss.Tools
     {
         protected override void OnUpdate()
         {
-            var profilingData = worldGlobalEntity.GetCollectionComponent<ProfilingData>(false);
+            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
             CompleteDependency();
 
             profilingData.gpuStopwatch.Reset();
@@ -465,7 +465,7 @@ namespace Lsss.Tools
 
         protected override void OnUpdate()
         {
-            var profilingData = worldGlobalEntity.GetCollectionComponent<ProfilingData>(false);
+            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
             CompleteDependency();
 
             profilingData.gpuStopwatch.Stop();

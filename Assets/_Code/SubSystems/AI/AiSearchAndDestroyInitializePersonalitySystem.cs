@@ -19,19 +19,19 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneGlobalEntity.HasComponentData<Rng>())
-                sceneGlobalEntity.AddComponentData(new Rng { random = new Random(5417) });
+            if (!sceneBlackboardEntity.HasComponentData<Rng>())
+                sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(5417) });
 
-            Entity sge = sceneGlobalEntity;
+            Entity sbe = sceneBlackboardEntity;
 
             var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
 
             Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiSearchAndDestroyPersonality personality,
                                                                                         in AiSearchAndDestroyPersonalityInitializerValues initalizer) =>
             {
-                var random                         = GetComponent<Rng>(sge).random;
+                var random                         = GetComponent<Rng>(sbe).random;
                 personality.targetLeadDistance     = random.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
-                SetComponent(sge, new Rng { random = random });
+                SetComponent(sbe, new Rng { random = random });
             }).Schedule();
 
             ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);

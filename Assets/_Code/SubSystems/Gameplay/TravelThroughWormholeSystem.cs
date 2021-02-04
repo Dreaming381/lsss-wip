@@ -1,5 +1,5 @@
 ﻿using Latios;
-using Latios.PhysicsEngine;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,17 +13,17 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var wormholeLayer = sceneGlobalEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
-            var bulletLayer   = sceneGlobalEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var wormholeLayer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            var bulletLayer   = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var processor = new TeleportWormholeTravelersProcessor
             {
-                posCDFE     = this.GetPhysicsComponentDataFromEntity<Translation>(),
-                rotCDFE     = this.GetPhysicsComponentDataFromEntity<Rotation>(),
+                posCDFE     = GetComponentDataFromEntity<Translation>(),
+                rotCDFE     = GetComponentDataFromEntity<Rotation>(),
                 destCDFE    = GetComponentDataFromEntity<WormholeDestination>(true),
                 ltwCDFE     = GetComponentDataFromEntity<LocalToWorld>(true),
                 colCDFE     = GetComponentDataFromEntity<Collider>(true),
-                prevPosCDFE = this.GetPhysicsComponentDataFromEntity<BulletPreviousPosition>()
+                prevPosCDFE = GetComponentDataFromEntity<BulletPreviousPosition>()
             };
 
             var backup = Dependency;
