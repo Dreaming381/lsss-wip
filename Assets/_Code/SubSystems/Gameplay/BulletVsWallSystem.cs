@@ -13,7 +13,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
             var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             var wallLayer   = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;

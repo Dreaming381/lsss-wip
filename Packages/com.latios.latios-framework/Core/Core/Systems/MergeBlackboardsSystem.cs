@@ -5,7 +5,9 @@ using Unity.Jobs;
 
 namespace Latios.Systems
 {
-    [AlwaysSynchronizeSystem]
+    [DisableAutoCreation]
+    [UpdateInGroup(typeof(LatiosWorldSyncGroup), OrderFirst = true)]
+    [UpdateBefore(typeof(ManagedComponentsReactiveSystemGroup))]
     public class MergeBlackboardsSystem : SubSystem
     {
         private EntityDataCopyKit m_copyKit;

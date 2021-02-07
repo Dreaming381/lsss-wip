@@ -14,7 +14,7 @@ namespace Latios
         public BlackboardEntity worldBlackboardEntity { get; private set; }
         public BlackboardEntity sceneBlackboardEntity { get; private set; }
 
-        public SyncPointPlaybackSystem SyncPoint
+        public SyncPointPlaybackSystem syncPoint
         {
             get
             {
@@ -23,6 +23,11 @@ namespace Latios
             }
             set => m_syncPointPlaybackSystem = value;
         }
+        public LatiosInitializationSystemGroup initializationSystemGroup => m_initializationSystemGroup;
+        public LatiosSimulationSystemGroup simulationSystemGroup => m_simulationSystemGroup;
+        public LatiosPresentationSystemGroup presentationSystemGroup => m_presentationSystemGroup;
+
+        public bool useExplicitSystemOrdering = false;
 
         internal ManagedStructComponentStorage ManagedStructStorage { get { return m_componentStorage; } }
         internal CollectionComponentStorage CollectionComponentStorage { get { return m_collectionsStorage; } }
@@ -35,10 +40,10 @@ namespace Latios
         private ManagedStructComponentStorage m_componentStorage   = new ManagedStructComponentStorage();
         private CollectionComponentStorage    m_collectionsStorage = new CollectionComponentStorage();
 
-        private InitializationSystemGroup m_initializationSystemGroup;
-        private SimulationSystemGroup     m_simulationSystemGroup;
-        private PresentationSystemGroup   m_presentationSystemGroup;
-        private SyncPointPlaybackSystem   m_syncPointPlaybackSystem;
+        private LatiosInitializationSystemGroup m_initializationSystemGroup;
+        private LatiosSimulationSystemGroup     m_simulationSystemGroup;
+        private LatiosPresentationSystemGroup   m_presentationSystemGroup;
+        private SyncPointPlaybackSystem         m_syncPointPlaybackSystem;
 
         private bool m_paused          = false;
         private bool m_resumeNextFrame = false;
@@ -56,14 +61,16 @@ namespace Latios
             sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());
 
 #if UNITY_EDITOR
-            EntityManager.SetName(worldBlackboardEntity, "World Global Entity");
-            EntityManager.SetName(sceneBlackboardEntity, "Scene Global Entity");
+            EntityManager.SetName(worldBlackboardEntity, "World Blackboard Entity");
+            EntityManager.SetName(sceneBlackboardEntity, "Scene Blackboard Entity");
 #endif
 
+            useExplicitSystemOrdering   = true;
             m_initializationSystemGroup = GetOrCreateSystem<LatiosInitializationSystemGroup>();
             m_simulationSystemGroup     = GetOrCreateSystem<LatiosSimulationSystemGroup>();
             m_presentationSystemGroup   = GetOrCreateSystem<LatiosPresentationSystemGroup>();
             m_syncPointPlaybackSystem   = GetExistingSystem<SyncPointPlaybackSystem>();
+            useExplicitSystemOrdering   = false;
         }
 
         //Todo: Make this API public in the future.
@@ -88,7 +95,7 @@ namespace Latios
                 sceneBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
                 sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());
 #if UNITY_EDITOR
-                EntityManager.SetName(sceneBlackboardEntity, "Scene Global Entity");
+                EntityManager.SetName(sceneBlackboardEntity, "Scene Blackboard Entity");
 #endif
             }
         }

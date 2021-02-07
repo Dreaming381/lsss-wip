@@ -24,7 +24,7 @@ namespace Lsss
 
             Entity sbe = sceneBlackboardEntity;
 
-            var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+            var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
 
             float arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiExplorePersonality personality,

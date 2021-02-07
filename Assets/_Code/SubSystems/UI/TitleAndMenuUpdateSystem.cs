@@ -53,7 +53,7 @@ namespace Lsss
                     {
                         titleAndMenu.titlePanel.SetActive(false);
                         titleAndMenu.menuPanel.SetActive(true);
-                        var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+                        var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
                         ecb.Instantiate(resources.blipSoundEffect);
                     }
                 }
@@ -78,7 +78,7 @@ namespace Lsss
                             {
                                 titleAndMenu.menuPanel.SetActive(false);
                                 titleAndMenu.titlePanel.SetActive(true);
-                                var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+                                var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
                                 ecb.Instantiate(resources.blipSoundEffect);
                             }
                         }
@@ -89,7 +89,7 @@ namespace Lsss
 
                 if (titleAndMenu.selectedScene.Length > 0)
                 {
-                    var ecb                                                             = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+                    var ecb                                                             = latiosWorld.syncPoint.CreateEntityCommandBuffer();
                     ecb.AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = titleAndMenu.selectedScene });
                 }
             }).WithoutBurst().Run();

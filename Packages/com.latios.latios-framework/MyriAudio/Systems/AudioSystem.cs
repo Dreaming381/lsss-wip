@@ -10,6 +10,7 @@ using Unity.Transforms;
 
 namespace Latios.Myri.Systems
 {
+    [UpdateInGroup(typeof(Latios.Systems.PreSyncPointGroup))]
     public class AudioSystem : SubSystem
     {
         private DSPGraph             m_graph;
@@ -130,8 +131,8 @@ namespace Latios.Myri.Systems
             };
 
             //Containers
-            var destroyCommandBuffer     = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
-            var entityCommandBuffer      = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+            var destroyCommandBuffer     = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var entityCommandBuffer      = latiosWorld.syncPoint.CreateEntityCommandBuffer();
             var dspCommandBlock          = m_graph.CreateCommandBlock();
             var listenersWithTransforms  = new NativeList<ListenerWithTransform>(aliveListenerEntities.Length, Allocator.TempJob);
             var listenerBufferParameters = new NativeArray<ListenerBufferParameters>(aliveListenerEntities.Length,

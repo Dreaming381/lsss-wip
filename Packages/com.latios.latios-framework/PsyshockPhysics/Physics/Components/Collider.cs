@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Entities.LowLevel.Unsafe;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -53,7 +54,8 @@ namespace Latios.Psyshock
 
         //Todo: Make this a BlobAssetReference for all generic collider blobs.
         [FieldOffset(48)]
-        BlobAssetReference<CompoundColliderBlob> m_blobRef;
+        UnsafeUntypedBlobAssetReference m_blobRef;
+        //BlobAssetReference<CompoundColliderBlob> m_blobRef;
 
         [FieldOffset(56)]
         float m_reservedFloat;

@@ -34,7 +34,7 @@ namespace Lsss
             var    spawnQueues  = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
             int    initialIndex = sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
             Entity nscEntity    = sceneBlackboardEntity;
-            var    icb          = latiosWorld.SyncPoint.CreateInstantiateCommandBuffer<Parent>();
+            var    icb          = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>();
             icb.AddComponentTag<LocalToParent>();
 
             Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref Rotation rotation,

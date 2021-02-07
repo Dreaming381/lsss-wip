@@ -12,8 +12,8 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var   icb = latiosWorld.SyncPoint.CreateInstantiateCommandBuffer<Translation>().AsParallelWriter();
-            var   dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var   icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Translation>().AsParallelWriter();
+            var   dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             float dt  = Time.DeltaTime;
 
             Entities.WithChangeFilter<ShipHealth>().ForEach((Entity entity,

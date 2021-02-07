@@ -35,7 +35,7 @@ namespace Latios.Psyshock.Authoring.Systems
             public ulong transformHash;
         }
 
-        private List<UnityCollider>           m_unityColliders = new List<UnityCollider>();
+        private List<UnityCollider>     m_unityColliders = new List<UnityCollider>();
         private List<ColliderAuthoring> m_authorings     = new List<ColliderAuthoring>();
 
         private NativeList<Collider>       m_nativeColliders;

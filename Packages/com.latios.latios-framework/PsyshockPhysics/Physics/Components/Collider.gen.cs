@@ -13,6 +13,7 @@ using System;
 using System.Diagnostics;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Entities.LowLevel.Unsafe;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -67,14 +68,14 @@ namespace Latios.Psyshock
             Collider collider      = default;
             collider.m_type        = ColliderType.Compound;
             collider.m_storage.a.x = compoundCollider.scale;
-            collider.m_blobRef     = compoundCollider.compoundColliderBlob;
+            collider.m_blobRef     = UnsafeUntypedBlobAssetReference.Create(compoundCollider.compoundColliderBlob);
             return collider;
         }
 
         public unsafe static implicit operator CompoundCollider(Collider collider)
         {
             CheckColliderIsCastTargetType(collider, ColliderType.Compound);
-            return new CompoundCollider(collider.m_blobRef, collider.m_storage.a.x);
+            return new CompoundCollider(collider.m_blobRef.Reinterpret<CompoundColliderBlob>(), collider.m_storage.a.x);
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

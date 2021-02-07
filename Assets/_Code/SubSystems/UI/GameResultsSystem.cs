@@ -18,11 +18,11 @@ namespace Lsss
                 UnityEngine.Cursor.visible   = true;
                 if (result.mainMenu)
                 {
-                    latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Title and Menu" });
+                    latiosWorld.syncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Title and Menu" });
                 }
                 else if (result.retry)
                 {
-                    latiosWorld.SyncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene {
+                    latiosWorld.syncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene {
                         newScene = worldBlackboardEntity.GetComponentData<CurrentScene>().previous
                     });
                 }

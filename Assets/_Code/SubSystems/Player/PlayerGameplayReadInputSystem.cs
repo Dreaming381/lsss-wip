@@ -70,7 +70,7 @@ namespace Lsss
                     var keyboard = Keyboard.current;
                     if (keyboard.nKey.isPressed && keyboard.digit0Key.isPressed)
                     {
-                        var ecb                                                             = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+                        var ecb                                                             = latiosWorld.syncPoint.CreateEntityCommandBuffer();
                         ecb.AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Title and Menu" });
                     }
                 }

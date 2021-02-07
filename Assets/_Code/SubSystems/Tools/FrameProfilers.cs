@@ -444,6 +444,7 @@ namespace Lsss.Tools
         }
     }
 
+    //Only exists in builds
     public class EndGpuWaitProfilingSystem : SubSystem
     {
 #if !UNITY_EDITOR

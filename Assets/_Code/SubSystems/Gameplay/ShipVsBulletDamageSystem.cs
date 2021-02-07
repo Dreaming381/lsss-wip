@@ -15,7 +15,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var dcb = latiosWorld.SyncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
             int frameId = m_frameId;
 

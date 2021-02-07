@@ -39,9 +39,6 @@ namespace Latios
 
         public FluentQuery Fluent => this.Fluent();
 
-        private List<ComponentSystemBase> m_systems     = new List<ComponentSystemBase>();
-        private bool                      m_initialized = false;
-
         public virtual bool ShouldUpdateSystem()
         {
             return Enabled;
@@ -60,15 +57,8 @@ namespace Latios
                 throw new InvalidOperationException("The current world is not of type LatiosWorld required for Latios framework functionality.");
             }
             CreateSystems();
-            foreach (var s in Systems)
-            {
-                m_systems.Add(s);
-            }
-            SortSystems();
-            var unitySystems = Systems as List<ComponentSystemBase>;
-            unitySystems.Clear();
-            unitySystems.AddRange(m_systems);
-            m_initialized = true;
+
+            EnableSystemSorting &= !latiosWorld.useExplicitSystemOrdering;
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -111,17 +101,6 @@ namespace Latios
             }
         }
 
-        public override IReadOnlyList<ComponentSystemBase> Systems
-        {
-            get
-            {
-                if (m_initialized)
-                    return m_systems;
-                else
-                    return base.Systems;
-            }
-        }
-
         public EntityQuery GetEntityQuery(EntityQueryDesc desc) => GetEntityQuery(new EntityQueryDesc[] { desc });
 
         #region API
@@ -142,9 +121,11 @@ namespace Latios
             return system;
         }
 
-        public void SortSystemsUsingAttributes()
+        public void SortSystemsUsingAttributes(bool enableSortingAlways = true)
         {
+            EnableSystemSorting = true;
             SortSystems();
+            EnableSystemSorting = enableSortingAlways;
         }
 
         #endregion API

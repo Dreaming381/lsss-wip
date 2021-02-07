@@ -7,10 +7,10 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace Latios.Myri.Authoring
+namespace Latios.Myri.Authoring.Systems
 {
     [ConverterVersion("Latios", 1)]
-    public class AudioConversionSystem : GameObjectConversionSystem
+    public class ClipsAndListenersConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {

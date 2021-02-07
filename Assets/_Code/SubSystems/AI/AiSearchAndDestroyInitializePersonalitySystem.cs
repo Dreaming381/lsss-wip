@@ -24,7 +24,7 @@ namespace Lsss
 
             Entity sbe = sceneBlackboardEntity;
 
-            var ecb = latiosWorld.SyncPoint.CreateEntityCommandBuffer();
+            var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
 
             Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiSearchAndDestroyPersonality personality,
                                                                                         in AiSearchAndDestroyPersonalityInitializerValues initalizer) =>

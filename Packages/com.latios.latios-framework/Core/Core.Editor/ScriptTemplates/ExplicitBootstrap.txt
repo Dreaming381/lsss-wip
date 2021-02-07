@@ -10,10 +10,11 @@ public class LatiosBootstrap : ICustomBootstrap
     {
         var world                             = new LatiosWorld(defaultWorldName);
         World.DefaultGameObjectInjectionWorld = world;
+        world.useExplicitSystemOrdering       = true;
 
-        var initializationSystemGroup = world.GetExistingSystem<InitializationSystemGroup>();
-        var simulationSystemGroup     = world.GetExistingSystem<SimulationSystemGroup>();
-        var presentationSystemGroup   = world.GetExistingSystem<PresentationSystemGroup>();
+        var initializationSystemGroup = world.initializationSystemGroup;
+        var simulationSystemGroup     = world.simulationSystemGroup;
+        var presentationSystemGroup   = world.presentationSystemGroup;
         var systems                   = new List<Type>(DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.Default));
 
         systems.RemoveSwapBack(typeof(InitializationSystemGroup));

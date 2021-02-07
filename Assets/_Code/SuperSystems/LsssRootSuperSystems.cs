@@ -5,13 +5,22 @@ using Unity.Transforms;
 
 namespace Lsss.SuperSystems
 {
-    [UpdateInGroup(typeof(Latios.Systems.LatiosSyncPointGroup))]
+    [UpdateInGroup(typeof(Latios.Systems.PreSyncPointGroup))]
+    public class LsssPreSyncRootSuperSystem : RootSuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            GetOrCreateAndAddSystem<BeginFrameProfilingSystem>();
+            GetOrCreateAndAddSystem<Latios.Myri.Systems.AudioSystem>();
+        }
+    }
+
+    [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup))]
     public class LsssInitializationRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
             GetOrCreateAndAddSystem<GameplaySyncPointSuperSystem>();
-            GetOrCreateAndAddSystem<AiInitializeSuperSystem>();
 
             GetOrCreateAndAddSystem<TransformSystemGroup>();
             GetOrCreateAndAddSystem<CompanionGameObjectUpdateTransformSystem>();  //Todo: Namespace
@@ -39,12 +48,6 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<AiUpdateSuperSystem>();
             GetOrCreateAndAddSystem<ProcessGameplayEventsSuperSystem>();
             GetOrCreateAndAddSystem<GraphicsTransformsSuperSystem>();
-
-            //Temporary
-            GetOrCreateAndAddSystem<Latios.Myri.Systems.AudioSystem>();
-
-            //In here rather than LsssPresentationRootSuperSystem so that I can see the health readout that triggered death.
-            //GetOrCreateAndAddSystem<UiGameplaySuperSystem>();
         }
     }
 

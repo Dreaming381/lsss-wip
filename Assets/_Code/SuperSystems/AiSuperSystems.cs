@@ -2,14 +2,6 @@
 
 namespace Lsss.SuperSystems
 {
-    public class AiInitializeSuperSystem : SuperSystem
-    {
-        protected override void CreateSystems()
-        {
-            //
-        }
-    }
-
     public class AiUpdateSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
