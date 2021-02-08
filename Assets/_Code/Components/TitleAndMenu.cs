@@ -11,6 +11,7 @@ namespace Lsss
         public GameObject                           titlePanel;
         public GameObject                           menuPanel;
         public GameObject                           settingsPanel;
+        public GameObject                           creditsPanel;
         public UnityEngine.EventSystems.EventSystem eventSystem;
 
         [Space(10)]
@@ -23,15 +24,25 @@ namespace Lsss
         public TMP_Dropdown          graphicsDropdown;
 
         [Space(10)]
-        public UnityEngine.UI.Button firstMissionButton;
+        public UnityEngine.UI.Button       creditsBackButton;
+        public List<GameObject>            missionPanels;
+        public List<UnityEngine.UI.Button> defaultSelectedMissionButtons;
 
-        [HideInInspector]
-        public string selectedScene;
+        [HideInInspector] public string     selectedScene;
+        [HideInInspector] public bool       openSettings;
+        [HideInInspector] public bool       closeSettings;
+        [HideInInspector] public bool       openCredits;
+        [HideInInspector] public bool       closeCredits;
+        [HideInInspector] public bool       musicSliderDirty;
+        [HideInInspector] public bool       sfxSliderDirty;
+        [HideInInspector] public bool       graphicsQualityDirty;
+        [HideInInspector] public bool       scrollLeft;
+        [HideInInspector] public bool       scrollRight;
+        [HideInInspector] public GameObject lastSelectedThing;
 
-        [HideInInspector]
-        public SerializedSettings settings;
-
-        const string settingsPath = "PlayerSavedSettings.json";
+        //Slider events aren't working. Poll instead.
+        [HideInInspector] public float musicSliderLastValue;
+        [HideInInspector] public float sfxSliderLastValue;
 
         public void SetScene(string nextScene)
         {
@@ -40,59 +51,47 @@ namespace Lsss
 
         public void OpenSettings()
         {
-            menuPanel.SetActive(false);
-            settingsPanel.SetActive(true);
+            openSettings = true;
         }
 
         public void CloseSettings()
         {
-            settingsPanel.SetActive(false);
-            menuPanel.SetActive(true);
+            closeSettings = true;
+        }
+
+        public void OpenCredits()
+        {
+            openCredits = true;
+        }
+
+        public void CloseCredits()
+        {
+            closeCredits = true;
         }
 
         public void SetMusicVolume()
         {
-            settings.musicVolume = musicSlider.value;
-            WriteJson();
+            musicSliderDirty = true;
         }
 
         public void SetSfxVolume()
         {
-            settings.sfxVolume = sfxSlider.value;
-            WriteJson();
+            sfxSliderDirty = true;
         }
 
-        public void SetQualityLevel()
+        public void SetGraphicsQuality()
         {
-            int level = graphicsDropdown.value;
-            QualitySettings.SetQualityLevel(level);
-            settings.graphicsQuality = level;
-            WriteJson();
+            graphicsQualityDirty = true;
         }
 
-        void WriteJson()
+        public void ScrollLeft()
         {
-            var json = JsonUtility.ToJson(settings);
-            System.IO.File.WriteAllText(settingsPath, json);
+            scrollLeft = true;
         }
 
-        private void Awake()
+        public void ScrollRight()
         {
-            settings = ScriptableObject.CreateInstance<SerializedSettings>();
-            if (System.IO.File.Exists(settingsPath))
-            {
-                var json = System.IO.File.ReadAllText(settingsPath);
-                JsonUtility.FromJsonOverwrite(json, settings);
-                musicSlider.value      = settings.musicVolume;
-                sfxSlider.value        = settings.sfxVolume;
-                graphicsDropdown.value = settings.graphicsQuality;
-                QualitySettings.SetQualityLevel(settings.graphicsQuality);
-            }
-            else
-            {
-                settings.graphicsQuality = QualitySettings.GetQualityLevel();
-                graphicsDropdown.value   = settings.graphicsQuality;
-            }
+            scrollRight = true;
         }
     }
 }

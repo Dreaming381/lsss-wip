@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
-    //[RequireComponent(typeof(LatiosAudioSourceAuthoring))]
+    [RequireComponent(typeof(AudioSourceAuthoring))]
     [AddComponentMenu("LSSS/Behaviors/Sound Effect")]
     public class SoundEffectAuthoring : MonoBehaviour, IDeclareReferencedPrefabs
     {
@@ -18,6 +18,19 @@ namespace Lsss.Authoring
         {
             var audioSource  = GetComponent<AudioSourceAuthoring>();
             audioSource.clip = SfxrPlayer.GetClip(effectSettings);
+            //DestroyImmediate(this, );
+        }
+    }
+
+    [UpdateInGroup(typeof(GameObjectDeclareReferencedObjectsGroup))]
+    public class RemoveUsfxrPlayers : GameObjectConversionSystem
+    {
+        protected override void OnUpdate()
+        {
+            Entities.ForEach((SfxrPlayer player) =>
+            {
+                //Object.DestroyImmediate(player);
+            });
         }
     }
 }

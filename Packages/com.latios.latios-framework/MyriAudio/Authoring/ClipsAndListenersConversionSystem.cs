@@ -161,6 +161,7 @@ namespace Latios.Myri.Authoring.Systems
                                 outerAngleAttenuation = authoring.outerAngleVolume
                             });
                         }
+                        index++;
                     });
                 }
                 hashes.Dispose();

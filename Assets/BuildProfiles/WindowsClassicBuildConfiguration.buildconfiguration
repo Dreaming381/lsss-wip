@@ -1,66 +1,13 @@
 {
-    "Dependencies": [],
+    "Dependencies": [
+        "GlobalObjectId_V1-1-3d319ed78bdc07c449ad74827de9a0a0-93214019566545601-0"
+    ],
     "Components": [
-        {
-            "$type": "Unity.Build.Common.GeneralSettings, Unity.Build",
-            "ProductName": "LsssBuild",
-            "CompanyName": "Dreaming381"
-        },
-        {
-            "$type": "Unity.Build.Common.SceneList, Unity.Build",
-            "$version": 1,
-            "BuildCurrentScene": false,
-            "SceneInfos": [
-                {
-                    "Scene": "GlobalObjectId_V1-1-520a34ac6759cac46812f37356001a98-102900000-0",
-                    "AutoLoad": true
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-e9e53440097fe8f40a5f6ca4f0fb1181-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-a17c495293dd0dd4c887e99431e125dd-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-82b5a62f206e49c4dbaa81965b46017e-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-7fdaee107c07fa946911c00c72fc435c-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-7f780167c70b2e84e9df3d2b2bc5ba14-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-b865e2edc4ba88947a8151d2e5426eba-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-73b8017ba0a0e0e49b17c08e6c0bd3b0-102900000-0",
-                    "AutoLoad": false
-                },
-                {
-                    "Scene": "GlobalObjectId_V1-1-b750279bd0ae5c045a694f19c2840336-102900000-0",
-                    "AutoLoad": false
-                }
-            ]
-        },
         {
             "$type": "Unity.Build.Classic.ClassicBuildProfile, Unity.Build.Classic",
             "$version": 1,
-            "Platform": "Windows",
-            "Configuration": 3,
-            "Incremental": false
-        },
-        {
-            "$type": "Unity.Build.Classic.ClassicScriptingSettings, Unity.Build.Classic",
-            "ScriptingBackend": 0,
-            "Il2CppCompilerConfiguration": 1,
-            "UseIncrementalGC": false
+            "Platform": "win",
+            "Configuration": 3
         },
         {
             "$type": "Unity.Build.Common.OutputBuildDirectory, Unity.Build",

@@ -7,7 +7,8 @@ namespace Lsss
 {
     public struct TitleAndMenuResources : IComponentData
     {
-        public Entity blipSoundEffect;
+        public Entity selectSoundEffect;
+        public Entity navigateSoundEffect;
     }
 }
 

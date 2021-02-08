@@ -58,6 +58,7 @@ namespace Lsss.SuperSystems
         {
             GetOrCreateAndAddSystem<UiMainMenuSuperSystem>();
             GetOrCreateAndAddSystem<UiResultsSuperSystem>();
+            GetOrCreateAndAddSystem<AudioSuperSystem>();
             GetOrCreateAndAddSystem<ShaderPropertySuperSystem>();
             GetOrCreateAndAddSystem<ProfilingDisplayUpdateSystem>();
             GetOrCreateAndAddSystem<UiGameplaySuperSystem>();

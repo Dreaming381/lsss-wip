@@ -6,12 +6,12 @@
         {
             "$type": "Unity.Build.Classic.ClassicBuildProfile, Unity.Build.Classic",
             "$version": 1,
-            "Platform": "macos",
+            "Platform": "linux",
             "Configuration": 3
         },
         {
             "$type": "Unity.Build.Common.OutputBuildDirectory, Unity.Build",
-            "OutputDirectory": "../LsssMacOS/"
+            "OutputDirectory": "../LsssLinux/"
         }
     ]
 }
