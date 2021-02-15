@@ -146,7 +146,7 @@ namespace Latios
             /// </summary>
             /// <param name="entity">The entity to be instantiated, including its LinkedEntityGroup at the time of playback if it has one</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, int sortKey = int.MaxValue)
+            public void Add(Entity entity, int sortKey)
             {
                 m_entityOperationCommandBuffer.Add(entity, sortKey);
             }
@@ -278,7 +278,7 @@ namespace Latios
             /// <param name="entity">The entity to be instantiated, including its LinkedEntityGroup at the time of playback if it has one</param>
             /// <param name="c0">The first component value to initialize for the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, sortKey);
             }
@@ -413,7 +413,7 @@ namespace Latios
             /// <param name="c0">The first component value to initialize for the instantiated entity</param>
             /// <param name="c1">The second component value to initialize for the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, sortKey);
             }
@@ -552,7 +552,7 @@ namespace Latios
             /// <param name="c1">The second component value to initialize for the instantiated entity</param>
             /// <param name="c2">The third component value to initialize for the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, sortKey);
             }
@@ -694,7 +694,7 @@ namespace Latios
             /// <param name="c2">The third component value to initialize for the instantiated entity</param>
             /// <param name="c3">The fourth component value to initialize for the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, sortKey);
             }
@@ -839,7 +839,7 @@ namespace Latios
             /// <param name="c3">The fourth component value to initialize for the instantiated entity</param>
             /// <param name="c4">The fifth component value to initialize for the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, c4, sortKey);
             }

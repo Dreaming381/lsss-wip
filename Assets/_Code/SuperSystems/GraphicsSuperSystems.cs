@@ -27,6 +27,7 @@ namespace Lsss.SuperSystems
             //GetOrCreateAndAddSystem<GravityWarpShaderUpdateSystem>();
             GetOrCreateAndAddSystem<LifetimeFadeSystem>();
             GetOrCreateAndAddSystem<SpeedShaderUpdateSystem>();
+            GetOrCreateAndAddSystem<SetCameraDrawDistanceSystem>();
         }
     }
 }

@@ -7,6 +7,16 @@ using Unity.Rendering;
 
 namespace Lsss
 {
+    public struct GraphicsQualityLevel : IComponentData
+    {
+        public int level;
+    }
+
+    public struct DrawDistances : IComponentData
+    {
+        public FixedListFloat32 distances;
+    }
+
     [MaterialProperty("_Fade", MaterialPropertyFormat.Float)]
     public struct FadeProperty : IComponentData
     {

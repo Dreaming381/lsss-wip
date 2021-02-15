@@ -13,30 +13,39 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var   icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation, BulletFirer>().AsParallelWriter();
-            float dt  = Time.DeltaTime;
+            var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation, BulletFirer>().AsParallelWriter();
+            var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>().AsParallelWriter();
+            float dt        = Time.DeltaTime;
 
             Entities.WithAll<ShipTag>().ForEach((Entity entity,
                                                  int entityInQueryIndex,
                                                  ref ShipReloadTime reloadTimes,
                                                  in ShipDesiredActions desiredActions,
                                                  in ShipBulletPrefab bulletPrefab,
+                                                 in ShipFireEffectPrefab effectPrefab,
                                                  in DynamicBuffer<ShipGunPoint> gunPoints) =>
             {
                 bool fire = reloadTimes.bulletsRemaining > 0 && reloadTimes.bulletReloadTime <= 0f && desiredActions.fire;
                 if (fire)
                 {
-                    for (int i = 0; i < gunPoints.Length; i++)
+                    if (bulletPrefab.bulletPrefab != Entity.Null)
                     {
-                        CapsuleCollider collider   = GetComponent<Collider>(bulletPrefab.bulletPrefab);
-                        float           halfLength = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
-                        var             ltw        = GetComponent<LocalToWorld>(gunPoints[i].gun);
-                        var             rot        = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
-                        icb.Add(bulletPrefab.bulletPrefab,
-                                new Rotation { Value     = rot },
-                                new Translation { Value  = ltw.Position + math.forward(rot) * halfLength },
-                                new BulletFirer { entity = entity, initialized = false },
-                                entityInQueryIndex);
+                        for (int i = 0; i < gunPoints.Length; i++)
+                        {
+                            CapsuleCollider collider   = GetComponent<Collider>(bulletPrefab.bulletPrefab);
+                            float           halfLength = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
+                            var             ltw        = GetComponent<LocalToWorld>(gunPoints[i].gun);
+                            var             rot        = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
+                            bulletIcb.Add(bulletPrefab.bulletPrefab,
+                                          new Rotation { Value     = rot },
+                                          new Translation { Value  = ltw.Position + math.forward(rot) * halfLength },
+                                          new BulletFirer { entity = entity, initialized = false },
+                                          entityInQueryIndex);
+                            if (effectPrefab.effectPrefab != Entity.Null)
+                            {
+                                effectIcb.Add(effectPrefab.effectPrefab, new Parent { Value = gunPoints[i].gun }, entityInQueryIndex);
+                            }
+                        }
                     }
 
                     reloadTimes.bulletsRemaining--;

@@ -16,6 +16,7 @@ namespace Lsss
         protected override void OnUpdate()
         {
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation>().AsParallelWriter();
 
             int frameId = m_frameId;
 
@@ -32,11 +33,13 @@ namespace Lsss
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
-                bulletDamageCdfe = GetComponentDataFromEntity<Damage>(true),
-                bulletFirerCdfe  = GetComponentDataFromEntity<BulletFirer>(),
-                shipHealthCdfe   = GetComponentDataFromEntity<ShipHealth>(),
-                dcb              = dcb,
-                frameId          = frameId
+                bulletDamageCdfe        = GetComponentDataFromEntity<Damage>(true),
+                bulletFirerCdfe         = GetComponentDataFromEntity<BulletFirer>(),
+                shipHealthCdfe          = GetComponentDataFromEntity<ShipHealth>(),
+                shipHitEffectPrefabCdfe = GetComponentDataFromEntity<ShipHitEffectPrefab>(true),
+                dcb                     = dcb,
+                icb                     = icb,
+                frameId                 = frameId
             };
 
             var backup = Dependency;
@@ -57,12 +60,14 @@ namespace Lsss
         //Assumes A is bullet and B is ship.
         struct DamageHitShipsAndDestroyBulletProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<ShipHealth>  shipHealthCdfe;
-            public PhysicsComponentDataFromEntity<BulletFirer> bulletFirerCdfe;
-            [ReadOnly] public ComponentDataFromEntity<Damage>  bulletDamageCdfe;
-            public int                                         frameId;
+            public PhysicsComponentDataFromEntity<ShipHealth>              shipHealthCdfe;
+            public PhysicsComponentDataFromEntity<BulletFirer>             bulletFirerCdfe;
+            [ReadOnly] public ComponentDataFromEntity<Damage>              bulletDamageCdfe;
+            [ReadOnly] public ComponentDataFromEntity<ShipHitEffectPrefab> shipHitEffectPrefabCdfe;
+            public int                                                     frameId;
 
-            public DestroyCommandBuffer.ParallelWriter dcb;
+            public DestroyCommandBuffer.ParallelWriter                            dcb;
+            public InstantiateCommandBuffer<Rotation, Translation>.ParallelWriter icb;
 
             public void Execute(FindPairsResult result)
             {
@@ -78,7 +83,7 @@ namespace Lsss
                     }
                 }
 
-                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
+                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out var hitData))
                 {
                     var damage = bulletDamageCdfe[result.entityA];
                     var health = shipHealthCdfe[result.entityB];
@@ -88,6 +93,14 @@ namespace Lsss
                     shipHealthCdfe[result.entityB] = health;
 
                     dcb.Add(result.entityA, result.jobIndex);
+
+                    var hitPrefab = shipHitEffectPrefabCdfe[result.entityB];
+                    if (hitPrefab.hitEffectPrefab != Entity.Null)
+                    {
+                        float3 upDir                                                         = math.select(math.up(), math.forward(), math.abs(hitData.normalB.y) == 1f);
+                        var    rotation                                                      = new Rotation { Value = quaternion.LookRotationSafe(hitData.normalB, upDir) };
+                        icb.Add(hitPrefab.hitEffectPrefab, rotation, new Translation { Value = hitData.hitpointB }, result.jobIndex);
+                    }
                 }
             }
         }

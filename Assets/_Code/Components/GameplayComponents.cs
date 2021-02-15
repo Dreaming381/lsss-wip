@@ -89,9 +89,19 @@ namespace Lsss
         public Entity bulletPrefab;
     }
 
+    public struct ShipFireEffectPrefab : IComponentData
+    {
+        public Entity effectPrefab;
+    }
+
     public struct ShipExplosionPrefab : IComponentData
     {
         public Entity explosionPrefab;
+    }
+
+    public struct ShipHitEffectPrefab : IComponentData
+    {
+        public Entity hitEffectPrefab;
     }
 
     public struct ShipReloadTime : IComponentData

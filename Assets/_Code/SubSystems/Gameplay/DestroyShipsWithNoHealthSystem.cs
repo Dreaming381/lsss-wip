@@ -25,7 +25,8 @@ namespace Lsss
                 if (health.health <= 0f)
                 {
                     dcb.Add(entity, entityInQueryIndex);
-                    icb.Add(explosionPrefab.explosionPrefab, new Translation { Value = ltw.Position }, entityInQueryIndex);
+                    if (explosionPrefab.explosionPrefab != Entity.Null)
+                        icb.Add(explosionPrefab.explosionPrefab, new Translation { Value = ltw.Position }, entityInQueryIndex);
                 }
             }).ScheduleParallel();
         }

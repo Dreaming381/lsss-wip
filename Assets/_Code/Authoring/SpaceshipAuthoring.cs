@@ -31,6 +31,7 @@ namespace Lsss.Authoring
         public float              collisionDamageToOther = 100f;
         public GameObject         cameraMountPoint;
         public ExplosionAuthoring explosionPrefab;
+        public GameObject         hitEffectPrefab;
         public List<GameObject>   gunTips = new List<GameObject>();
 
         [Header("Bullets")]
@@ -38,13 +39,18 @@ namespace Lsss.Authoring
         public int             bulletsPerClip = 10;
         public float           clipReloadTime = 3f;
         public BulletAuthoring bulletPrefab;
+        public GameObject      fireEffectPrefab;
 
         public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
         {
             if (explosionPrefab != null)
                 referencedPrefabs.Add(explosionPrefab.gameObject);
+            if (hitEffectPrefab != null)
+                referencedPrefabs.Add(hitEffectPrefab);
             if (bulletPrefab != null)
                 referencedPrefabs.Add(bulletPrefab.gameObject);
+            if (fireEffectPrefab != null)
+                referencedPrefabs.Add(fireEffectPrefab);
         }
 
         public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
@@ -72,6 +78,7 @@ namespace Lsss.Authoring
             dstManager.AddComponentData(entity, new Damage { damage                       = collisionDamageToOther });
             dstManager.AddComponentData(entity, new CameraMountPoint { mountPoint         = conversionSystem.TryGetPrimaryEntity(cameraMountPoint) });
             dstManager.AddComponentData(entity, new ShipExplosionPrefab { explosionPrefab = conversionSystem.TryGetPrimaryEntity(explosionPrefab) });
+            dstManager.AddComponentData(entity, new ShipHitEffectPrefab { hitEffectPrefab = conversionSystem.TryGetPrimaryEntity(hitEffectPrefab) });
             var gunBuffer                                                                 = dstManager.AddBuffer<ShipGunPoint>(entity);
             foreach(var gunTip in gunTips)
             {
@@ -87,7 +94,8 @@ namespace Lsss.Authoring
                 clipReloadTime      = clipReloadTime,
                 maxClipReloadTime   = clipReloadTime
             });
-            dstManager.AddComponentData(entity, new ShipBulletPrefab { bulletPrefab = conversionSystem.TryGetPrimaryEntity(bulletPrefab) });
+            dstManager.AddComponentData(entity, new ShipBulletPrefab { bulletPrefab     = conversionSystem.TryGetPrimaryEntity(bulletPrefab) });
+            dstManager.AddComponentData(entity, new ShipFireEffectPrefab { effectPrefab = conversionSystem.TryGetPrimaryEntity(fireEffectPrefab) });
 
             dstManager.AddComponent<ShipDesiredActions>(entity);
             dstManager.AddComponent<ShipTag>(           entity);

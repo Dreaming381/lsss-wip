@@ -34,6 +34,7 @@ namespace Lsss
                 musicVolume = serializedSettings.musicVolume,
                 sfxVolume   = serializedSettings.sfxVolume
             });
+            worldBlackboardEntity.AddOrSetComponentData(new GraphicsQualityLevel { level = serializedSettings.graphicsQuality });
         }
 
         protected override void OnUpdate()
@@ -222,6 +223,7 @@ namespace Lsss
                     PlaySound(resources.navigateSoundEffect);
                     WriteSettings();
                     UnityEngine.QualitySettings.SetQualityLevel(serializedSettings.graphicsQuality);
+                    worldBlackboardEntity.SetComponentData(new GraphicsQualityLevel { level = serializedSettings.graphicsQuality });
                 }
 
                 if (titleAndMenu.scrollLeft)

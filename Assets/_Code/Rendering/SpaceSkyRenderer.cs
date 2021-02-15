@@ -54,9 +54,10 @@ namespace Lsss.Graphics
             if (m_cubemapSize != newResolution)
             {
                 CoreUtils.Destroy(m_spaceSkyCubemapRenderTexture);
+                m_cubemapSize                  = newResolution;
                 m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize);
                 m_prevHashCodeInitialized      = false;
-                m_cubemapSize                  = newResolution;
+
                 return true;
             }
 

@@ -293,6 +293,7 @@ MonoBehaviour:
   collisionDamageToOther: 100
   cameraMountPoint: {fileID: 7817329573658693063}
   explosionPrefab: {fileID: 8466747050506634278, guid: 17f1610c7f4c4674aa22e32a38c1bb77, type: 3}
+  hitEffectPrefab: {fileID: 0}
   gunTips:
   - {fileID: 3686283832440251730}
   - {fileID: 2513563641961661338}
@@ -302,6 +303,7 @@ MonoBehaviour:
   bulletsPerClip: 10
   clipReloadTime: 1.5
   bulletPrefab: {fileID: 4665177173452725130, guid: 09ef84b08d1bee74e9a666516377af6c, type: 3}
+  fireEffectPrefab: {fileID: 0}
 --- !u!114 &6117908038248050112
 MonoBehaviour:
   m_ObjectHideFlags: 0
