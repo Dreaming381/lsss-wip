@@ -19,7 +19,7 @@ namespace Latios
         ErrorOnConflict
     }
 
-    [GenerateAuthoringComponent]
+    //[GenerateAuthoringComponent]
     public struct BlackboardEntityData : IComponentData
     {
         public BlackboardScope blackboardScope;

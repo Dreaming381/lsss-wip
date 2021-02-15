@@ -14,7 +14,7 @@ namespace Latios.Psyshock.Authoring
     }
 
     [DisallowMultipleComponent]
-    [AddComponentMenu("Latios/Physics/Collider")]
+    [AddComponentMenu("Latios/Physics (Psyshock)/Collider")]
     public class ColliderAuthoring : MonoBehaviour
     {
         public AuthoringColliderTypes colliderType = AuthoringColliderTypes.None;

@@ -157,12 +157,12 @@ namespace Latios.Myri
                         newListenerGraphStates.Add(listenerGraphState);
 
                         //Compute parameters and megabuffer allocation
-                        int numChannels             = profile.panFilterRatiosPerLeftChannel.Length + profile.panFilterRatiosPerRightChannel.Length;
+                        int numChannels             = profile.passthroughFractionsPerLeftChannel.Length + profile.passthroughFractionsPerRightChannel.Length;
                         listenerBufferParameters[i] = new ListenerBufferParameters
                         {
                             bufferStart       = megaBufferSampleCount,
                             subFramesPerFrame = audioSettings.audioSubframesPerFrame,
-                            leftChannelsCount = profile.panFilterRatiosPerLeftChannel.Length,
+                            leftChannelsCount = profile.passthroughFractionsPerLeftChannel.Length,
                             samplesPerChannel = samplesPerSubframe * audioSettings.audioSubframesPerFrame * audioSettings.audioFramesPerUpdate
                         };
                         for (int j = 0; j < numChannels; j++)
@@ -218,12 +218,12 @@ namespace Latios.Myri
                         existingEntities.Add(entity);
 
                         //Compute parameters and megabuffer allocation
-                        int numChannels             = profile.panFilterRatiosPerLeftChannel.Length + profile.panFilterRatiosPerRightChannel.Length;
+                        int numChannels             = profile.passthroughFractionsPerLeftChannel.Length + profile.passthroughFractionsPerRightChannel.Length;
                         listenerBufferParameters[i] = new ListenerBufferParameters
                         {
                             bufferStart       = megaBufferSampleCount,
                             subFramesPerFrame = audioSettings.audioSubframesPerFrame,
-                            leftChannelsCount = profile.panFilterRatiosPerLeftChannel.Length,
+                            leftChannelsCount = profile.passthroughFractionsPerLeftChannel.Length,
                             samplesPerChannel = samplesPerSubframe * audioSettings.audioSubframesPerFrame * audioSettings.audioFramesPerUpdate
                         };
                         for (int j = 0; j < numChannels; j++)
@@ -390,23 +390,24 @@ namespace Latios.Myri
         {
             //Create the channel nodes and connections but leave the ild outputs disconnected
             int listenerMixPortCount = 0;
-            for (int j = 0; j < profile.panFilterRatiosPerLeftChannel.Length; j++)
+            for (int i = 0; i < profile.passthroughFractionsPerLeftChannel.Length; i++)
             {
                 bool    filterAdded        = false;
                 DSPNode previousFilterNode = listenerMixNode;
                 int     previousFilterPort = listenerMixPortCount;
-                float   panFilterRatio     = math.saturate(profile.panFilterRatiosPerLeftChannel[j]);
+                float   filterVolume       = profile.filterVolumesPerLeftChannel[i] * (1f - profile.passthroughFractionsPerLeftChannel[i]);
+                float   passthroughVolume  = profile.passthroughVolumesPerLeftChannel[i] * profile.passthroughFractionsPerLeftChannel[i];
                 commandBlock.AddInletPort(listenerMixNode, 1);
                 listenerMixPortCount++;
 
-                if (panFilterRatio > 0f)
+                if (filterVolume > 0f)
                 {
                     //We have to walk backwards to build the filter connections correctly since the ild outputs must remain disconnected
-                    for (int k = profile.channelIndicesLeft.Length - 1; k >= 0; k--)
+                    for (int j = profile.channelIndicesLeft.Length - 1; j >= 0; j--)
                     {
-                        if (j == profile.channelIndicesLeft[k])
+                        if (i == profile.channelIndicesLeft[j])
                         {
-                            var filter     = profile.filtersLeft[k];
+                            var filter     = profile.filtersLeft[j];
                             var filterNode = StateVariableFilterNode.Create(commandBlock,
                                                                             filter.type.ToDspFilterType(),
                                                                             filter.cutoff,
@@ -418,8 +419,8 @@ namespace Latios.Myri
                             listenerGraphState.connections.Add(filterConnection);
                             previousFilterNode = filterNode;
                             previousFilterPort = 0;
-                            if (!filterAdded && panFilterRatio < 1f)
-                                commandBlock.SetAttenuation(filterConnection, panFilterRatio);
+                            if (!filterAdded && filterVolume < 1f)
+                                commandBlock.SetAttenuation(filterConnection, filterVolume);
                             filterAdded = true;
                         }
                     }
@@ -427,14 +428,14 @@ namespace Latios.Myri
                     {
                         listenerGraphState.ildConnections.Add(new IldOutputConnection
                         {
-                            ildOutputPort = -j - 1,  //The negative value stores the intended channel in a disconnected state
+                            ildOutputPort = -i - 1,  //The negative value stores the intended channel in a disconnected state
                             nodeInputPort = previousFilterPort,
                             node          = previousFilterNode,
                             attenuation   = 1f
                         });
                     }
                 }
-                if (panFilterRatio < 1f)
+                if (passthroughVolume > 0f)
                 {
                     if (filterAdded)
                     {
@@ -444,33 +445,34 @@ namespace Latios.Myri
                     }
                     listenerGraphState.ildConnections.Add(new IldOutputConnection
                     {
-                        ildOutputPort = -j - 1,
+                        ildOutputPort = -i - 1,
                         nodeInputPort = previousFilterPort,
                         node          = listenerMixNode,
-                        attenuation   = 1f - panFilterRatio
+                        attenuation   = passthroughVolume
                     });
                 }
             }
             commandBlock.UpdateAudioKernel<MixPortsToStereoNodeUpdate, MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>(
                 new MixPortsToStereoNodeUpdate { leftChannelCount = listenerMixPortCount },
                 listenerMixNode);
-            for (int j = 0; j < profile.panFilterRatiosPerRightChannel.Length; j++)
+            for (int i = 0; i < profile.passthroughFractionsPerRightChannel.Length; i++)
             {
                 bool    filterAdded        = false;
                 DSPNode previousFilterNode = listenerMixNode;
                 int     previousFilterPort = listenerMixPortCount;
-                float   panFilterRatio     = math.saturate(profile.panFilterRatiosPerRightChannel[j]);
+                float   filterVolume       = profile.filterVolumesPerRightChannel[i] * (1f - profile.passthroughFractionsPerRightChannel[i]);
+                float   passthroughVolume  = profile.passthroughVolumesPerRightChannel[i] * profile.passthroughFractionsPerRightChannel[i];
                 commandBlock.AddInletPort(listenerMixNode, 1);
                 listenerMixPortCount++;
 
-                if (panFilterRatio > 0f)
+                if (filterVolume > 0f)
                 {
                     //We have to walk backwards to build the filter connections correctly since the ild outputs must remain disconnected
-                    for (int k = profile.channelIndicesRight.Length - 1; k >= 0; k--)
+                    for (int j = profile.channelIndicesRight.Length - 1; j >= 0; j--)
                     {
-                        if (j == profile.channelIndicesRight[k])
+                        if (i == profile.channelIndicesRight[j])
                         {
-                            var filter     = profile.filtersRight[k];
+                            var filter     = profile.filtersRight[j];
                             var filterNode = StateVariableFilterNode.Create(commandBlock,
                                                                             filter.type.ToDspFilterType(),
                                                                             filter.cutoff,
@@ -482,8 +484,8 @@ namespace Latios.Myri
                             listenerGraphState.connections.Add(filterConnection);
                             previousFilterNode = filterNode;
                             previousFilterPort = 0;
-                            if (!filterAdded && panFilterRatio < 1f)
-                                commandBlock.SetAttenuation(filterConnection, panFilterRatio);
+                            if (!filterAdded && filterVolume < 1f)
+                                commandBlock.SetAttenuation(filterConnection, filterVolume);
                             filterAdded = true;
                         }
                     }
@@ -491,14 +493,14 @@ namespace Latios.Myri
                     {
                         listenerGraphState.ildConnections.Add(new IldOutputConnection
                         {
-                            ildOutputPort = -j - 1,  //The negative value stores the intended channel in a disconnected state
+                            ildOutputPort = -i - 1 - profile.passthroughFractionsPerLeftChannel.Length,  //The negative value stores the intended channel in a disconnected state
                             nodeInputPort = previousFilterPort,
                             node          = previousFilterNode,
                             attenuation   = 1f
                         });
                     }
                 }
-                if (panFilterRatio < 1f)
+                if (passthroughVolume > 0f)
                 {
                     if (filterAdded)
                     {
@@ -508,10 +510,10 @@ namespace Latios.Myri
                     }
                     listenerGraphState.ildConnections.Add(new IldOutputConnection
                     {
-                        ildOutputPort = -j - 1,
+                        ildOutputPort = -i - 1 - profile.passthroughFractionsPerLeftChannel.Length,
                         nodeInputPort = previousFilterPort,
                         node          = listenerMixNode,
-                        attenuation   = 1f - panFilterRatio
+                        attenuation   = passthroughVolume
                     });
                 }
             }

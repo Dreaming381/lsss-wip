@@ -72,6 +72,7 @@ namespace Latios.Myri
         public BlobArray<float> samplesLeftOrMono;
         public BlobArray<float> samplesRight;
         public BlobArray<int>   loopedOffsets;
+        public BlobString       name;
         public int              sampleRate;
 
         public bool isStereo => samplesRight.Length == samplesLeftOrMono.Length;

@@ -45,11 +45,11 @@ namespace Latios.Myri
 
         public void Dispose()
         {
-            UnityEngine.Debug.Log("Driver.Dispose");
+            //UnityEngine.Debug.Log("Driver.Dispose");
 
             if (Graph.Valid)
             {
-                UnityEngine.Debug.Log("Disposing graph");
+                //UnityEngine.Debug.Log("Disposing graph");
                 Graph.Dispose();
             }
 

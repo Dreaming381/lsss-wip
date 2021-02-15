@@ -22,8 +22,12 @@ namespace Latios.Myri
 
         internal BlobArray<float4> anglesPerLeftChannel;
         internal BlobArray<float4> anglesPerRightChannel;
-        internal BlobArray<float>  panFilterRatiosPerLeftChannel;
-        internal BlobArray<float>  panFilterRatiosPerRightChannel;
+        internal BlobArray<float>  passthroughFractionsPerLeftChannel;
+        internal BlobArray<float>  passthroughFractionsPerRightChannel;
+        internal BlobArray<float>  filterVolumesPerLeftChannel;
+        internal BlobArray<float>  filterVolumesPerRightChannel;
+        internal BlobArray<float>  passthroughVolumesPerLeftChannel;
+        internal BlobArray<float>  passthroughVolumesPerRightChannel;
     }
 
     public struct FrequencyFilter

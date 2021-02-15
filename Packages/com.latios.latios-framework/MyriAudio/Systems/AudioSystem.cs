@@ -357,7 +357,12 @@ namespace Latios.Myri.Systems
 
         protected override void OnDestroy()
         {
-            UnityEngine.Debug.Log("AudioSystem.OnDestroy");
+            //UnityEngine.Debug.Log("AudioSystem.OnDestroy");
+            var commandBlock = m_graph.CreateCommandBlock();
+            commandBlock.Disconnect(m_mixToOutputConnection);
+            commandBlock.ReleaseDSPNode(m_ildNode);
+            commandBlock.ReleaseDSPNode(m_mixNode);
+            commandBlock.Complete();
             AudioOutputExtensions.DisposeOutputHook(ref m_outputHandle);
             m_driver.Dispose();
 

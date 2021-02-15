@@ -5,8 +5,6 @@ using Unity.Mathematics;
 
 namespace Latios.Psyshock.Authoring
 {
-    [Serializable]
-    [GenerateAuthoringComponent]
     public struct DontConvertColliderTag : IComponentData { }
 }
 

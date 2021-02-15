@@ -292,7 +292,7 @@ MonoBehaviour:
   health: 100
   collisionDamageToOther: 100
   cameraMountPoint: {fileID: 7817329573658693063}
-  explosionPrefab: {fileID: 8003748114816692161, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+  explosionPrefab: {fileID: 8466747050506634278, guid: 17f1610c7f4c4674aa22e32a38c1bb77, type: 3}
   gunTips:
   - {fileID: 3686283832440251730}
   - {fileID: 2513563641961661338}

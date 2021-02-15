@@ -241,6 +241,8 @@ namespace Latios
         #endregion
     }
 
+namespace Systems
+{
     public class LatiosSimulationSystemGroup : SimulationSystemGroup
     {
         protected override void OnUpdate()
@@ -260,5 +262,6 @@ namespace Latios
                 base.OnUpdate();
         }
     }
+}
 }
 

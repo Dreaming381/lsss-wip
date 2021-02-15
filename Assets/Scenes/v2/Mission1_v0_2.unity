@@ -473,7 +473,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 908847908}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f2a1c6def24f38545ac83721fed8b9a1, type: 3}
+  m_Script: {fileID: 11500000, guid: 0d25dead4db6afd4a9a206ac77a2986f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   blackboardScope: 1
@@ -921,7 +921,7 @@ PrefabInstance:
     - target: {fileID: 1889298094670209308, guid: cb42ad775c0542744b8b0f11d66cca7e, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 1673661021}
+      objectReference: {fileID: 1568515111}
     - target: {fileID: 2521310744672397629, guid: cb42ad775c0542744b8b0f11d66cca7e, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -972,7 +972,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cb42ad775c0542744b8b0f11d66cca7e, type: 3}
---- !u!43 &1673661021
+--- !u!43 &1568515111
 Mesh:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

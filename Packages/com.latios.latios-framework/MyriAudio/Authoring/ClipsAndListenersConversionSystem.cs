@@ -47,17 +47,20 @@ namespace Latios.Myri.Authoring.Systems
                 var jobHandles = new NativeList<JobHandle>(Allocator.Persistent);
                 Entities.ForEach((AudioSourceAuthoring authoring) =>
                 {
-                    int frequency = authoring.clip.frequency;
-                    var arr       = new float[authoring.clip.samples * authoring.clip.channels];
-                    authoring.clip.GetData(arr, 0);
-                    var job = new ComputeAudioClipHashesJob
+                    if (authoring.clip != null)
                     {
-                        samples   = new NativeArray<float>(arr, Allocator.Persistent),
-                        hash      = new NativeReference<uint2>(Allocator.Persistent),
-                        frequency = frequency
-                    };
-                    jobs.Add(job);
-                    jobHandles.Add(job.Schedule());
+                        int frequency = authoring.clip.frequency;
+                        var arr       = new float[authoring.clip.samples * authoring.clip.channels];
+                        authoring.clip.GetData(arr, 0);
+                        var job = new ComputeAudioClipHashesJob
+                        {
+                            samples   = new NativeArray<float>(arr, Allocator.Persistent),
+                            hash      = new NativeReference<uint2>(Allocator.Persistent),
+                            frequency = frequency
+                        };
+                        jobs.Add(job);
+                        jobHandles.Add(job.Schedule());
+                    }
                 });
                 JobHandle.CompleteAll(jobHandles);
                 jobHandles.Dispose();
@@ -65,16 +68,20 @@ namespace Latios.Myri.Authoring.Systems
                 int index = 0;
                 Entities.ForEach((AudioSourceAuthoring authoring) =>
                 {
-                    var hash =
-                        new Hash128(jobs[index].hash.Value.x, jobs[index].hash.Value.y, (uint)authoring.clip.channels, (uint)math.select(0, authoring.voices, authoring.oneShot));
-                    computationContext.AssociateBlobAssetWithUnityObject(hash, authoring.gameObject);
-                    if (computationContext.NeedToComputeBlobAsset(hash))
+                    if (authoring.clip != null)
                     {
-                        computationContext.AddBlobAssetToCompute(hash, new AudioClipComputationData { hash = hash, index = index });
+                        var hash =
+                            new Hash128(jobs[index].hash.Value.x, jobs[index].hash.Value.y, (uint)authoring.clip.channels, (uint)math.select(0, authoring.voices,
+                                                                                                                                             authoring.oneShot));
+                        computationContext.AssociateBlobAssetWithUnityObject(hash, authoring.gameObject);
+                        if (computationContext.NeedToComputeBlobAsset(hash))
+                        {
+                            computationContext.AddBlobAssetToCompute(hash, new AudioClipComputationData { hash = hash, index = index });
+                        }
+                        index++;
+                        clipList.Add(authoring.clip);
+                        hashes.Add(hash);
                     }
-                    index++;
-                    clipList.Add(authoring.clip);
-                    hashes.Add(hash);
                 });
                 foreach (var job in jobs)
                 {
@@ -88,6 +95,7 @@ namespace Latios.Myri.Authoring.Systems
                     var rates         = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
                     var channelCounts = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
                     var offsets       = new NativeArray<int>(computationDataArray.Length, Allocator.TempJob);
+                    var names         = new NativeArray<FixedString128>(computationDataArray.Length, Allocator.TempJob);
                     for (int i = 0; i < computationDataArray.Length; i++)
                     {
                         var clip           = clipList[computationDataArray[i].index];
@@ -99,6 +107,7 @@ namespace Latios.Myri.Authoring.Systems
                         rates[i]         = clip.frequency;
                         channelCounts[i] = clip.channels;
                         offsets[i]       = (int)computationDataArray[i].hash.Value.w;
+                        names[i]         = clip.name;
                     }
                     new ComputeAudioClipBlobsJob
                     {
@@ -107,7 +116,8 @@ namespace Latios.Myri.Authoring.Systems
                         rates                = rates,
                         channelCounts        = channelCounts,
                         computationDataArray = computationDataArray,
-                        offsetCounts         = offsets
+                        offsetCounts         = offsets,
+                        names                = names
                     }.ScheduleParallel(ranges.Length, 1, default).Complete();
                     foreach (var data in computationDataArray)
                     {
@@ -118,50 +128,54 @@ namespace Latios.Myri.Authoring.Systems
                     rates.Dispose();
                     channelCounts.Dispose();
                     offsets.Dispose();
+                    names.Dispose();
 
                     index = 0;
                     Entities.ForEach((AudioSourceAuthoring authoring) =>
                     {
-                        var hash = hashes[index];
-                        computationContext.GetBlobAsset(hash, out var blob);
+                        if (authoring.clip != null)
+                        {
+                            var hash = hashes[index];
+                            computationContext.GetBlobAsset(hash, out var blob);
 
-                        var entity = GetPrimaryEntity(authoring);
-                        if (authoring.oneShot)
-                        {
-                            DstEntityManager.AddComponentData(entity, new AudioSourceOneShot
+                            var entity = GetPrimaryEntity(authoring);
+                            if (authoring.oneShot)
                             {
-                                clip            = blob,
-                                innerRange      = authoring.innerRange,
-                                outerRange      = authoring.outerRange,
-                                rangeFadeMargin = authoring.rangeFadeMargin,
-                                volume          = authoring.volume
-                            });
-                            if (authoring.autoDestroyOnFinish)
-                            {
-                                DstEntityManager.AddComponent<AudioSourceDestroyOneShotWhenFinished>(entity);
+                                DstEntityManager.AddComponentData(entity, new AudioSourceOneShot
+                                {
+                                    clip            = blob,
+                                    innerRange      = authoring.innerRange,
+                                    outerRange      = authoring.outerRange,
+                                    rangeFadeMargin = authoring.rangeFadeMargin,
+                                    volume          = authoring.volume
+                                });
+                                if (authoring.autoDestroyOnFinish)
+                                {
+                                    DstEntityManager.AddComponent<AudioSourceDestroyOneShotWhenFinished>(entity);
+                                }
                             }
-                        }
-                        else
-                        {
-                            DstEntityManager.AddComponentData(entity, new AudioSourceLooped
+                            else
                             {
-                                m_clip          = blob,
-                                innerRange      = authoring.innerRange,
-                                outerRange      = authoring.outerRange,
-                                rangeFadeMargin = authoring.rangeFadeMargin,
-                                volume          = authoring.volume,
-                            });
-                        }
-                        if (authoring.useCone)
-                        {
-                            DstEntityManager.AddComponentData(entity, new AudioSourceEmitterCone
+                                DstEntityManager.AddComponentData(entity, new AudioSourceLooped
+                                {
+                                    m_clip          = blob,
+                                    innerRange      = authoring.innerRange,
+                                    outerRange      = authoring.outerRange,
+                                    rangeFadeMargin = authoring.rangeFadeMargin,
+                                    volume          = authoring.volume,
+                                });
+                            }
+                            if (authoring.useCone)
                             {
-                                cosInnerAngle         = math.cos(math.radians(authoring.innerAngle)),
-                                cosOuterAngle         = math.cos(math.radians(authoring.outerAngle)),
-                                outerAngleAttenuation = authoring.outerAngleVolume
-                            });
+                                DstEntityManager.AddComponentData(entity, new AudioSourceEmitterCone
+                                {
+                                    cosInnerAngle         = math.cos(math.radians(authoring.innerAngle)),
+                                    cosOuterAngle         = math.cos(math.radians(authoring.outerAngle)),
+                                    outerAngleAttenuation = authoring.outerAngleVolume
+                                });
+                            }
+                            index++;
                         }
-                        index++;
                     });
                 }
                 hashes.Dispose();
@@ -185,12 +199,13 @@ namespace Latios.Myri.Authoring.Systems
         [BurstCompile]
         struct ComputeAudioClipBlobsJob : IJobFor
         {
-            [ReadOnly] public NativeArray<float>         samples;
-            [ReadOnly] public NativeArray<int2>          ranges;
-            [ReadOnly] public NativeArray<int>           rates;
-            [ReadOnly] public NativeArray<int>           channelCounts;
-            [ReadOnly] public NativeArray<int>           offsetCounts;
-            public NativeArray<AudioClipComputationData> computationDataArray;
+            [ReadOnly] public NativeArray<float>          samples;
+            [ReadOnly] public NativeArray<int2>           ranges;
+            [ReadOnly] public NativeArray<int>            rates;
+            [ReadOnly] public NativeArray<int>            channelCounts;
+            [ReadOnly] public NativeArray<int>            offsetCounts;
+            [ReadOnly] public NativeArray<FixedString128> names;
+            public NativeArray<AudioClipComputationData>  computationDataArray;
 
             public void Execute(int index)
             {
@@ -223,7 +238,8 @@ namespace Latios.Myri.Authoring.Systems
                 {
                     offsets[i] = i * stride;
                 }
-                root.sampleRate             = rates[index];
+                root.sampleRate = rates[index];
+                builder.AllocateFixedString(ref root.name, names[index]);
                 var computationData         = computationDataArray[index];
                 computationData.blob        = builder.CreateBlobAssetReference<AudioClipBlob>(Allocator.Persistent);
                 computationDataArray[index] = computationData;
