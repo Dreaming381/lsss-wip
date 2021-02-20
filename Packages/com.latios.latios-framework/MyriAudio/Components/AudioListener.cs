@@ -9,7 +9,7 @@ namespace Latios.Myri
     {
         public float volume;
 
-        public int                                interAuralTimeDelayResolution;
+        public int                                itdResolution;
         public BlobAssetReference<IldProfileBlob> ildProfile;
     }
 

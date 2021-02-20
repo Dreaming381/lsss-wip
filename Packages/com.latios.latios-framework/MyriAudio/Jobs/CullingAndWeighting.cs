@@ -35,7 +35,7 @@ namespace Latios.Myri
                     {
                         w.channelWeights.Add(0f);
                     }
-                    c = listenersWithTransforms[i].listener.interAuralTimeDelayResolution;
+                    c = listenersWithTransforms[i].listener.itdResolution;
                     c = 2 * c + 1;
                     for (int j = 0; j < c; j++)
                     {
@@ -105,7 +105,7 @@ namespace Latios.Myri
                     {
                         w.channelWeights.Add(0f);
                     }
-                    c = listenersWithTransforms[i].listener.interAuralTimeDelayResolution;
+                    c = listenersWithTransforms[i].listener.itdResolution;
                     c = 2 * c + 1;
                     for (int j = 0; j < c; j++)
                     {

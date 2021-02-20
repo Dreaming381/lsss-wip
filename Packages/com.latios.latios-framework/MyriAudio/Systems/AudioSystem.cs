@@ -50,7 +50,8 @@ namespace Latios.Myri.Systems
             m_lastReadBufferId           = new NativeReference<int>(Allocator.Persistent);
             m_buffersInFlight            = new List<ManagedIldBuffer>();
 
-            worldBlackboardEntity.AddComponentData(new AudioSettings { audioFramesPerUpdate = 3, audioSubframesPerFrame = 1, logWarningIfBuffersAreStarved = true });
+            if (!worldBlackboardEntity.HasComponentData<AudioSettings>())
+                worldBlackboardEntity.AddComponentData(new AudioSettings { audioFramesPerUpdate = 3, audioSubframesPerFrame = 1, logWarningIfBuffersAreStarved = false });
 
             //Create graph and driver
             var format   = ChannelEnumConverter.GetSoundFormatFromSpeakerMode(UnityEngine.AudioSettings.speakerMode);
@@ -168,7 +169,7 @@ namespace Latios.Myri.Systems
                 rotationHandle          = rotationHandle,
                 ltwHandle               = ltwHandle,
                 listenersWithTransforms = listenersWithTransforms
-            }.ScheduleSingle(m_aliveListenersQuery, ecsJH);
+            }.Schedule(m_aliveListenersQuery, ecsJH);
 
             var captureFrameJH = new GraphHandling.CaptureIldFrameJob
             {
@@ -214,7 +215,7 @@ namespace Latios.Myri.Systems
                 settingsCdfe          = audioSettingsCdfe,
                 samplesPerSubframe    = m_samplesPerSubframe,
                 worldBlackboardEntity = worldBlackboardEntity
-            }.ScheduleParallel(m_oneshotsToDestroyWhenFinishedQuery, ecsCaptureFrameJH);
+            }.ScheduleParallel(m_oneshotsToDestroyWhenFinishedQuery, 1, ecsCaptureFrameJH);
 
             var updateOneshotsJH = new InitUpdateDestroy.UpdateOneshotsJob
             {
@@ -242,7 +243,7 @@ namespace Latios.Myri.Systems
                 lastConsumedBufferId = m_lastReadBufferId,
                 bufferId             = m_currentBufferId,
                 emitters             = loopedEmitters
-            }.ScheduleParallel(m_loopedQuery, ecsCaptureFrameJH);
+            }.ScheduleParallel(m_loopedQuery, 1, ecsCaptureFrameJH);
 
             //No more ECS
             var oneshotsCullingWeightingJH = new CullingAndWeighting.OneshotsJob

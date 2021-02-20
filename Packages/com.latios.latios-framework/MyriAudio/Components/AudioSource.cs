@@ -29,6 +29,13 @@ namespace Latios.Myri
                 }
             }
         }
+
+        public void ResetPlaybackState()
+        {
+            var c = clip;
+            clip  = default;
+            clip  = c;
+        }
     }
 
     public struct AudioSourceOneShot : IComponentData
@@ -53,6 +60,13 @@ namespace Latios.Myri
                     m_clip              = value;
                 }
             }
+        }
+
+        public void ResetPlaybackState()
+        {
+            var c = clip;
+            clip  = default;
+            clip  = c;
         }
 
         internal bool isInitialized => (m_spawnedBufferId != 0) | (m_spawnedBufferId != m_spawnedAudioFrame);

@@ -72,7 +72,7 @@ namespace Latios.Myri.Authoring.Systems
                     {
                         var hash =
                             new Hash128(jobs[index].hash.Value.x, jobs[index].hash.Value.y, (uint)authoring.clip.channels, (uint)math.select(0, authoring.voices,
-                                                                                                                                             authoring.oneShot));
+                                                                                                                                             authoring.looping));
                         computationContext.AssociateBlobAssetWithUnityObject(hash, authoring.gameObject);
                         if (computationContext.NeedToComputeBlobAsset(hash))
                         {
@@ -139,7 +139,7 @@ namespace Latios.Myri.Authoring.Systems
                             computationContext.GetBlobAsset(hash, out var blob);
 
                             var entity = GetPrimaryEntity(authoring);
-                            if (authoring.oneShot)
+                            if (!authoring.looping)
                             {
                                 DstEntityManager.AddComponentData(entity, new AudioSourceOneShot
                                 {
@@ -299,9 +299,9 @@ namespace Latios.Myri.Authoring.Systems
                         var entity = GetPrimaryEntity(authoring);
                         DstEntityManager.AddComponentData(entity, new AudioListener
                         {
-                            volume                        = authoring.volume,
-                            interAuralTimeDelayResolution = authoring.interauralTimeDelayResolution,
-                            ildProfile                    = blob
+                            volume        = authoring.volume,
+                            itdResolution = authoring.interauralTimeDifferenceResolution,
+                            ildProfile    = blob
                         });
                     });
                 }

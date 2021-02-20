@@ -48,7 +48,7 @@ namespace Latios.Psyshock
         //Parallel
         //Calculate RigidTransform, AABB, and target bucket. Write the targetBucket as the layerIndex
         [BurstCompile]
-        public struct Part1FromQueryJob : IJobChunk
+        public struct Part1FromQueryJob : IJobEntityBatchWithIndex
         {
             public CollisionLayer                         layer;
             [NoAlias] public NativeArray<int>             layerIndices;

@@ -13,22 +13,22 @@ namespace Latios.Myri.Authoring
 {
     public abstract class AudioIldProfileBuilder : ScriptableObject
     {
-        protected abstract void ComputeProfile();
+        protected abstract void BuildProfile();
 
         protected ChannelHandle AddChannel(float2 minMaxHorizontalAngleInRadiansCounterClockwiseFromRight,
                                            float2 minMaxVerticalAngleInRadians,
-                                           float filterPassthroughFraction,
+                                           float passthroughFraction,
                                            float filterVolume,
                                            float passthroughVolume,
-                                           bool isRightChannel)
+                                           bool isRightEar)
         {
             if (m_anglesPerLeftChannel.Length + m_anglesPerRightChannel.Length >= 127)
                 throw new InvalidOperationException("An IldProfile only supports up to 127 channels");
 
-            if (isRightChannel)
+            if (isRightEar)
             {
                 m_anglesPerRightChannel.Add(new float4(minMaxHorizontalAngleInRadiansCounterClockwiseFromRight, minMaxVerticalAngleInRadians));
-                m_filterPassthroughFractionsPerRightChannel.Add(math.saturate(filterPassthroughFraction));
+                m_passthroughFractionsPerRightChannel.Add(math.saturate(passthroughFraction));
                 m_filterVolumesPerRightChannel.Add(math.saturate(filterVolume));
                 m_passthroughVolumesPerRightChannel.Add(math.saturate(passthroughVolume));
                 return new ChannelHandle { channelIndex = m_anglesPerRightChannel.Length - 1, isRightChannel = true };
@@ -36,7 +36,7 @@ namespace Latios.Myri.Authoring
             else
             {
                 m_anglesPerLeftChannel.Add(new float4(minMaxHorizontalAngleInRadiansCounterClockwiseFromRight, minMaxVerticalAngleInRadians));
-                m_filterPassthroughFractionsPerLeftChannel.Add(filterPassthroughFraction);
+                m_passthroughFractionsPerLeftChannel.Add(passthroughFraction);
                 m_filterVolumesPerLeftChannel.Add(math.saturate(filterVolume));
                 m_passthroughVolumesPerLeftChannel.Add(math.saturate(passthroughVolume));
                 return new ChannelHandle { channelIndex = m_anglesPerLeftChannel.Length - 1, isRightChannel = false };
@@ -71,8 +71,8 @@ namespace Latios.Myri.Authoring
 
         private NativeList<float4> m_anglesPerLeftChannel;
         private NativeList<float4> m_anglesPerRightChannel;
-        private NativeList<float>  m_filterPassthroughFractionsPerLeftChannel;
-        private NativeList<float>  m_filterPassthroughFractionsPerRightChannel;
+        private NativeList<float>  m_passthroughFractionsPerLeftChannel;
+        private NativeList<float>  m_passthroughFractionsPerRightChannel;
         private NativeList<float>  m_filterVolumesPerLeftChannel;
         private NativeList<float>  m_filterVolumesPerRightChannel;
         private NativeList<float>  m_passthroughVolumesPerLeftChannel;
@@ -93,30 +93,30 @@ namespace Latios.Myri.Authoring
             m_channelIndicesRight.Clear();
             m_anglesPerLeftChannel.Clear();
             m_anglesPerRightChannel.Clear();
-            m_filterPassthroughFractionsPerLeftChannel.Clear();
-            m_filterPassthroughFractionsPerRightChannel.Clear();
+            m_passthroughFractionsPerLeftChannel.Clear();
+            m_passthroughFractionsPerRightChannel.Clear();
             m_filterVolumesPerLeftChannel.Clear();
             m_filterVolumesPerRightChannel.Clear();
             m_passthroughVolumesPerLeftChannel.Clear();
             m_passthroughVolumesPerRightChannel.Clear();
 
-            ComputeProfile();
+            BuildProfile();
 
             var job = new ComputeHashJob
             {
-                filtersLeft                               = m_filtersLeft,
-                channelIndicesLeft                        = m_channelIndicesLeft,
-                filtersRight                              = m_filtersRight,
-                channelIndicesRight                       = m_channelIndicesRight,
-                anglesPerLeftChannel                      = m_anglesPerLeftChannel,
-                anglesPerRightChannel                     = m_anglesPerRightChannel,
-                filterPassthroughFractionsPerLeftChannel  = m_filterPassthroughFractionsPerLeftChannel,
-                filterPassthroughFractionsPerRightChannel = m_filterPassthroughFractionsPerRightChannel,
-                filterVolumesPerLeftChannel               = m_filterVolumesPerLeftChannel,
-                filterVolumesPerRightChannel              = m_filterVolumesPerRightChannel,
-                passthroughVolumesPerLeftChannel          = m_passthroughVolumesPerLeftChannel,
-                passthroughVolumesPerRightChannel         = m_passthroughVolumesPerRightChannel,
-                result                                    = new NativeReference<Hash128>(Allocator.TempJob)
+                filtersLeft                         = m_filtersLeft,
+                channelIndicesLeft                  = m_channelIndicesLeft,
+                filtersRight                        = m_filtersRight,
+                channelIndicesRight                 = m_channelIndicesRight,
+                anglesPerLeftChannel                = m_anglesPerLeftChannel,
+                anglesPerRightChannel               = m_anglesPerRightChannel,
+                passthroughFractionsPerLeftChannel  = m_passthroughFractionsPerLeftChannel,
+                passthroughFractionsPerRightChannel = m_passthroughFractionsPerRightChannel,
+                filterVolumesPerLeftChannel         = m_filterVolumesPerLeftChannel,
+                filterVolumesPerRightChannel        = m_filterVolumesPerRightChannel,
+                passthroughVolumesPerLeftChannel    = m_passthroughVolumesPerLeftChannel,
+                passthroughVolumesPerRightChannel   = m_passthroughVolumesPerRightChannel,
+                result                              = new NativeReference<Hash128>(Allocator.TempJob)
             };
             job.Run();
             m_hash = job.result.Value;
@@ -142,8 +142,8 @@ namespace Latios.Myri.Authoring
 
             builder.ConstructFromNativeArray(ref root.anglesPerLeftChannel,                m_anglesPerLeftChannel);
             builder.ConstructFromNativeArray(ref root.anglesPerRightChannel,               m_anglesPerRightChannel);
-            builder.ConstructFromNativeArray(ref root.passthroughFractionsPerLeftChannel,  m_filterPassthroughFractionsPerLeftChannel);
-            builder.ConstructFromNativeArray(ref root.passthroughFractionsPerRightChannel, m_filterPassthroughFractionsPerRightChannel);
+            builder.ConstructFromNativeArray(ref root.passthroughFractionsPerLeftChannel,  m_passthroughFractionsPerLeftChannel);
+            builder.ConstructFromNativeArray(ref root.passthroughFractionsPerRightChannel, m_passthroughFractionsPerRightChannel);
             builder.ConstructFromNativeArray(ref root.filterVolumesPerLeftChannel,         m_filterVolumesPerLeftChannel);
             builder.ConstructFromNativeArray(ref root.filterVolumesPerRightChannel,        m_filterVolumesPerRightChannel);
             builder.ConstructFromNativeArray(ref root.passthroughVolumesPerLeftChannel,    m_passthroughVolumesPerLeftChannel);
@@ -163,8 +163,8 @@ namespace Latios.Myri.Authoring
 
             public NativeList<float4> anglesPerLeftChannel;
             public NativeList<float4> anglesPerRightChannel;
-            public NativeList<float>  filterPassthroughFractionsPerLeftChannel;
-            public NativeList<float>  filterPassthroughFractionsPerRightChannel;
+            public NativeList<float>  passthroughFractionsPerLeftChannel;
+            public NativeList<float>  passthroughFractionsPerRightChannel;
             public NativeList<float>  filterVolumesPerLeftChannel;
             public NativeList<float>  filterVolumesPerRightChannel;
             public NativeList<float>  passthroughVolumesPerLeftChannel;
@@ -181,8 +181,8 @@ namespace Latios.Myri.Authoring
                 bytes.AddRange(channelIndicesRight.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<int>()));
                 bytes.AddRange(anglesPerLeftChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float4>()));
                 bytes.AddRange(anglesPerRightChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float4>()));
-                bytes.AddRange(filterPassthroughFractionsPerLeftChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
-                bytes.AddRange(filterPassthroughFractionsPerRightChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
+                bytes.AddRange(passthroughFractionsPerLeftChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
+                bytes.AddRange(passthroughFractionsPerRightChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
                 bytes.AddRange(filterVolumesPerLeftChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
                 bytes.AddRange(filterVolumesPerRightChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
                 bytes.AddRange(passthroughVolumesPerLeftChannel.AsArray().Reinterpret<byte>(UnsafeUtility.SizeOf<float>()));
@@ -195,18 +195,18 @@ namespace Latios.Myri.Authoring
 
         private void OnEnable()
         {
-            m_filtersLeft                               = new NativeList<FrequencyFilter>(Allocator.Persistent);
-            m_filtersRight                              = new NativeList<FrequencyFilter>(Allocator.Persistent);
-            m_channelIndicesLeft                        = new NativeList<int>(Allocator.Persistent);
-            m_channelIndicesRight                       = new NativeList<int>(Allocator.Persistent);
-            m_anglesPerLeftChannel                      = new NativeList<float4>(Allocator.Persistent);
-            m_anglesPerRightChannel                     = new NativeList<float4>(Allocator.Persistent);
-            m_filterPassthroughFractionsPerLeftChannel  = new NativeList<float>(Allocator.Persistent);
-            m_filterPassthroughFractionsPerRightChannel = new NativeList<float>(Allocator.Persistent);
-            m_filterVolumesPerLeftChannel               = new NativeList<float>(Allocator.Persistent);
-            m_filterVolumesPerRightChannel              = new NativeList<float>(Allocator.Persistent);
-            m_passthroughVolumesPerLeftChannel          = new NativeList<float>(Allocator.Persistent);
-            m_passthroughVolumesPerRightChannel         = new NativeList<float>(Allocator.Persistent);
+            m_filtersLeft                         = new NativeList<FrequencyFilter>(Allocator.Persistent);
+            m_filtersRight                        = new NativeList<FrequencyFilter>(Allocator.Persistent);
+            m_channelIndicesLeft                  = new NativeList<int>(Allocator.Persistent);
+            m_channelIndicesRight                 = new NativeList<int>(Allocator.Persistent);
+            m_anglesPerLeftChannel                = new NativeList<float4>(Allocator.Persistent);
+            m_anglesPerRightChannel               = new NativeList<float4>(Allocator.Persistent);
+            m_passthroughFractionsPerLeftChannel  = new NativeList<float>(Allocator.Persistent);
+            m_passthroughFractionsPerRightChannel = new NativeList<float>(Allocator.Persistent);
+            m_filterVolumesPerLeftChannel         = new NativeList<float>(Allocator.Persistent);
+            m_filterVolumesPerRightChannel        = new NativeList<float>(Allocator.Persistent);
+            m_passthroughVolumesPerLeftChannel    = new NativeList<float>(Allocator.Persistent);
+            m_passthroughVolumesPerRightChannel   = new NativeList<float>(Allocator.Persistent);
         }
 
         private void OnDisable()
@@ -218,8 +218,8 @@ namespace Latios.Myri.Authoring
                 m_channelIndicesRight.Dispose();
                 m_anglesPerLeftChannel.Dispose();
                 m_anglesPerRightChannel.Dispose();
-                m_filterPassthroughFractionsPerLeftChannel.Dispose();
-                m_filterPassthroughFractionsPerRightChannel.Dispose();
+                m_passthroughFractionsPerLeftChannel.Dispose();
+                m_passthroughFractionsPerRightChannel.Dispose();
                 m_filterVolumesPerLeftChannel.Dispose();
                 m_filterVolumesPerRightChannel.Dispose();
                 m_passthroughVolumesPerLeftChannel.Dispose();

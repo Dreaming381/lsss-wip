@@ -11,7 +11,7 @@ namespace Latios.Myri.Authoring
         public float volume = 1f;
 
         [Range(0, 15)]
-        public int interauralTimeDelayResolution = 2;
+        public int interauralTimeDifferenceResolution = 2;
 
         public AudioIldProfileBuilder listenerResponseProfile;
     }

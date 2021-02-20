@@ -5,7 +5,7 @@ namespace Latios.Myri.Authoring
 {
     internal class DefaultIldProfileBuilder : AudioIldProfileBuilder
     {
-        protected override void ComputeProfile()
+        protected override void BuildProfile()
         {
             //left unblocked
             AddChannel(new float2(math.PI / 2f, math.PI * 1.25f), new float2(-math.PI, math.PI), 1f, 0f, 1f, false);

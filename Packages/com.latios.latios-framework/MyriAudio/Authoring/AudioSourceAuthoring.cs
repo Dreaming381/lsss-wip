@@ -9,7 +9,7 @@ namespace Latios.Myri.Authoring
     public class AudioSourceAuthoring : MonoBehaviour
     {
         public AudioClip clip;
-        public bool      oneShot;
+        public bool      looping;
         public bool      autoDestroyOnFinish;
         public float     volume          = 1f;
         public float     innerRange      = 5f;

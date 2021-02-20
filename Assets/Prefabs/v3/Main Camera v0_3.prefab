@@ -29,7 +29,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   volume: 1
-  interauralTimeDelayResolution: 2
+  interauralTimeDifferenceResolution: 2
   listenerResponseProfile: {fileID: 0}
 --- !u!1001 &375596277969935782
 PrefabInstance:
@@ -38,6 +38,10 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 6739637022066094113, guid: d882b8f8fd8562045b2a355428c7687a, type: 3}
+      propertyPath: m_TargetDisplay
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6739637022066094114, guid: d882b8f8fd8562045b2a355428c7687a, type: 3}
       propertyPath: m_Name
       value: Main Camera v0_3

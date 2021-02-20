@@ -12,7 +12,7 @@ namespace Latios.Myri
     {
         //Parallel
         [BurstCompile]
-        public struct DestroyOneshotsWhenFinishedJob : IJobChunk
+        public struct DestroyOneshotsWhenFinishedJob : IJobEntityBatch
         {
             public DestroyCommandBuffer.ParallelWriter                dcb;
             [ReadOnly] public ComponentTypeHandle<AudioSourceOneShot> oneshotHandle;
@@ -23,7 +23,7 @@ namespace Latios.Myri
             public int                                                sampleRate;
             public int                                                samplesPerSubframe;
 
-            public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+            public void Execute(ArchetypeChunk chunk, int chunkIndex)
             {
                 var oneshots        = chunk.GetNativeArray(oneshotHandle);
                 var entities        = chunk.GetNativeArray(entityHandle);
@@ -44,7 +44,7 @@ namespace Latios.Myri
 
         //Single
         [BurstCompile]
-        public struct UpdateListenersJob : IJobChunk
+        public struct UpdateListenersJob : IJobEntityBatch
         {
             [ReadOnly] public ComponentTypeHandle<AudioListener> listenerHandle;
             [ReadOnly] public ComponentTypeHandle<Translation>   translationHandle;
@@ -52,7 +52,7 @@ namespace Latios.Myri
             [ReadOnly] public ComponentTypeHandle<LocalToWorld>  ltwHandle;
             public NativeList<ListenerWithTransform>             listenersWithTransforms;
 
-            public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+            public void Execute(ArchetypeChunk chunk, int chunkIndex)
             {
                 var listeners = chunk.GetNativeArray(listenerHandle);
                 if (chunk.Has(ltwHandle))
@@ -65,7 +65,7 @@ namespace Latios.Myri
                         //Todo: Figure out how to bring this optimization back.
                         //if (l.volume > 0f)
                         {
-                            l.interAuralTimeDelayResolution                                  = math.max(l.interAuralTimeDelayResolution, 0);
+                            l.itdResolution                                                  = math.clamp(l.itdResolution, 0, 15);
                             var ltw                                                          = ltws[i];
                             var transform                                                    = new RigidTransform(quaternion.LookRotation(ltw.Forward, ltw.Up), ltw.Position);
                             listenersWithTransforms.Add(new ListenerWithTransform { listener = l, transform = transform });
@@ -89,7 +89,7 @@ namespace Latios.Myri
                         //Todo: Figure out how to bring this optimization back.
                         //if (l.volume > 0f)
                         {
-                            l.interAuralTimeDelayResolution = math.max(l.interAuralTimeDelayResolution, 0);
+                            l.itdResolution = math.max(l.itdResolution, 0);
 
                             var transform = RigidTransform.identity;
                             if (hasRotation)
@@ -340,7 +340,7 @@ namespace Latios.Myri
         //Parallel
         //Todo: It might be worth it to cull here rather than write to the emitters array.
         [BurstCompile]
-        public struct UpdateLoopedsJob : IJobChunk
+        public struct UpdateLoopedsJob : IJobEntityBatchWithIndex
         {
             public ComponentTypeHandle<AudioSourceLooped>                 loopedHandle;
             [ReadOnly] public ComponentTypeHandle<AudioSourceEmitterCone> coneHandle;
