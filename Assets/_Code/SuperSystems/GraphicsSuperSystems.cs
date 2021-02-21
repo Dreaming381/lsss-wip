@@ -28,6 +28,7 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddSystem<LifetimeFadeSystem>();
             GetOrCreateAndAddSystem<SpeedShaderUpdateSystem>();
             GetOrCreateAndAddSystem<SetCameraDrawDistanceSystem>();
+            GetOrCreateAndAddSystem<CameraManagerCameraSyncHackSystem>();
         }
     }
 }

@@ -29,7 +29,8 @@ namespace Latios
             }
             else
             {
-                throw new InvalidOperationException("The current world is not of type LatiosWorld required for Latios framework functionality.");
+                throw new InvalidOperationException(
+                    "The current world is not of type LatiosWorld required for Latios framework functionality. Did you forget to create a Bootstrap?");
             }
             OnCreateInternal();
         }

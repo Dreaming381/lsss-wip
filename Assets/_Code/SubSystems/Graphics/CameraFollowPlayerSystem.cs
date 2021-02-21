@@ -22,7 +22,7 @@ namespace Lsss
             var mounts = m_query.ToComponentDataArray<CameraMountPoint>(Allocator.TempJob);
             if (mounts.Length > 0)
             {
-                Entities.WithAll<UnityEngine.Camera>().ForEach((ref Translation translation, ref Rotation rotation) =>
+                Entities.WithAll<CameraManager>().ForEach((ref Translation translation, ref Rotation rotation) =>
                 {
                     var mountEntity = mounts[0].mountPoint;
                     if (mountEntity == Entity.Null)

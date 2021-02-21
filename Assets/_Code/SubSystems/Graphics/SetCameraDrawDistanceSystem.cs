@@ -23,13 +23,13 @@ namespace Lsss
         {
             var qualityLevel = worldBlackboardEntity.GetComponentData<GraphicsQualityLevel>();
 
-            Entities.ForEach((UnityEngine.Camera camera, in DrawDistances distances) =>
+            Entities.ForEach((CameraManager camera, in DrawDistances distances) =>
             {
-                if (qualityLevel.level != lastSeenQualityLevel || camera != lastSeenCamera)
+                if (qualityLevel.level != lastSeenQualityLevel || camera.camera != lastSeenCamera)
                 {
-                    camera.farClipPlane  = distances.distances[math.min(distances.distances.Length - 1, qualityLevel.level)];
-                    lastSeenCamera       = camera;
-                    lastSeenQualityLevel = qualityLevel.level;
+                    camera.camera.farClipPlane = distances.distances[math.min(distances.distances.Length - 1, qualityLevel.level)];
+                    lastSeenCamera             = camera.camera;
+                    lastSeenQualityLevel       = qualityLevel.level;
                 }
             }).WithoutBurst().Run();
         }

@@ -25,7 +25,7 @@ namespace Lsss
             };
             var foundCamera = new NativeReference<CamFoundData>(Allocator.TempJob);
 
-            Entities.WithAll<UnityEngine.Camera>().ForEach((in Translation translation) =>
+            Entities.WithAll<CameraManager>().ForEach((in Translation translation) =>
             {
                 foundCamera.Value = new CamFoundData
                 {
