@@ -25,16 +25,18 @@ namespace Lsss
             }
             else
             {
-                serializedSettings.graphicsQuality = UnityEngine.QualitySettings.GetQualityLevel();
-                serializedSettings.musicVolume     = 1f;
-                serializedSettings.sfxVolume       = 1f;
+                serializedSettings.graphicsQuality     = UnityEngine.QualitySettings.GetQualityLevel();
+                serializedSettings.musicVolume         = 1f;
+                serializedSettings.sfxVolume           = 1f;
+                serializedSettings.mouseLoolMultiplier = 1f;
             }
-            worldBlackboardEntity.AddOrSetComponentData(new AudioMasterVolumes
+            worldBlackboardEntity.AddComponentData(new AudioMasterVolumes
             {
                 musicVolume = serializedSettings.musicVolume,
                 sfxVolume   = serializedSettings.sfxVolume
             });
-            worldBlackboardEntity.AddOrSetComponentData(new GraphicsQualityLevel { level = serializedSettings.graphicsQuality });
+            worldBlackboardEntity.AddComponentData(new GraphicsQualityLevel { level     = serializedSettings.graphicsQuality });
+            worldBlackboardEntity.AddComponentData(new MouseLookMultiplier { multiplier = serializedSettings.mouseLoolMultiplier });
         }
 
         protected override void OnUpdate()
@@ -195,7 +197,7 @@ namespace Lsss
                 {
                     serializedSettings.musicVolume = titleAndMenu.musicSlider.value;
                     titleAndMenu.musicSliderDirty  = false;
-                    PlaySound(resources.navigateSoundEffect);
+                    PlaySound(resources.selectSoundEffect);
                     WriteSettings();
                     var volumes         = worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
                     volumes.musicVolume = serializedSettings.musicVolume;
@@ -208,7 +210,7 @@ namespace Lsss
                 {
                     serializedSettings.sfxVolume = titleAndMenu.sfxSlider.value;
                     titleAndMenu.sfxSliderDirty  = false;
-                    PlaySound(resources.navigateSoundEffect);
+                    PlaySound(resources.selectSoundEffect);
                     WriteSettings();
                     var volumes       = worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
                     volumes.sfxVolume = serializedSettings.sfxVolume;
@@ -220,10 +222,21 @@ namespace Lsss
                 {
                     serializedSettings.graphicsQuality = titleAndMenu.graphicsDropdown.value;
                     titleAndMenu.graphicsQualityDirty  = false;
-                    PlaySound(resources.navigateSoundEffect);
+                    PlaySound(resources.selectSoundEffect);
                     WriteSettings();
                     UnityEngine.QualitySettings.SetQualityLevel(serializedSettings.graphicsQuality);
                     worldBlackboardEntity.SetComponentData(new GraphicsQualityLevel { level = serializedSettings.graphicsQuality });
+                }
+
+                if (titleAndMenu.mouseLookMultiplierSliderDirty ||
+                    (titleAndMenu.settingsPanel.activeSelf && titleAndMenu.mouseLookMultiplierSlider.value != titleAndMenu.mouseLookMultiplierSliderLastValue))
+                {
+                    serializedSettings.mouseLoolMultiplier      = titleAndMenu.mouseLookMultiplierSlider.value;
+                    titleAndMenu.mouseLookMultiplierSliderDirty = false;
+                    PlaySound(resources.selectSoundEffect);
+                    WriteSettings();
+                    worldBlackboardEntity.SetComponentData(new MouseLookMultiplier { multiplier = serializedSettings.mouseLoolMultiplier });
+                    titleAndMenu.mouseLookMultiplierSliderLastValue                             = serializedSettings.mouseLoolMultiplier;
                 }
 
                 if (titleAndMenu.scrollLeft)
@@ -238,7 +251,7 @@ namespace Lsss
                             else
                                 i--;
                             titleAndMenu.missionPanels[i].SetActive(true);
-                            PlaySound(resources.navigateSoundEffect);
+                            PlaySound(resources.selectSoundEffect);
                             break;
                         }
                     }
@@ -257,7 +270,7 @@ namespace Lsss
                             else
                                 i++;
                             titleAndMenu.missionPanels[i].SetActive(true);
-                            PlaySound(resources.navigateSoundEffect);
+                            PlaySound(resources.selectSoundEffect);
                             break;
                         }
                     }

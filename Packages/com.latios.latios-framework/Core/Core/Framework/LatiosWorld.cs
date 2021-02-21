@@ -90,7 +90,7 @@ namespace Latios
 
         internal void CreateNewSceneBlackboardEntity()
         {
-            if (!EntityManager.Exists(sceneBlackboardEntity) || !sceneBlackboardEntity.HasComponentData<SceneBlackboardTag>())
+            if (!EntityManager.Exists(sceneBlackboardEntity) || !sceneBlackboardEntity.HasComponent<SceneBlackboardTag>())
             {
                 sceneBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
                 sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());

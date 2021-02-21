@@ -22,7 +22,7 @@ namespace Latios.Systems
                 previousScene     = new FixedString128(),
                 isSceneFirstFrame = false
             };
-            worldBlackboardEntity.AddOrSetComponentData(curr);
+            worldBlackboardEntity.AddComponentData(curr);
         }
 
         protected override void OnUpdate()

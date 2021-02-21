@@ -50,8 +50,7 @@ namespace Latios.Myri.Systems
             m_lastReadBufferId           = new NativeReference<int>(Allocator.Persistent);
             m_buffersInFlight            = new List<ManagedIldBuffer>();
 
-            if (!worldBlackboardEntity.HasComponentData<AudioSettings>())
-                worldBlackboardEntity.AddComponentData(new AudioSettings { audioFramesPerUpdate = 3, audioSubframesPerFrame = 1, logWarningIfBuffersAreStarved = false });
+            worldBlackboardEntity.AddComponentDataIfMissing(new AudioSettings { audioFramesPerUpdate = 3, audioSubframesPerFrame = 1, logWarningIfBuffersAreStarved = false });
 
             //Create graph and driver
             var format   = ChannelEnumConverter.GetSoundFormatFromSpeakerMode(UnityEngine.AudioSettings.speakerMode);

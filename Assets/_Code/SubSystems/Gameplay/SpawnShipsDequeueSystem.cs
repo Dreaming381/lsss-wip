@@ -18,7 +18,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponentData<NextSpawnCounter>())
+            if (!sceneBlackboardEntity.HasComponent<NextSpawnCounter>())
                 sceneBlackboardEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
 
             float dt = Time.DeltaTime;

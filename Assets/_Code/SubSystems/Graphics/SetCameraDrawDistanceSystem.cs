@@ -15,7 +15,7 @@ namespace Lsss
 
         protected override void OnCreate()
         {
-            if (!worldBlackboardEntity.HasComponentData<GraphicsQualityLevel>())
+            if (!worldBlackboardEntity.HasComponent<GraphicsQualityLevel>())
                 worldBlackboardEntity.AddComponentData(new GraphicsQualityLevel());
         }
 

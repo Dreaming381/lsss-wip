@@ -17,7 +17,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponentData<Rng>())
+            if (!sceneBlackboardEntity.HasComponent<Rng>())
                 sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(06117105) });
 
             float  arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;

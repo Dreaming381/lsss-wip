@@ -19,9 +19,30 @@ namespace Latios
             return entity.entity;
         }
 
-        public void AddComponentData<T>(T data) where T : struct, IComponentData
+        public bool AddComponent<T>() where T : struct, IComponentData
         {
+            return em.AddComponent<T>(entity);
+        }
+
+        public bool AddComponentData<T>(T data) where T : struct, IComponentData
+        {
+            return em.AddComponentData(entity, data);
+        }
+
+        public bool AddComponentIfMissing<T>() where T : struct, IComponentData
+        {
+            if (em.HasComponent<T>(entity))
+                return false;
+            em.AddComponent<T>(entity);
+            return true;
+        }
+
+        public bool AddComponentDataIfMissing<T>(T data) where T : struct, IComponentData
+        {
+            if (em.HasComponent<T>(entity))
+                return false;
             em.AddComponentData(entity, data);
+            return true;
         }
 
         public void SetComponentData<T>(T data) where T : struct, IComponentData
@@ -29,24 +50,12 @@ namespace Latios
             em.SetComponentData(entity, data);
         }
 
-        public void AddOrSetComponentData<T>(T data) where T : struct, IComponentData
-        {
-            if (em.HasComponent<T>(entity))
-            {
-                SetComponentData(data);
-            }
-            else
-            {
-                AddComponentData(data);
-            }
-        }
-
         public T GetComponentData<T>() where T : struct, IComponentData
         {
             return em.GetComponentData<T>(entity);
         }
 
-        public bool HasComponentData<T>() where T : struct, IComponentData
+        public bool HasComponent<T>() where T : struct, IComponentData
         {
             return em.HasComponent<T>(entity);
         }
@@ -56,9 +65,9 @@ namespace Latios
             return em.HasComponent(entity, componentType);
         }
 
-        public void AddSharedComponentData<T>(T data) where T : struct, ISharedComponentData
+        public bool AddSharedComponentData<T>(T data) where T : struct, ISharedComponentData
         {
-            em.AddSharedComponentData(entity, data);
+            return em.AddSharedComponentData(entity, data);
         }
 
         public void SetSharedComponentData<T>(T data) where T : struct, ISharedComponentData
@@ -78,7 +87,7 @@ namespace Latios
 
         public void AddCollectionComponent<T>(T value) where T : struct, ICollectionComponent
         {
-            em.AddCollectionComponent<T>(entity, value);
+            em.AddCollectionComponent(entity, value);
         }
 
         public T GetCollectionComponent<T>(bool readOnly, out JobHandle handle) where T : struct, ICollectionComponent

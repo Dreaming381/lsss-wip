@@ -13,8 +13,7 @@ namespace Lsss
     {
         protected override void OnCreate()
         {
-            if (!worldBlackboardEntity.HasComponentData<AudioMasterVolumes>())
-                worldBlackboardEntity.AddComponentData(new AudioMasterVolumes());
+            worldBlackboardEntity.AddComponentIfMissing<AudioMasterVolumes>();
         }
 
         protected override void OnUpdate()

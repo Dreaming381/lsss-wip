@@ -19,7 +19,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponentData<Rng>())
+            if (!sceneBlackboardEntity.HasComponent<Rng>())
                 sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(34910143) });
 
             Entity sbe = sceneBlackboardEntity;

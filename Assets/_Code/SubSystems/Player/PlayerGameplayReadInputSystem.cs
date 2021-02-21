@@ -10,6 +10,11 @@ namespace Lsss
         //Todo: Store this in a component or something.
         float2 m_integratedMouseDelta = 0f;
 
+        protected override void OnCreate()
+        {
+            worldBlackboardEntity.AddComponentIfMissing<MouseLookMultiplier>();
+        }
+
         protected override void OnUpdate()
         {
             Entities.WithAll<PlayerTag>().ForEach((ref ShipDesiredActions desiredActions) =>
@@ -38,18 +43,22 @@ namespace Lsss
                     var keyboard = Keyboard.current;
                     if (mouse != null && keyboard != null)
                     {
-                        UnityEngine.Cursor.lockState = UnityEngine.CursorLockMode.Locked;
-                        UnityEngine.Cursor.visible   = false;
-                        float2 mouseDelta            = mouse.delta.ReadValue();
+                        UnityEngine.Cursor.lockState  = UnityEngine.CursorLockMode.Locked;
+                        UnityEngine.Cursor.visible    = false;
+                        float2 mouseDelta             = mouse.delta.ReadValue();
+                        mouseDelta                   *= new float2(1920f, 1080f) / new float2(UnityEngine.Screen.width, UnityEngine.Screen.height);
+                        mouseDelta                   *= math.radians(80f) / 1080f;  //FOV is 80
+                        mouseDelta                   /= Time.DeltaTime;
+                        mouseDelta                   *= worldBlackboardEntity.GetComponentData<MouseLookMultiplier>().multiplier;
                         if (mouse.rightButton.isPressed)
                         {
-                            m_integratedMouseDelta += mouseDelta / 50f;
+                            m_integratedMouseDelta += mouseDelta;
                             desiredActions.turn     = m_integratedMouseDelta;
                         }
                         else
                         {
                             m_integratedMouseDelta = 0f;
-                            desiredActions.turn    = mouseDelta / 2f;
+                            desiredActions.turn    = mouseDelta;
                         }
 
                         if (math.length(desiredActions.turn) > 1f)
@@ -70,7 +79,7 @@ namespace Lsss
                     var keyboard = Keyboard.current;
                     if (keyboard.nKey.isPressed && keyboard.digit0Key.isPressed)
                     {
-                        var ecb                                                             = latiosWorld.syncPoint.CreateEntityCommandBuffer();
+                        var ecb                                                                 = latiosWorld.syncPoint.CreateEntityCommandBuffer();
                         ecb.AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Title and Menu" });
                     }
                 }

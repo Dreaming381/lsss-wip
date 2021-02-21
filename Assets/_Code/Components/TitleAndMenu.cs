@@ -22,6 +22,7 @@ namespace Lsss
         public UnityEngine.UI.Slider musicSlider;
         public UnityEngine.UI.Slider sfxSlider;
         public TMP_Dropdown          graphicsDropdown;
+        public UnityEngine.UI.Slider mouseLookMultiplierSlider;
 
         [Space(10)]
         public UnityEngine.UI.Button       creditsBackButton;
@@ -36,6 +37,7 @@ namespace Lsss
         [HideInInspector] public bool       musicSliderDirty;
         [HideInInspector] public bool       sfxSliderDirty;
         [HideInInspector] public bool       graphicsQualityDirty;
+        [HideInInspector] public bool       mouseLookMultiplierSliderDirty;
         [HideInInspector] public bool       scrollLeft;
         [HideInInspector] public bool       scrollRight;
         [HideInInspector] public GameObject lastSelectedThing;
@@ -43,6 +45,7 @@ namespace Lsss
         //Slider events aren't working. Poll instead.
         [HideInInspector] public float musicSliderLastValue;
         [HideInInspector] public float sfxSliderLastValue;
+        [HideInInspector] public float mouseLookMultiplierSliderLastValue;
 
         public void SetScene(string nextScene)
         {
@@ -82,6 +85,11 @@ namespace Lsss
         public void SetGraphicsQuality()
         {
             graphicsQualityDirty = true;
+        }
+
+        public void SetMouseLookMultiplier()
+        {
+            mouseLookMultiplierSliderDirty = true;
         }
 
         public void ScrollLeft()
