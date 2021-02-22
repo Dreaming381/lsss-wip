@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   clip: {fileID: 0}
-  oneShot: 1
+  looping: 0
   autoDestroyOnFinish: 0
   volume: 1
   innerRange: 125

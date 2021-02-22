@@ -173,7 +173,7 @@ namespace Latios.Myri
 
                     case 0x10: ProcessLtw(chunk, firstEntityIndex); break;
                     case 0x11: ProcessCone(chunk, firstEntityIndex); break;
-                    case 0x12: ProcessNoTransform(chunk, firstEntityIndex); break;
+                    case 0x12: ProcessLtw(chunk, firstEntityIndex); break;
                     case 0x13: ProcessRotationCone(chunk, firstEntityIndex); break;
                     case 0x14: ProcessTranslation(chunk, firstEntityIndex); break;
                     case 0x15: ProcessTranslationCone(chunk, firstEntityIndex); break;
@@ -404,7 +404,7 @@ namespace Latios.Myri
 
                     case 0x10: ProcessLtw(chunk, firstEntityIndex); break;
                     case 0x11: ProcessCone(chunk, firstEntityIndex); break;
-                    case 0x12: ProcessNoTransform(chunk, firstEntityIndex); break;
+                    case 0x12: ProcessLtw(chunk, firstEntityIndex); break;
                     case 0x13: ProcessRotationCone(chunk, firstEntityIndex); break;
                     case 0x14: ProcessTranslation(chunk, firstEntityIndex); break;
                     case 0x15: ProcessTranslationCone(chunk, firstEntityIndex); break;

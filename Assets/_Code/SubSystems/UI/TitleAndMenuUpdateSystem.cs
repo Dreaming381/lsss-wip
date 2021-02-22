@@ -82,11 +82,13 @@ namespace Lsss
                         titleAndMenu.titlePanel.SetActive(false);
                         titleAndMenu.menuPanel.SetActive(true);
                         PlaySound(resources.selectSoundEffect);
-                        titleAndMenu.musicSlider.value      = serializedSettings.musicVolume;
-                        titleAndMenu.sfxSlider.value        = serializedSettings.sfxVolume;
-                        titleAndMenu.graphicsDropdown.value = serializedSettings.graphicsQuality;
-                        titleAndMenu.musicSliderLastValue   = titleAndMenu.musicSlider.value;
-                        titleAndMenu.sfxSliderLastValue     = titleAndMenu.sfxSlider.value;
+                        titleAndMenu.musicSlider.value                  = serializedSettings.musicVolume;
+                        titleAndMenu.sfxSlider.value                    = serializedSettings.sfxVolume;
+                        titleAndMenu.graphicsDropdown.value             = serializedSettings.graphicsQuality;
+                        titleAndMenu.mouseLookMultiplierSlider.value    = serializedSettings.mouseLoolMultiplier;
+                        titleAndMenu.musicSliderLastValue               = titleAndMenu.musicSlider.value;
+                        titleAndMenu.sfxSliderLastValue                 = titleAndMenu.sfxSlider.value;
+                        titleAndMenu.mouseLookMultiplierSliderLastValue = titleAndMenu.mouseLookMultiplierSlider.value;
                     }
                 }
                 else

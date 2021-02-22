@@ -13,8 +13,10 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation, BulletFirer>().AsParallelWriter();
-            var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>().AsParallelWriter();
+            var bulletIcb           = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation, BulletFirer>().AsParallelWriter();
+            var effectIcbMainThread = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>();
+            effectIcbMainThread.AddComponentTag<LocalToParent>();
+            var   effectIcb = effectIcbMainThread.AsParallelWriter();
             float dt        = Time.DeltaTime;
 
             Entities.WithAll<ShipTag>().ForEach((Entity entity,
