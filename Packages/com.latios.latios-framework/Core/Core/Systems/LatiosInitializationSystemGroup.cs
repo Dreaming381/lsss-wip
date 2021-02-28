@@ -42,7 +42,7 @@ namespace Latios.Systems
             {
                 if (lw.paused)
                     break;
-                sys.Update();
+                SuperSystem.UpdateManagedSystem(sys);
             }
         }
     }
@@ -52,6 +52,13 @@ namespace Latios.Systems
     [UpdateAfter(typeof(Unity.Scenes.SceneSystemGroup))]
     public class LatiosWorldSyncGroup : ComponentSystemGroup
     {
+        protected override void OnUpdate()
+        {
+            foreach (var sys in Systems)
+            {
+                SuperSystem.UpdateManagedSystem(sys);
+            }
+        }
     }
 
     [DisableAutoCreation]
@@ -59,6 +66,13 @@ namespace Latios.Systems
     [UpdateBefore(typeof(BeginInitializationEntityCommandBufferSystem))]
     public class PreSyncPointGroup : ComponentSystemGroup
     {
+        protected override void OnUpdate()
+        {
+            foreach (var sys in Systems)
+            {
+                SuperSystem.UpdateManagedSystem(sys);
+            }
+        }
     }
 }
 

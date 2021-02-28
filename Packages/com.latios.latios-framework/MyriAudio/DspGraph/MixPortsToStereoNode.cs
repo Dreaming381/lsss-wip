@@ -93,7 +93,7 @@ namespace Latios.Myri
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(CompileSynchronously = true)]
     internal unsafe struct MixPortsToStereoNodeUpdate : IAudioKernelUpdate<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>
     {
         public int leftChannelCount;

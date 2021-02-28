@@ -66,35 +66,7 @@ namespace Latios
         {
             foreach (var sys in Systems)
             {
-                try
-                {
-                    if (sys is ILatiosSystem latiosSys)
-                    {
-                        if (latiosSys.ShouldUpdateSystem())
-                        {
-                            sys.Enabled = true;
-                            sys.Update();
-                        }
-                        else if (sys.Enabled)
-                        {
-                            sys.Enabled = false;
-                            //Update to invoke OnStopRunning().
-                            sys.Update();
-                        }
-                        else
-                        {
-                            sys.Enabled = false;
-                        }
-                    }
-                    else
-                    {
-                        sys.Update();
-                    }
-                }
-                catch (Exception e)
-                {
-                    UnityEngine.Debug.LogException(e);
-                }
+                UpdateManagedSystem(sys);
 
                 if (World.QuitUpdate)
                     break;
@@ -129,6 +101,39 @@ namespace Latios
         }
 
         #endregion API
+
+        internal static void UpdateManagedSystem(ComponentSystemBase system)
+        {
+            try
+            {
+                if (system is ILatiosSystem latiosSys)
+                {
+                    if (latiosSys.ShouldUpdateSystem())
+                    {
+                        system.Enabled = true;
+                        system.Update();
+                    }
+                    else if (system.Enabled)
+                    {
+                        system.Enabled = false;
+                        //Update to invoke OnStopRunning().
+                        system.Update();
+                    }
+                    else
+                    {
+                        system.Enabled = false;
+                    }
+                }
+                else
+                {
+                    system.Update();
+                }
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
+            }
+        }
     }
 }
 

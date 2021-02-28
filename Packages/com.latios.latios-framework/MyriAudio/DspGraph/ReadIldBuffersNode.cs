@@ -108,7 +108,7 @@ namespace Latios.Myri
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(CompileSynchronously = true)]
     internal unsafe struct ReadIldBuffersNodeUpdate : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders,
                                                                          ReadIldBuffersNode>
     {
@@ -120,7 +120,7 @@ namespace Latios.Myri
         }
     }
 
-    [BurstCompile]
+    [BurstCompile(CompileSynchronously = true)]
     internal unsafe struct SetReadIldBuffersNodePackedFrameBufferId : IAudioKernelUpdate<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>
     {
         [NativeDisableUnsafePtrRestriction]
