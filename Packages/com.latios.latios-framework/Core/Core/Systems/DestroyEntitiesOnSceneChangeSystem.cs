@@ -31,6 +31,9 @@ namespace Latios.Systems
 
         private void RealUpdateOnSceneChange(Scene unloaded, Scene loaded)
         {
+            if (!Enabled)
+                return;
+
             latiosWorld.ResumeNextFrame();
             EntityManager.AddComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
             EntityManager.DestroyEntity(m_destroyQuery);

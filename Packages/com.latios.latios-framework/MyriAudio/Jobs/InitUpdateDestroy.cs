@@ -363,7 +363,7 @@ namespace Latios.Myri
 
                     if (!l.m_initialized)
                     {
-                        l.m_loopOffsetIndex = (int)(Squirrel3Noise((uint)(firstEntityIndex + i), seed) * (ulong)l.m_clip.Value.loopedOffsets.Length);
+                        l.m_loopOffsetIndex = (int)((Squirrel3Noise((uint)(firstEntityIndex + i), seed) * (ulong)l.m_clip.Value.loopedOffsets.Length) >> 32);
                         l.m_initialized     = true;
                         looped[i]           = l;
                     }

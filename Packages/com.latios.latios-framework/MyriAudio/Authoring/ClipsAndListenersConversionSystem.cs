@@ -211,10 +211,10 @@ namespace Latios.Myri.Authoring.Systems
             {
                 var     builder  = new BlobBuilder(Allocator.Temp);
                 ref var root     = ref builder.ConstructRoot<AudioClipBlob>();
-                var     blobLeft = builder.Allocate(ref root.samplesLeftOrMono, ranges[index].y);
+                var     blobLeft = builder.Allocate(ref root.samplesLeftOrMono, ranges[index].y / channelCounts[index]);
                 if (channelCounts[index] == 2)
                 {
-                    var blobRight = builder.Allocate(ref root.samplesRight, ranges[index].y);
+                    var blobRight = builder.Allocate(ref root.samplesRight, ranges[index].y / 2);
                     for (int i = 0; i < ranges[index].y; i++)
                     {
                         blobLeft[i / 2] = samples[ranges[index].x + i];

@@ -75,14 +75,19 @@ namespace Latios
             em.SetSharedComponentData(entity, data);
         }
 
-        public void AddOrSetSharedComponentData<T>(T data) where T : struct, ISharedComponentData
-        {
-            em.SetSharedComponentData(entity, data);
-        }
-
         public T GetSharedComponentData<T>() where T : struct, ISharedComponentData
         {
             return em.GetSharedComponentData<T>(entity);
+        }
+
+        public DynamicBuffer<T> AddBuffer<T>() where T : struct, IBufferElementData
+        {
+            return em.AddBuffer<T>(entity);
+        }
+
+        public DynamicBuffer<T> GetBuffer<T>() where T : struct, IBufferElementData
+        {
+            return em.GetBuffer<T>(entity);
         }
 
         public void AddCollectionComponent<T>(T value) where T : struct, ICollectionComponent

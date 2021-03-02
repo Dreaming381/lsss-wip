@@ -172,7 +172,7 @@ namespace Latios
         public InstantiateCommandBuffer(Allocator allocator)
         {
             FixedList64<ComponentType> types = new FixedList64<ComponentType>();
-            types.Add(typeof(T0));
+            types.Add(ComponentType.ReadWrite<T0>());
             m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
@@ -246,7 +246,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(typeof(T));
+            AddComponentTag(ComponentType.ReadWrite<T>());
         }
 
         /// <summary>
@@ -304,8 +304,8 @@ namespace Latios
         public InstantiateCommandBuffer(Allocator allocator)
         {
             FixedList64<ComponentType> types = new FixedList64<ComponentType>();
-            types.Add(typeof(T0));
-            types.Add(typeof(T1));
+            types.Add(ComponentType.ReadWrite<T0>());
+            types.Add(ComponentType.ReadWrite<T1>());
             m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
@@ -380,7 +380,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(typeof(T));
+            AddComponentTag(ComponentType.ReadWrite<T>());
         }
 
         /// <summary>
@@ -440,9 +440,9 @@ namespace Latios
         public InstantiateCommandBuffer(Allocator allocator)
         {
             FixedList64<ComponentType> types = new FixedList64<ComponentType>();
-            types.Add(typeof(T0));
-            types.Add(typeof(T1));
-            types.Add(typeof(T2));
+            types.Add(ComponentType.ReadWrite<T0>());
+            types.Add(ComponentType.ReadWrite<T1>());
+            types.Add(ComponentType.ReadWrite<T2>());
             m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
@@ -518,7 +518,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(typeof(T));
+            AddComponentTag(ComponentType.ReadWrite<T>());
         }
 
         /// <summary>
@@ -579,10 +579,10 @@ namespace Latios
         public InstantiateCommandBuffer(Allocator allocator)
         {
             FixedList64<ComponentType> types = new FixedList64<ComponentType>();
-            types.Add(typeof(T0));
-            types.Add(typeof(T1));
-            types.Add(typeof(T2));
-            types.Add(typeof(T3));
+            types.Add(ComponentType.ReadWrite<T0>());
+            types.Add(ComponentType.ReadWrite<T1>());
+            types.Add(ComponentType.ReadWrite<T2>());
+            types.Add(ComponentType.ReadWrite<T3>());
             m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
@@ -659,7 +659,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(typeof(T));
+            AddComponentTag(ComponentType.ReadWrite<T>());
         }
 
         /// <summary>
@@ -721,11 +721,11 @@ namespace Latios
         public InstantiateCommandBuffer(Allocator allocator)
         {
             FixedList64<ComponentType> types = new FixedList64<ComponentType>();
-            types.Add(typeof(T0));
-            types.Add(typeof(T1));
-            types.Add(typeof(T2));
-            types.Add(typeof(T3));
-            types.Add(typeof(T4));
+            types.Add(ComponentType.ReadWrite<T0>());
+            types.Add(ComponentType.ReadWrite<T1>());
+            types.Add(ComponentType.ReadWrite<T2>());
+            types.Add(ComponentType.ReadWrite<T3>());
+            types.Add(ComponentType.ReadWrite<T4>());
             m_instantiateCommandBufferUntyped = new InstantiateCommandBufferUntyped(allocator, types);
         }
 
@@ -803,7 +803,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(typeof(T));
+            AddComponentTag(ComponentType.ReadWrite<T>());
         }
 
         /// <summary>
