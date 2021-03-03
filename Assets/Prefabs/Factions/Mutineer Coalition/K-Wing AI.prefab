@@ -47,9 +47,9 @@ MonoBehaviour:
   range: 100
   preferredTargetDistance: 15
   friendlyFireDisableRange: 100
-  friendlyFireDisableFieldOfView: 20
-  enemyCrossHairsRange: 50
-  enemyCrossHairsFieldOfView: 10
+  friendlyFireDisableFieldOfView: 15
+  enemyCrossHairsRange: 70
+  enemyCrossHairsFieldOfView: 15
   biasCrossHairsUsingRootForward: 1
 --- !u!114 &159207917134653333
 MonoBehaviour:
@@ -67,11 +67,11 @@ MonoBehaviour:
     x: 10
     y: 20
   wanderDestinationRadiusMinMax:
-    x: 3
-    y: 15
+    x: 10
+    y: 25
   wanderPositionSearchRadiusMinMax:
-    x: 25
-    y: 100
+    x: 40
+    y: 200
 --- !u!114 &4575777123021862926
 MonoBehaviour:
   m_ObjectHideFlags: 0

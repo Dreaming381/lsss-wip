@@ -246,7 +246,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(ComponentType.ReadWrite<T>());
+            AddComponentTag(ComponentType.ReadOnly<T>());
         }
 
         /// <summary>
@@ -380,7 +380,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(ComponentType.ReadWrite<T>());
+            AddComponentTag(ComponentType.ReadOnly<T>());
         }
 
         /// <summary>
@@ -518,7 +518,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(ComponentType.ReadWrite<T>());
+            AddComponentTag(ComponentType.ReadOnly<T>());
         }
 
         /// <summary>
@@ -659,7 +659,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(ComponentType.ReadWrite<T>());
+            AddComponentTag(ComponentType.ReadOnly<T>());
         }
 
         /// <summary>
@@ -803,7 +803,7 @@ namespace Latios
         /// <typeparam name="T">The type to add to each instantiated entity</typeparam>
         public void AddComponentTag<T>() where T : struct, IComponentData
         {
-            AddComponentTag(ComponentType.ReadWrite<T>());
+            AddComponentTag(ComponentType.ReadOnly<T>());
         }
 
         /// <summary>

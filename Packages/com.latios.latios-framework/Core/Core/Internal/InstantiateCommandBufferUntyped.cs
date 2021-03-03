@@ -403,6 +403,7 @@ namespace Latios
                     {
                         var subArray = instantiatedEntities.GetSubArray(startIndex, sortedPrefabCounts[i] - 1);
                         eet.Instantiate(firstEntity, subArray);
+                        startIndex += subArray.Length;
                     }
                 }
                 //Step 5: Get locations of new entities

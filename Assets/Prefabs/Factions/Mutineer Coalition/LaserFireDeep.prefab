@@ -61,9 +61,9 @@ MonoBehaviour:
   clip: {fileID: 0}
   looping: 0
   autoDestroyOnFinish: 1
-  volume: 1
-  innerRange: 5
-  outerRange: 25
+  volume: 0.5
+  innerRange: 12
+  outerRange: 125
   rangeFadeMargin: 1
   voices: 0
   useCone: 0

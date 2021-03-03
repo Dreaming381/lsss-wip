@@ -10,6 +10,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
+            GetOrCreateAndAddSystem<DestroyUninitializedOrphanedEffects>();
             GetOrCreateAndAddSystem<OrbitalSpawnersProcGenSystem>();
             GetOrCreateAndAddSystem<SpawnFleetsSystem>();
             GetOrCreateAndAddSystem<SpawnShipsEnqueueSystem>();
