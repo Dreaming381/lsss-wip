@@ -1,0 +1,205 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &17005532080202772
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8131987731782554782}
+  - component: {fileID: 4044801483616628374}
+  - component: {fileID: 4692246761268157580}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8131987731782554782
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 17005532080202772}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 6563470713642671541}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4044801483616628374
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 17005532080202772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clip: {fileID: 0}
+  looping: 0
+  autoDestroyOnFinish: 0
+  volume: 0.2
+  innerRange: 50
+  outerRange: 500
+  rangeFadeMargin: 1
+  voices: 0
+  useCone: 0
+  innerAngle: 30
+  outerAngle: 60
+  outerAngleVolume: 0
+--- !u!114 &4692246761268157580
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 17005532080202772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectSettings:
+    waveType: 3
+    masterVolume: 0.45999998
+    attackTime: 0.02
+    sustainTime: 0.089999996
+    sustainPunch: 0.9
+    decayTime: 0.28
+    startFrequency: 0.35
+    minFrequency: 0
+    slide: -0.19
+    deltaSlide: 0
+    vibratoDepth: 0
+    vibratoSpeed: 0
+    changeAmount: 0
+    changeSpeed: 0
+    squareDuty: 0
+    dutySweep: 0
+    repeatSpeed: 0
+    phaserOffset: 0
+    phaserSweep: 0
+    lpFilterCutoff: 0.07
+    lpFilterCutoffSweep: 0.01
+    lpFilterResonance: 0.03
+    hpFilterCutoff: 0.13
+    hpFilterCutoffSweep: -0.42999998
+    changeRepeat: 0
+    changeAmount2: 0
+    changeSpeed2: 0
+    compressionAmount: 0.14999999
+    overtones: 0.90999997
+    overtoneFalloff: 0.089999996
+    bitCrush: 0
+    bitCrushSweep: 0
+--- !u!1 &791729229541415672
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6563470713642671541}
+  - component: {fileID: 5214167897728103196}
+  - component: {fileID: 7550388838435902557}
+  m_Layer: 0
+  m_Name: ZyklopsGunFireEffect
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6563470713642671541
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791729229541415672}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 8131987731782554782}
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5214167897728103196
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791729229541415672}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clip: {fileID: 0}
+  looping: 0
+  autoDestroyOnFinish: 1
+  volume: 0.2
+  innerRange: 50
+  outerRange: 500
+  rangeFadeMargin: 1
+  voices: 0
+  useCone: 0
+  innerAngle: 30
+  outerAngle: 60
+  outerAngleVolume: 0
+--- !u!114 &7550388838435902557
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791729229541415672}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectSettings:
+    waveType: 2
+    masterVolume: 0.02
+    attackTime: 0.049999997
+    sustainTime: 0.42999998
+    sustainPunch: 0.07
+    decayTime: 0.88
+    startFrequency: 0.13
+    minFrequency: 0.02
+    slide: -0.14999999
+    deltaSlide: 0.19999999
+    vibratoDepth: 0.71
+    vibratoSpeed: 0.96999997
+    changeAmount: 0.95
+    changeSpeed: 0
+    squareDuty: 0.12
+    dutySweep: -0.049999997
+    repeatSpeed: 0
+    phaserOffset: 0.65
+    phaserSweep: 0.06
+    lpFilterCutoff: 0.089999996
+    lpFilterCutoffSweep: 0.099999994
+    lpFilterResonance: 0
+    hpFilterCutoff: 0
+    hpFilterCutoffSweep: 0
+    changeRepeat: 0
+    changeAmount2: 0.47
+    changeSpeed2: 0.01
+    compressionAmount: 0.29999998
+    overtones: 0.13
+    overtoneFalloff: 0.59
+    bitCrush: 0.17999999
+    bitCrushSweep: -0.42999998

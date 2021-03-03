@@ -16,8 +16,8 @@ MonoBehaviour:
   looping: 0
   autoDestroyOnFinish: 0
   volume: 1
-  innerRange: 125
-  outerRange: 1250
+  innerRange: 75
+  outerRange: 400
   rangeFadeMargin: 1
   voices: 0
   useCone: 0
@@ -67,6 +67,208 @@ MonoBehaviour:
     compressionAmount: 0
     overtones: 0
     overtoneFalloff: 0
+    bitCrush: 0
+    bitCrushSweep: 0
+--- !u!1 &2138047387879918223
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4824437340650087290}
+  - component: {fileID: 7877287614867763368}
+  - component: {fileID: 1373374375160305469}
+  m_Layer: 0
+  m_Name: Rumble
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4824437340650087290
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2138047387879918223}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 2063417876343258653}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7877287614867763368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2138047387879918223}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clip: {fileID: 0}
+  looping: 0
+  autoDestroyOnFinish: 0
+  volume: 1
+  innerRange: 300
+  outerRange: 2000
+  rangeFadeMargin: 1
+  voices: 0
+  useCone: 0
+  innerAngle: 30
+  outerAngle: 60
+  outerAngleVolume: 0
+--- !u!114 &1373374375160305469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2138047387879918223}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectSettings:
+    waveType: 5
+    masterVolume: 0.52
+    attackTime: 0.45999998
+    sustainTime: 0.76
+    sustainPunch: 0.26
+    decayTime: 0.84999996
+    startFrequency: 0.22
+    minFrequency: 0
+    slide: 0
+    deltaSlide: 0
+    vibratoDepth: 0
+    vibratoSpeed: 0
+    changeAmount: -0.29
+    changeSpeed: 0.88
+    squareDuty: 0
+    dutySweep: 0
+    repeatSpeed: 0.34
+    phaserOffset: -0.01
+    phaserSweep: -0.01
+    lpFilterCutoff: 0.08
+    lpFilterCutoffSweep: 0
+    lpFilterResonance: 0
+    hpFilterCutoff: 0
+    hpFilterCutoffSweep: 0
+    changeRepeat: 0
+    changeAmount2: 0
+    changeSpeed2: 0
+    compressionAmount: 0
+    overtones: 0
+    overtoneFalloff: 0
+    bitCrush: 0
+    bitCrushSweep: 0
+--- !u!1 &6739405157378476734
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2624666776647620046}
+  - component: {fileID: 7519173916644636832}
+  - component: {fileID: 1522709067139913748}
+  m_Layer: 0
+  m_Name: Crack
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2624666776647620046
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6739405157378476734}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 2063417876343258653}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7519173916644636832
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6739405157378476734}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clip: {fileID: 0}
+  looping: 0
+  autoDestroyOnFinish: 0
+  volume: 0.75
+  innerRange: 10
+  outerRange: 50
+  rangeFadeMargin: 1
+  voices: 0
+  useCone: 0
+  innerAngle: 30
+  outerAngle: 60
+  outerAngleVolume: 0
+--- !u!114 &1522709067139913748
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6739405157378476734}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectSettings:
+    waveType: 5
+    masterVolume: 1
+    attackTime: 0.24
+    sustainTime: 0.81
+    sustainPunch: 0.48999998
+    decayTime: 0.72999996
+    startFrequency: 0.41
+    minFrequency: 0
+    slide: 0
+    deltaSlide: 0
+    vibratoDepth: 0
+    vibratoSpeed: 0
+    changeAmount: -0.29
+    changeSpeed: 0.88
+    squareDuty: 0
+    dutySweep: 0
+    repeatSpeed: 0.34
+    phaserOffset: -0.01
+    phaserSweep: -0.01
+    lpFilterCutoff: 0.98999995
+    lpFilterCutoffSweep: -0.049999997
+    lpFilterResonance: 0.48
+    hpFilterCutoff: 0
+    hpFilterCutoffSweep: 0
+    changeRepeat: 0
+    changeAmount2: 0
+    changeSpeed2: 0
+    compressionAmount: 0
+    overtones: 0.38
+    overtoneFalloff: 0.17999999
     bitCrush: 0
     bitCrushSweep: 0
 --- !u!1001 &1904155215143185383
@@ -129,5 +331,10 @@ PrefabInstance:
 --- !u!1 &3653059816251603508 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2944982074848645587, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+  m_PrefabInstance: {fileID: 1904155215143185383}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &2063417876343258653 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
   m_PrefabInstance: {fileID: 1904155215143185383}
   m_PrefabAsset: {fileID: 0}

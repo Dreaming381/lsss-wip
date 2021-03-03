@@ -1,0 +1,128 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &2821284892087140
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1001628797737200678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d532a20119901954b96d32fce5c06ebe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!1001 &6837605348885131663
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1008522853, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499125954677451, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499126166545622, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499126428403844, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499126756459467, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909864, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127038909865, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Name
+      value: S1-AstroPlane Mk 2 Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127255497522, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127316542100, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127359540363, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127367720402, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127589568083, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499127663425107, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981499128022887611, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 8916599505884215021, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+--- !u!1 &1001628797737200678 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5981499127038909865, guid: 5f941d0cd6776fd4ab12d29994349998, type: 3}
+  m_PrefabInstance: {fileID: 6837605348885131663}
+  m_PrefabAsset: {fileID: 0}

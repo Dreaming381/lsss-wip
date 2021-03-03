@@ -1,0 +1,171 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &7426075183204436657
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 791729229541415672, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_Name
+      value: ZyklopsGunFireEffect Variant
+      objectReference: {fileID: 0}
+    - target: {fileID: 5214167897728103196, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: clip
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6563470713642671541, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.waveType
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.masterVolume
+      value: 0.41
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.sustainTime
+      value: 0.089999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.sustainPunch
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.decayTime
+      value: 0.28
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.startFrequency
+      value: 0.59999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.minFrequency
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.slide
+      value: -0.26
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.deltaSlide
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.vibratoDepth
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.vibratoSpeed
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.changeAmount
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.squareDuty
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.dutySweep
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.phaserOffset
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.phaserSweep
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.lpFilterCutoff
+      value: 0.07
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.lpFilterCutoffSweep
+      value: -0.65
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.lpFilterResonance
+      value: 0.03
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.hpFilterCutoff
+      value: 0.13
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.hpFilterCutoffSweep
+      value: -0.42999998
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.changeAmount2
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.changeSpeed2
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.overtones
+      value: 0.90999997
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.overtoneFalloff
+      value: 0.089999996
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.bitCrush
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7550388838435902557, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}
+      propertyPath: effectSettings.bitCrushSweep
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 8e982a7424b9f4943b623a95aa00c241, type: 3}

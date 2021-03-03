@@ -1,0 +1,142 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &8280331604652964556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7475401106109505824}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b6fb063cb156342b9ec4228637c1d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &2334120477847543830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7475401106109505824}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a57d69b4706b2d4db6af3aa7f57382f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnForwardDistanceMinMax:
+    x: 10
+    y: 20
+  wanderDestinationRadiusMinMax:
+    x: 3
+    y: 15
+  wanderPositionSearchRadiusMinMax:
+    x: 25
+    y: 100
+--- !u!114 &3474193357388030733
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7475401106109505824}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a9172d0f817052489d3f1d0e4dbf71a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetLeadDistanceMinMax:
+    x: 0
+    y: 5
+  shipRadar: {fileID: 3471609656533881073}
+--- !u!114 &3471609656533881073
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2423178033388046355}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 324c01ceb24284f4cbd90fa6d12e20fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fieldOfView: 110
+  range: 150
+  preferredTargetDistance: 20
+  friendlyFireDisableRange: 100
+  friendlyFireDisableFieldOfView: 20
+  enemyCrossHairsRange: 100
+  enemyCrossHairsFieldOfView: 10
+  biasCrossHairsUsingRootForward: 0
+--- !u!1001 &4125527945400077458
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 598488544552298515, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1792444040925086849, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_Name
+      value: GunPointCenterRadar
+      objectReference: {fileID: 0}
+    - target: {fileID: 6844667131917561266, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+      propertyPath: m_Name
+      value: Zyklops AI
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+--- !u!1 &7475401106109505824 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6844667131917561266, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+  m_PrefabInstance: {fileID: 4125527945400077458}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &2423178033388046355 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1792444040925086849, guid: 0fed60f7e1460ab488fe181116fb0135, type: 3}
+  m_PrefabInstance: {fileID: 4125527945400077458}
+  m_PrefabAsset: {fileID: 0}
