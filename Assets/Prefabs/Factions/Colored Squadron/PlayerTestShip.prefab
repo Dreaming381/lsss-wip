@@ -122,7 +122,7 @@ PrefabInstance:
     - target: {fileID: 5341292370892799278, guid: 759f46a00509153449855e58ef8c689b, type: 3}
       propertyPath: fireEffectPrefab
       value: 
-      objectReference: {fileID: 5219018917493045575, guid: fbcc09712feeff445b197810f520dcab, type: 3}
+      objectReference: {fileID: 8795171399558383854, guid: 95bf066d880235149b1b4d41a4ecd920, type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 759f46a00509153449855e58ef8c689b, type: 3}
 --- !u!1 &7484108157390610682 stripped

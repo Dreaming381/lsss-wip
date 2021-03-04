@@ -745,7 +745,7 @@ MonoBehaviour:
   bulletsPerClip: 10
   clipReloadTime: 1.5
   bulletPrefab: {fileID: 4665177173452725130, guid: 09ef84b08d1bee74e9a666516377af6c, type: 3}
-  fireEffectPrefab: {fileID: 0}
+  fireEffectPrefab: {fileID: 8795171399558383854, guid: 95bf066d880235149b1b4d41a4ecd920, type: 3}
 --- !u!114 &4632066949981127948
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -88,8 +88,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   distances:
-  - 150
-  - 1000
+  - 200
+  - 600
   - 5000
 --- !u!1001 &375596277969935782
 PrefabInstance:

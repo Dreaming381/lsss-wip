@@ -1826,11 +1826,11 @@ MonoBehaviour:
   - {fileID: 3160678731728951176}
   - {fileID: 1157474652405477037}
   - {fileID: 5284137795705675968}
-  fireRate: 6
-  bulletsPerClip: 12
-  clipReloadTime: 2
+  fireRate: 12
+  bulletsPerClip: 18
+  clipReloadTime: 3
   bulletPrefab: {fileID: 4665177173452725130, guid: 09ef84b08d1bee74e9a666516377af6c, type: 3}
-  fireEffectPrefab: {fileID: 0}
+  fireEffectPrefab: {fileID: 3281560027828160427, guid: 9957db8466f177841a21c9056d2b381e, type: 3}
 --- !u!114 &3228637802334134237
 MonoBehaviour:
   m_ObjectHideFlags: 0
