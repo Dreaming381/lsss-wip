@@ -15,6 +15,12 @@ out!
 You can download the latest binary version of the game here:
 <https://dreaming381.itch.io/lsss>
 
+## Getting Started
+
+The entry scene is called Title and Menu in the Scenes folder. From there you
+will be able to enter playmode. The game will use a gamepad as input if a
+gamepad is detected. Otherwise it will fall back to mouse and keyboard controls.
+
 ## Special Project Restrictions
 
 All assets in the game can be modified either directly in Unity (free UPM
@@ -23,8 +29,9 @@ Currently, meshes are procedurally generated from built-in primitives. All
 texturing is done procedurally using ShaderGraph. Sound Effects are generated
 from USFXR and music is composed using CSound.
 
-In stark contrast to my usual style, this game has no intention to establish any
-significant lore or storyline. However, feel free to contribute your own!
+In stark contrast to my usual style, I have no intention to establish any
+significant lore or storyline. However, feel free to contribute your own! The
+contributions in the 0.3 version were amazing and I hope to see more!
 
 ## Contributing
 
@@ -42,12 +49,9 @@ faction with its own kind of ships.
 There are a few planned aspects not present in these scenes:
 
 -   Interiors for spawn graphics
-
 -   Asteroid fields
-
 -   Space stations (provide spatial reference and interconnected hangars for
     interior combat)
-
 -   Lighting
 
 ### Code
@@ -57,7 +61,6 @@ aspects people can dare try to contribute to:
 
 -   Editor Tools (I suck at writing these. If you don't suck at them, I envy
     your skills!)
-
 -   Advanced AI (I have a basic AI in place which I will continue to develop.
     However, a faction could use a different AI instead. The only requirement to
     an AI is it needs to write to \`ShipDesiredActions\`. Feel free to add any
@@ -71,11 +74,13 @@ can clean up your branch for you.
 
 ## License
 
-This project is licensed under the same licenses which govern the
-Latios-Framework repository:
-<https://github.com/Dreaming381/Latios-Framework/blob/master/LICENSE.md>
+This project is licensed under the MIT license.
 
 ## Third Party Notices
+
+This project includes an embedded version of the Latios Framework which is
+licensed under the Unity Companion License as a derivative work:
+<https://github.com/Dreaming381/Latios-Framework/blob/master/LICENSE.md>
 
 This project includes CSoundUnity via UPM which is licensed under LGPL 2.1.
 
