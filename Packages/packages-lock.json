@@ -1,20 +1,12 @@
 {
   "dependencies": {
-    "com.csound.csoundunity": {
-      "version": "https://github.com/rorywalsh/CsoundUnity.git",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "686c51410c86d2208048cc44125660836edfd010"
-    },
     "com.latios.latiosframework": {
       "version": "file:com.latios.latios-framework",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.unity.entities": "0.16.0-preview.21",
-        "com.unity.code-analysis": "0.1.2-preview",
-        "com.unity.audio.dspgraph": "0.1.0-preview.16"
+        "com.unity.entities": "0.17.0-preview.41",
+        "com.unity.audio.dspgraph": "0.1.0-preview.17"
       }
     },
     "com.unity.audio.dspgraph": {
@@ -36,13 +28,6 @@
       "dependencies": {
         "com.unity.mathematics": "1.2.1"
       },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.code-analysis": {
-      "version": "0.1.2-preview",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {},
       "url": "https://packages.unity.com"
     },
     "com.unity.collab-proxy": {

@@ -176,7 +176,7 @@ namespace Latios.Myri
                         {
                             if (clip.sampleRate == sampleRate)
                             {
-                                int clipStart = (int)(samplesPlayed % (ulong)clip.samplesLeftOrMono.Length) + (int)math.round(itdOffset);
+                                int clipStart = (int)(samplesPlayed % (ulong)clip.samplesLeftOrMono.Length) + (int)math.round(itdOffset) + loopOffset;
                                 SampleMatchedRate(ref clip, clipStart, isRightChannel, weight, outputSamples);
                             }
                             else

@@ -81,6 +81,8 @@ namespace Lsss
                     {
                         var ecb                                                                 = latiosWorld.syncPoint.CreateEntityCommandBuffer();
                         ecb.AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Title and Menu" });
+                        UnityEngine.Cursor.lockState                                            = UnityEngine.CursorLockMode.None;
+                        UnityEngine.Cursor.visible                                              = true;
                     }
                 }
             }).WithoutBurst().Run();

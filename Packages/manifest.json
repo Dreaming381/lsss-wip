@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.csound.csoundunity": "https://github.com/rorywalsh/CsoundUnity.git",
     "com.unity.audio.dspgraph": "0.1.0-preview.17",
     "com.unity.burst": "1.3.7",
     "com.unity.collab-proxy": "1.3.9",
