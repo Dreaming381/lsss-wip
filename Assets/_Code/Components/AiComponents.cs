@@ -43,7 +43,7 @@ namespace Lsss
 
     public struct AiShipRadarEntity : IComponentData
     {
-        public Entity shipRadar;
+        public EntityWith<AiShipRadarScanResults> shipRadar;
     }
 
     public struct AiExploreOutput : IComponentData
@@ -87,8 +87,8 @@ namespace Lsss
         public float distance;
         public float cosFov;
 
-        public Entity target;  //Null if needs target
-        public float  preferredTargetDistance;
+        public EntityWith<ShipTag> target;  //Null if needs target
+        public float               preferredTargetDistance;
 
         public float      friendCrossHairsDistanceFilter;
         public float      friendCrossHairsCosFovFilter;

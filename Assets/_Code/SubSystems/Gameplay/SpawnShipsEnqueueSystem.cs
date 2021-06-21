@@ -49,9 +49,9 @@ namespace Lsss
             }
             else
             {
-                spawnQueues.playerQueue               = new NativeQueue<Entity>(Allocator.Persistent);
-                spawnQueues.aiQueue                   = new NativeQueue<Entity>(Allocator.Persistent);
-                spawnQueues.newAiEntitiesToPrioritize = new NativeList<Entity>(Allocator.Persistent);
+                spawnQueues.playerQueue               = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent);
+                spawnQueues.aiQueue                   = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent);
+                spawnQueues.newAiEntitiesToPrioritize = new NativeList<EntityWith<Disabled> >(Allocator.Persistent);
                 spawnQueues.factionRanges             = new NativeList<SpawnQueues.FactionRanges>(Allocator.Persistent);
                 sceneBlackboardEntity.AddCollectionComponent(spawnQueues);
             }
@@ -89,7 +89,7 @@ namespace Lsss
                     EntityManager.SetEnabled(newShipPrefab, false);
                     var newEntities = EntityManager.Instantiate(newShipPrefab, unitsToSpawn, Allocator.TempJob);
                     int start       = spawnQueues.newAiEntitiesToPrioritize.Length;
-                    spawnQueues.newAiEntitiesToPrioritize.AddRange(newEntities);
+                    spawnQueues.newAiEntitiesToPrioritize.AddRange(newEntities.Reinterpret<EntityWith<Disabled> >());
                     spawnQueues.factionRanges.Add(new SpawnQueues.FactionRanges
                     {
                         start  = start,

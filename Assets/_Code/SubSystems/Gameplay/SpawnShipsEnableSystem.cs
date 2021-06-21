@@ -12,7 +12,7 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            var enabledShipList = new NativeList<Entity>(Allocator.TempJob);
+            var enabledShipList = new NativeList<EntityWithBuffer<LinkedEntityGroup> >(Allocator.TempJob);
 
             var ecb = new EnableCommandBuffer(Allocator.TempJob);
 
@@ -26,7 +26,7 @@ namespace Lsss
                     SetComponent(ship, GetComponent<Rotation>(entity));
                     payload.disabledShip = Entity.Null;
 
-                    enabledShipList.Add(ship);
+                    enabledShipList.Add(ship.entity);
                 }
             }).Run();
 
@@ -41,8 +41,7 @@ namespace Lsss
             {
                 for (int i = 0; i < enabledShipList.Length; i++)
                 {
-                    var ship         = enabledShipList[i];
-                    var linkedBuffer = linkedBfe[ship];
+                    var linkedBuffer = enabledShipList[i][linkedBfe];
                     for (int j = 0; j < linkedBuffer.Length; j++)
                     {
                         var e = linkedBuffer[j].Value;

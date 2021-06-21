@@ -289,7 +289,7 @@ namespace Lsss
                 var    radar       = radars[result.entityA];
                 float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
 
-                bool  useFullRange  = radar.target == result.entityB || radar.target == Entity.Null;
+                bool  useFullRange  = radar.target.entity == result.entityB || radar.target == Entity.Null;
                 float radarDistance = math.select(radar.nearestEnemyCrossHairsDistanceFilter, radar.distance, useFullRange);
                 float radarCosFov   = math.select(radar.nearestEnemyCrossHairsCosFovFilter, radar.cosFov, useFullRange);
 

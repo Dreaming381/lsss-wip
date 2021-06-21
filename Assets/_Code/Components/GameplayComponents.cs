@@ -6,6 +6,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Lsss
 {
@@ -20,12 +21,12 @@ namespace Lsss
 
     public struct Faction : IComponentData
     {
-        public FixedString64 name;
-        public int           remainingReinforcements;
-        public int           maxFieldUnits;
-        public float         spawnWeightInverse;
-        public Entity        aiPrefab;
-        public Entity        playerPrefab;
+        public FixedString64      name;
+        public int                remainingReinforcements;
+        public int                maxFieldUnits;
+        public float              spawnWeightInverse;
+        public EntityWith<Prefab> aiPrefab;
+        public EntityWith<Prefab> playerPrefab;
     }
 
     public struct FactionShipsCollisionLayer : ICollectionComponent
@@ -39,14 +40,14 @@ namespace Lsss
 
     public struct FactionMember : ISharedComponentData
     {
-        public Entity factionEntity;
+        public EntityWith<Faction> factionEntity;
     }
 
     public struct LastAliveObjectiveTag : IComponentData { }
 
     public struct DestroyFactionObjective : IBufferElementData
     {
-        public Entity factionToDestroy;
+        public EntityWith<Faction> factionToDestroy;
     }
 
     public struct ShipTag : IComponentData { }
@@ -81,27 +82,27 @@ namespace Lsss
     [InternalBufferCapacity(8)]
     public struct ShipGunPoint : IBufferElementData
     {
-        public Entity gun;
+        public EntityWith<LocalToWorld> gun;
     }
 
     public struct ShipBulletPrefab : IComponentData
     {
-        public Entity bulletPrefab;
+        public EntityWith<Prefab> bulletPrefab;
     }
 
     public struct ShipFireEffectPrefab : IComponentData
     {
-        public Entity effectPrefab;
+        public EntityWith<Prefab> effectPrefab;
     }
 
     public struct ShipExplosionPrefab : IComponentData
     {
-        public Entity explosionPrefab;
+        public EntityWith<Prefab> explosionPrefab;
     }
 
     public struct ShipHitEffectPrefab : IComponentData
     {
-        public Entity hitEffectPrefab;
+        public EntityWith<Prefab> hitEffectPrefab;
     }
 
     public struct ShipReloadTime : IComponentData
@@ -137,6 +138,8 @@ namespace Lsss
 
     public struct BulletFirer : IComponentData
     {
+        // Todo: Change this after upgrade to 2020.3.
+        //public EntityWith<ShipTag> entity;
         public Entity entity;
         public int    lastImpactFrame;
         public bool   initialized;
@@ -180,7 +183,7 @@ namespace Lsss
 
     public struct WormholeDestination : IComponentData
     {
-        public Entity wormholeDestination;
+        public EntityWith<WormholeDestination> wormholeDestination;
     }
 
     public struct WormholeCollisionLayer : ICollectionComponent
@@ -211,14 +214,14 @@ namespace Lsss
 
     public struct SpawnPoint : IComponentData
     {
-        public Entity spawnGraphicPrefab;
-        public float  maxTimeUntilSpawn;
-        public float  maxPauseTime;
+        public EntityWith<Prefab> spawnGraphicPrefab;
+        public float              maxTimeUntilSpawn;
+        public float              maxPauseTime;
     }
 
     public struct SpawnPayload : IComponentData
     {
-        public Entity disabledShip;
+        public EntityWith<Disabled> disabledShip;
     }
 
     public struct SafeToSpawn : IComponentData
@@ -260,10 +263,10 @@ namespace Lsss
             public float weight;
         }
 
-        public NativeQueue<Entity>       playerQueue;
-        public NativeQueue<Entity>       aiQueue;
-        public NativeList<Entity>        newAiEntitiesToPrioritize;
-        public NativeList<FactionRanges> factionRanges;
+        public NativeQueue<EntityWith<Disabled> > playerQueue;
+        public NativeQueue<EntityWith<Disabled> > aiQueue;
+        public NativeList<EntityWith<Disabled> >  newAiEntitiesToPrioritize;
+        public NativeList<FactionRanges>          factionRanges;
 
         public Type AssociatedComponentType => typeof(SpawnQueuesTag);
 
@@ -295,9 +298,9 @@ namespace Lsss
         public float2 minMaxOrbitSpeed;
         public float  colliderRadius;
 
-        public Entity spawnGraphicPrefab;
-        public float  maxTimeUntilSpawn;
-        public float  maxPauseTime;
+        public EntityWith<Prefab> spawnGraphicPrefab;
+        public float              maxTimeUntilSpawn;
+        public float              maxPauseTime;
     }
 
     //Shared
