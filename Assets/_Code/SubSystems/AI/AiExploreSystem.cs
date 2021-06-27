@@ -10,24 +10,26 @@ namespace Lsss
 {
     public class AiExploreSystem : SubSystem
     {
-        struct Rng : IComponentData
+        struct AiRng : IComponentData
         {
-            public Random random;
+            public Rng rng;
         }
 
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponent<Rng>())
-                sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(06117105) });
+            if (!sceneBlackboardEntity.HasComponent<AiRng>())
+                sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
 
-            float  arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
-            Entity sbe         = sceneBlackboardEntity;
+            float arenaRadius                                      = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+            var   rng                                              = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
+            sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
 
-            Entities.WithAll<AiTag>().ForEach((ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality, in Translation translation) =>
+            Entities.WithAll<AiTag>().ForEach((int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
+                                               in Translation translation) =>
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)
                 {
-                    var   random         = GetComponent<Rng>(sbe).random;
+                    var   random         = rng.GetSequence(entityInQueryIndex);
                     float maxValidRadius = math.min(personality.wanderPositionSearchRadius, arenaRadius - math.length(translation.Value));
                     if (maxValidRadius < personality.wanderDestinationRadius)
                     {
@@ -39,12 +41,10 @@ namespace Lsss
                         float radius         = random.NextFloat(0f, maxValidRadius);
                         state.wanderPosition = random.NextFloat3Direction() * radius + translation.Value;
                     }
-
-                    SetComponent(sbe, new Rng { random = random });
                 }
                 output.wanderPosition      = state.wanderPosition;
                 output.wanderPositionValid = true;
-            }).Schedule();
+            }).ScheduleParallel();
         }
     }
 }

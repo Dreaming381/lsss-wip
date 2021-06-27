@@ -10,39 +10,40 @@ namespace Lsss
 {
     public class AiExploreInitializePersonalitySystem : SubSystem
     {
-        struct Rng : IComponentData
+        struct AiRng : IComponentData
         {
-            public Random random;
+            public Rng rng;
         }
 
         EntityQuery m_query;
 
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponent<Rng>())
-                sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(34910143) });
+            if (!sceneBlackboardEntity.HasComponent<AiRng>())
+                sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreInitializePersonalitySystem") });
 
-            Entity sbe = sceneBlackboardEntity;
+            var rng                                                = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
+            sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
 
             var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
 
             float arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
-            Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiExplorePersonality personality,
+            Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((int entityInQueryIndex,
+                                                                                        ref AiExplorePersonality personality,
                                                                                         ref AiExploreState state,
                                                                                         in AiExplorePersonalityInitializerValues initalizer,
                                                                                         in Translation trans,
                                                                                         in Rotation rot) =>
             {
-                var random                             = GetComponent<Rng>(sbe).random;
+                var random                             = rng.GetSequence(entityInQueryIndex);
                 personality.spawnForwardDistance       = random.NextFloat(initalizer.spawnForwardDistanceMinMax.x, initalizer.spawnForwardDistanceMinMax.y);
                 personality.wanderDestinationRadius    = random.NextFloat(initalizer.wanderDestinationRadiusMinMax.x, initalizer.wanderDestinationRadiusMinMax.y);
                 personality.wanderPositionSearchRadius = random.NextFloat(initalizer.wanderPositionSearchRadiusMinMax.x, initalizer.wanderPositionSearchRadiusMinMax.y);
-                SetComponent(sbe, new Rng { random     = random });
 
                 var targetPosition   = math.forward(rot.Value) * (personality.spawnForwardDistance + personality.wanderDestinationRadius) + trans.Value;
                 var radius           = math.length(targetPosition);
                 state.wanderPosition = math.select(targetPosition, targetPosition * arenaRadius / radius, radius > arenaRadius);
-            }).Schedule();
+            }).ScheduleParallel();
 
             ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query);
         }

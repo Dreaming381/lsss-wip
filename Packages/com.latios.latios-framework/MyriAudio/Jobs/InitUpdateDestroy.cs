@@ -355,7 +355,7 @@ namespace Latios.Myri
 
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
-                var seed   = math.asuint(audioFrame.Value);
+                var rng    = new Rng.RngSequence(math.asuint(new int2(audioFrame.Value, chunkIndex)));
                 var looped = chunk.GetNativeArray(loopedHandle);
                 for (int i = 0; i < chunk.Count; i++)
                 {
@@ -363,7 +363,7 @@ namespace Latios.Myri
 
                     if (!l.m_initialized)
                     {
-                        l.m_loopOffsetIndex = (int)((Squirrel3Noise((uint)(firstEntityIndex + i), seed) * (ulong)l.m_clip.Value.loopedOffsets.Length) >> 32);
+                        l.m_loopOffsetIndex = rng.NextInt(0, l.m_clip.Value.loopedOffsets.Length);
                         l.m_initialized     = true;
                         looped[i]           = l;
                     }
@@ -422,19 +422,6 @@ namespace Latios.Myri
 
                     default: ErrorCase(); break;
                 }
-            }
-
-            //From https://www.youtube.com/watch?v=LWFzPP8ZbdU
-            uint Squirrel3Noise(uint position, uint seed)
-            {
-                var val  = position * 0x68e31da4;
-                val     *= seed;
-                val     ^= (val >> 8);
-                val     += 0xb5297a4d;
-                val     ^= (val << 8);
-                val     *= 0x1b56c4e9;
-                val     ^= (val >> 8);
-                return val;
             }
 
             void ProcessNoTransform(ArchetypeChunk chunk, int firstEntityIndex)

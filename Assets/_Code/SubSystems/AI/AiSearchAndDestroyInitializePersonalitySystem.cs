@@ -10,29 +10,29 @@ namespace Lsss
 {
     public class AiSearchAndDestroyInitializePersonalitySystem : SubSystem
     {
-        struct Rng : IComponentData
+        struct AiRng : IComponentData
         {
-            public Random random;
+            public Rng rng;
         }
 
         EntityQuery m_query;
 
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponent<Rng>())
-                sceneBlackboardEntity.AddComponentData(new Rng { random = new Random(5417) });
+            if (!sceneBlackboardEntity.HasComponent<AiRng>())
+                sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiSearchAndDestroyInitializePersonalitySystem") });
 
-            Entity sbe = sceneBlackboardEntity;
+            var rng                                                = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
+            sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
 
             var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
 
-            Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((ref AiSearchAndDestroyPersonality personality,
+            Entities.WithAll<AiTag>().WithStoreEntityQueryInField(ref m_query).ForEach((int entityInQueryIndex, ref AiSearchAndDestroyPersonality personality,
                                                                                         in AiSearchAndDestroyPersonalityInitializerValues initalizer) =>
             {
-                var random                         = GetComponent<Rng>(sbe).random;
-                personality.targetLeadDistance     = random.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
-                SetComponent(sbe, new Rng { random = random });
-            }).Schedule();
+                var random                     = rng.GetSequence(entityInQueryIndex);
+                personality.targetLeadDistance = random.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
+            }).ScheduleParallel();
 
             ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
         }
