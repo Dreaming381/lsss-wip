@@ -31,5 +31,16 @@ namespace Latios.Psyshock
         public float3 normal;
         public int    subColliderIndex;
     }
+
+    public struct ColliderCastResult
+    {
+        public float3 hitpointOnCaster;
+        public float3 hitpointOnTarget;
+        public float3 normalOnSweep;
+        public float3 normalOnTarget;
+        public float  distance;
+        public int    subColliderIndexOnCaster;
+        public int    subColliderIndexOnTarget;
+    }
 }
 
