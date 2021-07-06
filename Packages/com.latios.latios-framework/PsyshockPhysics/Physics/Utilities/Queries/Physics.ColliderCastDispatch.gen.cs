@@ -84,8 +84,13 @@ namespace Latios.Psyshock
                     return false;
             }
         }
-        /*public static bool ColliderCast(Collider colliderToCast, RigidTransform castStart, float3 castEnd, CapsuleCollider targetCapsule, RigidTransform targetCapsuleTransform, out ColliderCastResult result)
-           {
+        public static bool ColliderCast(Collider colliderToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        CapsuleCollider targetCapsule,
+                                        RigidTransform targetCapsuleTransform,
+                                        out ColliderCastResult result)
+        {
             switch (colliderToCast.type)
             {
                 case ColliderType.Sphere:
@@ -112,10 +117,15 @@ namespace Latios.Psyshock
                     result = default;
                     return false;
             }
-           }
+        }
 
-           public static bool ColliderCast(CapsuleCollider capsuleToCast, RigidTransform castStart, float3 castEnd, Collider targetCollider, RigidTransform targetTransform, out ColliderCastResult result)
-           {
+        public static bool ColliderCast(CapsuleCollider capsuleToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        Collider targetCollider,
+                                        RigidTransform targetTransform,
+                                        out ColliderCastResult result)
+        {
             switch (targetCollider.type)
             {
                 case ColliderType.Sphere:
@@ -142,9 +152,15 @@ namespace Latios.Psyshock
                     result = default;
                     return false;
             }
-           }
-           public static bool ColliderCast(Collider colliderToCast, RigidTransform castStart, float3 castEnd, BoxCollider targetBox, RigidTransform targetBoxTransform, out ColliderCastResult result)
-           {
+        }
+
+        public static bool ColliderCast(Collider colliderToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        BoxCollider targetBox,
+                                        RigidTransform targetBoxTransform,
+                                        out ColliderCastResult result)
+        {
             switch (colliderToCast.type)
             {
                 case ColliderType.Sphere:
@@ -171,10 +187,15 @@ namespace Latios.Psyshock
                     result = default;
                     return false;
             }
-           }
+        }
 
-           public static bool ColliderCast(BoxCollider boxToCast, RigidTransform castStart, float3 castEnd, Collider targetCollider, RigidTransform targetTransform, out ColliderCastResult result)
-           {
+        public static bool ColliderCast(BoxCollider boxToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        Collider targetCollider,
+                                        RigidTransform targetTransform,
+                                        out ColliderCastResult result)
+        {
             switch (targetCollider.type)
             {
                 case ColliderType.Sphere:
@@ -201,9 +222,15 @@ namespace Latios.Psyshock
                     result = default;
                     return false;
             }
-           }
-           public static bool ColliderCast(Collider colliderToCast, RigidTransform castStart, float3 castEnd, CompoundCollider targetCompound, RigidTransform targetCompoundTransform, out ColliderCastResult result)
-           {
+        }
+
+        public static bool ColliderCast(Collider colliderToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        CompoundCollider targetCompound,
+                                        RigidTransform targetCompoundTransform,
+                                        out ColliderCastResult result)
+        {
             switch (colliderToCast.type)
             {
                 case ColliderType.Sphere:
@@ -230,10 +257,15 @@ namespace Latios.Psyshock
                     result = default;
                     return false;
             }
-           }
+        }
 
-           public static bool ColliderCast(CompoundCollider compoundToCast, RigidTransform castStart, float3 castEnd, Collider targetCollider, RigidTransform targetTransform, out ColliderCastResult result)
-           {
+        public static bool ColliderCast(CompoundCollider compoundToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        Collider targetCollider,
+                                        RigidTransform targetTransform,
+                                        out ColliderCastResult result)
+        {
             switch (targetCollider.type)
             {
                 case ColliderType.Sphere:
@@ -260,37 +292,42 @@ namespace Latios.Psyshock
                     result = default;
                     return false;
             }
-           }
+        }
 
-           public static bool ColliderCast(Collider colliderToCast, RigidTransform castStart, float3 castEnd, Collider targetCollider, RigidTransform targetTransform, out ColliderCastResult result)
-           {
+        public static bool ColliderCast(Collider colliderToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        Collider targetCollider,
+                                        RigidTransform targetTransform,
+                                        out ColliderCastResult result)
+        {
             switch (colliderToCast.type)
             {
                 case ColliderType.Sphere:
                 {
-                    SphereCollider colA = colliderA;
+                    SphereCollider colA = colliderToCast;
                     return ColliderCast(colA, castStart, castEnd, targetCollider, targetTransform, out result);
                 }
                 case ColliderType.Capsule:
                 {
-                    CapsuleCollider colA = colliderA;
+                    CapsuleCollider colA = colliderToCast;
                     return ColliderCast(colA, castStart, castEnd, targetCollider, targetTransform, out result);
                 }
                 case ColliderType.Box:
                 {
-                    BoxCollider colA = colliderA;
+                    BoxCollider colA = colliderToCast;
                     return ColliderCast(colA, castStart, castEnd, targetCollider, targetTransform, out result);
                 }
                 case ColliderType.Compound:
                 {
-                    CompoundCollider colA = colliderA;
+                    CompoundCollider colA = colliderToCast;
                     return ColliderCast(colA, castStart, castEnd, targetCollider, targetTransform, out result);
                 }
                 default:
                     result = default;
                     return false;
             }
-           }*/
+        }
     }
 }
 

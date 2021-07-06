@@ -236,6 +236,138 @@ namespace Latios.Psyshock
             fraction                 = math.select(bestFractions.x, bestFractions.z, bestFractions.z < bestFractions.x);
             return fraction <= 1f;
         }
+
+        // Mostly from Unity.Physics but handles more edge cases
+        // Todo: Reduce branches
+        public static bool RaycastQuad(Ray ray, simdFloat3 quadPoints, out float fraction)
+        {
+            simdFloat3 abbccdda = quadPoints.bcda - quadPoints;
+            float3     ab       = abbccdda.a;
+            float3     ca       = quadPoints.a - quadPoints.c;
+            float3     normal   = math.cross(ab, ca);
+            float3     aStart   = ray.start - quadPoints.a;
+            float3     aEnd     = ray.end - quadPoints.a;
+
+            float nDotAStart    = math.dot(normal, aStart);
+            float nDotAEnd      = math.dot(normal, aEnd);
+            float productOfDots = nDotAStart * nDotAEnd;
+
+            if (productOfDots < 0f)
+            {
+                // The start and end are on opposite sides of the infinite plane.
+                fraction = nDotAStart / (nDotAStart - nDotAEnd);
+
+                // These edge normals are relative to the ray, not the plane normal.
+                simdFloat3 edgeNormals = simd.cross(abbccdda, ray.displacement);
+
+                // This is the midpoint of the segment to the start point, avoiding the divide by two.
+                float3     doubleStart = ray.start + ray.start;
+                simdFloat3 r           = doubleStart - (quadPoints + quadPoints.bcda);
+                float4     dots        = simd.dot(r, edgeNormals);
+                return math.all(dots <= 0f) || math.all(dots >= 0f);
+            }
+            else if (nDotAStart == 0f && nDotAEnd == 0f)
+            {
+                // The start and end are both on the infinite plane or the quad is degenerate.
+
+                // Check for the degenerate case
+                if (math.all(normal == 0f))
+                {
+                    normal = math.cross(quadPoints.a - ray.start, ab);
+                    if (math.dot(normal, ray.displacement) != 0f)
+                    {
+                        fraction = 2f;
+                        return false;
+                    }
+                }
+
+                // Make sure the start isn't on the quad.
+                simdFloat3 edgeNormals = simd.cross(abbccdda, normal);
+                float3     doubleStart = ray.start + ray.start;
+                simdFloat3 r           = doubleStart - (quadPoints + quadPoints.bcda);
+                float4     dots        = simd.dot(r, edgeNormals);
+                if (math.all(dots <= 0f) || math.all(dots >= 0f))
+                {
+                    fraction = 2f;
+                    return false;
+                }
+
+                // Todo: This is a rare case, so we are going to do something crazy to avoid trying to solve
+                // line intersections in 3D space.
+                // Instead, inflate the plane along the normal and raycast against the planes
+                // In the case that the ray passes through one of the plane edges, this recursion will reach
+                // three levels deep, and then a full plane will be constructed against the ray.
+                var    negPoints = quadPoints - normal;
+                var    posPoints = quadPoints + normal;
+                var    quadA     = new simdFloat3(negPoints.a, posPoints.a, posPoints.b, negPoints.b);
+                var    quadB     = new simdFloat3(negPoints.b, posPoints.b, posPoints.c, negPoints.c);
+                var    quadC     = new simdFloat3(negPoints.c, posPoints.c, posPoints.d, negPoints.d);
+                var    quadD     = new simdFloat3(negPoints.d, posPoints.d, posPoints.a, negPoints.a);
+                bool4  hits      = default;
+                float4 fractions = default;
+                hits.x           = RaycastQuad(ray, quadA, out fractions.x);
+                hits.y           = RaycastQuad(ray, quadB, out fractions.y);
+                hits.z           = RaycastQuad(ray, quadC, out fractions.z);
+                hits.w           = RaycastQuad(ray, quadD, out fractions.w);
+                fractions        = math.select(2f, fractions, hits);
+                fraction         = math.cmin(fractions);
+                return math.any(hits);
+            }
+            else if (nDotAStart == 0f)
+            {
+                // The start of the ray is on the infinite plane
+                // And since we ignore inside hits, we ignore this too.
+                fraction = 2f;
+                return false;
+            }
+            else if (nDotAEnd == 0f)
+            {
+                // The end of the ray is on the infinite plane
+                fraction               = 0f;
+                simdFloat3 edgeNormals = simd.cross(abbccdda, normal);
+                float3     doubleEnd   = ray.end + ray.end;
+                simdFloat3 r           = doubleEnd - (quadPoints + quadPoints.bcda);
+                float4     dots        = simd.dot(r, edgeNormals);
+                return math.all(dots <= 0f) || math.all(dots >= 0f);
+            }
+            else
+            {
+                fraction = 2f;
+                return false;
+            }
+        }
+
+        public static bool RaycastRoundedQuad(Ray ray, simdFloat3 quadPoints, float radius, out float fraction, out float3 normal)
+        {
+            // Make sure the ray doesn't start inside.
+            if (DistanceQueries.DistanceBetween(ray.start, quadPoints, radius, out _))
+            {
+                fraction = 2f;
+                normal   = default;
+                return false;
+            }
+
+            float3 ab         = quadPoints.b - quadPoints.a;
+            float3 ca         = quadPoints.a - quadPoints.c;
+            float3 quadNormal = math.cross(ab, ca);
+            quadNormal        = math.select(quadNormal, -quadNormal, math.dot(quadNormal, ray.displacement) > 0f);
+
+            // Catch degenerate quad here
+            bool  quadFaceHit  = math.any(quadNormal);
+            float quadFraction = 2f;
+            if (quadFaceHit)
+                quadFaceHit          = RaycastQuad(ray, quadPoints + math.normalize(quadNormal) * radius, out quadFraction);
+            quadFraction             = math.select(2f, quadFraction, quadFaceHit);
+            bool4 capsuleHits        = Raycast4Capsules(ray, quadPoints, quadPoints.bcda, radius, out float4 capsuleFractions, out simdFloat3 capsuleNormals);
+            capsuleFractions         = math.select(2f, capsuleFractions, capsuleHits);
+            simdFloat3 bestNormals   = simd.select(capsuleNormals, capsuleNormals.badc, capsuleFractions.yxwz < capsuleFractions);
+            float4     bestFractions = math.select(capsuleFractions, capsuleFractions.yxwz, capsuleFractions.yxwz < capsuleFractions);
+            normal                   = math.select(bestNormals.a, bestNormals.c, bestFractions.z < bestFractions.x);
+            fraction                 = math.select(bestFractions.x, bestFractions.z, bestFractions.z < bestFractions.x);
+            normal                   = math.select(normal, quadNormal, quadFraction < fraction);
+            fraction                 = math.select(fraction, quadFraction, quadFraction < fraction);
+            return fraction <= 1f;
+        }
     }
 }
 
