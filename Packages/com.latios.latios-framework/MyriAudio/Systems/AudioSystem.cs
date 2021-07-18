@@ -20,9 +20,12 @@ namespace Latios.Myri.Systems
         private int                  m_samplesPerFrame;
 
         private DSPNode              m_mixNode;
-        private DSPConnection        m_mixToOutputConnection;
+        private DSPConnection        m_mixToLimiterMasterConnection;
         private NativeList<int>      m_mixNodePortFreelist;
         private NativeReference<int> m_mixNodePortCount;
+
+        private DSPNode       m_limiterMasterNode;
+        private DSPConnection m_limiterMasterToOutputConnection;
 
         private DSPNode                                     m_ildNode;
         private NativeReference<int>                        m_ildNodePortCount;
@@ -74,8 +77,12 @@ namespace Latios.Myri.Systems
             var commandBlock = m_graph.CreateCommandBlock();
             m_mixNode        = commandBlock.CreateDSPNode<MixStereoPortsNode.Parameters, MixStereoPortsNode.SampleProviders, MixStereoPortsNode>();
             commandBlock.AddOutletPort(m_mixNode, 2);
-            m_mixToOutputConnection = commandBlock.Connect(m_mixNode, 0, m_graph.RootDSP, 0);
-            m_ildNode               = commandBlock.CreateDSPNode<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>();
+            m_limiterMasterNode = commandBlock.CreateDSPNode<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders, BrickwallLimiterNode>();
+            commandBlock.AddInletPort(m_limiterMasterNode, 2);
+            commandBlock.AddOutletPort(m_limiterMasterNode, 2);
+            m_mixToLimiterMasterConnection    = commandBlock.Connect(m_mixNode, 0, m_limiterMasterNode, 0);
+            m_limiterMasterToOutputConnection = commandBlock.Connect(m_limiterMasterNode, 0, m_graph.RootDSP, 0);
+            m_ildNode                         = commandBlock.CreateDSPNode<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>();
             unsafe
             {
                 commandBlock.UpdateAudioKernel<SetReadIldBuffersNodePackedFrameBufferId, ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>(
@@ -376,9 +383,11 @@ namespace Latios.Myri.Systems
         {
             //UnityEngine.Debug.Log("AudioSystem.OnDestroy");
             var commandBlock = m_graph.CreateCommandBlock();
-            commandBlock.Disconnect(m_mixToOutputConnection);
+            commandBlock.Disconnect(m_mixToLimiterMasterConnection);
+            commandBlock.Disconnect(m_limiterMasterToOutputConnection);
             commandBlock.ReleaseDSPNode(m_ildNode);
             commandBlock.ReleaseDSPNode(m_mixNode);
+            commandBlock.ReleaseDSPNode(m_limiterMasterNode);
             commandBlock.Complete();
             AudioOutputExtensions.DisposeOutputHook(ref m_outputHandle);
             m_driver.Dispose();
