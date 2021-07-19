@@ -16,11 +16,10 @@ namespace Lsss
             public Random random;
         }
 
+        public override void OnNewScene() => sceneBlackboardEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
+
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponent<NextSpawnCounter>())
-                sceneBlackboardEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
-
             float dt = Time.DeltaTime;
             Entities.WithAll<SpawnPointTag>().ForEach((ref SpawnTimes spawnTimes) =>
             {

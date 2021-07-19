@@ -14,6 +14,8 @@ namespace Lsss
     {
         private EntityQuery m_query;
 
+        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new BulletCollisionLayer(), false);
+
         protected override void OnUpdate()
         {
             var bodies = new NativeArray<ColliderBody>(m_query.CalculateEntityCount(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
@@ -42,18 +44,7 @@ namespace Lsss
             Dependency = bodies.Dispose(Dependency);
 
             var bcl = new BulletCollisionLayer { layer = layer };
-            if (sceneBlackboardEntity.HasCollectionComponent<BulletCollisionLayer>())
-            {
-                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
-            }
-            else
-            {
-                //Some bizarre bug exists that requires dependencies to be completed before calling EntityManager.AddComponent
-                //At least this only happens on the first frame of the scene.
-                CompleteDependency();
-
-                sceneBlackboardEntity.AddCollectionComponent(bcl);
-            }
+            sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
         }
     }
 

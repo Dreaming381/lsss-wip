@@ -15,11 +15,10 @@ namespace Lsss
             public Rng rng;
         }
 
+        public override void OnNewScene() => sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
+
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponent<AiRng>())
-                sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
-
             float arenaRadius                                      = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             var   rng                                              = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
             sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });

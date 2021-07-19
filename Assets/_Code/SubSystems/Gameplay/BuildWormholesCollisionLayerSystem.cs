@@ -19,6 +19,8 @@ namespace Lsss
             m_query = Fluent.WithAll<WormholeTag>(true).WithAll<LocalToWorld>(true).WithChangeFilter<LocalToWorld>().PatchQueryForBuildingCollisionLayer().Build();
         }
 
+        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new WormholeCollisionLayer(), false);
+
         public override bool ShouldUpdateSystem()
         {
             //Todo: Use different dirtying mechanism instead of change filter.
@@ -34,13 +36,7 @@ namespace Lsss
             m_query.ResetFilter();
             Dependency = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var wcl    = new WormholeCollisionLayer { layer = layer };
-            if (sceneBlackboardEntity.HasCollectionComponent<WormholeCollisionLayer>())
-                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
-            else
-            {
-                CompleteDependency();
-                sceneBlackboardEntity.AddCollectionComponent(wcl);
-            }
+            sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
             m_query.AddChangedVersionFilter(typeof(LocalToWorld));
         }
     }

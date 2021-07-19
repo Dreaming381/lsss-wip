@@ -38,23 +38,21 @@ namespace Lsss
             m_playersWithoutReinforcements.Dispose();
         }
 
+        public override void OnNewScene()
+        {
+            sceneBlackboardEntity.AddCollectionComponent(new SpawnQueues
+            {
+                playerQueue               = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent),
+                aiQueue                   = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent),
+                newAiEntitiesToPrioritize = new NativeList<EntityWith<Disabled> >(Allocator.Persistent),
+                factionRanges             = new NativeList<SpawnQueues.FactionRanges>(Allocator.Persistent)
+            });
+        }
+
         protected override void OnUpdate()
         {
-            bool needPlayer = m_oldPlayerShipQuery.IsEmptyIgnoreFilter;
-
-            SpawnQueues spawnQueues = default;
-            if (sceneBlackboardEntity.HasCollectionComponent<SpawnQueues>())
-            {
-                spawnQueues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
-            }
-            else
-            {
-                spawnQueues.playerQueue               = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent);
-                spawnQueues.aiQueue                   = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent);
-                spawnQueues.newAiEntitiesToPrioritize = new NativeList<EntityWith<Disabled> >(Allocator.Persistent);
-                spawnQueues.factionRanges             = new NativeList<SpawnQueues.FactionRanges>(Allocator.Persistent);
-                sceneBlackboardEntity.AddCollectionComponent(spawnQueues);
-            }
+            bool needPlayer  = m_oldPlayerShipQuery.IsEmptyIgnoreFilter;
+            var  spawnQueues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
 
             Entities.WithStructuralChanges().WithAll<FactionTag>().ForEach((Entity entity, ref Faction faction) =>
             {

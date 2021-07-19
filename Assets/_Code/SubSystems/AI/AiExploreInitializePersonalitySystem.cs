@@ -17,11 +17,10 @@ namespace Lsss
 
         EntityQuery m_query;
 
+        public override void OnNewScene() => sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreInitializePersonalitySystem") });
+
         protected override void OnUpdate()
         {
-            if (!sceneBlackboardEntity.HasComponent<AiRng>())
-                sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreInitializePersonalitySystem") });
-
             var rng                                                = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
             sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
 

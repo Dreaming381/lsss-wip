@@ -19,22 +19,13 @@ namespace Lsss
             m_query = Fluent.WithAll<SpawnPointTag>(true).PatchQueryForBuildingCollisionLayer().Build();
         }
 
+        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new SpawnPointCollisionLayer(), false);
+
         protected override void OnUpdate()
         {
             Dependency          = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var spawnPointLayer = new SpawnPointCollisionLayer { layer = layer };
-            if (sceneBlackboardEntity.HasCollectionComponent<SpawnPointCollisionLayer>())
-            {
-                sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(spawnPointLayer);
-            }
-            else
-            {
-                //Some bizarre bug exists that requires dependencies to be completed before calling EntityManager.AddComponent
-                //At least this only happens on the first frame of the scene.
-                CompleteDependency();
-
-                sceneBlackboardEntity.AddCollectionComponent(spawnPointLayer);
-            }
+            sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(spawnPointLayer);
         }
     }
 
