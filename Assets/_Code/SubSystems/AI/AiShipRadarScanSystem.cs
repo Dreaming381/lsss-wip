@@ -175,7 +175,7 @@ namespace Lsss
                 if (radar.cosFov < 0f)
                 {
                     //Todo: Create tighter bounds here too.
-                    aabbs[entityInQueryIndex] = Physics.CalculateAabb(sphere, transform);
+                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, transform);
                 }
                 else
                 {

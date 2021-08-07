@@ -57,7 +57,7 @@ namespace Lsss
             {
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
-                    var   aabb          = Physics.CalculateAabb(result.bodyB.collider, RigidTransform.identity);
+                    var   aabb          = Physics.AabbFrom((CompoundCollider)result.bodyB.collider, RigidTransform.identity);
                     float forwardOffset = -aabb.min.z * 2;  //Distance to butt doubled for safety
 
                     var            destEntity = destCDFE[result.entityA].wormholeDestination;

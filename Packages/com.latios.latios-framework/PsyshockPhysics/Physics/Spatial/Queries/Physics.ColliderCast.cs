@@ -78,10 +78,11 @@ namespace Latios.Psyshock
                                         RigidTransform targetBoxTransform,
                                         out ColliderCastResult result)
         {
-            var  start               = math.transform(castStart, sphereToCast.center);
-            var  casterInTargetSpace = math.mul(math.inverse(targetBoxTransform), castStart);
-            var  ray                 = new Ray(math.transform(casterInTargetSpace, start), math.transform(casterInTargetSpace, start + castEnd - castStart.pos));
-            bool hit                 = Raycasting.RaycastRoundedBox(ray, targetBox, sphereToCast.radius, out var fraction, out var normal);
+            var  targetBoxTransformInverse = math.inverse(targetBoxTransform);
+            var  casterInTargetSpace       = math.mul(targetBoxTransformInverse, castStart);
+            var  start                     = math.transform(casterInTargetSpace, sphereToCast.center);
+            var  ray                       = new Ray(start, start + math.rotate(targetBoxTransformInverse, castEnd - castStart.pos));
+            bool hit                       = Raycasting.RaycastRoundedBox(ray, targetBox, sphereToCast.radius, out var fraction, out var normal);
             if (hit)
             {
                 var hitTransform = castStart;

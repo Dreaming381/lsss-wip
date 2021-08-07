@@ -21,7 +21,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var rng                                                = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
+            var rng                                                = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
             sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
 
             var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();

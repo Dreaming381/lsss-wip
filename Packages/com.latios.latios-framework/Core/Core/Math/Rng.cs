@@ -16,7 +16,7 @@ namespace Latios
             m_state = math.asuint(seedString.GetHashCode());
         }
 
-        public Rng Update()
+        public Rng Shuffle()
         {
             var sequence = new RngSequence(new uint2(m_state, math.asuint(int.MinValue)));
             m_state      = sequence.NextUInt();
@@ -40,13 +40,20 @@ namespace Latios
             uint NextState()
             {
                 //From https://www.youtube.com/watch?v=LWFzPP8ZbdU
-                var val    = m_state.x * 0x68e31da4;
-                val       *= m_state.y;
-                val       ^= (val >> 8);
-                val       += 0xb5297a4d;
-                val       ^= (val << 8);
-                val       *= 0x1b56c4e9;
-                val       ^= (val >> 8);
+                //This version is SquirrelNoise5, which was posted on the author's Twitter: https://twitter.com/SquirrelTweets/status/1421251894274625536.
+                // This is a Unity C# adaptation of SquirrelNoise5 - Squirrel's Raw Noise utilities (version 5).
+                // The following code within this scope is licensed by Squirrel Eiserloh under the Creative Commons Attribution 3.0 license (CC-BY-3.0 US).
+                var val    = m_state.x * 0xd2a80a3f;
+                val       += m_state.y;
+                val       ^= (val >> 9);
+                val       += 0xa884f197;
+                val       ^= (val >> 11);
+                val       *= 0x6c736f4b;
+                val       ^= (val >> 13);
+                val       += 0xb79f3abb;
+                val       ^= (val >> 15);
+                val       += 0x1b56c4f5;
+                val       ^= (val >> 17);
                 m_state.x  = val;
                 return val;
             }
@@ -85,6 +92,7 @@ namespace Latios
 
             public float2 NextFloat2Direction() => RngToolkit.AsFloat2Direction(NextState());
             public float3 NextFloat3Direction() => RngToolkit.AsFloat3Direction(NextUInt2());
+            public quaternion NextQuaternionRotation() => RngToolkit.AsQuaternionRotation(NextUInt3());
         }
     }
 }

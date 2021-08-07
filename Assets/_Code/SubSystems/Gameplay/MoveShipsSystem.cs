@@ -1,4 +1,5 @@
 ﻿using Latios;
+using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -38,31 +39,15 @@ namespace Lsss
                 bool isBoosting = desiredActions.boost && boostTank.boost > 0f;
                 bool isReverse  = speed.speed < 0f;
 
-                float gas          = math.saturate(desiredActions.gas);
-                float maxSpeed     = math.select(stats.topSpeed, stats.boostSpeed, isBoosting) * gas;
-                float maxAccel     = math.select(stats.acceleration, stats.boostAcceleration, isBoosting);
-                float accel        = gas * maxAccel;
-                accel              = math.select(accel, -stats.deceleration * 0.5f, speed.speed > maxSpeed);
-                float decel        = math.saturate(-desiredActions.gas) * -stats.deceleration * 0.5f;
-                float a            = accel + decel;
-                float forwardSpeed = speed.speed + a * dt;
-                forwardSpeed       = math.select(forwardSpeed, math.min(forwardSpeed, maxSpeed), a >= 0f);
-                forwardSpeed       = math.select(forwardSpeed, math.max(forwardSpeed, maxSpeed), a < 0f);
-
-                gas                 = math.saturate(-desiredActions.gas);
-                maxSpeed            = stats.reverseSpeed * gas;
-                accel               = gas * stats.acceleration;
-                accel               = math.select(accel, -stats.deceleration * 0.5f, -speed.speed > maxSpeed);
-                decel               = math.saturate(desiredActions.gas) * -stats.deceleration * 0.5f;
-                a                   = accel + decel;
-                float backwardSpeed = speed.speed - a * dt;
-                backwardSpeed       = math.select(backwardSpeed, math.max(backwardSpeed, -maxSpeed), a >= 0f);
-                backwardSpeed       = math.select(backwardSpeed, math.min(backwardSpeed, -maxSpeed), a < 0f);
-
-                bool useBackward  = speed.speed < 0f;
-                useBackward      |= speed.speed == 0f && desiredActions.gas < 0f;
-
-                speed.speed = math.select(forwardSpeed, backwardSpeed, useBackward);
+                speed.speed = Physics.StepVelocityWithInput(desiredActions.gas,
+                                                            speed.speed,
+                                                            math.select(stats.acceleration, stats.boostAcceleration, isBoosting),
+                                                            stats.deceleration,
+                                                            math.select(stats.topSpeed, stats.boostSpeed, isBoosting),
+                                                            stats.acceleration,
+                                                            stats.deceleration,
+                                                            stats.reverseSpeed,
+                                                            dt);
 
                 //Translation
                 translation.Value      += math.forward(newRotation) * speed.speed * dt;

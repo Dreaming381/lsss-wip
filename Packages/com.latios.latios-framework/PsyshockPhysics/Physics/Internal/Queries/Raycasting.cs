@@ -171,7 +171,7 @@ namespace Latios.Psyshock
             bool hitOuter      = RaycastBox(ray, outerBox, out fraction, out normal);
             var  hitPoint      = math.lerp(ray.start, ray.end, fraction);
 
-            if (hitOuter && math.all(normal > 0.5f & (hitPoint >= box.center - box.halfSize | hitPoint <= box.center + box.halfSize)))
+            if (hitOuter && math.all(normal > 0.9f | (hitPoint >= box.center - box.halfSize & hitPoint <= box.center + box.halfSize)))
             {
                 // We hit a flat surface of the box. We have our result already.
                 return true;

@@ -20,7 +20,7 @@ namespace Lsss
         protected override void OnUpdate()
         {
             float arenaRadius                                      = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
-            var   rng                                              = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Update();
+            var   rng                                              = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
             sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
 
             Entities.WithAll<AiTag>().ForEach((int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
