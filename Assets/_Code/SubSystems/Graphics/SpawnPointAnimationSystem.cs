@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class SpawnPointAnimationSystem : SubSystem
+    public partial class SpawnPointAnimationSystem : SubSystem
     {
         protected override void OnUpdate()
         {

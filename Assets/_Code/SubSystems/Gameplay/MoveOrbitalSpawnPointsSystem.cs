@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class MoveOrbitalSpawnPointsSystem : SubSystem
+    public partial class MoveOrbitalSpawnPointsSystem : SubSystem
     {
         protected override void OnUpdate()
         {

@@ -20,7 +20,7 @@ namespace Lsss
 
     public struct Faction : IComponentData
     {
-        public FixedString64      name;
+        public FixedString64Bytes      name;
         public int                remainingReinforcements;
         public int                maxFieldUnits;
         public float              spawnWeightInverse;

@@ -11,7 +11,7 @@ using UnityEngine.InputSystem;
 
 namespace Lsss.Tools
 {
-    public class ProfilingDisplayUpdateSystem : SubSystem
+    public partial class ProfilingDisplayUpdateSystem : SubSystem
     {
         Texture2D     m_texture       = new Texture2D(256, 256, TextureFormat.RGBA32, false);
         StringBuilder m_stringBuilder = new StringBuilder();

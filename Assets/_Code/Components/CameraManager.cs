@@ -11,9 +11,14 @@ public class CameraManagerConversionSystem : GameObjectConversionSystem
 {
     protected override void OnUpdate()
     {
+        int i = 0;
         Entities.ForEach((CameraManager manager) =>
         {
-            AddHybridComponent(manager);
+            var go    = new GameObject($"Camera Manager {i++}");
+            var cm    = go.AddComponent<CameraManager>();
+            cm.camera = manager.camera;
+            DstEntityManager.AddComponentObject(GetPrimaryEntity(manager), cm);
+            //AddHybridComponent(manager);
         });
     }
 }

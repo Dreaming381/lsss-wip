@@ -15,7 +15,7 @@ using UnityEngine.Profiling;
 
 namespace Lsss
 {
-    public class AiShipRadarScanSystem : SubSystem
+    public partial class AiShipRadarScanSystem : SubSystem
     {
         private List<FactionShipsCollisionLayer> m_factionsCache = new List<FactionShipsCollisionLayer>();
 

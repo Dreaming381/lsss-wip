@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Latios;
 using Unity.Burst;
 using Unity.Collections;
@@ -11,7 +11,7 @@ using Unity.Transforms;
 namespace Lsss.Authoring
 {
     [UpdateInGroup(typeof(GameObjectAfterConversionGroup))]
-    public class SpeedShaderConversionSystem : GameObjectConversionSystem
+    public partial class SpeedShaderConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
@@ -20,7 +20,7 @@ namespace Lsss.Authoring
             DstEntityManager.World.DestroySystem(system);
         }
 
-        class SpeedShaderDestinationWorldConversionSystem : SystemBase
+        partial class SpeedShaderDestinationWorldConversionSystem : SystemBase
         {
             protected override void OnUpdate()
             {

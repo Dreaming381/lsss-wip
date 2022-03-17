@@ -9,7 +9,7 @@ using UnityEngine.InputSystem;
 
 namespace Lsss
 {
-    public class TitleAndMenuUpdateSystem : SubSystem
+    public partial class TitleAndMenuUpdateSystem : SubSystem
     {
         private SerializedSettings serializedSettings;
         const string               settingsPath = "PlayerSavedSettings.json";

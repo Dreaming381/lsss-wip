@@ -62,8 +62,8 @@ namespace Latios.Systems
 
                 foreach (var type in assembly.GetTypes())
                 {
-                    if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistration)) != null)
-                        continue;
+                    //if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistration)) != null)
+                    //    continue;
 
                     if (type == typeof(IManagedComponent) || type == typeof(ICollectionComponent))
                         continue;
@@ -123,7 +123,7 @@ namespace Latios.Systems
         }
     }
 
-    internal class ManagedComponentCreateSystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, IManagedComponent
+    internal partial class ManagedComponentCreateSystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, IManagedComponent
     {
         private EntityQuery m_query;
         public EntityQuery Query => m_query;
@@ -144,7 +144,7 @@ namespace Latios.Systems
         }
     }
 
-    internal class ManagedComponentDestroySystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, IManagedComponent
+    internal partial class ManagedComponentDestroySystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, IManagedComponent
     {
         private EntityQuery m_query;
         public EntityQuery Query => m_query;
@@ -165,7 +165,7 @@ namespace Latios.Systems
         }
     }
 
-    internal class CollectionComponentCreateSystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, ICollectionComponent
+    internal partial class CollectionComponentCreateSystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, ICollectionComponent
     {
         private EntityQuery m_query;
         public EntityQuery Query => m_query;
@@ -186,7 +186,7 @@ namespace Latios.Systems
         }
     }
 
-    internal class CollectionComponentDestroySystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, ICollectionComponent
+    internal partial class CollectionComponentDestroySystem<T> : SubSystem, ManagedComponentsReactiveSystem where T : struct, ICollectionComponent
     {
         private EntityQuery m_query;
         public EntityQuery Query => m_query;

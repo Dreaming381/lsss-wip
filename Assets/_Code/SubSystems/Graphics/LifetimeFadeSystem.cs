@@ -10,7 +10,7 @@ using Unity.Transforms;
 //Doing so saves GPU bandwidth on Hybrid Renderer V2.
 namespace Lsss
 {
-    public class LifetimeFadeSystem : SubSystem
+    public partial class LifetimeFadeSystem : SubSystem
     {
         protected override void OnUpdate()
         {

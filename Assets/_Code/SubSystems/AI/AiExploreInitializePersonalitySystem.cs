@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class AiExploreInitializePersonalitySystem : SubSystem
+    public partial class AiExploreInitializePersonalitySystem : SubSystem
     {
         struct AiRng : IComponentData
         {
@@ -44,7 +44,8 @@ namespace Lsss
                 state.wanderPosition = math.select(targetPosition, targetPosition * arenaRadius / radius, radius > arenaRadius);
             }).ScheduleParallel();
 
-            ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query);
+            //ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query);
+            ecb.RemoveComponentForEntityQuery<AiExplorePersonalityInitializerValues>(m_query);
         }
     }
 }

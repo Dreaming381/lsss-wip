@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class ShipVsExplosionDamageSystem : SubSystem
+    public partial class ShipVsExplosionDamageSystem : SubSystem
     {
         protected override void OnUpdate()
         {

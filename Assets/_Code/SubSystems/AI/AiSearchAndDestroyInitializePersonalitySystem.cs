@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class AiSearchAndDestroyInitializePersonalitySystem : SubSystem
+    public partial class AiSearchAndDestroyInitializePersonalitySystem : SubSystem
     {
         struct AiRng : IComponentData
         {
@@ -33,7 +33,8 @@ namespace Lsss
                 personality.targetLeadDistance = random.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
             }).ScheduleParallel();
 
-            ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
+            //ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
+            ecb.RemoveComponentForEntityQuery<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
         }
     }
 }

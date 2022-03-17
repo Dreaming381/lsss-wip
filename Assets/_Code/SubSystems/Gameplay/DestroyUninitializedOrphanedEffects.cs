@@ -14,7 +14,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class DestroyUninitializedOrphanedEffects : SubSystem
+    public partial class DestroyUninitializedOrphanedEffects : SubSystem
     {
         protected override void OnUpdate()
         {

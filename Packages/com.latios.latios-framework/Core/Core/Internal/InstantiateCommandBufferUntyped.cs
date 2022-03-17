@@ -41,11 +41,11 @@ namespace Latios
 
         private struct State
         {
-            public ComponentTypes tagsToAdd;
-            public FixedListInt64 typesWithData;
-            public FixedListInt64 typesSizes;
-            public Allocator      allocator;
-            public bool           playedBack;
+            public ComponentTypes        tagsToAdd;
+            public FixedList64Bytes<int> typesWithData;
+            public FixedList64Bytes<int> typesSizes;
+            public Allocator             allocator;
+            public bool                  playedBack;
         }
 
         private struct PrefabSortkey : IRadixSortableInt3
@@ -61,15 +61,15 @@ namespace Latios
         #endregion
 
         #region CreateDestroy
-        public InstantiateCommandBufferUntyped(Allocator allocator, FixedList64<ComponentType> typesWithData) : this(allocator, typesWithData, 1)
+        public InstantiateCommandBufferUntyped(Allocator allocator, FixedList64Bytes<ComponentType> typesWithData) : this(allocator, typesWithData, 1)
         {
         }
 
-        internal InstantiateCommandBufferUntyped(Allocator allocator, FixedList64<ComponentType> componentTypesWithData, int disposeSentinalStackDepth)
+        internal InstantiateCommandBufferUntyped(Allocator allocator, FixedList64Bytes<ComponentType> componentTypesWithData, int disposeSentinalStackDepth)
         {
-            int            dataPayloadSize = 0;
-            FixedListInt64 typesSizes      = new FixedListInt64();
-            FixedListInt64 typesWithData   = new FixedListInt64();
+            int                   dataPayloadSize = 0;
+            FixedList64Bytes<int> typesSizes      = new FixedList64Bytes<int>();
+            FixedList64Bytes<int> typesWithData   = new FixedList64Bytes<int>();
             for (int i = 0; i < componentTypesWithData.Length; i++)
             {
                 var size         = TypeManager.GetTypeInfo(componentTypesWithData[i].TypeIndex).ElementSize;
@@ -254,19 +254,20 @@ namespace Latios
             var indicesInChunks   = new NativeList<int>(Allocator.TempJob);
             var componentDataPtrs = new NativeList<UnsafeParallelBlockList.ElementPtr>(Allocator.TempJob);
             entityManager.CompleteAllJobs();
-            var eet = entityManager.BeginExclusiveEntityTransaction();
+            //var eet = entityManager.BeginExclusiveEntityTransaction();
             //Run job that instantiates entities and populates hashmap
             var job0 = new InstantiateAndBuildListsJob
             {
-                icb               = this,
-                eet               = eet,
+                icb = this,
+                //eet               = eet,
+                em                = entityManager,
                 chunks            = chunks,
                 chunkRanges       = chunkRanges,
                 indicesInChunks   = indicesInChunks,
                 componentDataPtrs = componentDataPtrs
             };
             job0.Run();
-            entityManager.EndExclusiveEntityTransaction();
+            //entityManager.EndExclusiveEntityTransaction();
             //Schedule parallel job to populate data
             var chunkJob = new WriteComponentDataJob
             {
@@ -348,8 +349,10 @@ namespace Latios
         [BurstCompile]
         private struct InstantiateAndBuildListsJob : IJob
         {
-            [ReadOnly] public InstantiateCommandBufferUntyped     icb;
-            public ExclusiveEntityTransaction                     eet;
+            [ReadOnly] public InstantiateCommandBufferUntyped icb;
+            //public ExclusiveEntityTransaction                     eet;
+            public EntityManager em;
+
             public NativeList<ArchetypeChunk>                     chunks;
             public NativeList<int2>                               chunkRanges;
             public NativeList<int>                                indicesInChunks;
@@ -393,16 +396,20 @@ namespace Latios
                 int startIndex           = 0;
                 for (int i = 0; i < sortedPrefabs.Length; i++)
                 {
-                    var firstEntity = eet.Instantiate(sortedPrefabs[i]);
-                    eet.EntityManager.AddComponents(firstEntity, typesWithDataToAdd);
-                    eet.EntityManager.AddComponents(firstEntity, icb.m_state->tagsToAdd);
+                    //var firstEntity = eet.Instantiate(sortedPrefabs[i]);
+                    //eet.EntityManager.AddComponents(firstEntity, typesWithDataToAdd);
+                    //eet.EntityManager.AddComponents(firstEntity, icb.m_state->tagsToAdd);
+                    var firstEntity = em.Instantiate(sortedPrefabs[i]);
+                    em.AddComponents(firstEntity, typesWithDataToAdd);
+                    em.AddComponents(firstEntity, icb.m_state->tagsToAdd);
                     instantiatedEntities[startIndex] = firstEntity;
                     startIndex++;
 
                     if (sortedPrefabCounts[i] - 1 > 0)
                     {
                         var subArray = instantiatedEntities.GetSubArray(startIndex, sortedPrefabCounts[i] - 1);
-                        eet.Instantiate(firstEntity, subArray);
+                        //eet.Instantiate(firstEntity, subArray);
+                        em.Instantiate(firstEntity, subArray);
                         startIndex += subArray.Length;
                     }
                 }
@@ -410,7 +417,8 @@ namespace Latios
                 var locations = new NativeArray<EntityLocationInChunk>(count, Allocator.Temp);
                 for (int i = 0; i < count; i++)
                 {
-                    locations[i] = eet.EntityManager.GetEntityLocationInChunk(instantiatedEntities[i]);
+                    //locations[i] = eet.EntityManager.GetEntityLocationInChunk(instantiatedEntities[i]);
+                    locations[i] = em.GetEntityLocationInChunk(instantiatedEntities[i]);
                 }
                 //Step 6: Sort chunks and build final lists
                 RadixSort.RankSortInt3(ranks, locations.Reinterpret<WrappedEntityLocationInChunk>());
@@ -613,7 +621,7 @@ namespace Latios
         private struct DummyTypeT4 : IComponentData { public int dummy; }
 #pragma warning restore CS0649
 
-        static ComponentTypes BuildComponentTypesFromFixedList(FixedListInt64 types)
+        static ComponentTypes BuildComponentTypesFromFixedList(FixedList64Bytes<int> types)
         {
             switch (types.Length)
             {

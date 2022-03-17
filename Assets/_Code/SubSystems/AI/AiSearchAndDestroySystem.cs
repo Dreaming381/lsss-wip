@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class AiSearchAndDestroySystem : SubSystem
+    public partial class AiSearchAndDestroySystem : SubSystem
     {
         protected override void OnUpdate()
         {

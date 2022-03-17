@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class TravelThroughWormholeSystem : SubSystem
+    public partial class TravelThroughWormholeSystem : SubSystem
     {
         protected override void OnUpdate()
         {

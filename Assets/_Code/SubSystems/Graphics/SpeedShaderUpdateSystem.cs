@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class SpeedShaderUpdateSystem : SubSystem
+    public partial class SpeedShaderUpdateSystem : SubSystem
     {
         protected override void OnUpdate()
         {

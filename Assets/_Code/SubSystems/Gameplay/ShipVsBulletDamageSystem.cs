@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class ShipVsBulletDamageSystem : SubSystem
+    public partial class ShipVsBulletDamageSystem : SubSystem
     {
         int m_frameId = 0;
 

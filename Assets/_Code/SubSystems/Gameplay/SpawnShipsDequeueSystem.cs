@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class SpawnShipsDequeueSystem : SubSystem
+    public partial class SpawnShipsDequeueSystem : SubSystem
     {
         struct NextSpawnCounter : IComponentData
         {

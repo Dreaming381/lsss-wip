@@ -6,7 +6,7 @@ using Unity.Jobs;
 
 namespace Lsss
 {
-    public class BuildFactionShipsCollisionLayersSystem : SubSystem
+    public partial class BuildFactionShipsCollisionLayersSystem : SubSystem
     {
         private EntityQuery m_query;
 
@@ -35,7 +35,7 @@ namespace Lsss
         }
     }
 
-    public class DebugDrawFactionShipsCollisionLayersSystem : SubSystem
+    public partial class DebugDrawFactionShipsCollisionLayersSystem : SubSystem
     {
         protected override void OnUpdate()
         {

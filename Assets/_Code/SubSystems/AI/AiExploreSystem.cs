@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class AiExploreSystem : SubSystem
+    public partial class AiExploreSystem : SubSystem
     {
         struct AiRng : IComponentData
         {

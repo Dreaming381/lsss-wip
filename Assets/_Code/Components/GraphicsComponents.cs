@@ -14,7 +14,7 @@ namespace Lsss
 
     public struct DrawDistances : IComponentData
     {
-        public FixedListFloat32 distances;
+        public FixedList32Bytes<float> distances;
     }
 
     [MaterialProperty("_Fade", MaterialPropertyFormat.Float)]

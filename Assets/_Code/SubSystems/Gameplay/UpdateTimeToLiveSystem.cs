@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class UpdateTimeToLiveSystem : SubSystem
+    public partial class UpdateTimeToLiveSystem : SubSystem
     {
         protected override void OnUpdate()
         {

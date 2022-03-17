@@ -10,7 +10,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [AlwaysUpdateSystem]
-    public class BuildWormholesCollisionLayerSystem : SubSystem
+    public partial class BuildWormholesCollisionLayerSystem : SubSystem
     {
         EntityQuery m_query;
 
@@ -41,7 +41,7 @@ namespace Lsss
         }
     }
 
-    public class DebugDrawWormholeCollisionLayersSystem : SubSystem
+    public partial class DebugDrawWormholeCollisionLayersSystem : SubSystem
     {
         protected override void OnUpdate()
         {

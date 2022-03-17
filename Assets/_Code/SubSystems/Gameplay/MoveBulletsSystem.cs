@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class MoveBulletsSystem : SubSystem
+    public partial class MoveBulletsSystem : SubSystem
     {
         protected override void OnUpdate()
         {

@@ -10,7 +10,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [AlwaysUpdateSystem]
-    public class BuildExplosionsCollisionLayerSystem : SubSystem
+    public partial class BuildExplosionsCollisionLayerSystem : SubSystem
     {
         private EntityQuery m_query;
 

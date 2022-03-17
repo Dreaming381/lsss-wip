@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Lsss
 {
-    public class EvaluateMissionSystem : SubSystem
+    public partial class EvaluateMissionSystem : SubSystem
     {
         struct MissionStatus
         {

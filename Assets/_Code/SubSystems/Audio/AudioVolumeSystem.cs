@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class AudioVolumeSystem : SubSystem
+    public partial class AudioVolumeSystem : SubSystem
     {
         protected override void OnCreate()
         {

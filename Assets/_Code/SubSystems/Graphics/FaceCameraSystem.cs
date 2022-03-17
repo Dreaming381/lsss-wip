@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class FaceCameraSystem : SubSystem
+    public partial class FaceCameraSystem : SubSystem
     {
         struct CamFoundData
         {

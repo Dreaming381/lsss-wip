@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class ExpandExplosionsSystem : SubSystem
+    public partial class ExpandExplosionsSystem : SubSystem
     {
         protected override void OnUpdate()
         {

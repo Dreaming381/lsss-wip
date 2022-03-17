@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class SpawnShipsPrioritizeSystem : SubSystem
+    public partial class SpawnShipsPrioritizeSystem : SubSystem
     {
         protected override void OnUpdate()
         {

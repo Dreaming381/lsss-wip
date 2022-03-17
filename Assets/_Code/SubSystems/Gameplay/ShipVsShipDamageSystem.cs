@@ -10,7 +10,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class ShipVsShipDamageSystem : SubSystem
+    public partial class ShipVsShipDamageSystem : SubSystem
     {
         private List<CollisionLayer> m_layers = new List<CollisionLayer>();
 

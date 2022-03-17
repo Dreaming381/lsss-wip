@@ -10,7 +10,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [AlwaysUpdateSystem]
-    public class BuildSpawnPointCollisionLayerSystem : SubSystem
+    public partial class BuildSpawnPointCollisionLayerSystem : SubSystem
     {
         private EntityQuery m_query;
 
@@ -29,7 +29,7 @@ namespace Lsss
         }
     }
 
-    public class DebugDrawSpawnPointCollisionLayersSystem : SubSystem
+    public partial class DebugDrawSpawnPointCollisionLayersSystem : SubSystem
     {
         protected override void OnUpdate()
         {

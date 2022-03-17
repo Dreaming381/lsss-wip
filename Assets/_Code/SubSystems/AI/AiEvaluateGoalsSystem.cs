@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 
 namespace Lsss
 {
-    public class AiEvaluateGoalsSystem : SubSystem
+    public partial class AiEvaluateGoalsSystem : SubSystem
     {
         protected override void OnUpdate()
         {

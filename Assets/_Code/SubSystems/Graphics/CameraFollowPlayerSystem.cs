@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class CameraFollowPlayerSystem : SubSystem
+    public partial class CameraFollowPlayerSystem : SubSystem
     {
         EntityQuery m_query;
 

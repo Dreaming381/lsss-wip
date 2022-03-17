@@ -49,6 +49,7 @@ namespace Latios
         /// <param name="defaultGroup"></param>
         public static void InjectUnitySystems(List<Type> systems, World world, ComponentSystemGroup defaultGroup = null, bool silenceWarnings = true)
         {
+            List<Type> unitySystems = new List<Type>();
             foreach (var type in systems)
             {
                 if (type.Namespace == null)
@@ -63,8 +64,11 @@ namespace Latios
                 else if (!type.Namespace.Contains("Unity"))
                     continue;
 
-                InjectSystem(type, world, defaultGroup);
+                //InjectSystem(type, world, defaultGroup);
+                unitySystems.Add(type);
             }
+
+            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, unitySystems);
         }
 
         /// <summary>
@@ -242,10 +246,10 @@ namespace Latios
 
             if (world != null)
             {
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<InitializationSystemGroup>(),  ref playerLoop, typeof(Initialization));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<SimulationSystemGroup>(),      ref playerLoop, typeof(PostLateUpdate));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<PresentationSystemGroup>(),    ref playerLoop, typeof(PreLateUpdate));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<FixedSimulationSystemGroup>(), ref playerLoop, typeof(FixedUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<InitializationSystemGroup>(),  ref playerLoop, typeof(Initialization));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<SimulationSystemGroup>(),      ref playerLoop, typeof(PostLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<PresentationSystemGroup>(),    ref playerLoop, typeof(PreLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<FixedSimulationSystemGroup>(), ref playerLoop, typeof(FixedUpdate));
             }
             PlayerLoop.SetPlayerLoop(playerLoop);
         }
@@ -260,9 +264,9 @@ namespace Latios
 
             if (world != null)
             {
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<InitializationSystemGroup>(), ref playerLoop, typeof(Initialization));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<SimulationSystemGroup>(),     ref playerLoop, typeof(PostLateUpdate));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(world.GetExistingSystem<PresentationSystemGroup>(),   ref playerLoop, typeof(PreLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<InitializationSystemGroup>(), ref playerLoop, typeof(Initialization));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<SimulationSystemGroup>(),     ref playerLoop, typeof(PostLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<PresentationSystemGroup>(),   ref playerLoop, typeof(PreLateUpdate));
             }
             PlayerLoop.SetPlayerLoop(playerLoop);
         }
@@ -298,8 +302,8 @@ namespace Latios
 
                 foreach (var type in assembly.GetTypes())
                 {
-                    if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistration)) != null)
-                        continue;
+                    //if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistration)) != null)
+                    //    continue;
 
                     if (type.IsInterface)
                         continue;

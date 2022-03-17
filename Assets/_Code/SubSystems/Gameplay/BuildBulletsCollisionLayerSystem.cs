@@ -10,7 +10,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [AlwaysUpdateSystem]
-    public class BuildBulletsCollisionLayerSystem : SubSystem
+    public partial class BuildBulletsCollisionLayerSystem : SubSystem
     {
         private EntityQuery m_query;
 
@@ -48,7 +48,7 @@ namespace Lsss
         }
     }
 
-    public class DebugDrawBulletCollisionLayersSystem : SubSystem
+    public partial class DebugDrawBulletCollisionLayersSystem : SubSystem
     {
         protected override void OnUpdate()
         {

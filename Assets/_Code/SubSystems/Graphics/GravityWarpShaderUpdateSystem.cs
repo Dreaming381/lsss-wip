@@ -11,7 +11,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class GravityWarpShaderUpdateSystem : SubSystem
+    public partial class GravityWarpShaderUpdateSystem : SubSystem
     {
         EntityQuery m_warpZoneQuery;
         EntityQuery m_warpedQuery;

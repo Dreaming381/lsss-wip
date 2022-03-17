@@ -14,7 +14,7 @@ using UnityEngine.Profiling;
 
 namespace Lsss
 {
-    public class CheckSpawnPointIsSafeSystem : SubSystem
+    public partial class CheckSpawnPointIsSafeSystem : SubSystem
     {
         protected override void OnUpdate()
         {

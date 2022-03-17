@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class SpawnShipsEnableSystem : SubSystem
+    public partial class SpawnShipsEnableSystem : SubSystem
     {
         protected override void OnUpdate()
         {
@@ -22,8 +22,12 @@ namespace Lsss
                 {
                     var ship = payload.disabledShip;
                     ecb.Add(ship);
-                    SetComponent(ship, GetComponent<Translation>(entity));
-                    SetComponent(ship, GetComponent<Rotation>(entity));
+                    var trans = GetComponent<Translation>(entity);
+                    var rot   = GetComponent<Rotation>(entity);
+                    SetComponent(ship, trans);
+                    SetComponent(ship, rot);
+                    //SetComponent(ship, GetComponent<Translation>(entity));
+                    //SetComponent(ship, GetComponent<Rotation>(entity));
                     payload.disabledShip = Entity.Null;
 
                     enabledShipList.Add(ship.entity);

@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class HudUpdateSystem : SubSystem
+    public partial class HudUpdateSystem : SubSystem
     {
         struct CachedShipBaseHealth : IComponentData
         {
@@ -82,8 +82,8 @@ namespace Lsss
             hud.blackFade.color = new UnityEngine.Color(0f, 0f, 0f, hud.blackFadeControl);
 
             //m_factionsBuilder.Clear();
-            NativeList<FixedString64> factionNames  = new NativeList<FixedString64>(Allocator.TempJob);
-            NativeList<int>           factionCounts = new NativeList<int>(Allocator.TempJob);
+            NativeList<FixedString64Bytes> factionNames  = new NativeList<FixedString64Bytes>(Allocator.TempJob);
+            NativeList<int>                factionCounts = new NativeList<int>(Allocator.TempJob);
             Entities.WithAll<FactionTag>().ForEach((Entity entity, in Faction faction) =>
             {
                 var factionMember = new FactionMember { factionEntity = entity };

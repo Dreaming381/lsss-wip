@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class GameResultsSystem : SubSystem
+    public partial class GameResultsSystem : SubSystem
     {
         protected override void OnUpdate()
         {

@@ -9,7 +9,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class OrbitalSpawnersProcGenSystem : SubSystem
+    public partial class OrbitalSpawnersProcGenSystem : SubSystem
     {
         struct NewSpawnerTag : IComponentData { }
 

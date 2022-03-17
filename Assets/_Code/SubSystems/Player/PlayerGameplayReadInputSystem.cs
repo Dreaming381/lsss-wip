@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 
 namespace Lsss
 {
-    public class PlayerGameplayReadInputSystem : SubSystem
+    public partial class PlayerGameplayReadInputSystem : SubSystem
     {
         //Todo: Store this in a component or something.
         float2 m_integratedMouseDelta = 0f;

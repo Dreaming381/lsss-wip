@@ -43,9 +43,9 @@ public class LatiosBootstrap : ICustomBootstrap
         var loop = PlayerLoop.GetCurrentPlayerLoop();
 
 #if UNITY_EDITOR
-        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(beforeGpuProfiling, ref loop, typeof(PostLateUpdate));
+        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(PostLateUpdate));
 #else
-        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoopList(beforeGpuProfiling, ref loop, typeof(UnityEngine.PlayerLoop.PostLateUpdate.PlayerEmitCanvasGeometry));
+        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(UnityEngine.PlayerLoop.PostLateUpdate.PlayerEmitCanvasGeometry));
 #endif
 
         PlayerLoop.SetPlayerLoop(loop);

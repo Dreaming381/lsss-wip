@@ -10,7 +10,7 @@ using UnityEngine.Jobs;
 //Todo: Use order versions to detect changes
 namespace Lsss
 {
-    public class CameraManagerCameraSyncHackSystem : SubSystem
+    public partial class CameraManagerCameraSyncHackSystem : SubSystem
     {
         TransformAccessArray m_transforms;
         EntityQuery          m_query;

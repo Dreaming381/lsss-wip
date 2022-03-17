@@ -8,7 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public class SetCameraDrawDistanceSystem : SubSystem
+    public partial class SetCameraDrawDistanceSystem : SubSystem
     {
         UnityEngine.Camera lastSeenCamera;
         int                lastSeenQualityLevel = -1;

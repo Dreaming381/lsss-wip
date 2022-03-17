@@ -51,7 +51,7 @@ namespace Lsss.Tools
 
     public struct ProfilingDataTag : IComponentData { }
 
-    public class BeginFrameProfilingSystem : SubSystem
+    public partial class BeginFrameProfilingSystem : SubSystem
     {
         private const int kFramesPerStat = 60;
         private const int kBarsPerGraph  = 3;
@@ -262,7 +262,8 @@ namespace Lsss.Tools
                     min = math.min(math.min(cpuShort[i], gpuShort[i]), min);
                     max = math.max(math.max(cpuShort[i], gpuShort[i]), max);
                 }
-                float goalFrame = 1000f / 60f;
+                //float goalFrame = 1000f / 60f;
+                float goalFrame = 1001f / 60f;
                 if (max < goalFrame)
                 {
                     float barInc = goalFrame / (kBarsPerGraph - 1);
@@ -432,7 +433,7 @@ namespace Lsss.Tools
         }
     }
 
-    public class BeginGpuWaitProfilingSystem : SubSystem
+    public partial class BeginGpuWaitProfilingSystem : SubSystem
     {
         protected override void OnUpdate()
         {
@@ -445,7 +446,7 @@ namespace Lsss.Tools
     }
 
     //Only exists in builds
-    public class EndGpuWaitProfilingSystem : SubSystem
+    public partial class EndGpuWaitProfilingSystem : SubSystem
     {
 #if !UNITY_EDITOR
         protected override void OnCreate()

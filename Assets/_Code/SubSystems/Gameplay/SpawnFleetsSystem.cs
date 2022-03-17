@@ -10,7 +10,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [AlwaysUpdateSystem]
-    public class SpawnFleetsSystem : SubSystem
+    public partial class SpawnFleetsSystem : SubSystem
     {
         private struct NewFleetTag : IComponentData { }
 

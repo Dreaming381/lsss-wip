@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Latios;
 using Unity.Burst;
 using Unity.Collections;
@@ -11,7 +11,7 @@ using Unity.Transforms;
 namespace Lsss.Authoring
 {
     [UpdateInGroup(typeof(GameObjectAfterConversionGroup))]
-    public class GravityWarpConversionSystem : GameObjectConversionSystem
+    public partial class GravityWarpConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
@@ -19,8 +19,7 @@ namespace Lsss.Authoring
             system.Update();
             DstEntityManager.World.DestroySystem(system);
         }
-
-        class GravityWarpDestinationWorldConversionSystem : SystemBase
+        partial class GravityWarpDestinationWorldConversionSystem : SystemBase
         {
             protected override void OnUpdate()
             {
