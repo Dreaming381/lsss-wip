@@ -39,7 +39,8 @@ namespace Lsss.Graphics
             m_cubemapSize = GetCubemapResolutionFromQualityLevel(QualitySettings.GetQualityLevel());
 
             m_spaceSkyMaterial             = CoreUtils.CreateEngineMaterial("Hidden/SpaceSky");
-            m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize);
+            m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize,
+                                                                                                 UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat);
         }
 
         public override void Cleanup()
@@ -55,8 +56,9 @@ namespace Lsss.Graphics
             {
                 CoreUtils.Destroy(m_spaceSkyCubemapRenderTexture);
                 m_cubemapSize                  = newResolution;
-                m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize);
-                m_prevHashCodeInitialized      = false;
+                m_spaceSkyCubemapRenderTexture = HDRenderUtilities.CreateReflectionProbeRenderTarget(m_cubemapSize,
+                                                                                                     UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat);
+                m_prevHashCodeInitialized = false;
 
                 return true;
             }

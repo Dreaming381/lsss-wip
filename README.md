@@ -1,11 +1,11 @@
 # Latios Space Shooter Sample - WIP
 
-This is an open game project using Unity DOTS. It is used to develop new
-features and improvements in Latios Framework (currently 0.3.0) as well as serve
+This is an open game project using Unity DOTS. It is used to validate new
+features and improvements in Latios Framework (currently 0.4) as well as serve
 as an example project. A version of the framework is included as an embedded
 package.
 
-The Unity version is currently 2020.1.9f1
+The Unity version is currently 2020.3.30f1
 
 Feel free to clone, play with, and customize this game however you like! There
 are many features exposed in the project but not used in the release version of
