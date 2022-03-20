@@ -266,7 +266,7 @@ namespace Latios
                 indicesInChunks   = indicesInChunks,
                 componentDataPtrs = componentDataPtrs
             };
-            job0.Run();
+            job0.RunOrExecute();
             //entityManager.EndExclusiveEntityTransaction();
             //Schedule parallel job to populate data
             var chunkJob = new WriteComponentDataJob
@@ -297,7 +297,7 @@ namespace Latios
             if (m_state->typesWithData.Length <= 4)
                 chunkJob.t4 = entityManager.GetDynamicComponentTypeHandle(typeof(DummyTypeT4));
             //chunkJob.ScheduleParallel(chunks.Length, 1, default).Complete();
-            chunkJob.Run(chunks.Length);
+            chunkJob.RunOrExecute(chunks.Length);
             m_state->playedBack = true;
             chunks.Dispose();
             chunkRanges.Dispose();
@@ -459,6 +459,21 @@ namespace Latios
                     return new int3(x, y, z);
                 }
             }
+
+            public void RunOrExecute()
+            {
+                bool ran = false;
+                TryRun(ref ran);
+                if (!ran)
+                    Execute();
+            }
+
+            [BurstDiscard]
+            void TryRun(ref bool ran)
+            {
+                this.Run();
+                ran = true;
+            }
         }
 
         [BurstCompile]
@@ -611,6 +626,24 @@ namespace Latios
                     dataPtr += t3Size;
                     UnsafeUtility.MemCpy(t4Ptr + index * t4Size, dataPtr, t4Size);
                 }
+            }
+
+            public void RunOrExecute(int length)
+            {
+                bool ran = false;
+                TryRun(length, ref ran);
+                if (!ran)
+                {
+                    for (int i = 0; i < length; i++)
+                        Execute(i);
+                }
+            }
+
+            [BurstDiscard]
+            void TryRun(int length, ref bool ran)
+            {
+                this.Run(length);
+                ran = true;
             }
         }
 

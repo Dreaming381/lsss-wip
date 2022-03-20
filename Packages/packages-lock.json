@@ -5,8 +5,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.unity.entities": "0.17.0-preview.41",
-        "com.unity.audio.dspgraph": "0.1.0-preview.17"
+        "com.unity.entities": "0.50.0-preview.24",
+        "com.unity.audio.dspgraph": "0.1.0-preview.22"
       }
     },
     "com.unity.audio.dspgraph": {

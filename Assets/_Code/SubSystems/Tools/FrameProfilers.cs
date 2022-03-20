@@ -262,8 +262,7 @@ namespace Lsss.Tools
                     min = math.min(math.min(cpuShort[i], gpuShort[i]), min);
                     max = math.max(math.max(cpuShort[i], gpuShort[i]), max);
                 }
-                //float goalFrame = 1000f / 60f;
-                float goalFrame = 1001f / 60f;
+                float goalFrame = 1000f / 60f;
                 if (max < goalFrame)
                 {
                     float barInc = goalFrame / (kBarsPerGraph - 1);

@@ -125,6 +125,21 @@ namespace Latios
                     eet.EntityManager.Instantiate(prefab, count, Allocator.Temp);
                 }
             }
+
+            public void RunOrExecute()
+            {
+                bool ran = false;
+                TryRun(ref ran);
+                if (!ran)
+                    Execute();
+            }
+
+            [BurstDiscard]
+            void TryRun(ref bool ran)
+            {
+                this.Run();
+                ran = true;
+            }
         }
         #endregion
 

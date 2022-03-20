@@ -10,11 +10,11 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<DestroyUninitializedOrphanedEffects>();
+            GetOrCreateAndAddUnmanagedSystem<DestroyUninitializedOrphanedEffectsSystem>();
             GetOrCreateAndAddSystem<OrbitalSpawnersProcGenSystem>();
             GetOrCreateAndAddSystem<SpawnFleetsSystem>();
             GetOrCreateAndAddSystem<SpawnShipsEnqueueSystem>();
-            GetOrCreateAndAddSystem<SpawnShipsEnableSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnShipsEnableSystem>();
         }
     }
 
@@ -25,10 +25,10 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<MoveShipsSystem>();
-            GetOrCreateAndAddSystem<MoveBulletsSystem>();
-            GetOrCreateAndAddSystem<ExpandExplosionsSystem>();
-            GetOrCreateAndAddSystem<MoveOrbitalSpawnPointsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<MoveShipsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<MoveBulletsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ExpandExplosionsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<MoveOrbitalSpawnPointsSystem>();
         }
     }
 

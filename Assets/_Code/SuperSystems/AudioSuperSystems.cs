@@ -6,7 +6,7 @@ namespace Lsss
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<AudioVolumeSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AudioVolumeSystem>();
         }
     }
 }

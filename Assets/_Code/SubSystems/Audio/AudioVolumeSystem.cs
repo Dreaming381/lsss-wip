@@ -9,17 +9,21 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class AudioVolumeSystem : SubSystem
+    [BurstCompile]
+    public partial struct AudioVolumeSystem : ISystem
     {
-        protected override void OnCreate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            worldBlackboardEntity.AddComponentIfMissing<AudioMasterVolumes>();
+            state.GetWorldBlackboardEntity().AddComponentIfMissing<AudioMasterVolumes>();
         }
-
-        protected override void OnUpdate()
+        [BurstCompile] public void OnDestroy(ref SystemState state) {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var volumes = worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
-            Entities.ForEach((ref AudioListener listener) =>
+            var volumes = state.GetWorldBlackboardEntity().GetComponentData<AudioMasterVolumes>();
+            state.Entities.ForEach((ref AudioListener listener) =>
             {
                 listener.volume = volumes.sfxVolume;
             }).Run();

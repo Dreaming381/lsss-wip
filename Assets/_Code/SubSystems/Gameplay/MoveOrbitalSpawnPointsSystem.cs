@@ -8,12 +8,22 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class MoveOrbitalSpawnPointsSystem : SubSystem
+    [BurstCompile]
+    public partial struct MoveOrbitalSpawnPointsSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            float dt = Time.DeltaTime;
-            Entities.WithAll<SpawnPointTag>().ForEach((ref Translation translation, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            float dt = state.Time.DeltaTime;
+            state.Entities.WithAll<SpawnPointTag>().ForEach((ref Translation translation, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime) =>
             {
                 var    rotation             = quaternion.AxisAngle(path.orbitPlaneNormal, path.orbitSpeed * dt);
                 float3 currentOutwardVector = translation.Value - path.center;

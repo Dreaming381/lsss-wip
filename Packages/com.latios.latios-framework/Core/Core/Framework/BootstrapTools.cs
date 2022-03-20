@@ -49,7 +49,6 @@ namespace Latios
         /// <param name="defaultGroup"></param>
         public static void InjectUnitySystems(List<Type> systems, World world, ComponentSystemGroup defaultGroup = null, bool silenceWarnings = true)
         {
-            List<Type> unitySystems = new List<Type>();
             foreach (var type in systems)
             {
                 if (type.Namespace == null)
@@ -64,11 +63,8 @@ namespace Latios
                 else if (!type.Namespace.Contains("Unity"))
                     continue;
 
-                //InjectSystem(type, world, defaultGroup);
-                unitySystems.Add(type);
+                InjectSystem(type, world, defaultGroup);
             }
-
-            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(world, unitySystems);
         }
 
         /// <summary>
@@ -87,28 +83,57 @@ namespace Latios
             }
         }
 
+        public struct ComponentSystemBaseSystemHandleUntypedUnion
+        {
+            public ComponentSystemBase systemManaged;
+            public SystemHandleUntyped systemHandle;
+
+            public static implicit operator ComponentSystemBase(ComponentSystemBaseSystemHandleUntypedUnion me) => me.systemManaged;
+            public static implicit operator SystemHandleUntyped(ComponentSystemBaseSystemHandleUntypedUnion me) => me.systemHandle;
+        }
+
         //Copied and pasted from Entities package and then modified as needed.
         /// <summary>
-        /// Injects the system into the world. Automatically creates parent ComponentSystemGroups if necessary.
+        /// Injects the managed system into the world. Automatically creates parent ComponentSystemGroups if necessary.
         /// </summary>
         /// <remarks>This function does nothing for unmanaged systems.</remarks>
         /// <param name="type">The type to inject. Uses world.GetOrCreateSystem</param>
         /// <param name="world">The world to inject the system into</param>
         /// <param name="defaultGroup">If no UpdateInGroupAttributes exist on the type and this value is not null, the system is injected in this group</param>
-        public static ComponentSystemBase InjectSystem(Type type, World world, ComponentSystemGroup defaultGroup = null)
+        public static ComponentSystemBaseSystemHandleUntypedUnion InjectSystem(Type type, World world, ComponentSystemGroup defaultGroup = null)
         {
-            if (!typeof(ComponentSystemBase).IsAssignableFrom(type))
-                return null;
-
-            var                 groups = type.GetCustomAttributes(typeof(UpdateInGroupAttribute), true);
-            ComponentSystemBase result = null;
-            if (groups.Length == 0 && defaultGroup != null)
+            bool isManaged = false;
+            if (typeof(ComponentSystemBase).IsAssignableFrom(type))
             {
-                result = world.GetOrCreateSystem(type);
-                defaultGroup.AddSystemToUpdateList(result);
-                return result;
+                isManaged = true;
+            }
+            else if (!typeof(ISystem).IsAssignableFrom(type))
+            {
+                return default;
             }
 
+            var groups = type.GetCustomAttributes(typeof(UpdateInGroupAttribute), true);
+            if (groups.Length == 0 && defaultGroup != null)
+            {
+                ComponentSystemBase result = world.GetOrCreateSystem(type);
+                defaultGroup.AddSystemToUpdateList(result);
+                return new ComponentSystemBaseSystemHandleUntypedUnion
+                {
+                    systemManaged = result,
+                    systemHandle  = result.SystemHandleUntyped
+                };
+            }
+
+            ComponentSystemBaseSystemHandleUntypedUnion newSystem = default;
+            if (isManaged)
+            {
+                newSystem.systemManaged = world.GetOrCreateSystem(type);
+                newSystem.systemHandle  = newSystem.systemManaged.SystemHandleUntyped;
+            }
+            else
+            {
+                newSystem.systemHandle = world.GetOrCreateUnmanagedSystem(type);
+            }
             foreach (var g in groups)
             {
                 if (!(g is UpdateInGroupAttribute group))
@@ -126,10 +151,12 @@ namespace Latios
                     groupMgr = InjectSystem(group.GroupType, world, defaultGroup);
                 }
                 var groupTarget = groupMgr as ComponentSystemGroup;
-                result          = world.GetOrCreateSystem(type);
-                groupTarget.AddSystemToUpdateList(result);
+                if (isManaged)
+                    groupTarget.AddSystemToUpdateList(newSystem);
+                else
+                    groupTarget.AddUnmanagedSystemToUpdateList(newSystem);
             }
-            return result;
+            return newSystem;
         }
 
         /// <summary>
@@ -302,8 +329,8 @@ namespace Latios
 
                 foreach (var type in assembly.GetTypes())
                 {
-                    //if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistration)) != null)
-                    //    continue;
+                    if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistrationAttribute)) != null)
+                        continue;
 
                     if (type.IsInterface)
                         continue;

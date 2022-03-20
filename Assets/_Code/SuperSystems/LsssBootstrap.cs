@@ -36,16 +36,16 @@ public class LatiosBootstrap : ICustomBootstrap
 
         //Reset playerloop so we don't infinitely add systems.
         PlayerLoop.SetPlayerLoop(PlayerLoop.GetDefaultPlayerLoop());
-        var beforeGpuProfiling = world.CreateSystem<Lsss.Tools.BeginGpuWaitProfilingSystem>();
-        var afterGpuProfiling  = world.CreateSystem<Lsss.Tools.EndGpuWaitProfilingSystem>();
+        //var beforeGpuProfiling = world.CreateSystem<Lsss.Tools.BeginGpuWaitProfilingSystem>();
+        //var afterGpuProfiling  = world.CreateSystem<Lsss.Tools.EndGpuWaitProfilingSystem>();
 
         BootstrapTools.AddWorldToCurrentPlayerLoopWithDelayedSimulation(world);
         var loop = PlayerLoop.GetCurrentPlayerLoop();
 
 #if UNITY_EDITOR
-        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(PostLateUpdate));
+        //ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(PostLateUpdate));
 #else
-        ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(UnityEngine.PlayerLoop.PostLateUpdate.PlayerEmitCanvasGeometry));
+        //ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(UnityEngine.PlayerLoop.PostLateUpdate.PlayerEmitCanvasGeometry));
 #endif
 
         PlayerLoop.SetPlayerLoop(loop);

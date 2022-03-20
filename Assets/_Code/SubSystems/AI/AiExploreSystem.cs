@@ -8,23 +8,36 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class AiExploreSystem : SubSystem
+    [BurstCompile]
+    public partial struct AiExploreSystem : ISystem, ISystemNewScene
     {
         struct AiRng : IComponentData
         {
             public Rng rng;
         }
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
-
-        protected override void OnUpdate()
+        public void OnNewScene(ref SystemState state)
         {
-            float arenaRadius                                      = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
-            var   rng                                              = sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
-            sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
+            state.GetSceneBlackboardEntity().AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
+        }
 
-            Entities.WithAll<AiTag>().ForEach((int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
-                                               in Translation translation) =>
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            float arenaRadius                                                 = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius;
+            var   rng                                                         = state.GetSceneBlackboardEntity().GetComponentData<AiRng>().rng.Shuffle();
+            state.GetSceneBlackboardEntity().SetComponentData(new AiRng { rng = rng });
+
+            state.Entities.WithAll<AiTag>().ForEach((int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
+                                                     in Translation translation) =>
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)
                 {

@@ -8,11 +8,11 @@ namespace Lsss.SuperSystems
         {
             GetOrCreateAndAddSystem<AiShipRadarScanSystem>();
             GetOrCreateAndAddSystem<AiSearchAndDestroyInitializePersonalitySystem>();
-            GetOrCreateAndAddSystem<AiSearchAndDestroySystem>();
+            GetOrCreateAndAddUnmanagedSystem<AiSearchAndDestroySystem>();
             GetOrCreateAndAddSystem<AiExploreInitializePersonalitySystem>();
-            GetOrCreateAndAddSystem<AiExploreSystem>();
-            GetOrCreateAndAddSystem<AiEvaluateGoalsSystem>();
-            GetOrCreateAndAddSystem<AiCreateDesiredActionsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AiExploreSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AiEvaluateGoalsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AiCreateDesiredActionsSystem>();
         }
     }
 }

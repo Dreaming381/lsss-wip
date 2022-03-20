@@ -51,55 +51,6 @@ MonoBehaviour:
   enemyCrossHairsRange: 80
   enemyCrossHairsFieldOfView: 10
   biasCrossHairsUsingRootForward: 0
---- !u!114 &-6105119887154075816
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3636925538486590814}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a9172d0f817052489d3f1d0e4dbf71a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetLeadDistanceMinMax:
-    x: 0
-    y: 5
-  shipRadar: {fileID: 8035468706597190013}
---- !u!114 &5779640445719332285
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3636925538486590814}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a57d69b4706b2d4db6af3aa7f57382f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  spawnForwardDistanceMinMax:
-    x: 10
-    y: 20
-  wanderDestinationRadiusMinMax:
-    x: 20
-    y: 70
-  wanderPositionSearchRadiusMinMax:
-    x: 50
-    y: 300
---- !u!114 &7192451783961118279
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3636925538486590814}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b3b6fb063cb156342b9ec4228637c1d9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &2146410807941092400
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -172,6 +123,10 @@ PrefabInstance:
       value: Belligerent AI
       objectReference: {fileID: 0}
     - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -184,6 +139,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
       propertyPath: m_LocalRotation.x
       value: 0
       objectReference: {fileID: 0}
@@ -193,14 +152,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
-      propertyPath: m_RootOrder
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
@@ -231,3 +182,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3436635484991342959, guid: 3f383e192f2ef8648beb1ec31d56bbc1, type: 3}
   m_PrefabInstance: {fileID: 2146410807941092400}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &-6105119887154075816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3636925538486590814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a9172d0f817052489d3f1d0e4dbf71a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetLeadDistanceMinMax:
+    x: 0
+    y: 5
+  shipRadar: {fileID: 8035468706597190013}
+--- !u!114 &5779640445719332285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3636925538486590814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a57d69b4706b2d4db6af3aa7f57382f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnForwardDistanceMinMax:
+    x: 10
+    y: 20
+  wanderDestinationRadiusMinMax:
+    x: 20
+    y: 70
+  wanderPositionSearchRadiusMinMax:
+    x: 50
+    y: 300
+--- !u!114 &7192451783961118279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3636925538486590814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b6fb063cb156342b9ec4228637c1d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

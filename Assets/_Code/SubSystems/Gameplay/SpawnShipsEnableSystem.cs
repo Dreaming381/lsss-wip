@@ -8,57 +8,38 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class SpawnShipsEnableSystem : SubSystem
+    [BurstCompile]
+    public partial struct SpawnShipsEnableSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile] public void OnCreate(ref SystemState state)
         {
-            var enabledShipList = new NativeList<EntityWithBuffer<LinkedEntityGroup> >(Allocator.TempJob);
+        }
+        [BurstCompile] public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var ecb       = new EnableCommandBuffer(Allocator.TempJob);
+            var transCdfe = state.GetComponentDataFromEntity<Translation>(false);
+            var rotCdfe   = state.GetComponentDataFromEntity<Rotation>(false);
 
-            var ecb = new EnableCommandBuffer(Allocator.TempJob);
-
-            Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, ref SpawnPayload payload, in SpawnTimes times) =>
+            state.Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, ref SpawnPayload payload, in SpawnTimes times) =>
             {
                 if (times.enableTime <= 0f && payload.disabledShip != Entity.Null)
                 {
                     var ship = payload.disabledShip;
                     ecb.Add(ship);
-                    var trans = GetComponent<Translation>(entity);
-                    var rot   = GetComponent<Rotation>(entity);
-                    SetComponent(ship, trans);
-                    SetComponent(ship, rot);
-                    //SetComponent(ship, GetComponent<Translation>(entity));
-                    //SetComponent(ship, GetComponent<Rotation>(entity));
+                    var trans            = transCdfe[entity];
+                    var rot              = rotCdfe[entity];
+                    transCdfe[ship]      = trans;
+                    rotCdfe[ship]        = rot;
                     payload.disabledShip = Entity.Null;
-
-                    enabledShipList.Add(ship.entity);
                 }
-            }).Run();
+            }).WithReadOnly(transCdfe).WithReadOnly(rotCdfe).Run();
 
-            ecb.Playback(EntityManager, GetBufferFromEntity<LinkedEntityGroup>(true));
+            ecb.Playback(state.EntityManager, state.GetBufferFromEntity<LinkedEntityGroup>(true));
             ecb.Dispose();
-
-            //Todo: It seems that if you Instantiate and then immediately disable a Transform hierarchy, the disabled entities do not get their child buffers.
-            //This hack attempts to dirty the children so that the transform system picks up on this.
-            var linkedBfe  = GetBufferFromEntity<LinkedEntityGroup>(true);
-            var parentCdfe = GetComponentDataFromEntity<Parent>(false);
-            Job.WithCode(() =>
-            {
-                for (int i = 0; i < enabledShipList.Length; i++)
-                {
-                    var linkedBuffer = enabledShipList[i][linkedBfe];
-                    for (int j = 0; j < linkedBuffer.Length; j++)
-                    {
-                        var e = linkedBuffer[j].Value;
-                        if (parentCdfe.HasComponent(e))
-                        {
-                            var p         = parentCdfe[e];
-                            parentCdfe[e] = p;
-                        }
-                    }
-                }
-            }).Run();
-
-            enabledShipList.Dispose();
         }
     }
 }

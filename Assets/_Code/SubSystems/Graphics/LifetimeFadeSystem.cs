@@ -10,11 +10,21 @@ using Unity.Transforms;
 //Doing so saves GPU bandwidth on Hybrid Renderer V2.
 namespace Lsss
 {
-    public partial class LifetimeFadeSystem : SubSystem
+    [BurstCompile]
+    public partial struct LifetimeFadeSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            Entities.ForEach((ref FadeProperty fade, in TimeToLive timeToLive, in TimeToLiveFadeStart timeToLiveFadeStart) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            state.Entities.ForEach((ref FadeProperty fade, in TimeToLive timeToLive, in TimeToLiveFadeStart timeToLiveFadeStart) =>
             {
                 fade.fade  = math.saturate(timeToLive.timeToLive / timeToLiveFadeStart.fadeTimeWindow);
                 fade.fade *= fade.fade;

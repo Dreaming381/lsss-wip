@@ -8,34 +8,43 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class CameraFollowPlayerSystem : SubSystem
+    [BurstCompile]
+    public partial struct CameraFollowPlayerSystem : ISystem
     {
         EntityQuery m_query;
 
-        protected override void OnCreate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<CameraMountPoint>(true).WithAll<PlayerTag>().Build();
         }
-
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
         {
-            var mounts = m_query.ToComponentDataArray<CameraMountPoint>(Allocator.TempJob);
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            if (m_query.IsEmpty)
+                return;
+
+            var mounts = state.WorldUnmanaged.UpdateAllocator.AllocateNativeArray<CameraMountPoint>(1);
+
+            state.Entities.WithAll<PlayerTag>().WithStoreEntityQueryInField(ref m_query).ForEach((in CameraMountPoint mount) => { mounts[0] = mount; }).Schedule();
+
+            var ltwCdfe = state.GetComponentDataFromEntity<LocalToWorld>(true);
             if (mounts.Length > 0)
             {
-                Entities.WithAll<CameraManager>().ForEach((ref Translation translation, ref Rotation rotation) =>
+                state.Entities.WithAll<CameraManager>().ForEach((ref Translation translation, ref Rotation rotation) =>
                 {
                     var mountEntity = mounts[0].mountPoint;
                     if (mountEntity == Entity.Null)
                         return;
 
-                    var ltw           = GetComponent<LocalToWorld>(mountEntity);
+                    var ltw           = ltwCdfe[mountEntity];
                     translation.Value = ltw.Position;
                     rotation.Value    = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
-                }).Schedule();
-                Dependency = mounts.Dispose(Dependency);
+                }).WithReadOnly(ltwCdfe).Schedule();
             }
-            else //Dispose without modifying dependency so SystemBase can take the fastpath.
-                mounts.Dispose();
         }
     }
 }

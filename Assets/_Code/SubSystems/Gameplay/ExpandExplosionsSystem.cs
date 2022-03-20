@@ -8,12 +8,21 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class ExpandExplosionsSystem : SubSystem
+    [BurstCompile]
+    public partial struct ExpandExplosionsSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            float dt = Time.DeltaTime;
-            Entities.WithAll<ExplosionTag>().ForEach((ref Scale scale, in ExplosionStats stats) =>
+        }
+        [BurstCompile] public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            float dt = state.Time.DeltaTime;
+            state.Entities.WithAll<ExplosionTag>().ForEach((ref Scale scale, in ExplosionStats stats) =>
             {
                 scale.Value += stats.expansionRate * dt;
                 scale.Value  = math.min(scale.Value, stats.radius);

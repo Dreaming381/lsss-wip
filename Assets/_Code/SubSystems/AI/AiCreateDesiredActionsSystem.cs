@@ -8,12 +8,22 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class AiCreateDesiredActionsSystem : SubSystem
+    [BurstCompile]
+    public partial struct AiCreateDesiredActionsSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in Translation trans,
-                                               in Rotation rot, in ShipSpeedStats speedStats, in Speed speed) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            state.Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in Translation trans,
+                                                     in Rotation rot, in ShipSpeedStats speedStats, in Speed speed) =>
             {
                 float2 destinationTurn = float2.zero;
 

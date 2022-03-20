@@ -8,13 +8,24 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class AiSearchAndDestroySystem : SubSystem
+    [BurstCompile]
+    public partial struct AiSearchAndDestroySystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            Entities.WithAll<AiTag>().ForEach((ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var scanCdfe = state.GetComponentDataFromEntity<AiShipRadarScanResults>(true);
+            state.Entities.WithAll<AiTag>().ForEach((ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity) =>
             {
-                var scanResults = GetComponent<AiShipRadarScanResults>(shipRadarEntity.shipRadar);
+                var scanResults = scanCdfe[shipRadarEntity.shipRadar];
                 output.fire     = !scanResults.friendFound && scanResults.nearestEnemy != Entity.Null;
 
                 if (scanResults.target != Entity.Null)
@@ -26,9 +37,9 @@ namespace Lsss
                 {
                     output.isPositionValid = false;
                 }
-            }).ScheduleParallel();
+            }).WithReadOnly(scanCdfe).ScheduleParallel();
 
-            Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadar radar, in AiShipRadarScanResults results) =>
+            state.Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadar radar, in AiShipRadarScanResults results) =>
             {
                 radar.target = results.target;
             }).ScheduleParallel();

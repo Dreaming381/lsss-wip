@@ -8,13 +8,23 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class MoveBulletsSystem : SubSystem
+    [BurstCompile]
+    public partial struct MoveBulletsSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            float dt = Time.DeltaTime;
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            float dt = state.Time.DeltaTime;
 
-            Entities.WithAll<BulletTag>().ForEach((ref Translation translation, ref BulletPreviousPosition prevPosition, in Speed speed, in Rotation rotation) =>
+            state.Entities.WithAll<BulletTag>().ForEach((ref Translation translation, ref BulletPreviousPosition prevPosition, in Speed speed, in Rotation rotation) =>
             {
                 prevPosition.previousPosition  = translation.Value;
                 translation.Value             += math.forward(rotation.Value) * speed.speed * dt;

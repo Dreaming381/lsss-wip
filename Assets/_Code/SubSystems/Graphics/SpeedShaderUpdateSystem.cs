@@ -8,36 +8,48 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class SpeedShaderUpdateSystem : SubSystem
+    [BurstCompile]
+    public partial struct SpeedShaderUpdateSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            float dt = Time.DeltaTime;
-            Entities.ForEach((ref IntegratedSpeed integratedSpeed, in Speed speed) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            float dt = state.Time.DeltaTime;
+            state.Entities.ForEach((ref IntegratedSpeed integratedSpeed, in Speed speed) =>
             {
                 integratedSpeed.integratedSpeed += speed.speed * dt;
             }).ScheduleParallel();
 
             //Optimization if someone gets the idea of putting a _Speed shader on a bullet or something.
-            Entities.ForEach((ref SpeedProperty speedProperty, in Speed speed) =>
+            state.Entities.ForEach((ref SpeedProperty speedProperty, in Speed speed) =>
             {
                 speedProperty.speed = speed.speed;
             }).ScheduleParallel();
 
-            Entities.ForEach((ref IntegratedSpeedProperty integratedSpeedProperty, in IntegratedSpeed integratedSpeed) =>
+            state.Entities.ForEach((ref IntegratedSpeedProperty integratedSpeedProperty, in IntegratedSpeed integratedSpeed) =>
             {
                 integratedSpeedProperty.integratedSpeed = integratedSpeed.integratedSpeed;
             }).ScheduleParallel();
 
-            Entities.WithNone<Speed>().ForEach((Entity entity, ref SpeedProperty speedProperty, in SpeedEntity speedEntity) =>
+            var speedCdfe = state.GetComponentDataFromEntity<Speed>(true);
+            state.Entities.WithNone<Speed>().ForEach((Entity entity, ref SpeedProperty speedProperty, in SpeedEntity speedEntity) =>
             {
-                speedProperty.speed = GetComponent<Speed>(speedEntity.entityWithSpeed).speed;
-            }).ScheduleParallel();
+                speedProperty.speed = speedCdfe[speedEntity.entityWithSpeed].speed;
+            }).WithReadOnly(speedCdfe).ScheduleParallel();
 
-            Entities.WithNone<IntegratedSpeed>().ForEach((Entity entity, ref IntegratedSpeedProperty integratedSpeedProperty, in SpeedEntity speedEntity) =>
+            var isCdfe = state.GetComponentDataFromEntity<IntegratedSpeed>(true);
+            state.Entities.WithNone<IntegratedSpeed>().ForEach((Entity entity, ref IntegratedSpeedProperty integratedSpeedProperty, in SpeedEntity speedEntity) =>
             {
-                integratedSpeedProperty.integratedSpeed = GetComponent<IntegratedSpeed>(speedEntity.entityWithSpeed).integratedSpeed;
-            }).ScheduleParallel();
+                integratedSpeedProperty.integratedSpeed = isCdfe[speedEntity.entityWithSpeed].integratedSpeed;
+            }).WithReadOnly(isCdfe).ScheduleParallel();
         }
     }
 }

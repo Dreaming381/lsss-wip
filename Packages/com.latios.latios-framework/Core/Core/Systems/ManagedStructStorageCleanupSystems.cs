@@ -4,6 +4,7 @@ using System.Reflection;
 using Debug = UnityEngine.Debug;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 
 namespace Latios.Systems
 {
@@ -43,8 +44,27 @@ namespace Latios.Systems
             //return m_allSystemsQuery.IsEmptyIgnoreFilter == false;
         }
 
+        private struct ManagedDefeatStripTag : IComponentData { }
+        private struct ManagedDefeatStripComponent : IManagedComponent
+        {
+            public Type AssociatedComponentType => typeof(ManagedDefeatStripTag);
+        }
+
+        private struct CollectionDefeatStripTag : IComponentData { }
+        private struct CollectionDefeatStripComponent : ICollectionComponent
+        {
+            public Type AssociatedComponentType => typeof(ManagedDefeatStripTag);
+            public JobHandle Dispose(JobHandle inputDeps) => default;
+        }
+
         protected override void CreateSystems()
         {
+            // Defeat stripping
+            World.DestroySystem(World.CreateSystem<ManagedComponentCreateSystem<ManagedDefeatStripComponent> >());
+            World.DestroySystem(World.CreateSystem<ManagedComponentDestroySystem<ManagedDefeatStripComponent> >());
+            World.DestroySystem(World.CreateSystem<CollectionComponentCreateSystem<CollectionDefeatStripComponent> >());
+            World.DestroySystem(World.CreateSystem<CollectionComponentDestroySystem<CollectionDefeatStripComponent> >());
+
             var managedCreateType         = typeof(ManagedComponentCreateSystem<>);
             var managedDestroyType        = typeof(ManagedComponentDestroySystem<>);
             var collectionCreateType      = typeof(CollectionComponentCreateSystem<>);
@@ -62,10 +82,11 @@ namespace Latios.Systems
 
                 foreach (var type in assembly.GetTypes())
                 {
-                    //if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistration)) != null)
-                    //    continue;
+                    if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistrationAttribute)) != null)
+                        continue;
 
-                    if (type == typeof(IManagedComponent) || type == typeof(ICollectionComponent))
+                    if (type == typeof(IManagedComponent) || type == typeof(ICollectionComponent) || type == typeof(ManagedDefeatStripComponent) ||
+                        type == typeof(CollectionDefeatStripComponent))
                         continue;
 
                     if (typeof(IManagedComponent).IsAssignableFrom(type))
@@ -120,6 +141,7 @@ namespace Latios.Systems
         {
             base.OnDestroy();
             latiosWorld.CollectionComponentStorage.Dispose();
+            latiosWorld.UnmanagedExtraInterfacesDispatcher.Dispose();
         }
     }
 

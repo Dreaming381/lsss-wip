@@ -44,7 +44,6 @@ namespace Lsss
                 state.wanderPosition = math.select(targetPosition, targetPosition * arenaRadius / radius, radius > arenaRadius);
             }).ScheduleParallel();
 
-            //ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query);
             ecb.RemoveComponentForEntityQuery<AiExplorePersonalityInitializerValues>(m_query);
         }
     }

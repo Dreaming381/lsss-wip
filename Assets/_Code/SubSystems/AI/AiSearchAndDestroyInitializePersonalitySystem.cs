@@ -33,7 +33,6 @@ namespace Lsss
                 personality.targetLeadDistance = random.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
             }).ScheduleParallel();
 
-            //ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
             ecb.RemoveComponentForEntityQuery<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
         }
     }

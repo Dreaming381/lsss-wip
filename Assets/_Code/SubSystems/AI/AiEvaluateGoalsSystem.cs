@@ -10,11 +10,21 @@ using UnityEngine.SceneManagement;
 
 namespace Lsss
 {
-    public partial class AiEvaluateGoalsSystem : SubSystem
+    [BurstCompile]
+    public partial struct AiEvaluateGoalsSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            Entities.WithAll<AiTag>().ForEach((ref AiGoalOutput output, in AiSearchAndDestroyOutput searchAndDestroy, in AiExploreOutput explore) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            state.Entities.WithAll<AiTag>().ForEach((ref AiGoalOutput output, in AiSearchAndDestroyOutput searchAndDestroy, in AiExploreOutput explore) =>
             {
                 output.flyTowardsPosition    = math.select(explore.wanderPosition, searchAndDestroy.flyTowardsPosition, searchAndDestroy.isPositionValid);
                 output.useAggressiveSteering = searchAndDestroy.isPositionValid;
@@ -22,7 +32,7 @@ namespace Lsss
                 output.fire                  = searchAndDestroy.fire;
             }).ScheduleParallel();
 
-            Entities.WithAll<AiTag>().WithNone<AiSearchAndDestroyOutput>().ForEach((ref AiGoalOutput output, in AiExploreOutput explore) =>
+            state.Entities.WithAll<AiTag>().WithNone<AiSearchAndDestroyOutput>().ForEach((ref AiGoalOutput output, in AiExploreOutput explore) =>
             {
                 output.flyTowardsPosition    = math.select(0f, explore.wanderPosition, explore.wanderPositionValid);
                 output.useAggressiveSteering = false;
@@ -30,7 +40,7 @@ namespace Lsss
                 output.fire                  = false;
             }).ScheduleParallel();
 
-            Entities.WithAll<AiTag>().WithNone<AiExploreOutput>().ForEach((ref AiGoalOutput output, in AiSearchAndDestroyOutput searchAndDestroy) =>
+            state.Entities.WithAll<AiTag>().WithNone<AiExploreOutput>().ForEach((ref AiGoalOutput output, in AiSearchAndDestroyOutput searchAndDestroy) =>
             {
                 output.flyTowardsPosition    = math.select(0f, searchAndDestroy.flyTowardsPosition, searchAndDestroy.isPositionValid);
                 output.useAggressiveSteering = searchAndDestroy.isPositionValid;
@@ -38,7 +48,7 @@ namespace Lsss
                 output.fire                  = searchAndDestroy.fire;
             }).ScheduleParallel();
 
-            Entities.WithAll<AiTag>().WithNone<AiSearchAndDestroyOutput, AiExploreOutput>().ForEach((ref AiGoalOutput output) =>
+            state.Entities.WithAll<AiTag>().WithNone<AiSearchAndDestroyOutput, AiExploreOutput>().ForEach((ref AiGoalOutput output) =>
             {
                 output.isValid = false;
                 output.fire    = false;

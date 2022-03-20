@@ -9,19 +9,29 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class MoveShipsSystem : SubSystem
+    [BurstCompile]
+    public partial struct MoveShipsSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            var dt          = Time.DeltaTime;
-            var arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var dt          = state.Time.DeltaTime;
+            var arenaRadius = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius;
 
-            Entities.WithAll<ShipTag>().ForEach((ref Translation translation,
-                                                 ref Rotation rotation,
-                                                 ref Speed speed,
-                                                 ref ShipBoostTank boostTank,
-                                                 in ShipSpeedStats stats,
-                                                 in ShipDesiredActions desiredActions) =>
+            state.Entities.WithAll<ShipTag>().ForEach((ref Translation translation,
+                                                       ref Rotation rotation,
+                                                       ref Speed speed,
+                                                       ref ShipBoostTank boostTank,
+                                                       in ShipSpeedStats stats,
+                                                       in ShipDesiredActions desiredActions) =>
             {
                 //Rotation
                 var oldRotation = rotation.Value;

@@ -8,11 +8,21 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class SpawnPointAnimationSystem : SubSystem
+    [BurstCompile]
+    public partial struct SpawnPointAnimationSystem : ISystem
     {
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            Entities.ForEach((ref Rotation rot, ref Scale scale, in TimeToLive timeToLive, in SpawnPointAnimationData data) =>
+        }
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            state.Entities.ForEach((ref Rotation rot, ref Scale scale, in TimeToLive timeToLive, in SpawnPointAnimationData data) =>
             {
                 float growFactor   = math.unlerp(data.growStartTime, data.growEndTime, timeToLive.timeToLive);
                 growFactor         = math.select(growFactor, 1f, data.growStartTime == data.growEndTime);
