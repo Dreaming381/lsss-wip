@@ -71,6 +71,7 @@ namespace Latios
         }
 
         public EntityQuery GetEntityQuery(EntityQueryDesc desc) => GetEntityQuery(new EntityQueryDesc[] { desc });
+        public EntityQuery GetEntityQuery(EntityQueryDescBuilder desc) => GetEntityQuery(desc);
 
         #region API
 

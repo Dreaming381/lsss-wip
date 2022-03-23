@@ -14,19 +14,14 @@ namespace Latios.Psyshock
 
     public struct CollisionLayer : IDisposable
     {
-        //[NoAlias] internal NativeArray<int2>                                              bucketStartsAndCounts;
-        //[NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float>        xmins;
-        //[NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float>        xmaxs;
-        //[NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float4>       yzminmaxs;
-        //[NoAlias, NativeDisableParallelForRestriction] internal NativeArray<ColliderBody> bodies;
-        internal NativeArray<int2>                                               bucketStartsAndCounts;
-        [NativeDisableParallelForRestriction] internal NativeArray<float>        xmins;
-        [NativeDisableParallelForRestriction] internal NativeArray<float>        xmaxs;
-        [NativeDisableParallelForRestriction] internal NativeArray<float4>       yzminmaxs;
-        [NativeDisableParallelForRestriction] internal NativeArray<ColliderBody> bodies;
-        internal float3                                                          worldMin;
-        internal float3                                                          worldAxisStride;
-        internal int3                                                            worldSubdivisionsPerAxis;
+        [NoAlias] internal NativeArray<int2>                                              bucketStartsAndCounts;
+        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float>        xmins;
+        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float>        xmaxs;
+        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float4>       yzminmaxs;
+        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<ColliderBody> bodies;
+        internal float3                                                                   worldMin;
+        internal float3                                                                   worldAxisStride;
+        internal int3                                                                     worldSubdivisionsPerAxis;
 
         //Todo: World settings?
         internal CollisionLayer(int bodyCount, CollisionLayerSettings settings, Allocator allocator)

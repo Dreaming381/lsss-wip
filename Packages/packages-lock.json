@@ -354,13 +354,6 @@
       },
       "url": "https://packages.unity.com"
     },
-    "nuget.mono-cecil": {
-      "version": "0.1.6-preview",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://packages.unity.com"
-    },
     "usfxr": {
       "version": "https://github.com/grapefrukt/usfxr.git",
       "depth": 0,

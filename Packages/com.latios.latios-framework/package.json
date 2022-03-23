@@ -1,14 +1,14 @@
 {
   "name": "com.latios.latiosframework",
   "displayName": "Latios Framework for DOTS",
-  "version": "0.4.5-preview",
+  "version": "0.5.0-preview",
   "unity": "2020.3",
   "description": "Latios Framework for DOTS is a collection of tools, algorithms, and API extensions developed by a hardcore hobbyist game developer.\n\nThis package includes all of the following packages:\n\u25aa Core\n\u25aa Physics\n\nThis version is the embedded version from the Lsss project.",
   "dependencies": {
     "com.unity.entities": "0.50.0-preview.24",
     "com.unity.audio.dspgraph": "0.1.0-preview.22"
   },
-  "unityRelease": "9f1",
+  "unityRelease": "30f1",
   "keywords": [
     "dots",
     "latios",

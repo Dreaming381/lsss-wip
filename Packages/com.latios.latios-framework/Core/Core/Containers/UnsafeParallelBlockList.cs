@@ -4,17 +4,18 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
+using Unity.Mathematics;
 
-namespace Latios
+namespace Latios.Unsafe
 {
-    internal unsafe struct UnsafeParallelBlockList : INativeDisposable
+    public unsafe struct UnsafeParallelBlockList : INativeDisposable
     {
         public readonly int  m_elementSize;
         private readonly int m_blockSize;
         private readonly int m_elementsPerBlock;
         private Allocator    m_allocator;
 
-        private PerThreadBlockList* m_perThreadBlockLists;
+        [NativeDisableUnsafePtrRestriction] private PerThreadBlockList* m_perThreadBlockLists;
 
         public UnsafeParallelBlockList(int elementSize, int elementsPerBlock, Allocator allocator)
         {
@@ -226,6 +227,77 @@ namespace Latios
             public byte*                lastByteAddressInBlock;
             public int                  elementCount;
         }
+
+        public Enumerator GetEnumerator(int nativeThreadIndex)
+        {
+            return new Enumerator(m_perThreadBlockLists + nativeThreadIndex, m_elementSize, m_elementsPerBlock);
+        }
+
+        public struct Enumerator
+        {
+            private PerThreadBlockList* m_perThreadBlockList;
+            private byte*               m_readAddress;
+            private byte*               m_lastByteAddressInBlock;
+            private int                 m_blockIndex;
+            private int                 m_elementSize;
+            private int                 m_elementsPerBlock;
+
+            internal Enumerator(void* perThreadBlockList, int elementSize, int elementsPerBlock)
+            {
+                m_perThreadBlockList = (PerThreadBlockList*)perThreadBlockList;
+                m_readAddress        = null;
+                m_readAddress++;
+                m_lastByteAddressInBlock = null;
+                m_blockIndex             = -1;
+                m_elementSize            = elementSize;
+                m_elementsPerBlock       = elementsPerBlock;
+            }
+
+            public bool MoveNext()
+            {
+                m_readAddress += m_elementSize;
+                if (m_readAddress > m_lastByteAddressInBlock)
+                {
+                    m_blockIndex++;
+                    if (m_blockIndex >= m_perThreadBlockList->blocks.Length)
+                        return false;
+
+                    int elementsInBlock      = math.min(m_elementsPerBlock, m_perThreadBlockList->elementCount - m_blockIndex * m_elementsPerBlock);
+                    var blocks               = m_perThreadBlockList->blocks.Ptr;
+                    m_lastByteAddressInBlock = blocks[m_blockIndex].ptr + elementsInBlock * m_elementSize - 1;
+                    m_readAddress            = blocks[m_blockIndex].ptr;
+                }
+                return true;
+            }
+
+            public T GetCurrent<T>() where T : struct
+            {
+                UnsafeUtility.CopyPtrToStructure(m_readAddress, out T t);
+                return t;
+            }
+        }
     }
+
+    // Schedule for 128 iterations
+    //[BurstCompile]
+    //struct ExampleReadJob : IJobFor
+    //{
+    //    [NativeDisableUnsafePtrRestriction] public UnsafeParallelBlockList blockList;
+    //
+    //    public void Execute(int index)
+    //    {
+    //        var enumerator = blockList.GetEnumerator(index);
+    //
+    //        while (enumerator.MoveNext())
+    //        {
+    //            int number = enumerator.GetCurrent<int>();
+    //
+    //            if (number == 381)
+    //                UnityEngine.Debug.Log("You found me!");
+    //            else if (number == 380)
+    //                UnityEngine.Debug.Log("Where?");
+    //        }
+    //    }
+    //}
 }
 
