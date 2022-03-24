@@ -86,7 +86,8 @@ namespace Latios.Systems
             foreach (var instance in m_playbackInstances)
             {
                 //Todo: We don't fail as gracefully as EntityCommandBufferSystem, but I'm not sure what is exactly required to meet that. There's way too much magic there.
-                Profiler.BeginSample(instance.requestingSystemType == null ? "Unknown" : instance.requestingSystemType.Name);
+                var systemName = instance.requestingSystemType != null? TypeManager.GetSystemName(instance.requestingSystemType) : "Unknown";
+                Profiler.BeginSample(systemName);
                 switch (instance.type)
                 {
                     case PlaybackType.Entity:

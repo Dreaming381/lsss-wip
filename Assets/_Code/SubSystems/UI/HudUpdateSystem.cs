@@ -60,9 +60,11 @@ namespace Lsss
             }).WithoutBurst().Run();
 
             m_healthBuilder.Clear();
-            m_healthBuilder.Append(healthValue);
-            m_healthBuilder.Append('/');
-            m_healthBuilder.Append(worldBlackboardEntity.GetComponentData<CachedShipBaseHealth>().health);
+            FixedString64Bytes healthString = default;
+            healthString.Append(healthValue);
+            healthString.Append('/');
+            healthString.Append(worldBlackboardEntity.GetComponentData<CachedShipBaseHealth>().health);
+            m_healthBuilder.Append(in healthString);
             hud.health.SetText(m_healthBuilder);
 
             if (playerFound)
@@ -105,7 +107,7 @@ namespace Lsss
             m_factionsBuilder.Clear();
             foreach (var n in factionNames)
             {
-                m_factionsBuilder.Append(n);
+                m_factionsBuilder.Append(in n);
                 m_factionsBuilder.Append('\t');
                 m_factionsBuilder.Append('0');
                 m_factionsBuilder.Append('\n');
@@ -117,7 +119,8 @@ namespace Lsss
             m_factionsBuilder.Clear();
             for (int i = 0; i < factionNames.Length; i++)
             {
-                m_factionsBuilder.Append(factionNames[i]);
+                var n = factionNames[i];
+                m_factionsBuilder.Append(in n);
                 m_factionsBuilder.Append('<');
                 m_factionsBuilder.Append('p');
                 m_factionsBuilder.Append('o');

@@ -8,6 +8,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Profiling;
 
 namespace Lsss.Tools
 {
@@ -60,12 +61,14 @@ namespace Lsss.Tools
                     m_texture.Apply();
 
                     m_stringBuilder.Clear();
+                    FixedString4096Bytes fixedString = default;
                     for (int i = 0; i < profilingData.barValues.Length; i++)
                     {
-                        m_stringBuilder.Append(profilingData.barValues[i]);
-                        m_stringBuilder.Append('\n');
-                        m_stringBuilder.Append('\n');
+                        fixedString.Append(profilingData.barValues[i]);
+                        fixedString.Append('\n');
+                        fixedString.Append('\n');
                     }
+                    m_stringBuilder.Append(in fixedString);
                     panel.labels.SetText(m_stringBuilder);
                 }
             }).WithoutBurst().Run();

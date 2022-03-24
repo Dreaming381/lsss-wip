@@ -1,6 +1,7 @@
 ﻿using System;
 using Unity.Entities;
 using Unity.Jobs;
+using UnityEngine.Profiling;
 
 namespace Latios
 {
@@ -39,7 +40,8 @@ namespace Latios
 
         public static bool HasManagedComponent<T>(this EntityManager em, Entity entity) where T : struct, IManagedComponent
         {
-            return GetComponentStorage(em).HasComponent<T>(entity) && em.HasComponent(entity, new T().AssociatedComponentType);
+            var storage = GetComponentStorage(em);
+            return storage.HasComponent<T>(entity) && em.HasComponent(entity, storage.GetAssociatedType<T>());
         }
 
         public static void AddCollectionComponent<T>(this EntityManager em, Entity entity, T collectionComponent, bool isInitialized = true) where T : struct, ICollectionComponent
@@ -56,7 +58,7 @@ namespace Latios
             var storage = GetCollectionStorage(em, out LatiosWorld lw);
             if (storage.HasCollectionComponent<T>(entity))
             {
-                em.RemoveComponent(                                       entity, new T().AssociatedComponentType);
+                em.RemoveComponent(                                       entity, storage.GetAssociatedType<T>());
                 em.RemoveComponent<CollectionComponentSystemStateTag<T> >(entity);
                 bool isDisposable = storage.RemoveCollectionComponent(entity, out JobHandle readHandle, out JobHandle writeHandle, out T component);
                 if (isDisposable)
@@ -73,7 +75,7 @@ namespace Latios
             var storage = GetCollectionStorage(em, out LatiosWorld lw);
             if (storage.HasCollectionComponent<T>(entity))
             {
-                em.RemoveComponent(                                       entity, new T().AssociatedComponentType);
+                em.RemoveComponent(                                       entity, storage.GetAssociatedType<T>());
                 em.RemoveComponent<CollectionComponentSystemStateTag<T> >(entity);
                 bool isDisposable = storage.RemoveCollectionComponent(entity, out JobHandle readHandle, out JobHandle writeHandle, out T component);
                 if (isDisposable)
@@ -116,7 +118,8 @@ namespace Latios
 
         public static bool HasCollectionComponent<T>(this EntityManager em, Entity entity) where T : struct, ICollectionComponent
         {
-            return GetCollectionStorage(em, out _).HasCollectionComponent<T>(entity) && em.HasComponent(entity, new T().AssociatedComponentType);
+            var storage = GetCollectionStorage(em, out _);
+            return storage.HasCollectionComponent<T>(entity) && em.HasComponent(entity, storage.GetAssociatedType<T>());
         }
 
         public static void UpdateCollectionComponentDependency<T>(this EntityManager em, Entity entity, JobHandle handle, bool wasReadOnly) where T : struct, ICollectionComponent

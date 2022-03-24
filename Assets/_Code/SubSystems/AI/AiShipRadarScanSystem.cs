@@ -55,7 +55,7 @@ namespace Lsss
 
             for (int i = 0; i < factionEntities.Length; i++)
             {
-                Profiler.BeginSample($"faction_A_{i}");
+                //Profiler.BeginSample($"faction_A_{i}");
                 var factionMember     = new FactionMember { factionEntity = factionEntities[i] };
                 var buildRadarLayerJh                                     = BuildRadarLayer(factionMember, out CollisionLayer radarLayer, rootDependency);
 
@@ -150,7 +150,7 @@ namespace Lsss
                     finalHandles.Add(scannedEnemies.Dispose(resultsHandle));
                 }
                 finalHandles.Add(radarLayer.Dispose(resultsHandle));
-                Profiler.EndSample();
+                //Profiler.EndSample();
             }
 
             Dependency = JobHandle.CombineDependencies(finalHandles);
