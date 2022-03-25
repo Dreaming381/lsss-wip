@@ -32,6 +32,9 @@ public class LatiosBootstrap : ICustomBootstrap
 
         world.GetExistingSystem<Unity.Transforms.CopyInitialTransformFromGameObjectSystem>().Enabled = false;  // Leaks LocalToWorld query and generates ECB.
 
+        BootstrapTools.InjectSystem(typeof(ImprovedParentSystem),        world);
+        BootstrapTools.InjectSystem(typeof(ImprovedLocalToParentSystem), world);
+
         initializationSystemGroup.SortSystems();
         simulationSystemGroup.SortSystems();
         presentationSystemGroup.SortSystems();

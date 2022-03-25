@@ -52,6 +52,7 @@ namespace Lsss
             }.ScheduleParallel(m_query, Dependency);
         }
 
+        [BurstCompile]
         struct DestroyJob : IJobEntityBatch
         {
             [ReadOnly] public EntityTypeHandle                         entityHandle;
