@@ -1,5 +1,6 @@
 {
     "name": "Latios.Core.Editor",
+    "rootNamespace": "Latios.Editor",
     "references": [
         "Latios.Core"
     ],

@@ -1,5 +1,6 @@
 {
     "name": "Latios.Core",
+    "rootNamespace": "Latios",
     "references": [
         "Unity.Entities",
         "Unity.Jobs",

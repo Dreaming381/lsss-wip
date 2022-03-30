@@ -24,7 +24,7 @@ namespace Latios.Myri.Authoring.Systems
             }
             tempList.Dispose();
 
-            ConvertBatchedClips();
+            //ConvertBatchedClips();
             ConvertListeners();
         }
 
@@ -202,13 +202,13 @@ namespace Latios.Myri.Authoring.Systems
         [BurstCompile]
         struct ComputeAudioClipBlobsJob : IJobFor
         {
-            [ReadOnly] public NativeArray<float>          samples;
-            [ReadOnly] public NativeArray<int2>           ranges;
-            [ReadOnly] public NativeArray<int>            rates;
-            [ReadOnly] public NativeArray<int>            channelCounts;
-            [ReadOnly] public NativeArray<int>            offsetCounts;
+            [ReadOnly] public NativeArray<float>               samples;
+            [ReadOnly] public NativeArray<int2>                ranges;
+            [ReadOnly] public NativeArray<int>                 rates;
+            [ReadOnly] public NativeArray<int>                 channelCounts;
+            [ReadOnly] public NativeArray<int>                 offsetCounts;
             [ReadOnly] public NativeArray<FixedString128Bytes> names;
-            public NativeArray<AudioClipComputationData>  computationDataArray;
+            public NativeArray<AudioClipComputationData>       computationDataArray;
 
             public void Execute(int index)
             {
@@ -241,8 +241,8 @@ namespace Latios.Myri.Authoring.Systems
                 {
                     offsets[i] = i * stride;
                 }
-                root.sampleRate = rates[index];
-                builder.AllocateFixedString(ref root.name, names[index]);
+                root.sampleRate             = rates[index];
+                root.name                   = names[index];
                 var computationData         = computationDataArray[index];
                 computationData.blob        = builder.CreateBlobAssetReference<AudioClipBlob>(Allocator.Persistent);
                 computationDataArray[index] = computationData;

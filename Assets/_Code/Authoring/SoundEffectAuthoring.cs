@@ -16,8 +16,9 @@ namespace Lsss.Authoring
 
         public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
         {
-            var audioSource  = GetComponent<AudioSourceAuthoring>();
-            audioSource.clip = SfxrPlayer.GetClip(effectSettings);
+            var audioSource       = GetComponent<AudioSourceAuthoring>();
+            audioSource.clip      = SfxrPlayer.GetClip(effectSettings);
+            audioSource.clip.name = gameObject.name;
             //DestroyImmediate(this, );
         }
     }

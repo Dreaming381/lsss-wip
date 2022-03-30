@@ -11,14 +11,7 @@ namespace Latios.Authoring.Systems
     {
         protected override void OnUpdate()
         {
-            //base.OnUpdate();
-            foreach (var sys in World.Systems)
-            {
-                if (sys is GameObjectConversionConfigurationSystem config)
-                {
-                    config.Enabled = false;
-                }
-            }
+            base.OnUpdate();
             World.GetExistingSystem<GameObjectDeclareReferencedObjectsGroup>().SortSystems();
             Enabled = false;
         }
@@ -30,25 +23,7 @@ namespace Latios.Authoring.Systems
         protected override void OnUpdate()
         {
             World.GetExistingSystem<GameObjectConversionConfigurationSystemGroup>().Enabled = true;
-
-            foreach (var sys in World.Systems)
-            {
-                if (sys is GameObjectConversionConfigurationSystem config)
-                {
-#if UNITY_EDITOR
-                    config.Enabled = config.ShouldRunConversionSystem();
-#else
-                    config.Enabled = true;
-#endif
-                }
-            }
         }
-    }
-
-    [UpdateInGroup(typeof(GameObjectDeclareReferencedObjectsGroup), OrderFirst = true)]
-    [UpdateBefore(typeof(GameObjectConversionConfigurationSystemGroup))]
-    public abstract class GameObjectConversionConfigurationSystem : GameObjectConversionSystem
-    {
     }
 }
 
