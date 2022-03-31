@@ -159,9 +159,10 @@ namespace Latios.Authoring.Systems
         /// Generate a converter instance to generate a Blob Asset. You must override this function. Return false to skip the input.
         /// </summary>
         /// <param name="input">The managed input</param>
+        /// <param name="gameObject">The GameObject which is being converted.</param>
         /// <param name="converter">The unmanaged data required to generate a Blob Asset. The converter will be executed in a Burst job.</param>
         /// <returns>Returns false if skipped and true if kept.</returns>
-        protected abstract bool Filter(in TManagedInputType input, out TUnmanagedConversionType converter);
+        protected abstract bool Filter(in TManagedInputType input, UnityEngine.GameObject gameObject, out TUnmanagedConversionType converter);
 
         /// <summary>
         /// Override this function to process any handles created during GatherInputs().
@@ -271,7 +272,7 @@ namespace Latios.Authoring.Systems
             /// </summary>
             public InputAccess input { get; internal set; }
             /// <summary>
-            /// Readonly access to the associated UnityEngine.Objects
+            /// Readonly access to the associated UnityEngine.GameObjects being converted
             /// </summary>
             public GameObjectAccess associatedObject { get; internal set; }
             /// <summary>

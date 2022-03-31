@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Latios.Myri.Authoring
 {
-    internal class DefaultIldProfileBuilder : AudioIldProfileBuilder
+    internal class DefaultListenerProfileBuilder : ListenerProfileBuilder
     {
         protected override void BuildProfile()
         {

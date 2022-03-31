@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using Latios.Authoring;
 using Latios.Authoring.Systems;
@@ -37,7 +36,8 @@ namespace Latios.Myri.Authoring
 
 namespace Latios.Myri.Authoring.Systems
 {
-    public sealed class AudioClipSmartBlobberSystem : SmartBlobberConversionSystem<AudioClipBlob, AudioClipBakeData, Converter, Context>
+    [ConverterVersion("Latios", 4)]
+    public sealed class AudioClipSmartBlobberSystem : SmartBlobberConversionSystem<AudioClipBlob, AudioClipBakeData, AudioClipConverter, Context>
     {
         struct AuthoringHandlePair
         {
@@ -154,7 +154,7 @@ namespace Latios.Myri.Authoring.Systems
                 int count = clip.samples * clip.channels;
                 ReadClip(clip, context.samples.GetSubArray(sampleStart, count), cache);
 
-                converters[i] = new Converter
+                converters[i] = new AudioClipConverter
                 {
                     count      = count,
                     isStereo   = clip.channels == 2,
@@ -214,7 +214,7 @@ namespace Latios.Myri.Authoring.Systems
         }
     }
 
-    public struct Converter : ISmartBlobberContextBuilder<AudioClipBlob, Context>
+    public struct AudioClipConverter : ISmartBlobberContextBuilder<AudioClipBlob, Context>
     {
         internal int                 start;
         internal int                 count;

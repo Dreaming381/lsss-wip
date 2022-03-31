@@ -78,7 +78,7 @@ namespace Latios.Authoring.Systems
                 m_inputsAreLocked = true;
                 for (int i = 0; i < m_inputs.Count; i++)
                 {
-                    if (Filter(m_inputs[i].input, out var converter))
+                    if (Filter(m_inputs[i].input, m_inputs[i].gameObject, out var converter))
                     {
                         converters[i] = converter;
                         indices[i]    = 1;
@@ -231,7 +231,7 @@ namespace Latios.Authoring.Systems
             {
                 for (int i = 0; i < indices.Length; i++)
                 {
-                    if (indices[i] > 0)
+                    if (indices[i] >= 0)
                     {
                         compData.Add(new CompData { index = i });
                     }
