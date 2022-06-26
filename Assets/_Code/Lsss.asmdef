@@ -1,5 +1,6 @@
 {
     "name": "Lsss",
+    "rootNamespace": "",
     "references": [
         "Latios.Core",
         "Latios.Psyshock",
@@ -19,7 +20,8 @@
         "Unity.Transforms",
         "Unity.Transforms.Hybrid",
         "Unity.Mathematics.Extensions",
-        "Unity.usfxr"
+        "Unity.usfxr",
+        "Latios.Kinemation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -15,7 +15,7 @@ namespace Lsss
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.GetWorldBlackboardEntity().AddComponentIfMissing<AudioMasterVolumes>();
+            state.GetWorldBlackboardEntity().AddComponent<AudioMasterVolumes>();
         }
         [BurstCompile] public void OnDestroy(ref SystemState state) {
         }

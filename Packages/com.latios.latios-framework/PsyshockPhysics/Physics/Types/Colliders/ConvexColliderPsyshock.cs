@@ -45,7 +45,6 @@ namespace Latios.Psyshock
 
         public Aabb localAabb;
 
-        public Hash128        authoredHash;
         public FixedString128Bytes meshName;
     }
 }

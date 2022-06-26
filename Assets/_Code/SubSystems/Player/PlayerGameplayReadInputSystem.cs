@@ -12,7 +12,7 @@ namespace Lsss
 
         protected override void OnCreate()
         {
-            worldBlackboardEntity.AddComponentIfMissing<MouseLookMultiplier>();
+            worldBlackboardEntity.AddComponent<MouseLookMultiplier>();
         }
 
         protected override void OnUpdate()

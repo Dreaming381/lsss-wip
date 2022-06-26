@@ -37,7 +37,7 @@ namespace Latios.Myri.Authoring
 namespace Latios.Myri.Authoring.Systems
 {
     [ConverterVersion("Latios", 4)]
-    public sealed class AudioClipSmartBlobberSystem : SmartBlobberConversionSystem<AudioClipBlob, AudioClipBakeData, AudioClipConverter, Context>
+    public sealed class AudioClipSmartBlobberSystem : SmartBlobberConversionSystem<AudioClipBlob, AudioClipBakeData, AudioClipConverter, AudioClipContext>
     {
         struct AuthoringHandlePair
         {
@@ -108,7 +108,7 @@ namespace Latios.Myri.Authoring.Systems
             }
         }
 
-        protected override void Filter(FilterBlobberData blobberData, ref Context context, NativeArray<int> inputToFilteredMapping)
+        protected override void Filter(FilterBlobberData blobberData, ref AudioClipContext context, NativeArray<int> inputToFilteredMapping)
         {
             var hashes = new NativeArray<int2>(blobberData.Count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
             for (int i = 0; i < blobberData.Count; i++)
@@ -116,7 +116,7 @@ namespace Latios.Myri.Authoring.Systems
                 var input = blobberData.input[i];
                 if (input.clip == null || input.clip.channels > 2)
                 {
-                    if (input.clip.channels > 2)
+                    if (input.clip != null && input.clip.channels > 2)
                         Debug.LogError($"Myri failed to convert clip {input.clip.name}. Only mono and stereo clips are supported.");
 
                     hashes[i]                 = default;
@@ -133,7 +133,7 @@ namespace Latios.Myri.Authoring.Systems
             hashes.Dispose();
         }
 
-        protected override void PostFilter(PostFilterBlobberData blobberData, ref Context context)
+        protected override void PostFilter(PostFilterBlobberData blobberData, ref AudioClipContext context)
         {
             int sampleCount = 0;
             for (int i = 0; i < blobberData.Count; i++)
@@ -192,7 +192,7 @@ namespace Latios.Myri.Authoring.Systems
         }
 
         [BurstCompile]
-        public struct DeduplicateJob : IJob
+        struct DeduplicateJob : IJob
         {
             [ReadOnly] public NativeArray<int2> hashes;
             public NativeArray<int>             inputToFilteredMapping;
@@ -206,7 +206,7 @@ namespace Latios.Myri.Authoring.Systems
                         continue;
 
                     if (map.TryGetValue(hashes[i], out int index))
-                        inputToFilteredMapping[i] = i; //index;
+                        inputToFilteredMapping[i] = index;
                     else
                         map.Add(hashes[i], i);
                 }
@@ -214,7 +214,7 @@ namespace Latios.Myri.Authoring.Systems
         }
     }
 
-    public struct AudioClipConverter : ISmartBlobberContextBuilder<AudioClipBlob, Context>
+    public struct AudioClipConverter : ISmartBlobberContextBuilder<AudioClipBlob, AudioClipContext>
     {
         internal int                 start;
         internal int                 count;
@@ -223,7 +223,7 @@ namespace Latios.Myri.Authoring.Systems
         internal FixedString128Bytes name;
         internal bool                isStereo;
 
-        public BlobAssetReference<AudioClipBlob> BuildBlob(int _, int index, ref Context context)
+        public BlobAssetReference<AudioClipBlob> BuildBlob(int _, int index, ref AudioClipContext context)
         {
             var     builder  = new BlobBuilder(Allocator.Temp);
             ref var root     = ref builder.ConstructRoot<AudioClipBlob>();
@@ -261,7 +261,7 @@ namespace Latios.Myri.Authoring.Systems
         }
     }
 
-    public struct Context : System.IDisposable
+    public struct AudioClipContext : System.IDisposable
     {
         [ReadOnly] internal NativeArray<float> samples;
         public void Dispose() => samples.Dispose();

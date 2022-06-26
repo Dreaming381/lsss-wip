@@ -8,6 +8,13 @@ using Unity.Mathematics;
 
 namespace Latios.Unsafe
 {
+    /// <summary>
+    /// An unsafe container which can be written to by multiple threads and multiple jobs.
+    /// The container is lock-free and items never change addresses once written.
+    /// Items written in the same thread in the same job will be read back in the same order.
+    /// This container is type-erased, but all elements are expected to be of the same size.
+    /// Unlike Unity's Unsafe* containers, it is safe to copy this type by value.
+    /// </summary>
     public unsafe struct UnsafeParallelBlockList : INativeDisposable
     {
         public readonly int  m_elementSize;
@@ -17,6 +24,15 @@ namespace Latios.Unsafe
 
         [NativeDisableUnsafePtrRestriction] private PerThreadBlockList* m_perThreadBlockLists;
 
+        /// <summary>
+        /// Construct a new UnsafeParallelBlockList using a UnityEngine allocator
+        /// </summary>
+        /// <param name="elementSize">The size of each element in bytes that will be stored</param>
+        /// <param name="elementsPerBlock">
+        /// The number of elements stored per native thread index before needing to perform an additional allocation.
+        /// Higher values may allocate more memory that is left unused. Lower values may perform more allocations.
+        /// </param>
+        /// <param name="allocator">The UnityEngine allocator to use for allocations</param>
         public UnsafeParallelBlockList(int elementSize, int elementsPerBlock, Allocator allocator)
         {
             m_elementSize      = elementSize;
@@ -35,6 +51,12 @@ namespace Latios.Unsafe
         }
 
         //The thread index is passed in because otherwise job reflection can't inject it through a pointer.
+        /// <summary>
+        /// Write an element for a given thread index
+        /// </summary>
+        /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+        /// <param name="value">The value to write</param>
+        /// <param name="threadIndex">The thread index to use when writing. This should come from [NativeSetThreadIndex].</param>
         public void Write<T>(T value, int threadIndex) where T : unmanaged
         {
             var blockList = m_perThreadBlockLists + threadIndex;
@@ -58,6 +80,11 @@ namespace Latios.Unsafe
             blockList->elementCount++;
         }
 
+        /// <summary>
+        /// Reserve memory for an element and return the fixed memory address.
+        /// </summary>
+        /// <param name="threadIndex">The thread index to use when allocating. This should come from [NativeSetThreadIndex].</param>
+        /// <returns>A pointer where an element can be copied to</returns>
         public void* Allocate(int threadIndex)
         {
             var blockList = m_perThreadBlockLists + threadIndex;
@@ -82,6 +109,10 @@ namespace Latios.Unsafe
             return result;
         }
 
+        /// <summary>
+        /// Count the number of elements. Do this once and cache the result.
+        /// </summary>
+        /// <returns>The number of elements stored</returns>
         public int Count()
         {
             int result = 0;
@@ -92,11 +123,20 @@ namespace Latios.Unsafe
             return result;
         }
 
+        /// <summary>
+        /// A pointer to an element stored
+        /// </summary>
         public struct ElementPtr
         {
             public byte* ptr;
         }
 
+        /// <summary>
+        /// Gets all the pointers for all elements stored.
+        /// This does not actually traverse the memory but instead calculates memory addresses from metadata,
+        /// which is often faster, especially for large elements.
+        /// </summary>
+        /// <param name="ptrs">An array in which the pointers should be stored. Its Length should be equal to Count().</param>
         public void GetElementPtrs(NativeArray<ElementPtr> ptrs)
         {
             int dst = 0;
@@ -131,6 +171,11 @@ namespace Latios.Unsafe
             }
         }
 
+        /// <summary>
+        /// Copies all the elements stored into values.
+        /// </summary>
+        /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+        /// <param name="values">An array where the elements should be copied to. Its Length should be equal to Count().</param>
         [Unity.Burst.CompilerServices.IgnoreWarning(1371)]
         public void GetElementValues<T>(NativeArray<T> values) where T : struct
         {
@@ -191,6 +236,11 @@ namespace Latios.Unsafe
             }
         }
 
+        /// <summary>
+        /// Uses a job to dispose this container
+        /// </summary>
+        /// <param name="inputDeps">A JobHandle for all jobs which should finish before disposal.</param>
+        /// <returns>A JobHandle for the disposal job.</returns>
         public JobHandle Dispose(JobHandle inputDeps)
         {
             var jh = new DisposeJob { upbl = this }.Schedule(inputDeps);
@@ -198,6 +248,10 @@ namespace Latios.Unsafe
             return jh;
         }
 
+        /// <summary>
+        /// Disposes the container immediately. It is legal to call this from within a job,
+        /// as long as no other jobs or threads are using it.
+        /// </summary>
         public void Dispose()
         {
             for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
@@ -228,11 +282,24 @@ namespace Latios.Unsafe
             public int                  elementCount;
         }
 
+        /// <summary>
+        /// Gets an enumerator for one of the thread indices in the job.
+        /// </summary>
+        /// <param name="nativeThreadIndex">
+        /// The thread index that was used when the elements were written.
+        /// This does not have to be the thread index of the reader.
+        /// In fact, you usually want to iterate through all threads.
+        /// </param>
+        /// <returns></returns>
         public Enumerator GetEnumerator(int nativeThreadIndex)
         {
             return new Enumerator(m_perThreadBlockLists + nativeThreadIndex, m_elementSize, m_elementsPerBlock);
         }
 
+        /// <summary>
+        /// An enumerator which can be used for iterating over the elements written by a single thread index.
+        /// It is allowed to have multiple enumerators for the same thread index.
+        /// </summary>
         public struct Enumerator
         {
             private PerThreadBlockList* m_perThreadBlockList;
@@ -253,6 +320,10 @@ namespace Latios.Unsafe
                 m_elementsPerBlock       = elementsPerBlock;
             }
 
+            /// <summary>
+            /// Advance to the next element
+            /// </summary>
+            /// <returns>Returns false if the previous element was the last, true otherwise</returns>
             public bool MoveNext()
             {
                 m_readAddress += m_elementSize;
@@ -270,6 +341,11 @@ namespace Latios.Unsafe
                 return true;
             }
 
+            /// <summary>
+            /// Retrieves the current element, copying it to a variable of the specified type.
+            /// </summary>
+            /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+            /// <returns>A value containing a copy of the element stored, reinterpreted with the strong type</returns>
             public T GetCurrent<T>() where T : struct
             {
                 UnsafeUtility.CopyPtrToStructure(m_readAddress, out T t);

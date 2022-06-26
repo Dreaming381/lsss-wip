@@ -11,11 +11,10 @@ namespace Lsss.SuperSystems
         protected override void CreateSystems()
         {
             GetOrCreateAndAddSystem<BeginFrameProfilingSystem>();
-            GetOrCreateAndAddSystem<Latios.Myri.Systems.AudioSystem>();
         }
     }
 
-    [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup))]
+    [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup), OrderLast = true)]
     public class LsssInitializationRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()

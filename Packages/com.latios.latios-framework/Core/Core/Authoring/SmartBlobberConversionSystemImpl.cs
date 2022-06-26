@@ -90,12 +90,12 @@ namespace Latios.Authoring.Systems
                 }
                 m_inputsAreLocked = false;
             }
-            catch (System.Exception e)
+            catch (System.Exception)
             {
                 converters.Dispose();
                 indices.Dispose();
                 m_inputsAreLocked = false;
-                throw e;
+                throw;
             }
 
             // Step 2: Build blobs and hashes
@@ -610,7 +610,7 @@ namespace Latios.Authoring.Systems
                         filterError.Value = new FilterError { errorIndex = i, reason = FilterError.Reason.ForwardIndex };
                         return;
                     }
-                    else
+                    else if (inputToFilteredMapping[i] >= 0)
                     {
                         int dedupIndex = inputToFilteredMapping[i];
                         if (inputToFilteredMapping[dedupIndex] != dedupIndex)

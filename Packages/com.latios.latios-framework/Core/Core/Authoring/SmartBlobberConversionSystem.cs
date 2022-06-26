@@ -6,6 +6,15 @@ using Unity.Jobs;
 
 namespace Latios.Authoring
 {
+    /// <summary>
+    /// Implement this interface to request BlobAsset conversion from SmartBlobbers before
+    /// they execute. You can then retrieve the results using IConvertGameObjectToEntity.
+    /// </summary>
+    public interface IRequestBlobAssets
+    {
+        void RequestBlobAssets(Entity entity, EntityManager dstEntityManager, GameObjectConversionSystem conversionSystem);
+    }
+
     #region Handles
     /// <summary>
     /// A handle to a computed blob to be created by a smart blobber
@@ -73,29 +82,63 @@ namespace Latios.Authoring
 namespace Latios.Authoring.Systems
 {
     #region BuilderInterfaces
+    /// <summary>
+    /// Implement this interface on a struct for simple Smart Blobber Conversion.
+    /// This struct gets stored in a NativeArray and passed to a parallel job.
+    /// If you need dynamically sized arrays of data for the blob, use UnsafeList
+    /// allocated with World.UpdateAllocator.ToAllocator. You do not have to dispose
+    /// such lists.
+    /// </summary>
+    /// <typeparam name="TBlobType">The root type of the Blob Asset</typeparam>
     public interface ISmartBlobberSimpleBuilder<TBlobType> where TBlobType : unmanaged
     {
         public BlobAssetReference<TBlobType> BuildBlob();
     }
 
+    /// <summary>
+    /// Implement this interface on a struct for advanced Smart Blobber Conversion.
+    /// This struct gets stored in a NativeArray and passed to a parallel job.
+    /// You can store shared data for all builders inside the context object.
+    /// This is especially useful for MeshDataArrays or NativeHashMaps.
+    /// </summary>
+    /// <typeparam name="TBlobType">The root type of the Blob Asset</typeparam>
+    /// <typeparam name="TContextType">The type of context object. This object can store NativeContainers and parallel job attributes apply.</typeparam>
     public interface ISmartBlobberContextBuilder<TBlobType, TContextType> where TBlobType : unmanaged where TContextType : struct
     {
+        /// <summary>
+        /// Build a blob asset using a context
+        /// </summary>
+        /// <param name="prefilterIndex">Corresponds to the indices in FilterBlobberData</param>
+        /// <param name="postfilterIndex">Corresponds to the indices in PostFilterBlobberData</param>
+        /// <param name="context">The context object shared across all converters</param>
+        /// <returns></returns>
         public BlobAssetReference<TBlobType> BuildBlob(int prefilterIndex, int postfilterIndex, ref TContextType context);
     }
 
-    public interface ISmartBlobberHashBuilder<TBlobType, TContextType> where TBlobType : unmanaged where TContextType : struct
-    {
-        public Hash128 hash(int prefilterIndex, int postfilterIndex, ref TContextType context);
-    }
+    // Unity does not cache blobs and hashes between conversions, meaning hashes only help deduplicate identical assets.
+    // Smart blobbers have their own mechanism for deduplication at the input side, so using hashes only to deduplicate
+    // final blob assets is sufficient. Therefore, pre-hashing rarely offsets its own cost and complexity.
+    /*public interface ISmartBlobberHashBuilder<TBlobType, TContextType> where TBlobType : unmanaged where TContextType : struct
+       {
+        public Hash128 ComputeHash(int prefilterIndex, int postfilterIndex, ref TContextType context);
+       }*/
     #endregion
 
     #region BaseClasses
     /// <summary>
-    /// This is the simplest smart blobber type.
+    /// This is the simplest smart blobber type. Subclass this to create a smart blobber that only reasons about each blob asset individually.
     /// </summary>
     /// <typeparam name="TBlobType">The type of blob this smart blobber generates</typeparam>
     /// <typeparam name="TManagedInputType">A struct containing authoring data possibly including managed references</typeparam>
     /// <typeparam name="TUnmanagedConversionType">A struct which contains the necessary unmanaged data and functions for creating a BlobAsset. It's method will be executed in a Burst job.</typeparam>
+    /// <remarks>
+    /// A Smart Blobber is a GameObjectConversionSystem which acts as a blob asset generation service for other conversion logic.
+    /// MonoBehaviours implementing IRequestBlobAssets and conversion systems updating in GameObjectBeforeConversionGroup can request blob asset conversion
+    /// for a given input. Requests are responded with a handle that can be resolved during GameObjectConversionGroup or IConvertGameObjectToEntity.
+    /// Smart Blobbers can also iterate authoring entities and add components to converted entities.
+    /// Smart blobbers will try to parallelize as much of the blob asset conversion as possible. They handle BlobAssetStore and BlobAssetComputationContext
+    /// internally. You do not need to worry about these things. Just implement the required functions and interfaces and you should be good to go.
+    /// </remarks>
     [UpdateInGroup(typeof(SmartBlobberConversionGroup))]
     public abstract partial class SmartBlobberConversionSystem<TBlobType, TManagedInputType, TUnmanagedConversionType> : GameObjectConversionSystem
         where TBlobType : unmanaged
@@ -174,6 +217,8 @@ namespace Latios.Authoring.Systems
 
     /// <summary>
     /// This is a smart blobber type that provides a context object which can use NativeContainers and is accessible by all converters.
+    /// It also provides a more advanced input filtering API which can perform initial deduplication.
+    /// Subclass this when you need a smart blobber that can reason about more than one blob asset at a time.
     /// </summary>
     /// <typeparam name="TBlobType">The type of blob this smart blobber generates</typeparam>
     /// <typeparam name="TManagedInputType">A struct containing authoring data possibly including managed references</typeparam>
@@ -277,6 +322,7 @@ namespace Latios.Authoring.Systems
             public GameObjectAccess associatedObject { get; internal set; }
             /// <summary>
             /// Read-write access to the converters <typeparamref name="TUnmanagedConversionType"/>. Values are completely uninitialized to begin with.
+            /// The converters do not need to be initialized at this time.
             /// </summary>
             public NativeArray<TUnmanagedConversionType> converters { get; internal set; }
 
@@ -284,7 +330,7 @@ namespace Latios.Authoring.Systems
         }
 
         /// <summary>
-        /// Setup the converters and context using the inputs. You the <paramref name="inputToFilteredMapping"/> to deduplicate or invalidate inputs.
+        /// Setup the converters and context using the inputs. Use the <paramref name="inputToFilteredMapping"/> to deduplicate or invalidate inputs.
         /// </summary>
         /// <param name="blobberData">Access to the inputs and converters</param>
         /// <param name="context">Global context object accessible to converters</param>
@@ -301,6 +347,7 @@ namespace Latios.Authoring.Systems
 
         /// <summary>
         /// Contains access to inputs and converters after filtering but before the converters have been executed.
+        /// The arrays have been compacted at this point and filtered out elements are no longer present.
         /// </summary>
         public struct PostFilterBlobberData
         {
@@ -310,6 +357,7 @@ namespace Latios.Authoring.Systems
             public InputAccess input { get; internal set; }
             /// <summary>
             /// Read-write access to the filtered converters <typeparamref name="TUnmanagedConversionType"/>. Values are completely uninitialized to begin with.
+            /// If the converters were not initialized before, they must be initialized now.
             /// </summary>
             public NativeArray<TUnmanagedConversionType> converters { get; internal set; }
             /// <summary>

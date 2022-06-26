@@ -82,6 +82,9 @@ namespace Latios
         }
     }
 
+    /// <summary>
+    /// A Fluent builder object for creating EntityQuery instances.
+    /// </summary>
     public unsafe struct FluentQuery
     {
         internal NativeList<ComponentType> m_all;
