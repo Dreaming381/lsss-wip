@@ -22,7 +22,7 @@ namespace Latios
         /// Create an DestroyCommandBuffer which can be used to destroy entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public DestroyCommandBuffer(Allocator allocator)
+        public DestroyCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             m_entityOperationCommandBuffer = new EntityOperationCommandBuffer(allocator);
             m_playedBack                   = new NativeReference<bool>(allocator);

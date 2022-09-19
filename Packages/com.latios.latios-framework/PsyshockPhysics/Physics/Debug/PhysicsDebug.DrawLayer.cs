@@ -26,9 +26,9 @@ namespace Latios.Psyshock
 
         public struct DrawLayerConfig
         {
-            internal CollisionLayer      layer;
+            internal CollisionLayer           layer;
             internal FixedList512Bytes<Color> colors;
-            internal Color               crossColor;
+            internal Color                    crossColor;
 
             public DrawLayerConfig WithColors(FixedList512Bytes<Color> colors, Color crossBucketColor)
             {
@@ -324,7 +324,7 @@ namespace Latios.Psyshock
         private struct DebugDrawLayerJob : IJobFor
         {
             [ReadOnly] public CollisionLayer layer;
-            public FixedList512Bytes<Color>       colors;
+            public FixedList512Bytes<Color>  colors;
             public Color                     crossColor;
 
             public void Execute(int index)
@@ -335,7 +335,7 @@ namespace Latios.Psyshock
                     var   slices = layer.GetBucketSlices(index);
                     for (int i = 0; i < slices.count; i++)
                     {
-                        Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], slices.yzminmaxs[i].zw));
+                        Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], -slices.yzminmaxs[i].zw));
                         DrawAabb(aabb, color);
                     }
                 }
@@ -345,7 +345,7 @@ namespace Latios.Psyshock
                     var   slices = layer.GetBucketSlices(index);
                     for (int i = 0; i < slices.count; i++)
                     {
-                        Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], slices.yzminmaxs[i].zw));
+                        Aabb aabb = new Aabb(new float3(slices.xmins[i], slices.yzminmaxs[i].xy), new float3(slices.xmaxs[i], -slices.yzminmaxs[i].zw));
                         DrawAabb(aabb, color);
                     }
                 }
@@ -358,10 +358,10 @@ namespace Latios.Psyshock
         {
             public NativeBitArray hitArray;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
-                hitArray.Set(result.bodyAIndex, true);
-                hitArray.Set(result.bodyBIndex, true);
+                hitArray.Set(result.indexA, true);
+                hitArray.Set(result.indexB, true);
             }
         }
 
@@ -370,10 +370,10 @@ namespace Latios.Psyshock
             public NativeBitArray hitArrayA;
             public NativeBitArray hitArrayB;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
-                hitArrayA.Set(result.bodyAIndex, true);
-                hitArrayB.Set(result.bodyBIndex, true);
+                hitArrayA.Set(result.indexA, true);
+                hitArrayB.Set(result.indexB, true);
             }
         }
 
@@ -389,7 +389,7 @@ namespace Latios.Psyshock
             public void Execute(int i)
             {
                 float3 min  = new float3(layer.xmins[i], layer.yzminmaxs[i].xy);
-                float3 max  = new float3(layer.xmaxs[i], layer.yzminmaxs[i].zw);
+                float3 max  = new float3(layer.xmaxs[i], -layer.yzminmaxs[i].zw);
                 var    aabb = new Aabb(min, max);
                 if (hitArray.IsSet(i))
                 {

@@ -1,55 +1,58 @@
-using System.Runtime.InteropServices;
 using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
 
 namespace Latios.Kinemation.Systems
 {
     // This exists because setting the chunk bounds to an extreme value breaks shadows.
     // Instead we calculate the combined chunk bounds for all skeletons and then write them to all skinned mesh chunk bounds.
     [DisableAutoCreation]
-    public partial class UpdateSkinnedMeshChunkBoundsSystem : SubSystem
+    [BurstCompile]
+    public partial struct UpdateSkinnedMeshChunkBoundsSystem : ISystem
     {
         EntityQuery m_exposedMetaQuery;
         EntityQuery m_optimizedMetaQuery;
         EntityQuery m_skinnedMeshMetaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_exposedMetaQuery     = Fluent.WithAll<ChunkHeader>(true).WithAll<ChunkBoneWorldBounds>(true).Build();
-            m_optimizedMetaQuery   = Fluent.WithAll<ChunkHeader>(true).WithAll<ChunkSkeletonWorldBounds>(true).Build();
-            m_skinnedMeshMetaQuery = Fluent.WithAll<ChunkHeader>(true).WithAll<ChunkWorldRenderBounds>(false)
+            m_exposedMetaQuery     = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkBoneWorldBounds>(true).Build();
+            m_optimizedMetaQuery   = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkSkeletonWorldBounds>(true).Build();
+            m_skinnedMeshMetaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkWorldRenderBounds>(false)
                                      .WithAny<ChunkComputeDeformMemoryMetadata>(true).WithAny<ChunkLinearBlendSkinningMemoryMetadata>(true).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var combinedBounds   = new NativeReference<Aabb>(World.UpdateAllocator.ToAllocator);
+            var combinedBounds   = new NativeReference<Aabb>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
             combinedBounds.Value = new Aabb(float.MaxValue, float.MinValue);
 
-            Dependency = new CombineExposedJob
+            state.Dependency = new CombineExposedJob
             {
-                handle         = GetComponentTypeHandle<ChunkBoneWorldBounds>(true),
+                handle         = state.GetComponentTypeHandle<ChunkBoneWorldBounds>(true),
                 combinedBounds = combinedBounds
-            }.Schedule(m_exposedMetaQuery, Dependency);
+            }.Schedule(m_exposedMetaQuery, state.Dependency);
 
-            Dependency = new CombineOptimizedJob
+            state.Dependency = new CombineOptimizedJob
             {
-                handle         = GetComponentTypeHandle<ChunkSkeletonWorldBounds>(true),
+                handle         = state.GetComponentTypeHandle<ChunkSkeletonWorldBounds>(true),
                 combinedBounds = combinedBounds
-            }.Schedule(m_optimizedMetaQuery, Dependency);
+            }.Schedule(m_optimizedMetaQuery, state.Dependency);
 
-            Dependency = new ApplyChunkBoundsToSkinnedMeshesJob
+            state.Dependency = new ApplyChunkBoundsToSkinnedMeshesJob
             {
-                handle         = GetComponentTypeHandle<ChunkWorldRenderBounds>(),
+                handle         = state.GetComponentTypeHandle<ChunkWorldRenderBounds>(),
                 combinedBounds = combinedBounds
-            }.Schedule(m_skinnedMeshMetaQuery, Dependency);
+            }.Schedule(m_skinnedMeshMetaQuery, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

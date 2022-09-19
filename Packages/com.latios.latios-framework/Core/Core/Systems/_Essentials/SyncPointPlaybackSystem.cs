@@ -94,7 +94,7 @@ namespace Latios.Systems
                     {
                         var ecb = m_entityCommandBuffers[entityIndex];
                         ecb.Playback(EntityManager);
-                        ecb.Dispose();
+                        //ecb.Dispose();
                         entityIndex++;
                         break;
                     }
@@ -102,7 +102,7 @@ namespace Latios.Systems
                     {
                         var ecb = m_enableCommandBuffers[enableIndex];
                         ecb.Playback(EntityManager, GetBufferFromEntity<LinkedEntityGroup>(true));
-                        ecb.Dispose();
+                        //ecb.Dispose();
                         enableIndex++;
                         break;
                     }
@@ -110,7 +110,7 @@ namespace Latios.Systems
                     {
                         var dcb = m_disableCommandBuffers[disableIndex];
                         dcb.Playback(EntityManager, GetBufferFromEntity<LinkedEntityGroup>(true));
-                        dcb.Dispose();
+                        //dcb.Dispose();
                         disableIndex++;
                         break;
                     }
@@ -118,7 +118,7 @@ namespace Latios.Systems
                     {
                         var dcb = m_destroyCommandBuffers[destroyIndex];
                         dcb.Playback(EntityManager);
-                        dcb.Dispose();
+                        //dcb.Dispose();
                         destroyIndex++;
                         break;
                     }
@@ -126,7 +126,7 @@ namespace Latios.Systems
                     {
                         var icb = m_instantiateCommandBuffersWithoutData[instantiateNoDataIndex];
                         icb.Playback(EntityManager);
-                        icb.Dispose();
+                        //icb.Dispose();
                         instantiateNoDataIndex++;
                         break;
                     }
@@ -142,7 +142,7 @@ namespace Latios.Systems
                             UnityEngine.Debug.LogError(e.Message + e.StackTrace);
                             throw e;
                         }
-                        icb.Dispose();
+                        //icb.Dispose();
                         instantiateUntypedIndex++;
                         break;
                     }
@@ -160,8 +160,7 @@ namespace Latios.Systems
 
         public EntityCommandBuffer CreateEntityCommandBuffer()
         {
-            //Todo: Expose variant of ECB constructor which allows us to set DisposeSentinal stack depth to -1 and use TempJob.
-            var ecb      = new EntityCommandBuffer(Allocator.Persistent, PlaybackPolicy.SinglePlayback);
+            var ecb      = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.SinglePlayback);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Entity,
@@ -175,7 +174,7 @@ namespace Latios.Systems
         public EnableCommandBuffer CreateEnableCommandBuffer()
         {
             //Todo: We use Persistent allocator here because of the NativeReference. This recreates the DisposeSentinal stuff except with the slower allocator.
-            var ecb      = new EnableCommandBuffer(Allocator.Persistent);
+            var ecb      = new EnableCommandBuffer(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Enable,
@@ -189,7 +188,7 @@ namespace Latios.Systems
         public DisableCommandBuffer CreateDisableCommandBuffer()
         {
             //Todo: We use Persistent allocator here because of the NativeReference. This recreates the DisposeSentinal stuff except with the slower allocator.
-            var dcb      = new DisableCommandBuffer(Allocator.Persistent);
+            var dcb      = new DisableCommandBuffer(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Disable,
@@ -203,7 +202,7 @@ namespace Latios.Systems
         public DestroyCommandBuffer CreateDestroyCommandBuffer()
         {
             //Todo: We use Persistent allocator here because of the NativeReference. This recreates the DisposeSentinal stuff except with the slower allocator.
-            var dcb      = new DestroyCommandBuffer(Allocator.Persistent);
+            var dcb      = new DestroyCommandBuffer(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.Destroy,
@@ -217,7 +216,7 @@ namespace Latios.Systems
         public InstantiateCommandBuffer CreateInstantiateCommandBuffer()
         {
             //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer(Allocator.Persistent);
+            var icb      = new InstantiateCommandBuffer(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateNoData,
@@ -231,7 +230,7 @@ namespace Latios.Systems
         public InstantiateCommandBuffer<T0> CreateInstantiateCommandBuffer<T0>() where T0 : unmanaged, IComponentData
         {
             //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0>(Allocator.Persistent);
+            var icb      = new InstantiateCommandBuffer<T0>(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
@@ -245,7 +244,7 @@ namespace Latios.Systems
         public InstantiateCommandBuffer<T0, T1> CreateInstantiateCommandBuffer<T0, T1>() where T0 : unmanaged, IComponentData where T1 : unmanaged, IComponentData
         {
             //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1>(Allocator.Persistent);
+            var icb      = new InstantiateCommandBuffer<T0, T1>(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
@@ -260,7 +259,7 @@ namespace Latios.Systems
         IComponentData where T2 : unmanaged, IComponentData
         {
             //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1, T2>(Allocator.Persistent);
+            var icb      = new InstantiateCommandBuffer<T0, T1, T2>(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
@@ -275,7 +274,7 @@ namespace Latios.Systems
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData
         {
             //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1, T2, T3>(Allocator.Persistent);
+            var icb      = new InstantiateCommandBuffer<T0, T1, T2, T3>(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,
@@ -290,7 +289,7 @@ namespace Latios.Systems
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData where T4 : unmanaged, IComponentData
         {
             //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1, T2, T3, T4>(Allocator.Persistent);
+            var icb      = new InstantiateCommandBuffer<T0, T1, T2, T3, T4>(World.UpdateAllocator.ToAllocator);
             var instance = new PlaybackInstance
             {
                 type                 = PlaybackType.InstantiateUntyped,

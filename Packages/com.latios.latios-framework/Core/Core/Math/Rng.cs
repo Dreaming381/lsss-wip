@@ -39,10 +39,10 @@ namespace Latios
 
             uint NextState()
             {
-                //From https://www.youtube.com/watch?v=LWFzPP8ZbdU
-                //This version is SquirrelNoise5, which was posted on the author's Twitter: https://twitter.com/SquirrelTweets/status/1421251894274625536.
-                // This is a Unity C# adaptation of SquirrelNoise5 - Squirrel's Raw Noise utilities (version 5).
-                // The following code within this scope is licensed by Squirrel Eiserloh under the Creative Commons Attribution 3.0 license (CC-BY-3.0 US).
+                //   From https://www.youtube.com/watch?v=LWFzPP8ZbdU
+                //   This version is SquirrelNoise5, which was posted on the author's Twitter: https://twitter.com/SquirrelTweets/status/1421251894274625536.
+                //   This is a Unity C# adaptation of SquirrelNoise5 - Squirrel's Raw Noise utilities (version 5).
+                //   The following code within this scope is licensed by Squirrel Eiserloh under the Creative Commons Attribution 3.0 license (CC-BY-3.0 US).
                 var val    = m_state.x * 0xd2a80a3f;
                 val       += m_state.y;
                 val       ^= (val >> 9);

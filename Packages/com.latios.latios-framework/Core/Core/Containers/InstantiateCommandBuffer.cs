@@ -22,7 +22,7 @@ namespace Latios
         /// Create an InstantiateCommandBuffer which can be used to instantiate entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public InstantiateCommandBuffer(Allocator allocator)
+        public InstantiateCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             m_entityOperationCommandBuffer = new EntityOperationCommandBuffer(allocator);
             m_playedBack                   = new NativeReference<bool>(allocator);
@@ -184,7 +184,7 @@ namespace Latios
         /// Create an InstantiateCommandBuffer which can be used to instantiate entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public InstantiateCommandBuffer(Allocator allocator)
+        public InstantiateCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             FixedList64Bytes<ComponentType> types = new FixedList64Bytes<ComponentType>();
             types.Add(ComponentType.ReadWrite<T0>());
@@ -316,7 +316,7 @@ namespace Latios
         /// Create an InstantiateCommandBuffer which can be used to instantiate entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public InstantiateCommandBuffer(Allocator allocator)
+        public InstantiateCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             FixedList64Bytes<ComponentType> types = new FixedList64Bytes<ComponentType>();
             types.Add(ComponentType.ReadWrite<T0>());
@@ -452,7 +452,7 @@ namespace Latios
         /// Create an InstantiateCommandBuffer which can be used to instantiate entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public InstantiateCommandBuffer(Allocator allocator)
+        public InstantiateCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             FixedList64Bytes<ComponentType> types = new FixedList64Bytes<ComponentType>();
             types.Add(ComponentType.ReadWrite<T0>());
@@ -591,7 +591,7 @@ namespace Latios
         /// Create an InstantiateCommandBuffer which can be used to instantiate entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public InstantiateCommandBuffer(Allocator allocator)
+        public InstantiateCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             FixedList64Bytes<ComponentType> types = new FixedList64Bytes<ComponentType>();
             types.Add(ComponentType.ReadWrite<T0>());
@@ -733,7 +733,7 @@ namespace Latios
         /// Create an InstantiateCommandBuffer which can be used to instantiate entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public InstantiateCommandBuffer(Allocator allocator)
+        public InstantiateCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             FixedList64Bytes<ComponentType> types = new FixedList64Bytes<ComponentType>();
             types.Add(ComponentType.ReadWrite<T0>());

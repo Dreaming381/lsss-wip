@@ -1,30 +1,33 @@
 using Unity.Burst;
-using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
-using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class ClearPerFrameCullingMasksSystem : SubSystem
+    [BurstCompile]
+    public partial struct ClearPerFrameCullingMasksSystem : ISystem
     {
         EntityQuery m_metaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_metaQuery = Fluent.WithAll<ChunkPerFrameCullingMask>(false).WithAll<ChunkHeader>(true).Build();
+            m_metaQuery = state.Fluent().WithAll<ChunkPerFrameCullingMask>(false).WithAll<ChunkHeader>(true).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            Dependency = new ClearJob
+            state.Dependency = new ClearJob
             {
-                handle            = GetComponentTypeHandle<ChunkPerFrameCullingMask>(false),
-                lastSystemVersion = LastSystemVersion
-            }.ScheduleParallel(m_metaQuery, Dependency);
+                handle            = state.GetComponentTypeHandle<ChunkPerFrameCullingMask>(false),
+                lastSystemVersion = state.LastSystemVersion
+            }.ScheduleParallel(m_metaQuery, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

@@ -24,7 +24,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.7.3",
+      "version": "1.8.0-pre.2",
       "depth": 0,
       "source": "registry",
       "dependencies": {

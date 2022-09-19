@@ -23,7 +23,8 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            Dependency          = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+            var settings        = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            Dependency          = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var spawnPointLayer = new SpawnPointCollisionLayer { layer = layer };
             sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(spawnPointLayer);
         }

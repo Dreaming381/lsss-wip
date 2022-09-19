@@ -18,7 +18,10 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var bodies = new NativeArray<ColliderBody>(m_query.CalculateEntityCount(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+
+            var bodies =
+                CollectionHelper.CreateNativeArray<ColliderBody>(m_query.CalculateEntityCount(), World.UpdateAllocator.ToAllocator, NativeArrayOptions.UninitializedMemory);
             Entities.WithAll<ExplosionTag>().WithStoreEntityQueryInField(ref m_query).ForEach((Entity entity, int entityInQueryIndex, in Translation translation, in Scale scale) =>
             {
                 var sphere                 = new SphereCollider(0f, scale.Value / 2f);  //convert diameter to radius
@@ -30,8 +33,7 @@ namespace Lsss
                 };
             }).ScheduleParallel();
 
-            Dependency         = Physics.BuildCollisionLayer(bodies).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
-            Dependency         = bodies.Dispose(Dependency);
+            Dependency         = Physics.BuildCollisionLayer(bodies).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var explosionLayer = new ExplosionCollisionLayer { layer = layer };
             sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(explosionLayer);
         }

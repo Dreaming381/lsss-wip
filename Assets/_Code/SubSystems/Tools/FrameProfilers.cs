@@ -32,7 +32,7 @@ namespace Lsss.Tools
 
         public JobHandle Dispose(JobHandle inputDeps)
         {
-            var handles = new NativeArray<JobHandle>(10, Allocator.TempJob);
+            var handles = new NativeArray<JobHandle>(10, Allocator.Temp);
             handles[0]  = cpuShort.Dispose(inputDeps);
             handles[1]  = cpuMin.Dispose(inputDeps);
             handles[2]  = cpuAverage.Dispose(inputDeps);
@@ -44,7 +44,6 @@ namespace Lsss.Tools
             handles[8]  = image.Dispose(inputDeps);
             handles[9]  = barValues.Dispose(inputDeps);
             var result  = JobHandle.CombineDependencies(handles);
-            handles.Dispose();
             return result;
         }
     }

@@ -4,38 +4,43 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class UpdateChunkLinearBlendMetadataSystem : SubSystem
+    [BurstCompile]
+    public partial struct UpdateChunkLinearBlendMetadataSystem : ISystem
     {
         EntityQuery m_query;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<SkeletonDependent>(true).WithAll<ChunkLinearBlendSkinningMemoryMetadata>(false, true).Build();
+            m_query = state.Fluent().WithAll<SkeletonDependent>(true).WithAll<ChunkLinearBlendSkinningMemoryMetadata>(false, true).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            worldBlackboardEntity.SetComponentData(new MaxRequiredLinearBlendMatrices { matricesCount = 0 });
+            state.GetWorldBlackboardEntity().SetComponentData(new MaxRequiredLinearBlendMatrices { matricesCount = 0 });
 
-            var lastSystemVersion = LastSystemVersion;
-            var blobHandle        = GetComponentTypeHandle<SkeletonDependent>(true);
-            var metaHandle        = GetComponentTypeHandle<ChunkLinearBlendSkinningMemoryMetadata>(false);
+            var lastSystemVersion = state.LastSystemVersion;
+            var blobHandle        = state.GetComponentTypeHandle<SkeletonDependent>(true);
+            var metaHandle        = state.GetComponentTypeHandle<ChunkLinearBlendSkinningMemoryMetadata>(false);
 
-            Dependency = new UpdateChunkVertexCountsJob
+            state.Dependency = new UpdateChunkMatrixCountsJob
             {
                 blobHandle        = blobHandle,
                 metaHandle        = metaHandle,
                 lastSystemVersion = lastSystemVersion
-            }.ScheduleParallel(m_query, Dependency);
+            }.ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct UpdateChunkVertexCountsJob : IJobEntityBatch
+        public void OnDestroy(ref SystemState state) {
+        }
+
+        [BurstCompile]
+        struct UpdateChunkMatrixCountsJob : IJobEntityBatch
         {
             [ReadOnly] public ComponentTypeHandle<SkeletonDependent>           blobHandle;
             public ComponentTypeHandle<ChunkLinearBlendSkinningMemoryMetadata> metaHandle;
@@ -59,7 +64,7 @@ namespace Latios.Kinemation.Systems
                     maxMatrices = math.max(maxMatrices, c);
                 }
 
-                CheckVertexCountMismatch(minMatrices, maxMatrices);
+                CheckMatrixCountMismatch(minMatrices, maxMatrices);
 
                 var metadata = batchInChunk.GetChunkComponentData(metaHandle);
                 if (metadata.bonesPerMesh != maxMatrices || metadata.entitiesInChunk != batchInChunk.Count)
@@ -71,11 +76,11 @@ namespace Latios.Kinemation.Systems
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            void CheckVertexCountMismatch(int min, int max)
+            void CheckMatrixCountMismatch(int min, int max)
             {
                 if (min != max)
                     UnityEngine.Debug.LogWarning(
-                        "A chunk contains multiple Mesh Skinning Blobs. Because Mesh Skinning Blobs are tied to their RenderMesh of which there is only one per chunk, this is likely a bug. Did you forget to change the Mesh Skinning Blob Reference when changing a Render Mesh?");
+                        "A chunk contains multiple Mesh Skinning Blobs with different matrix counts. Because Mesh Skinning Blobs are tied to their RenderMesh of which there is only one per chunk, this is likely a bug. Did you forget to change the Mesh Skinning Blob Reference when changing a Render Mesh?");
             }
         }
     }

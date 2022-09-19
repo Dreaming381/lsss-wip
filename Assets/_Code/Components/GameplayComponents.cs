@@ -16,11 +16,16 @@ namespace Lsss
         public float radius;
     }
 
+    public struct ArenaCollisionSettings : IComponentData
+    {
+        public CollisionLayerSettings settings;
+    }
+
     public struct FactionTag : IComponentData { }
 
     public struct Faction : IComponentData
     {
-        public FixedString64Bytes      name;
+        public FixedString64Bytes name;
         public int                remainingReinforcements;
         public int                maxFieldUnits;
         public float              spawnWeightInverse;

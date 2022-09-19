@@ -33,8 +33,9 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
+            var settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             m_query.ResetFilter();
-            Dependency = Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+            Dependency = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var wcl    = new WormholeCollisionLayer { layer = layer };
             sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
             m_query.AddChangedVersionFilter(typeof(LocalToWorld));

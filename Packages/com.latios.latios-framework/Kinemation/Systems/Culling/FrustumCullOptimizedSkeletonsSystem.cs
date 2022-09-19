@@ -4,34 +4,39 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
 
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public class FrustumCullOptimizedSkeletonsSystem : SubSystem
+    [BurstCompile]
+    public partial struct FrustumCullOptimizedSkeletonsSystem : ISystem
     {
         EntityQuery m_metaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_metaQuery = Fluent.WithAll<ChunkSkeletonWorldBounds>(true).WithAll<ChunkHeader>(true).WithAll<ChunkPerCameraSkeletonCullingMask>(false).Build();
+            m_metaQuery = state.Fluent().WithAll<ChunkSkeletonWorldBounds>(true).WithAll<ChunkHeader>(true).WithAll<ChunkPerCameraSkeletonCullingMask>(false).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var planesBuffer = worldBlackboardEntity.GetBuffer<CullingPlane>(true);
-            var unmanaged    = World.Unmanaged;
-            var planes       = CullingUtilities.BuildSOAPlanePackets(planesBuffer.Reinterpret<UnityEngine.Plane>().AsNativeArray(), ref unmanaged);
+            var planesBuffer = state.GetWorldBlackboardEntity().GetBuffer<CullingPlane>(true);
+            var unmanaged    = state.WorldUnmanaged;
+            var planes       = CullingUtilities.BuildSOAPlanePackets(planesBuffer, ref unmanaged);
 
-            Dependency = new SkeletonCullingJob
+            state.Dependency = new SkeletonCullingJob
             {
                 cullingPlanes     = planes,
-                boundsHandle      = GetComponentTypeHandle<SkeletonWorldBounds>(true),
-                chunkHeaderHandle = GetComponentTypeHandle<ChunkHeader>(true),
-                chunkBoundsHandle = GetComponentTypeHandle<ChunkSkeletonWorldBounds>(true),
-                chunkMaskHandle   = GetComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>(false)
-            }.ScheduleParallel(m_metaQuery, Dependency);
+                boundsHandle      = state.GetComponentTypeHandle<SkeletonWorldBounds>(true),
+                chunkHeaderHandle = state.GetComponentTypeHandle<ChunkHeader>(true),
+                chunkBoundsHandle = state.GetComponentTypeHandle<ChunkSkeletonWorldBounds>(true),
+                chunkMaskHandle   = state.GetComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>(false)
+            }.ScheduleParallel(m_metaQuery, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

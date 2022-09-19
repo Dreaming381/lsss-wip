@@ -18,6 +18,9 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
+            var settings                                                                 = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            sceneBlackboardEntity.SetComponentData(new ArenaCollisionSettings { settings = settings });
+
             var backup = Dependency;
             Dependency = default;
 
@@ -28,8 +31,8 @@ namespace Lsss
 
                 var factionMemberFilter = new FactionMember { factionEntity = factionEntity };
                 m_query.SetSharedComponentFilter(factionMemberFilter);
-                Dependency =
-                    Physics.BuildCollisionLayer(m_query, this).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+                Dependency = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+
                 EntityManager.SetCollectionComponentAndDisposeOld(factionEntity, new FactionShipsCollisionLayer { layer = layer });
                 m_query.ResetFilter();
             }).WithoutBurst().Run();

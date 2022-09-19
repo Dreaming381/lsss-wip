@@ -14,13 +14,15 @@ namespace Latios.Unsafe
     /// Items written in the same thread in the same job will be read back in the same order.
     /// This container is type-erased, but all elements are expected to be of the same size.
     /// Unlike Unity's Unsafe* containers, it is safe to copy this type by value.
+    /// Alignment is 1 byte aligned so any pointer must use UnsafeUtility.CopyStructureToPtr
+    /// and UnsafeUtility.CopyPtrToStructure when operating directly on pointers.
     /// </summary>
     public unsafe struct UnsafeParallelBlockList : INativeDisposable
     {
-        public readonly int  m_elementSize;
-        private readonly int m_blockSize;
-        private readonly int m_elementsPerBlock;
-        private Allocator    m_allocator;
+        public readonly int                      m_elementSize;
+        private readonly int                     m_blockSize;
+        private readonly int                     m_elementsPerBlock;
+        private AllocatorManager.AllocatorHandle m_allocator;
 
         [NativeDisableUnsafePtrRestriction] private PerThreadBlockList* m_perThreadBlockLists;
 
@@ -32,15 +34,15 @@ namespace Latios.Unsafe
         /// The number of elements stored per native thread index before needing to perform an additional allocation.
         /// Higher values may allocate more memory that is left unused. Lower values may perform more allocations.
         /// </param>
-        /// <param name="allocator">The UnityEngine allocator to use for allocations</param>
-        public UnsafeParallelBlockList(int elementSize, int elementsPerBlock, Allocator allocator)
+        /// <param name="allocator">The allocator to use for allocations</param>
+        public UnsafeParallelBlockList(int elementSize, int elementsPerBlock, AllocatorManager.AllocatorHandle allocator)
         {
             m_elementSize      = elementSize;
             m_elementsPerBlock = elementsPerBlock;
             m_blockSize        = elementSize * elementsPerBlock;
             m_allocator        = allocator;
 
-            m_perThreadBlockLists = (PerThreadBlockList*)UnsafeUtility.Malloc(64 * JobsUtility.MaxJobThreadCount, 64, allocator);
+            m_perThreadBlockLists = AllocatorManager.Allocate<PerThreadBlockList>(allocator, JobsUtility.MaxJobThreadCount);
             for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
             {
                 m_perThreadBlockLists[i].lastByteAddressInBlock = null;
@@ -68,7 +70,7 @@ namespace Latios.Unsafe
                 }
                 BlockPtr newBlockPtr = new BlockPtr
                 {
-                    ptr = (byte*)UnsafeUtility.Malloc(m_blockSize, UnsafeUtility.AlignOf<T>(), m_allocator)
+                    ptr = AllocatorManager.Allocate<byte>(m_allocator, m_blockSize)
                 };
                 blockList->nextWriteAddress       = newBlockPtr.ptr;
                 blockList->lastByteAddressInBlock = newBlockPtr.ptr + m_blockSize - 1;
@@ -96,7 +98,7 @@ namespace Latios.Unsafe
                 }
                 BlockPtr newBlockPtr = new BlockPtr
                 {
-                    ptr = (byte*)UnsafeUtility.Malloc(m_blockSize, UnsafeUtility.AlignOf<byte>(), m_allocator)
+                    ptr = AllocatorManager.Allocate<byte>(m_allocator, m_blockSize),
                 };
                 blockList->nextWriteAddress       = newBlockPtr.ptr;
                 blockList->lastByteAddressInBlock = newBlockPtr.ptr + m_blockSize - 1;
@@ -260,12 +262,13 @@ namespace Latios.Unsafe
                 {
                     for (int j = 0; j < m_perThreadBlockLists[i].blocks.Length; j++)
                     {
-                        UnsafeUtility.Free(m_perThreadBlockLists[i].blocks[j].ptr, m_allocator);
+                        var block = m_perThreadBlockLists[i].blocks[j];
+                        AllocatorManager.Free(m_allocator, block.ptr, m_blockSize);
                     }
                     m_perThreadBlockLists[i].blocks.Dispose();
                 }
             }
-            UnsafeUtility.Free(m_perThreadBlockLists, m_allocator);
+            AllocatorManager.Free(m_allocator, m_perThreadBlockLists, JobsUtility.MaxJobThreadCount);
         }
 
         private struct BlockPtr

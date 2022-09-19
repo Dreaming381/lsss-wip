@@ -1,4 +1,5 @@
-﻿using Unity.Mathematics;
+﻿using Unity.Entities;
+using Unity.Mathematics;
 
 //Todo: Metadata Ids which are collider specific? Use case: compound and mesh colliders for querying UVs or primitive index.
 //Todo: Do we need distance in the distance queries? Should we have them for Raycasts?
@@ -41,6 +42,17 @@ namespace Latios.Psyshock
         public float  distance;
         public int    subColliderIndexOnCaster;
         public int    subColliderIndexOnTarget;
+    }
+
+    public struct LayerBodyInfo
+    {
+        public ColliderBody body;
+        public Aabb         aabb;
+        public int          bodyIndex;
+
+        public Entity entity => body.entity;
+        public Collider collider => body.collider;
+        public RigidTransform transform => body.transform;
     }
 }
 

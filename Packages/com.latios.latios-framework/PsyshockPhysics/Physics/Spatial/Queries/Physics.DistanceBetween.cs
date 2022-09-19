@@ -652,6 +652,42 @@ namespace Latios.Psyshock
 
         #endregion
 
+        public static bool DistanceBetween(Collider collider,
+                                           RigidTransform transform,
+                                           CollisionLayer layer,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result,
+                                           out LayerBodyInfo layerBodyInfo)
+        {
+            result        = default;
+            layerBodyInfo = default;
+            var processor = new LayerQueryProcessors.ColliderDistanceClosestImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(collider, transform), layer, processor).RunImmediate();
+            var hit                  = result.subColliderIndexB >= 0;
+            result.subColliderIndexB = math.max(result.subColliderIndexB, 0);
+            return hit;
+        }
+
+        public static bool DistanceBetweenAny(Collider collider,
+                                              RigidTransform transform,
+                                              CollisionLayer layer,
+                                              float maxDistance,
+                                              out ColliderDistanceResult result,
+                                              out LayerBodyInfo layerBodyInfo)
+        {
+            result        = default;
+            layerBodyInfo = default;
+            var processor = new LayerQueryProcessors.ColliderDistanceAnyImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(collider, transform), layer, processor).RunImmediate();
+            var hit                  = result.subColliderIndexB >= 0;
+            result.subColliderIndexB = math.max(result.subColliderIndexB, 0);
+            return hit;
+        }
+
+        #region Layer
+
+        #endregion
+
         private static ColliderDistanceResult FlipResult(ColliderDistanceResult resultToFlip)
         {
             return new ColliderDistanceResult
@@ -783,6 +819,28 @@ namespace Latios.Psyshock
                 hit                        |= newHit;
                 result                      = newHit ? newResult : result;
             }
+            return hit;
+        }
+
+        public static bool DistanceBetween(float3 point, CollisionLayer layer, float maxDistance, out PointDistanceResult result, out LayerBodyInfo layerBodyInfo)
+        {
+            result        = default;
+            layerBodyInfo = default;
+            var processor = new LayerQueryProcessors.PointDistanceClosestImmediateProcessor(point, maxDistance, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(point - maxDistance, point + maxDistance), layer, processor).RunImmediate();
+            var hit                 = result.subColliderIndex >= 0;
+            result.subColliderIndex = math.max(result.subColliderIndex, 0);
+            return hit;
+        }
+
+        public static bool DistanceBetweenAny(float3 point, CollisionLayer layer, float maxDistance, out PointDistanceResult result, out LayerBodyInfo layerBodyInfo)
+        {
+            result        = default;
+            layerBodyInfo = default;
+            var processor = new LayerQueryProcessors.PointDistanceAnyImmediateProcessor(point, maxDistance, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(point - maxDistance, point + maxDistance), layer, processor).RunImmediate();
+            var hit                 = result.subColliderIndex >= 0;
+            result.subColliderIndex = math.max(result.subColliderIndex, 0);
             return hit;
         }
         #endregion

@@ -37,6 +37,8 @@ namespace Lsss
                 rot.Value   = quaternion.Euler(0f, 0f, rads);
                 scale.Value = factor;
             }).ScheduleParallel();
+
+            //state.CompleteDependency();
         }
     }
 }

@@ -4,7 +4,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
 
 // Todo: If this gets slow, try sweeping through the culled skeleton buffers
 // and a chunk index chunkComponent from the skinned meshes to write to a per-thread
@@ -12,28 +11,34 @@ using Unity.Transforms;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public class FrustumCullSkinnedEntitiesSystem : SubSystem
+    [BurstCompile]
+    public partial struct FrustumCullSkinnedEntitiesSystem : ISystem
     {
         EntityQuery m_metaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_metaQuery = Fluent.WithAll<ChunkWorldRenderBounds>(true).WithAll<HybridChunkInfo>(true).WithAll<ChunkHeader>(true).WithAll<ChunkPerFrameCullingMask>(true)
+            m_metaQuery = state.Fluent().WithAll<ChunkWorldRenderBounds>(true).WithAll<HybridChunkInfo>(true).WithAll<ChunkHeader>(true).WithAll<ChunkPerFrameCullingMask>(true)
                           .WithAny<ChunkComputeDeformMemoryMetadata>(true).WithAny<ChunkLinearBlendSkinningMemoryMetadata>(true).WithAll<ChunkPerCameraCullingMask>(false)
                           .UseWriteGroups().Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            Dependency = new SkinnedCullingJob
+            state.Dependency = new SkinnedCullingJob
             {
-                hybridChunkInfoHandle   = GetComponentTypeHandle<HybridChunkInfo>(true),
-                chunkHeaderHandle       = GetComponentTypeHandle<ChunkHeader>(true),
-                dependentHandle         = GetComponentTypeHandle<SkeletonDependent>(true),
-                chunkSkeletonMaskHandle = GetComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>(true),
-                sife                    = GetStorageInfoFromEntity(),
-                chunkMaskHandle         = GetComponentTypeHandle<ChunkPerCameraCullingMask>(false)
-            }.ScheduleParallel(m_metaQuery, Dependency);
+                hybridChunkInfoHandle   = state.GetComponentTypeHandle<HybridChunkInfo>(true),
+                chunkHeaderHandle       = state.GetComponentTypeHandle<ChunkHeader>(true),
+                dependentHandle         = state.GetComponentTypeHandle<SkeletonDependent>(true),
+                chunkSkeletonMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>(true),
+                sife                    = state.GetStorageInfoFromEntity(),
+                chunkMaskHandle         = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(false)
+            }.ScheduleParallel(m_metaQuery, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

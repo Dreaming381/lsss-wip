@@ -22,7 +22,7 @@ namespace Latios
         /// Create an DisableCommandBuffer which can be used to disable entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public DisableCommandBuffer(Allocator allocator)
+        public DisableCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             m_entityOperationCommandBuffer = new EntityOperationCommandBuffer(allocator);
             m_playedBack                   = new NativeReference<bool>(allocator);

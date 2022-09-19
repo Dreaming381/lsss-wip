@@ -1,39 +1,43 @@
-using Latios;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
 
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class CopySkinWithCullingSystem : SubSystem
+    [BurstCompile]
+    public partial struct CopySkinWithCullingSystem : ISystem
     {
         EntityQuery m_metaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_metaQuery = Fluent.WithAll<ChunkWorldRenderBounds>(true).WithAll<HybridChunkInfo>(true).WithAll<ChunkHeader>(true).WithAll<ChunkPerFrameCullingMask>(true)
+            m_metaQuery = state.Fluent().WithAll<ChunkWorldRenderBounds>(true).WithAll<HybridChunkInfo>(true).WithAll<ChunkHeader>(true).WithAll<ChunkPerFrameCullingMask>(true)
                           .WithAll<ChunkCopySkinShaderData>(true).WithAll<ChunkPerCameraCullingMask>(false).UseWriteGroups().Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            Dependency = new CopySkinJob
+            state.Dependency = new CopySkinJob
             {
-                hybridChunkInfoHandle    = GetComponentTypeHandle<HybridChunkInfo>(true),
-                chunkHeaderHandle        = GetComponentTypeHandle<ChunkHeader>(true),
-                chunkPerFrameMaskHandle  = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                referenceHandle          = GetComponentTypeHandle<ShareSkinFromEntity>(true),
-                entityHandle             = GetEntityTypeHandle(),
-                sife                     = GetStorageInfoFromEntity(),
-                chunkPerCameraMaskHandle = GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
-                computeCdfe              = GetComponentDataFromEntity<ComputeDeformShaderIndex>(false),
-                linearBlendCdfe          = GetComponentDataFromEntity<LinearBlendSkinningShaderIndex>(false)
-            }.ScheduleParallel(m_metaQuery, Dependency);
+                hybridChunkInfoHandle    = state.GetComponentTypeHandle<HybridChunkInfo>(true),
+                chunkHeaderHandle        = state.GetComponentTypeHandle<ChunkHeader>(true),
+                chunkPerFrameMaskHandle  = state.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
+                referenceHandle          = state.GetComponentTypeHandle<ShareSkinFromEntity>(true),
+                entityHandle             = state.GetEntityTypeHandle(),
+                sife                     = state.GetStorageInfoFromEntity(),
+                chunkPerCameraMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
+                computeCdfe              = state.GetComponentDataFromEntity<ComputeDeformShaderIndex>(false),
+                linearBlendCdfe          = state.GetComponentDataFromEntity<LinearBlendSkinningShaderIndex>(false)
+            }.ScheduleParallel(m_metaQuery, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

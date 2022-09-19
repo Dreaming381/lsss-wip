@@ -22,7 +22,7 @@ namespace Latios
         /// Create an EnableCommandBuffer which can be used to enable entities and play them back later.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public EnableCommandBuffer(Allocator allocator)
+        public EnableCommandBuffer(AllocatorManager.AllocatorHandle allocator)
         {
             m_entityOperationCommandBuffer = new EntityOperationCommandBuffer(allocator);
             m_playedBack                   = new NativeReference<bool>(allocator);

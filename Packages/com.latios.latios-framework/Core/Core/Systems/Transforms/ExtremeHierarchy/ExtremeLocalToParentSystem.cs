@@ -17,7 +17,8 @@ namespace Latios.Systems
     [UpdateAfter(typeof(TRSToLocalToParentSystem))]
     [UpdateAfter(typeof(TRSToLocalToWorldSystem))]
     [UpdateBefore(typeof(LocalToParentSystem))]
-    public unsafe partial class ExtremeLocalToParentSystem : SubSystem
+    [BurstCompile]
+    public unsafe partial struct ExtremeLocalToParentSystem : ISystem, ISystemShouldUpdate
     {
         EntityQuery     m_childWithParentDependencyQuery;
         EntityQueryMask m_childWithParentDependencyMask;
@@ -35,77 +36,78 @@ namespace Latios.Systems
         ComponentTypeHandle<PreviousParent> m_parentHandle;
         ComponentTypeHandle<LocalToWorld>   m_ltwHandle;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_childWithParentDependencyQuery = Fluent.WithAll<LocalToWorld>(false).WithAll<LocalToParent>(true).WithAll<Parent>(true).UseWriteGroups().Build();
+            m_childWithParentDependencyQuery = state.Fluent().WithAll<LocalToWorld>(false).WithAll<LocalToParent>(true).WithAll<Parent>(true).UseWriteGroups().Build();
             m_childWithParentDependencyMask  = m_childWithParentDependencyQuery.GetEntityQueryMask();
-            m_childQuery                     = Fluent.WithAll<Parent>(true).WithAll<Depth>(true).Build();
-            m_metaQuery                      = Fluent.WithAll<ChunkHeader>(true).WithAll<ChunkDepthMask>().Build();
+            m_childQuery                     = state.Fluent().WithAll<Parent>(true).WithAll<Depth>(true).Build();
+            m_metaQuery                      = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkDepthMask>().Build();
 
-            m_headerHandle    = GetComponentTypeHandle<ChunkHeader>(true);
-            m_depthMaskHandle = GetComponentTypeHandle<ChunkDepthMask>(false);
-            m_depthHandle     = GetComponentTypeHandle<Depth>(true);
-            m_ltpHandle       = GetComponentTypeHandle<LocalToParent>(true);
-            m_parentHandle    = GetComponentTypeHandle<PreviousParent>(true);
-            m_ltwHandle       = GetComponentTypeHandle<LocalToWorld>(false);
+            m_headerHandle    = state.GetComponentTypeHandle<ChunkHeader>(true);
+            m_depthMaskHandle = state.GetComponentTypeHandle<ChunkDepthMask>(false);
+            m_depthHandle     = state.GetComponentTypeHandle<Depth>(true);
+            m_ltpHandle       = state.GetComponentTypeHandle<LocalToParent>(true);
+            m_parentHandle    = state.GetComponentTypeHandle<PreviousParent>(true);
+            m_ltwHandle       = state.GetComponentTypeHandle<LocalToWorld>(false);
         }
 
-        public override bool ShouldUpdateSystem()
+        public bool ShouldUpdateSystem(ref SystemState state)
         {
             return !m_childWithParentDependencyQuery.IsEmptyIgnoreFilter;
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var unmanaged      = latiosWorld.Unmanaged;
+            var unmanaged      = state.WorldUnmanaged;
             var chunkListArray = new ChunkListArray(ref unmanaged);
             var blockLists     = unmanaged.UpdateAllocator.AllocateNativeArray<UnsafeParallelBlockList>(kMaxDepthIterations);
 
-            m_headerHandle.Update(this);
-            m_depthMaskHandle.Update(this);
-            m_depthHandle.Update(this);
-            var entityHandle = GetEntityTypeHandle();
-            m_ltpHandle.Update(this);
-            m_parentHandle.Update(this);
-            m_ltwHandle.Update(this);
-            var ltwCdfe = GetComponentDataFromEntity<LocalToWorld>(false);
+            m_headerHandle.Update(ref state);
+            m_depthMaskHandle.Update(ref state);
+            m_depthHandle.Update(ref state);
+            var entityHandle = state.GetEntityTypeHandle();
+            m_ltpHandle.Update(ref state);
+            m_parentHandle.Update(ref state);
+            m_ltwHandle.Update(ref state);
+            var ltwCdfe = state.GetComponentDataFromEntity<LocalToWorld>(false);
 
-            Dependency = new AllocateBlockListsJob
+            state.Dependency = new AllocateBlockListsJob
             {
                 chunkBlockLists = blockLists
-            }.ScheduleParallel(kMaxDepthIterations, 1, Dependency);
+            }.Schedule(kMaxDepthIterations, 1, state.Dependency);
 
-            Dependency = new ClassifyChunksAndResetMasksJob
+            state.Dependency = new ClassifyChunksAndResetMasksJob
             {
                 headerHandle    = m_headerHandle,
                 depthMaskHandle = m_depthMaskHandle,
                 chunkBlockLists = blockLists
-            }.ScheduleParallel(m_metaQuery, Dependency);
+            }.ScheduleParallel(m_metaQuery, state.Dependency);
 
-            Dependency = new FlattenBlocklistsJob
+            state.Dependency = new FlattenBlocklistsJob
             {
                 chunkBlockLists = blockLists,
                 chunkListArray  = chunkListArray
-            }.ScheduleParallel(kMaxDepthIterations, 1, Dependency);
+            }.Schedule(kMaxDepthIterations, 1, state.Dependency);
 
             for (int i = 0; i < kMaxDepthIterations; i++)
             {
-                var chunkList = chunkListArray[i];
-                Dependency    = new CheckIfMatricesShouldUpdateForSingleDepthLevelJob
+                var chunkList    = chunkListArray[i];
+                state.Dependency = new CheckIfMatricesShouldUpdateForSingleDepthLevelJob
                 {
                     chunkList         = chunkList.AsDeferredJobArray(),
                     depth             = i,
                     depthHandle       = m_depthHandle,
                     depthMaskHandle   = m_depthMaskHandle,
                     entityHandle      = entityHandle,
-                    lastSystemVersion = LastSystemVersion,
+                    lastSystemVersion = state.LastSystemVersion,
                     ltpHandle         = m_ltpHandle,
                     ltwCdfe           = ltwCdfe,
                     parentHandle      = m_parentHandle,
                     shouldUpdateMask  = m_childWithParentDependencyMask
-                }.Schedule(chunkList, 1, Dependency);
+                }.Schedule(chunkList, 1, state.Dependency);
 
-                Dependency = new UpdateMatricesOfSingleDepthLevelJob
+                state.Dependency = new UpdateMatricesOfSingleDepthLevelJob
                 {
                     chunkList       = chunkList.AsDeferredJobArray(),
                     depth           = i,
@@ -115,25 +117,29 @@ namespace Latios.Systems
                     ltwCdfe         = ltwCdfe,
                     ltwHandle       = m_ltwHandle,
                     parentHandle    = m_parentHandle
-                }.Schedule(chunkList, 1, Dependency);
+                }.Schedule(chunkList, 1, state.Dependency);
             }
 
             var finalChunkList = chunkListArray[kMaxDepthIterations - 1];
 
-            Dependency = new UpdateMatricesOfDeepChildrenJob
+            state.Dependency = new UpdateMatricesOfDeepChildrenJob
             {
-                childBfe          = GetBufferFromEntity<Child>(true),
-                childHandle       = GetBufferTypeHandle<Child>(true),
+                childBfe          = state.GetBufferFromEntity<Child>(true),
+                childHandle       = state.GetBufferTypeHandle<Child>(true),
                 chunkList         = finalChunkList.AsDeferredJobArray(),
                 depthHandle       = m_depthHandle,
                 depthLevel        = kMaxDepthIterations - 1,
-                lastSystemVersion = LastSystemVersion,
-                ltpCdfe           = GetComponentDataFromEntity<LocalToParent>(true),
+                lastSystemVersion = state.LastSystemVersion,
+                ltpCdfe           = state.GetComponentDataFromEntity<LocalToParent>(true),
                 ltwCdfe           = ltwCdfe,
                 ltwHandle         = m_ltwHandle,
                 ltwWriteGroupMask = m_childWithParentDependencyMask,
-                parentCdfe        = GetComponentDataFromEntity<PreviousParent>(true)
-            }.Schedule(finalChunkList, 1, Dependency);
+                parentCdfe        = state.GetComponentDataFromEntity<PreviousParent>(true)
+            }.Schedule(finalChunkList, 1, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         struct ChunkListArray
@@ -204,7 +210,7 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct AllocateBlockListsJob : IJobFor
+        struct AllocateBlockListsJob : IJobParallelForBurstSchedulable
         {
             public NativeArray<UnsafeParallelBlockList> chunkBlockLists;
 
@@ -249,7 +255,7 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct FlattenBlocklistsJob : IJobFor
+        struct FlattenBlocklistsJob : IJobParallelForBurstSchedulable
         {
             public NativeArray<UnsafeParallelBlockList>                 chunkBlockLists;
             [NativeDisableParallelForRestriction] public ChunkListArray chunkListArray;

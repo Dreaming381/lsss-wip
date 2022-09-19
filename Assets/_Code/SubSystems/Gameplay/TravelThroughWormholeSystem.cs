@@ -53,11 +53,11 @@ namespace Lsss
             //Todo: Remove hack
             public PhysicsComponentDataFromEntity<BulletPreviousPosition> prevPosCDFE;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
-                    var   aabb          = Physics.AabbFrom((CompoundCollider)result.bodyB.collider, RigidTransform.identity);
+                    var   aabb          = result.aabbB;
                     float forwardOffset = -aabb.min.z * 2;  //Distance to butt doubled for safety
 
                     var            destEntity = destCDFE[result.entityA].wormholeDestination;

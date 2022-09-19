@@ -54,8 +54,13 @@ namespace Lsss
             public PhysicsComponentDataFromEntity<ShipHealth> shipHealthCdfe;
             [ReadOnly] public ComponentDataFromEntity<Damage> shipDamageCdfe;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
+                //if (math.distance(result.bodyA.transform.pos, result.bodyB.transform.pos) > 250f)
+                //    UnityEngine.Debug.LogWarning("Corrupted AABB pair");
+
+                //var marker = new Unity.Profiling.ProfilerMarker("Process pair");
+                //marker.Begin();
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
                     var healthA = shipHealthCdfe[result.entityA];
@@ -69,6 +74,7 @@ namespace Lsss
                     shipHealthCdfe[result.entityA] = healthA;
                     shipHealthCdfe[result.entityB] = healthB;
                 }
+                //marker.End();
             }
         }
     }

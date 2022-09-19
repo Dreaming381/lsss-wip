@@ -135,7 +135,7 @@ namespace Latios.Psyshock
 
         public static BuildCollisionLayerConfig WithRemapArray(this BuildCollisionLayerConfig config, out NativeArray<int> remapSrcIndices, Allocator allocator)
         {
-            remapSrcIndices = new NativeArray<int>(config.count, allocator, NativeArrayOptions.UninitializedMemory);
+            remapSrcIndices = CollectionHelper.CreateNativeArray<int>(config.count, allocator, NativeArrayOptions.UninitializedMemory);
 
             config.remapSrcIndices    = remapSrcIndices;
             config.hasRemapSrcIndices = true;
@@ -205,7 +205,7 @@ namespace Latios.Psyshock
                 layer            = new CollisionLayer(count, config.settings, allocator);
                 var layerIndices = new NativeArray<int>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 var aos          = new NativeArray<BuildCollisionLayerInternal.ColliderAoSData>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                var xmins        = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                var xMinMaxs     = new NativeArray<float2>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 NativeArray<int> remapSrcIndices = config.hasRemapSrcIndices ? config.remapSrcIndices : new NativeArray<int>(count,
                                                                                                                              Allocator.TempJob,
@@ -217,7 +217,7 @@ namespace Latios.Psyshock
                     layer        = layer,
                     layerIndices = layerIndices,
                     colliderAoS  = aos,
-                    xmins        = xmins
+                    xMinMaxs     = xMinMaxs
                 }.Run(config.query);
 
                 new BuildCollisionLayerInternal.Part2Job
@@ -236,7 +236,8 @@ namespace Latios.Psyshock
                 {
                     bucketStartAndCounts = layer.bucketStartsAndCounts,
                     unsortedSrcIndices   = remapSrcIndices,
-                    xmins                = xmins
+                    trees                = layer.intervalTrees,
+                    xMinMaxs             = xMinMaxs
                 }.Run(layer.BucketCount);
 
                 new BuildCollisionLayerInternal.Part5FromQueryJob
@@ -309,7 +310,7 @@ namespace Latios.Psyshock
                 layer            = new CollisionLayer(count, config.settings, allocator);
                 var layerIndices = new NativeArray<int>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 var aos          = new NativeArray<BuildCollisionLayerInternal.ColliderAoSData>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                var xmins        = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                var xMinMaxs     = new NativeArray<float2>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 NativeArray<int> remapSrcIndices = config.hasRemapSrcIndices ? config.remapSrcIndices : new NativeArray<int>(count,
                                                                                                                              Allocator.TempJob,
@@ -321,7 +322,7 @@ namespace Latios.Psyshock
                     layer        = layer,
                     layerIndices = layerIndices,
                     colliderAoS  = aos,
-                    xmins        = xmins
+                    xMinMaxs     = xMinMaxs
                 }.Schedule(config.query, jh);
 
                 jh = new BuildCollisionLayerInternal.Part2Job
@@ -340,7 +341,8 @@ namespace Latios.Psyshock
                 {
                     bucketStartAndCounts = layer.bucketStartsAndCounts,
                     unsortedSrcIndices   = remapSrcIndices,
-                    xmins                = xmins
+                    trees                = layer.intervalTrees,
+                    xMinMaxs             = xMinMaxs
                 }.Schedule(layer.BucketCount, jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromQueryJob
@@ -415,7 +417,7 @@ namespace Latios.Psyshock
                 int count        = config.query.CalculateEntityCount();
                 layer            = new CollisionLayer(count, config.settings, allocator);
                 var layerIndices = new NativeArray<int>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                var xmins        = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                var xMinMaxs     = new NativeArray<float2>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 var aos          = new NativeArray<BuildCollisionLayerInternal.ColliderAoSData>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 NativeArray<int> remapSrcIndices = config.hasRemapSrcIndices ? config.remapSrcIndices : new NativeArray<int>(count,
@@ -427,7 +429,7 @@ namespace Latios.Psyshock
                     layer        = layer,
                     typeGroup    = config.typeGroup,
                     layerIndices = layerIndices,
-                    xmins        = xmins,
+                    xMinMaxs     = xMinMaxs,
                     colliderAoS  = aos
                 }.ScheduleParallel(config.query, jh);
 
@@ -446,7 +448,8 @@ namespace Latios.Psyshock
                 jh = new BuildCollisionLayerInternal.Part4Job
                 {
                     unsortedSrcIndices   = remapSrcIndices,
-                    xmins                = xmins,
+                    xMinMaxs             = xMinMaxs,
+                    trees                = layer.intervalTrees,
                     bucketStartAndCounts = layer.bucketStartsAndCounts
                 }.ScheduleParallel(layer.BucketCount, 1, jh);
 
@@ -467,7 +470,7 @@ namespace Latios.Psyshock
                 layer            = new CollisionLayer(config.bodies.Length, config.settings, allocator);
                 int count        = config.bodies.Length;
                 var layerIndices = new NativeArray<int>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-                var xmins        = new NativeArray<float>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+                var xMinMaxs     = new NativeArray<float2>(count, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
                 NativeArray<int> remapSrcIndices = config.hasRemapSrcIndices ? config.remapSrcIndices : new NativeArray<int>(count,
                                                                                                                              Allocator.TempJob,
@@ -482,7 +485,7 @@ namespace Latios.Psyshock
                         layer        = layer,
                         aabbs        = aabbs,
                         layerIndices = layerIndices,
-                        xmins        = xmins
+                        xMinMaxs     = xMinMaxs
                     }.ScheduleParallel(count, 64, jh);
                 }
                 else
@@ -493,7 +496,7 @@ namespace Latios.Psyshock
                         aabbs          = aabbs,
                         colliderBodies = config.bodies,
                         layerIndices   = layerIndices,
-                        xmins          = xmins
+                        xMinMaxs       = xMinMaxs
                     }.ScheduleParallel(count, 64, jh);
                 }
 
@@ -513,7 +516,8 @@ namespace Latios.Psyshock
                 {
                     bucketStartAndCounts = layer.bucketStartsAndCounts,
                     unsortedSrcIndices   = remapSrcIndices,
-                    xmins                = xmins
+                    trees                = layer.intervalTrees,
+                    xMinMaxs             = xMinMaxs
                 }.ScheduleParallel(layer.BucketCount, 1, jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromArraysJob

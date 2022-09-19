@@ -1,4 +1,3 @@
-using Latios;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,35 +12,41 @@ namespace Latios.Kinemation.Systems
     // However, we upload material properties later, so we would have to wait until all culling is complete before updating.
     // That would be fragile, so instead, we use an intermediate buffer cache component.
     [DisableAutoCreation]
-    public partial class UpdateMatrixPreviousSystem : SubSystem
+    [BurstCompile]
+    public partial struct UpdateMatrixPreviousSystem : ISystem
     {
         EntityQuery m_query;
         uint        m_secondLastSystemVersion;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<LocalToWorld>(true).WithAll<MatrixPreviousCache>().WithAll<BuiltinMaterialPropertyUnity_MatrixPreviousM>()
+            m_query = state.Fluent().WithAll<LocalToWorld>(true).WithAll<MatrixPreviousCache>().WithAll<BuiltinMaterialPropertyUnity_MatrixPreviousM>()
                       .WithAll<ChunkMaterialPropertyDirtyMask>(false, true).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            int matrixPrevIndex = worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>().AsNativeArray()
+            int matrixPrevIndex = state.GetWorldBlackboardEntity().GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>().AsNativeArray()
                                   .IndexOf(ComponentType.ReadOnly<BuiltinMaterialPropertyUnity_MatrixPreviousM>());
             ulong matrixPrevMaterialMaskLower = (ulong)matrixPrevIndex >= 64UL ? 0UL : (1UL << matrixPrevIndex);
             ulong matrixPrevMaterialMaskUpper = (ulong)matrixPrevIndex >= 64UL ? (1UL << (matrixPrevIndex - 64)) : 0UL;
 
-            Dependency = new UpdateMatricesJob
+            state.Dependency = new UpdateMatricesJob
             {
-                ltwHandle                   = GetComponentTypeHandle<LocalToWorld>(true),
-                cacheHandle                 = GetComponentTypeHandle<MatrixPreviousCache>(false),
-                prevHandle                  = GetComponentTypeHandle<BuiltinMaterialPropertyUnity_MatrixPreviousM>(false),
-                maskHandle                  = GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
+                ltwHandle                   = state.GetComponentTypeHandle<LocalToWorld>(true),
+                cacheHandle                 = state.GetComponentTypeHandle<MatrixPreviousCache>(false),
+                prevHandle                  = state.GetComponentTypeHandle<BuiltinMaterialPropertyUnity_MatrixPreviousM>(false),
+                maskHandle                  = state.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
                 secondLastSystemVersion     = m_secondLastSystemVersion,
                 matrixPrevMaterialMaskLower = matrixPrevMaterialMaskLower,
                 matrixPrevMaterialMaskUpper = matrixPrevMaterialMaskUpper
-            }.ScheduleParallel(m_query, Dependency);
-            m_secondLastSystemVersion = LastSystemVersion;
+            }.ScheduleParallel(m_query, state.Dependency);
+            m_secondLastSystemVersion = state.LastSystemVersion;
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

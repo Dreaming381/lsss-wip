@@ -1,173 +1,165 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using Debug = UnityEngine.Debug;
 using Latios;
 using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine.Profiling;
 
-//Todo: There are a bunch of planned physics improvements that can simplify what we are doing here.
-
 namespace Lsss
 {
     public partial class AiShipRadarScanSystem : SubSystem
     {
-        private List<FactionShipsCollisionLayer> m_factionsCache = new List<FactionShipsCollisionLayer>();
+        private List<FactionShipsCollisionLayer>           m_factionsCache             = new List<FactionShipsCollisionLayer>();
+        private List<NativeArray<AiShipRadarScanResults> > m_scanResultsArrayListCache = new List<NativeArray<AiShipRadarScanResults> >();
 
-        private EntityQuery m_factions;
-        private EntityQuery m_radars;
+        private EntityQuery m_factionsQuery;
+        private EntityQuery m_radarsQuery;
 
         protected override void OnUpdate()
         {
-            Profiler.BeginSample("AiShipRadarScanSystem_OnUpdate");
+            var collisionLayerSettings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            var wallLayer              = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
+            var allocator = World.UpdateAllocator.ToAllocator;
+
+            m_factionsCache.Clear();
             var backup = Dependency;
             Dependency = default;
-            Entities.WithAll<FactionTag>().WithStoreEntityQueryInField(ref m_factions).ForEach((Entity entity, int entityInQueryIndex) =>
+            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
             {
                 if (entityInQueryIndex == 0)
                     Dependency = backup;
 
                 m_factionsCache.Add(EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true));
-            }).WithoutBurst().Run();
-            var factionEntities = m_factions.ToEntityArray(Allocator.TempJob);
-
-            var wallLayer            = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
-            var radarsCdfe           = GetComponentDataFromEntity<AiShipRadar>(true);
-            var radarScanResultsCdfe = GetComponentDataFromEntity<AiShipRadarScanResults>(false);
-            var ltwCdfe              = GetComponentDataFromEntity<LocalToWorld>(true);
+            }).WithStoreEntityQueryInField(ref m_factionsQuery).WithoutBurst().Run();
+            var factionEntities = m_factionsQuery.ToEntityArray(allocator);
 
             //Todo: IJobChunk with MemClear?
-            Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadarScanResults results) =>
-            {
-                results              = default;
-                results.nearestEnemy = Entity.Null;
-            }).WithName("ScanClear").ScheduleParallel();
+            //Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadarScanResults results) =>
+            //{
+            //    results = default;
+            //}).WithName("ScanClear").ScheduleParallel();
 
-            JobHandle rootDependency = Dependency;
-            var       finalHandles   = new NativeList<JobHandle>(Allocator.TempJob);
-            JobHandle resultsHandle  = Dependency;
+            var scanFriendsProcessor = new ScanFriendsProcessor
+            {
+                radarCdfe = GetComponentDataFromEntity<AiShipRadar>(true),
+                wallLayer = wallLayer
+            };
+
+            var scanEnemiesProcessor = new ScanEnemiesProcessor
+            {
+                radarCdfe = scanFriendsProcessor.radarCdfe,
+                wallLayer = wallLayer
+            };
+
+            var rootDependency = Dependency;
+
+            var jhs = new NativeArray<JobHandle>(factionEntities.Length, Allocator.Temp);
+
+            m_scanResultsArrayListCache.Clear();
 
             for (int i = 0; i < factionEntities.Length; i++)
             {
-                //Profiler.BeginSample($"faction_A_{i}");
-                var factionMember     = new FactionMember { factionEntity = factionEntities[i] };
-                var buildRadarLayerJh                                     = BuildRadarLayer(factionMember, out CollisionLayer radarLayer, rootDependency);
+                var factionA = new FactionMember { factionEntity = factionEntities[i] };
+                var jh                                           = BuildRadarLayer(factionA,
+                                                                                   collisionLayerSettings,
+                                                                                   allocator,
+                                                                                   out var radarLayer,
+                                                                                   out var remapArray,
+                                                                                   rootDependency);
 
-                var friendsLineOfSightBodies = new NativeList<ColliderBody>(Allocator.TempJob);
-                var friendsOccluded          = new NativeList<bool>(Allocator.TempJob);
+                var scanResultsArray = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(radarLayer.Count, allocator, NativeArrayOptions.UninitializedMemory);
+                m_scanResultsArrayListCache.Add(scanResultsArray);
+                scanFriendsProcessor.scanResultsArray = scanResultsArray;
+                scanEnemiesProcessor.scanResultsArray = scanResultsArray;
+                scanFriendsProcessor.remapArray       = remapArray;
+                scanEnemiesProcessor.remapArray       = remapArray;
 
-                var scanFriendsProcessor = new ScanFriendsProcessor
+                unsafe
                 {
-                    lineOfSightBodies = friendsLineOfSightBodies,
-                    radars            = radarsCdfe
-                };
-                var friendsJh                = Physics.FindPairs(radarLayer, m_factionsCache[i].layer, scanFriendsProcessor).ScheduleSingle(buildRadarLayerJh);
-                var prepFriendsVisibilityJob = new ResizeOccludedListToBodySizeJob
-                {
-                    lineOfSightBodies = friendsLineOfSightBodies,
-                    occluded          = friendsOccluded
-                };
-                var prepFriendsJh1 = prepFriendsVisibilityJob.Schedule(friendsJh);
-                var prepFriendsJh2 = Physics.BuildCollisionLayer(friendsLineOfSightBodies.AsDeferredJobArray()).WithRemapArray(out NativeArray<int> friendsLosBodiesSrcIndices,
-                                                                                                                               Allocator.TempJob)
-                                     .ScheduleParallel(out CollisionLayer friendsLineOfSightLayer, Allocator.TempJob, friendsJh);
-                var scanFriendsVisibileProcessor = new ScanLineOfSightProcessor
-                {
-                    occluded        = friendsOccluded.AsDeferredJobArray(),
-                    remapSrcIndices = friendsLosBodiesSrcIndices
-                };
-                friendsJh = Physics.FindPairs(friendsLineOfSightLayer, wallLayer, scanFriendsVisibileProcessor)
-                            .ScheduleParallel(JobHandle.CombineDependencies(prepFriendsJh1, prepFriendsJh2));
-                var friendsJh1 = friendsLineOfSightLayer.Dispose(friendsJh);
-                var friendsJh2 = friendsLosBodiesSrcIndices.Dispose(friendsJh);
+                    jh = Job.WithCode(() =>
+                    {
+                        var ptr = scanResultsArray.GetUnsafePtr();
+                        UnsafeUtility.MemClear(ptr, scanResultsArray.Length * UnsafeUtility.SizeOf<AiShipRadarScanResults>());
+                    }).Schedule(jh);
+                }
 
-                var updateFriendsJob = new UpdateFriendsJob
-                {
-                    lineOfSightBodies    = friendsLineOfSightBodies.AsDeferredJobArray(),
-                    occluded             = friendsOccluded.AsDeferredJobArray(),
-                    radarScanResultsCdfe = radarScanResultsCdfe
-                };
-                resultsHandle = updateFriendsJob.Schedule(JobHandle.CombineDependencies(friendsJh1, friendsJh2, resultsHandle));
-                finalHandles.Add(friendsLineOfSightBodies.Dispose(resultsHandle));
-                finalHandles.Add(friendsOccluded.Dispose(resultsHandle));
+                var shipLayerA = m_factionsCache[i].layer;
+
+                jh = Physics.FindPairs(radarLayer, shipLayerA, scanFriendsProcessor).WithCrossCache().ScheduleParallel(jh);
 
                 for (int j = 0; j < factionEntities.Length; j++)
                 {
-                    if (j == i)
-                    {
+                    if (i == j)
                         continue;
-                    }
 
-                    var enemiesLineOfSightBodies = new NativeList<ColliderBody>(Allocator.TempJob);
-                    var enemiesOccluded          = new NativeList<bool>(Allocator.TempJob);
-                    var scannedEnemies           = new NativeList<ScannedEnemy>(Allocator.TempJob);
+                    var shipLayerB = m_factionsCache[j].layer;
 
-                    var scanEnemiesProcessor = new ScanEnemiesProcessor
-                    {
-                        lineOfSightBodies = enemiesLineOfSightBodies,
-                        radars            = radarsCdfe,
-                        scannedEnemies    = scannedEnemies
-                    };
-
-                    var enemiesJh                = Physics.FindPairs(radarLayer, m_factionsCache[j].layer, scanEnemiesProcessor).ScheduleSingle(buildRadarLayerJh);
-                    var prepEnemiesVisibilityJob = new ResizeOccludedListToBodySizeJob
-                    {
-                        lineOfSightBodies = enemiesLineOfSightBodies,
-                        occluded          = enemiesOccluded
-                    };
-                    var prepEnemiesJh1 = prepEnemiesVisibilityJob.Schedule(enemiesJh);
-                    var prepEnemiesJh2 = Physics.BuildCollisionLayer(enemiesLineOfSightBodies.AsDeferredJobArray()).WithRemapArray(out NativeArray<int> enemiesLosBodiesSrcIndices,
-                                                                                                                                   Allocator.TempJob)
-                                         .ScheduleParallel(out CollisionLayer enemiesLineOfSightLayer, Allocator.TempJob, friendsJh);
-                    var scanEnemiesVisibileProcessor = new ScanLineOfSightProcessor
-                    {
-                        occluded        = enemiesOccluded.AsDeferredJobArray(),
-                        remapSrcIndices = enemiesLosBodiesSrcIndices
-                    };
-                    enemiesJh = Physics.FindPairs(enemiesLineOfSightLayer, wallLayer, scanEnemiesVisibileProcessor)
-                                .ScheduleParallel(JobHandle.CombineDependencies(prepEnemiesJh1, prepEnemiesJh2));
-                    var enemiesJh1 = enemiesLineOfSightLayer.Dispose(enemiesJh);
-                    var enemiesJh2 = enemiesLosBodiesSrcIndices.Dispose(enemiesJh);
-
-                    var updateEnemiesJob = new UpdateEnemiesJob
-                    {
-                        lineOfSightBodies    = enemiesLineOfSightBodies.AsDeferredJobArray(),
-                        ltwCdfe              = ltwCdfe,
-                        occluded             = enemiesOccluded.AsDeferredJobArray(),
-                        radarCdfe            = radarsCdfe,
-                        radarScanResultsCdfe = radarScanResultsCdfe,
-                        scannedEnemies       = scannedEnemies.AsDeferredJobArray()
-                    };
-                    resultsHandle = updateEnemiesJob.Schedule(JobHandle.CombineDependencies(enemiesJh1, enemiesJh2, resultsHandle));
-                    finalHandles.Add(enemiesLineOfSightBodies.Dispose(resultsHandle));
-                    finalHandles.Add(enemiesOccluded.Dispose(resultsHandle));
-                    finalHandles.Add(scannedEnemies.Dispose(resultsHandle));
+                    jh = Physics.FindPairs(radarLayer, shipLayerB, scanEnemiesProcessor).WithCrossCache().ScheduleParallel(jh);
                 }
-                finalHandles.Add(radarLayer.Dispose(resultsHandle));
-                //Profiler.EndSample();
+
+                jhs[i] = jh;
             }
 
-            Dependency = JobHandle.CombineDependencies(finalHandles);
+            Dependency = JobHandle.CombineDependencies(jhs);
 
-            finalHandles.Dispose();
-            factionEntities.Dispose();
-            m_factionsCache.Clear();
-            Profiler.EndSample();
+            var scanResultsHandle = GetComponentTypeHandle<AiShipRadarScanResults>(false);
+
+            for (int i = 0; i < factionEntities.Length; i++)
+            {
+                var array   = m_scanResultsArrayListCache[i];
+                var faction = new FactionMember { factionEntity = factionEntities[i] };
+                //Entities.WithAll<AiRadarTag>().WithSharedComponentFilter(faction).ForEach((int entityInQueryIndex, ref AiShipRadarScanResults result) =>
+                //{
+                //    result = array[entityInQueryIndex];
+                //}).ScheduleParallel();
+                m_radarsQuery.SetSharedComponentFilter(faction);
+                Dependency = new CopyBackJob { array = array, scanResultsHandle = scanResultsHandle }.ScheduleParallel(m_radarsQuery, Dependency);
+            }
         }
 
-        private JobHandle BuildRadarLayer(FactionMember factionMember, out CollisionLayer layer, JobHandle inputDeps)
+        [BurstCompile]
+        public struct CopyBackJob : IJobEntityBatchWithIndex
         {
-            m_radars.SetSharedComponentFilter(factionMember);
-            int count  = m_radars.CalculateEntityCount();
-            var bodies = new NativeArray<ColliderBody>(count, Allocator.TempJob);
-            var aabbs  = new NativeArray<Aabb>(count, Allocator.TempJob);
-            var jh     = Entities.WithAll<AiRadarTag>().WithSharedComponentFilter(factionMember).WithStoreEntityQueryInField(ref m_radars)
+            [ReadOnly] public NativeArray<AiShipRadarScanResults> array;
+            public ComponentTypeHandle<AiShipRadarScanResults>    scanResultsHandle;
+
+            public void Execute(ArchetypeChunk batchInChunk, int batchIndex, int indexOfFirstEntityInQuery)
+            {
+                var dst = batchInChunk.GetNativeArray(scanResultsHandle);
+                var src = array.GetSubArray(indexOfFirstEntityInQuery, batchInChunk.Count);
+                dst.CopyFrom(src);
+            }
+        }
+
+        //[BurstCompile]
+        //public partial struct CopyBackJob : IJobEntity
+        //{
+        //    [ReadOnly] public NativeArray<AiShipRadarScanResults> array;
+        //
+        //    public void Execute(int entityInQueryIndex, ref AiShipRadarScanResults result)
+        //    {
+        //        result = array[entityInQueryIndex];
+        //    }
+        //}
+
+        private JobHandle BuildRadarLayer(FactionMember factionMember,
+                                          CollisionLayerSettings settings,
+                                          Allocator allocator,
+                                          out CollisionLayer layer,
+                                          out NativeArray<int>   remapArray,
+                                          JobHandle inputDeps)
+        {
+            m_radarsQuery.SetSharedComponentFilter(factionMember);
+            int count  = m_radarsQuery.CalculateEntityCount();
+            var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator);
+            var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, allocator);
+            var jh     = Entities.WithAll<AiRadarTag>().WithSharedComponentFilter(factionMember).WithStoreEntityQueryInField(ref m_radarsQuery)
                          .ForEach((Entity e, int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw) =>
             {
                 var transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position);
@@ -208,21 +200,21 @@ namespace Lsss
                     transform = transform
                 };
             }).ScheduleParallel(inputDeps);
-            jh = Physics.BuildCollisionLayer(bodies, aabbs).ScheduleParallel(out layer, Allocator.TempJob, jh);
-            jh = JobHandle.CombineDependencies(bodies.Dispose(jh), aabbs.Dispose(jh));
+            jh = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).WithRemapArray(out remapArray, allocator).ScheduleParallel(out layer, allocator, jh);
             return jh;
         }
 
-        //ScheduleSingle only
-        // Assumes A is radar, and B is ship
-        private struct ScanFriendsProcessor : IFindPairsProcessor
+        // Assumes A is radar, and B is friendly ship
+        struct ScanFriendsProcessor : IFindPairsProcessor
         {
-            public NativeList<ColliderBody>                        lineOfSightBodies;
-            [ReadOnly] public ComponentDataFromEntity<AiShipRadar> radars;
+            [ReadOnly] public CollisionLayer                                                 wallLayer;
+            [ReadOnly] public ComponentDataFromEntity<AiShipRadar>                           radarCdfe;
+            [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
+            [ReadOnly] public NativeArray<int>                                               remapArray;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
-                var    radar       = radars[result.entityA];
+                var    radar       = radarCdfe[result.entityA];
                 float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
                 bool   isInRange   = math.lengthsq(radarToShip) < radar.friendCrossHairsDistanceFilter * radar.friendCrossHairsDistanceFilter;
                 bool   isInView    =
@@ -231,62 +223,29 @@ namespace Lsss
 
                 if (isInRange && isInView)
                 {
-                    lineOfSightBodies.Add(new ColliderBody
+                    var hitWall = Physics.RaycastAny(result.bodyA.transform.pos, result.bodyB.transform.pos, in wallLayer, out _, out _);
+                    if (!hitWall)
                     {
-                        collider  = new CapsuleCollider(0f, radarToShip, 0f),
-                        entity    = result.entityA,
-                        transform = new RigidTransform(quaternion.identity, result.bodyA.transform.pos)
-                    });
+                        var srcIndex               = remapArray[result.indexA];
+                        var scanResult             = scanResultsArray[srcIndex];
+                        scanResult.friendFound     = true;
+                        scanResultsArray[srcIndex] = scanResult;
+                    }
                 }
             }
         }
 
-        [BurstCompile]
-        private struct ResizeOccludedListToBodySizeJob : IJob
+        // Assumes A is radar, and B is enemy ship
+        struct ScanEnemiesProcessor : IFindPairsProcessor
         {
-            [ReadOnly] public NativeList<ColliderBody> lineOfSightBodies;
-            public NativeList<bool>                    occluded;
+            [ReadOnly] public CollisionLayer                                                 wallLayer;
+            [ReadOnly] public ComponentDataFromEntity<AiShipRadar>                           radarCdfe;
+            [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
+            [ReadOnly] public NativeArray<int>                                               remapArray;
 
-            public void Execute()
+            public void Execute(in FindPairsResult result)
             {
-                int count = lineOfSightBodies.Length;
-                occluded.Resize(count, NativeArrayOptions.ClearMemory);
-            }
-        }
-
-        //Assumes A is line of sight, and B is wall
-        private struct ScanLineOfSightProcessor : IFindPairsProcessor
-        {
-            [NativeDisableParallelForRestriction] public NativeArray<bool> occluded;
-            [ReadOnly] public NativeArray<int>                             remapSrcIndices;
-
-            public void Execute(FindPairsResult result)
-            {
-                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
-                {
-                    int srcIndex       = remapSrcIndices[result.bodyAIndex];
-                    occluded[srcIndex] = true;
-                }
-            }
-        }
-
-        private struct ScannedEnemy
-        {
-            public Entity         enemy;
-            public RigidTransform enemyTransform;
-        }
-
-        //ScheduleSingle only
-        // Assumes A is radar, and B is ship
-        private struct ScanEnemiesProcessor : IFindPairsProcessor
-        {
-            public NativeList<ColliderBody>                        lineOfSightBodies;
-            public NativeList<ScannedEnemy>                        scannedEnemies;
-            [ReadOnly] public ComponentDataFromEntity<AiShipRadar> radars;
-
-            public void Execute(FindPairsResult result)
-            {
-                var    radar       = radars[result.entityA];
+                var    radar       = radarCdfe[result.entityA];
                 float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
 
                 bool  useFullRange  = radar.target.entity == result.entityB || radar.target == Entity.Null;
@@ -298,81 +257,28 @@ namespace Lsss
 
                 if (isInRange && isInView)
                 {
-                    lineOfSightBodies.Add(new ColliderBody
+                    var hitWall = Physics.RaycastAny(result.bodyA.transform.pos, result.bodyB.transform.pos, in wallLayer, out _, out _);
+                    if (!hitWall)
                     {
-                        collider  = new CapsuleCollider(0f, radarToShip, 0f),
-                        entity    = result.entityA,
-                        transform = new RigidTransform(quaternion.identity, result.bodyA.transform.pos)
-                    });
-                    scannedEnemies.Add(new ScannedEnemy
-                    {
-                        enemy          = result.entityB,
-                        enemyTransform = result.bodyB.transform
-                    });
-                }
-            }
-        }
-
-        [BurstCompile]
-        private struct UpdateFriendsJob : IJob
-        {
-            public ComponentDataFromEntity<AiShipRadarScanResults> radarScanResultsCdfe;
-            [ReadOnly] public NativeArray<ColliderBody>            lineOfSightBodies;
-            [ReadOnly] public NativeArray<bool>                    occluded;
-
-            public void Execute()
-            {
-                for (int i = 0; i < lineOfSightBodies.Length; i++)
-                {
-                    if (!occluded[i])
-                    {
-                        var entity                   = lineOfSightBodies[i].entity;
-                        var results                  = radarScanResultsCdfe[entity];
-                        results.friendFound          = true;
-                        radarScanResultsCdfe[entity] = results;
-                    }
-                }
-            }
-        }
-
-        [BurstCompile]
-        private struct UpdateEnemiesJob : IJob
-        {
-            public ComponentDataFromEntity<AiShipRadarScanResults>  radarScanResultsCdfe;
-            [ReadOnly] public ComponentDataFromEntity<AiShipRadar>  radarCdfe;
-            [ReadOnly] public ComponentDataFromEntity<LocalToWorld> ltwCdfe;  //Todo: Optimize out?
-            [ReadOnly] public NativeArray<ColliderBody>             lineOfSightBodies;
-            [ReadOnly] public NativeArray<bool>                     occluded;
-            [ReadOnly] public NativeArray<ScannedEnemy>             scannedEnemies;
-
-            public void Execute()
-            {
-                for (int i = 0; i < lineOfSightBodies.Length; i++)
-                {
-                    if (!occluded[i])
-                    {
-                        var radarEntity  = lineOfSightBodies[i].entity;
-                        var results      = radarScanResultsCdfe[radarEntity];
-                        var radar        = radarCdfe[radarEntity];
-                        var scannedEnemy = scannedEnemies[i];
+                        var srcIndex   = remapArray[result.indexA];
+                        var scanResult = scanResultsArray[srcIndex];
 
                         if (radar.target == Entity.Null)
                         {
-                            if (results.target == Entity.Null)
+                            if (scanResult.target == Entity.Null)
                             {
-                                results.target          = scannedEnemy.enemy;
-                                results.targetTransform = scannedEnemy.enemyTransform;
+                                scanResult.target          = result.entityB;
+                                scanResult.targetTransform = result.transformB;
                             }
                             else
                             {
-                                var radarLtw        = ltwCdfe[radarEntity];
                                 var optimalPosition =
-                                    math.forward(math.mul(quaternion.LookRotationSafe(radarLtw.Forward, radarLtw.Up),
-                                                          radar.crossHairsForwardDirectionBias)) * radar.preferredTargetDistance + radarLtw.Position;
-                                if (math.distancesq(results.targetTransform.pos, optimalPosition) > math.distancesq(scannedEnemy.enemyTransform.pos, optimalPosition))
+                                    math.forward(math.mul(result.transformA.rot,
+                                                          radar.crossHairsForwardDirectionBias)) * radar.preferredTargetDistance + result.transformA.pos;
+                                if (math.distancesq(scanResult.targetTransform.pos, optimalPosition) > math.distancesq(result.transformB.pos, optimalPosition))
                                 {
-                                    results.target          = scannedEnemy.enemy;
-                                    results.targetTransform = scannedEnemy.enemyTransform;
+                                    scanResult.target          = result.entityB;
+                                    scanResult.targetTransform = result.transformB;
                                 }
                             }
                         }
@@ -380,35 +286,33 @@ namespace Lsss
                         {
                             //Todo: Because no filter is applied to the search, we would have to apply the filter here if target was null.
                             //I'm too lazy to do that right now, so I'm just not populating the nearestResult if there's no target.
-                            if (radar.target == scannedEnemy.enemy)
+                            if (radar.target.entity == result.entityB)
                             {
-                                results.target          = scannedEnemy.enemy;
-                                results.targetTransform = scannedEnemy.enemyTransform;
+                                scanResult.target          = result.entityB;
+                                scanResult.targetTransform = result.transformB;
                             }
 
-                            if (results.nearestEnemy == Entity.Null)
+                            if (scanResult.nearestEnemy == Entity.Null)
                             {
-                                var radarLtw = ltwCdfe[radarEntity];
-                                if (math.dot(math.normalize(scannedEnemy.enemyTransform.pos - radarLtw.Position),
-                                             math.forward(math.mul(quaternion.LookRotationSafe(radarLtw.Forward, radarLtw.Up),
+                                if (math.dot(math.normalize(result.transformB.pos - result.transformA.pos),
+                                             math.forward(math.mul(result.transformA.rot,
                                                                    radar.crossHairsForwardDirectionBias))) > radar.nearestEnemyCrossHairsCosFovFilter)
                                 {
-                                    results.nearestEnemy          = scannedEnemy.enemy;
-                                    results.nearestEnemyTransform = scannedEnemy.enemyTransform;
+                                    scanResult.nearestEnemy          = result.entityB;
+                                    scanResult.nearestEnemyTransform = result.transformB;
                                 }
                             }
                             else
                             {
-                                var radarPosition = lineOfSightBodies[i].transform.pos;
-                                if (math.distancesq(results.nearestEnemyTransform.pos, radarPosition) > math.distancesq(scannedEnemy.enemyTransform.pos, radarPosition))
+                                if (math.distancesq(scanResult.nearestEnemyTransform.pos, result.transformA.pos) > math.distancesq(result.transformB.pos, result.transformA.pos))
                                 {
-                                    results.nearestEnemy          = scannedEnemy.enemy;
-                                    results.nearestEnemyTransform = scannedEnemy.enemyTransform;
+                                    scanResult.nearestEnemy          = result.entityB;
+                                    scanResult.nearestEnemyTransform = result.transformB;
                                 }
                             }
                         }
 
-                        radarScanResultsCdfe[radarEntity] = results;
+                        scanResultsArray[srcIndex] = scanResult;
                     }
                 }
             }

@@ -1,12 +1,9 @@
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
-using UnityEngine.Rendering;
 
 // Unity's LOD system is currently a bit of a mess. The behavior of this version has been modified for more
 // predictable behavior at the cost of performance. Some of the things that make no sense in Unity's original
@@ -25,9 +22,10 @@ using UnityEngine.Rendering;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public unsafe partial class UpdateLODsSystem : SubSystem
+    [BurstCompile]
+    public unsafe partial struct UpdateLODsSystem : ISystem
     {
-        LODGroupExtensions.LODParams m_PrevLODParams = default;
+        LODGroupExtensions.LODParams m_PrevLODParams;
         float3                       m_PrevCameraPos;
         float                        m_PrevLodDistanceScale;
 
@@ -35,27 +33,24 @@ namespace Latios.Kinemation.Systems
 
         int  m_lastLodRangeOrderVersion;
         int  m_lastChunkInfoOrderVersion;
-        bool m_firstRun = true;
+        bool m_firstRun;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<ChunkHeader>(true).WithAll<HybridChunkInfo>(false).Build();
+            m_query    = state.Fluent().WithAll<ChunkHeader>(true).WithAll<HybridChunkInfo>(false).Build();
+            m_firstRun = true;
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var brgContext     = worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(false);
-            var cullingContext = brgContext.cullingContext;
-
-            var lodParams = LODGroupExtensions.CalculateLODParams(cullingContext.lodParameters);
-
-            var planes = FrustumPlanes.BuildSOAPlanePackets(cullingContext.cullingPlanes, Allocator.TempJob);
+            var lodParams = LODGroupExtensions.CalculateLODParams(state.GetWorldBlackboardEntity().GetComponentData<CullingContext>().lodParameters);
 
             bool lodParamsMatchPrev  = lodParams.Equals(m_PrevLODParams);
             var  resetLod            = !lodParamsMatchPrev;
             resetLod                |= m_firstRun;
-            resetLod                |= (EntityManager.GetComponentOrderVersion<LODRange>() - m_lastLodRangeOrderVersion) > 0;
-            resetLod                |= (EntityManager.GetComponentOrderVersion<HybridChunkInfo>() - m_lastChunkInfoOrderVersion) > 0;
+            resetLod                |= (state.EntityManager.GetComponentOrderVersion<LODRange>() - m_lastLodRangeOrderVersion) > 0;
+            resetLod                |= (state.EntityManager.GetComponentOrderVersion<HybridChunkInfo>() - m_lastChunkInfoOrderVersion) > 0;
 
             if (resetLod)
             {
@@ -65,31 +60,34 @@ namespace Latios.Kinemation.Systems
                 var selectLodEnabledJob = new SelectLodEnabled
                 {
                     lodParamsMatchPrev = lodParamsMatchPrev,
-                    lastSystemVersion  = LastSystemVersion,
+                    lastSystemVersion  = state.LastSystemVersion,
 
                     LODParams                 = lodParams,
-                    RootLODRanges             = GetComponentTypeHandle<RootLODRange>(true),
-                    RootLODReferencePoints    = GetComponentTypeHandle<RootLODWorldReferencePoint>(true),
-                    LODRanges                 = GetComponentTypeHandle<LODRange>(true),
-                    LODReferencePoints        = GetComponentTypeHandle<LODWorldReferencePoint>(true),
-                    HybridChunkInfo           = GetComponentTypeHandle<HybridChunkInfo>(),
-                    ChunkHeader               = GetComponentTypeHandle<ChunkHeader>(),
+                    RootLODRanges             = state.GetComponentTypeHandle<RootLODRange>(true),
+                    RootLODReferencePoints    = state.GetComponentTypeHandle<RootLODWorldReferencePoint>(true),
+                    LODRanges                 = state.GetComponentTypeHandle<LODRange>(true),
+                    LODReferencePoints        = state.GetComponentTypeHandle<LODWorldReferencePoint>(true),
+                    HybridChunkInfo           = state.GetComponentTypeHandle<HybridChunkInfo>(),
+                    ChunkHeader               = state.GetComponentTypeHandle<ChunkHeader>(),
                     CameraMoveDistanceFixed16 =
                         Fixed16CamDistance.FromFloatCeil(cameraMoveDistance * lodParams.distanceScale),
                     DistanceScale        = lodParams.distanceScale,
                     DistanceScaleChanged = lodDistanceScaleChanged,
                 };
 
-                Dependency = selectLodEnabledJob.ScheduleParallel(m_query, Dependency);
+                state.Dependency = selectLodEnabledJob.ScheduleParallel(m_query, state.Dependency);
 
                 m_PrevLODParams        = lodParams;
                 m_PrevLodDistanceScale = lodParams.distanceScale;
                 m_PrevCameraPos        = lodParams.cameraPos;
                 m_firstRun             = false;
             }
-            m_lastLodRangeOrderVersion  = EntityManager.GetComponentOrderVersion<LODRange>();
-            m_lastChunkInfoOrderVersion = EntityManager.GetComponentOrderVersion<HybridChunkInfo>();
-            Dependency                  = planes.Dispose(Dependency);
+            m_lastLodRangeOrderVersion  = state.EntityManager.GetComponentOrderVersion<LODRange>();
+            m_lastChunkInfoOrderVersion = state.EntityManager.GetComponentOrderVersion<HybridChunkInfo>();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

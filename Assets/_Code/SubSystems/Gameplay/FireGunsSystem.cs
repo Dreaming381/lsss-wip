@@ -62,6 +62,9 @@ namespace Lsss
                     reloadTimes.bulletsRemaining = math.select(reloadTimes.bulletsRemaining, reloadTimes.bulletsPerClip, reloadClip);
                 }
             }).ScheduleParallel();
+
+            //CompleteDependency();
+            //EntityManager.CompleteAllJobs();
         }
     }
 }

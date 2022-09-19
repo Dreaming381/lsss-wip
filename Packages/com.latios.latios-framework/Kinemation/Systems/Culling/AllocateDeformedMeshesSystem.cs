@@ -3,7 +3,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 // This system doesn't actually allocate the compute buffer.
 // Doing so now would introduce a sync point.
@@ -11,52 +10,58 @@ using Unity.Transforms;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class AllocateDeformedMeshesSystem : SubSystem
+    [BurstCompile]
+    public partial struct AllocateDeformedMeshesSystem : ISystem
     {
         EntityQuery m_metaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_metaQuery = Fluent.WithAll<ChunkHeader>(true).WithAll<ChunkComputeDeformMemoryMetadata>().Build();
+            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkComputeDeformMemoryMetadata>().Build();
 
-            worldBlackboardEntity.AddComponent<MaxRequiredDeformVertices>();
+            state.GetWorldBlackboardEntity().AddComponent<MaxRequiredDeformVertices>();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            int deformIndex = worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>().AsNativeArray()
+            int deformIndex = state.GetWorldBlackboardEntity().GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>().AsNativeArray()
                               .IndexOf(ComponentType.ReadOnly<ComputeDeformShaderIndex>());
             ulong deformMaterialMaskLower = (ulong)deformIndex >= 64UL ? 0UL : (1UL << deformIndex);
             ulong deformMaterialMaskUpper = (ulong)deformIndex >= 64UL ? (1UL << (deformIndex - 64)) : 0UL;
 
-            var metaHandle          = GetComponentTypeHandle<ChunkComputeDeformMemoryMetadata>();
-            var perCameraMaskHandle = GetComponentTypeHandle<ChunkPerCameraCullingMask>(true);
-            var perFrameMaskHandle  = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true);
+            var metaHandle          = state.GetComponentTypeHandle<ChunkComputeDeformMemoryMetadata>();
+            var perCameraMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true);
+            var perFrameMaskHandle  = state.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true);
 
-            var chunkList = World.UpdateAllocator.AllocateNativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering());
+            var chunkList = state.WorldUnmanaged.UpdateAllocator.AllocateNativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering());
 
-            Dependency = new ChunkPrefixSumJob
+            state.Dependency = new ChunkPrefixSumJob
             {
                 perCameraMaskHandle           = perCameraMaskHandle,
                 perFrameMaskHandle            = perFrameMaskHandle,
-                chunkHeaderHandle             = GetComponentTypeHandle<ChunkHeader>(true),
+                chunkHeaderHandle             = state.GetComponentTypeHandle<ChunkHeader>(true),
                 metaHandle                    = metaHandle,
-                materialMaskHandle            = GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(),
-                maxRequiredDeformVerticesCdfe = GetComponentDataFromEntity<MaxRequiredDeformVertices>(),
-                worldBlackboardEntity         = worldBlackboardEntity,
+                materialMaskHandle            = state.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(),
+                maxRequiredDeformVerticesCdfe = state.GetComponentDataFromEntity<MaxRequiredDeformVertices>(),
+                worldBlackboardEntity         = state.GetWorldBlackboardEntity(),
                 changedChunkList              = chunkList,
                 deformMaterialMaskLower       = deformMaterialMaskLower,
                 deformMaterialMaskUpper       = deformMaterialMaskUpper
-            }.Schedule(m_metaQuery, Dependency);
+            }.Schedule(m_metaQuery, state.Dependency);
 
-            Dependency = new AssignComputeDeformMeshOffsetsJob
+            state.Dependency = new AssignComputeDeformMeshOffsetsJob
             {
                 perCameraMaskHandle = perCameraMaskHandle,
                 perFrameMaskHandle  = perFrameMaskHandle,
                 metaHandle          = metaHandle,
                 changedChunks       = chunkList.AsDeferredJobArray(),
-                indicesHandle       = GetComponentTypeHandle<ComputeDeformShaderIndex>()
-            }.Schedule(chunkList, 1, Dependency);
+                indicesHandle       = state.GetComponentTypeHandle<ComputeDeformShaderIndex>()
+            }.Schedule(chunkList, 1, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         // Schedule single

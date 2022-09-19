@@ -11,25 +11,31 @@ namespace Latios.Kinemation.Systems
     [UpdateAfter(typeof(TRSToLocalToParentSystem))]
     [UpdateBefore(typeof(TRSToLocalToWorldSystem))]
     [DisableAutoCreation]
-    public partial class CopyTransformFromBoneSystem : SubSystem
+    [BurstCompile]
+    public partial struct CopyTransformFromBoneSystem : ISystem
     {
         EntityQuery m_query;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<LocalToParent>(false).WithAll<CopyLocalToParentFromBone>(true).WithAll<BoneOwningSkeletonReference>(true).Build();
+            m_query = state.Fluent().WithAll<LocalToParent>(false).WithAll<CopyLocalToParentFromBone>(true).WithAll<BoneOwningSkeletonReference>(true).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            Dependency = new CopyFromBoneJob
+            state.Dependency = new CopyFromBoneJob
             {
-                fromBoneHandle    = GetComponentTypeHandle<CopyLocalToParentFromBone>(true),
-                skeletonHandle    = GetComponentTypeHandle<BoneOwningSkeletonReference>(true),
-                btrBfe            = GetBufferFromEntity<OptimizedBoneToRoot>(true),
-                ltpHandle         = GetComponentTypeHandle<LocalToParent>(false),
-                lastSystemVersion = LastSystemVersion
-            }.ScheduleParallel(m_query, Dependency);
+                fromBoneHandle    = state.GetComponentTypeHandle<CopyLocalToParentFromBone>(true),
+                skeletonHandle    = state.GetComponentTypeHandle<BoneOwningSkeletonReference>(true),
+                btrBfe            = state.GetBufferFromEntity<OptimizedBoneToRoot>(true),
+                ltpHandle         = state.GetComponentTypeHandle<LocalToParent>(false),
+                lastSystemVersion = state.LastSystemVersion
+            }.ScheduleParallel(m_query, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]

@@ -29,12 +29,6 @@ namespace Latios
 
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<InstantiateCommandBufferUntyped>();
 
-        [BurstDiscard]
-        static void CreateStaticSafetyId()
-        {
-            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<InstantiateCommandBufferUntyped>();
-        }
-
         [NativeSetClassTypeToNullOnSchedule]
         //Unfortunately this name is hardcoded into Unity.
         DisposeSentinel m_DisposeSentinel;
@@ -42,11 +36,11 @@ namespace Latios
 
         private struct State
         {
-            public ComponentTypes        tagsToAdd;
-            public FixedList64Bytes<int> typesWithData;
-            public FixedList64Bytes<int> typesSizes;
-            public Allocator             allocator;
-            public bool                  playedBack;
+            public ComponentTypes                   tagsToAdd;
+            public FixedList64Bytes<int>            typesWithData;
+            public FixedList64Bytes<int>            typesSizes;
+            public AllocatorManager.AllocatorHandle allocator;
+            public bool                             playedBack;
         }
 
         private struct PrefabSortkey : IRadixSortableInt3
@@ -62,12 +56,29 @@ namespace Latios
         #endregion
 
         #region CreateDestroy
-        public InstantiateCommandBufferUntyped(Allocator allocator, FixedList64Bytes<ComponentType> typesWithData) : this(allocator, typesWithData, 1)
+        public InstantiateCommandBufferUntyped(AllocatorManager.AllocatorHandle allocator, FixedList64Bytes<ComponentType> typesWithData) : this(allocator, typesWithData, 1)
         {
         }
 
-        internal InstantiateCommandBufferUntyped(Allocator allocator, FixedList64Bytes<ComponentType> componentTypesWithData, int disposeSentinalStackDepth)
+        internal InstantiateCommandBufferUntyped(AllocatorManager.AllocatorHandle allocator, FixedList64Bytes<ComponentType> componentTypesWithData, int disposeSentinalStackDepth)
         {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            CheckAllocator(allocator);
+
+            if (allocator.IsCustomAllocator)
+            {
+                m_Safety = AtomicSafetyHandle.Create();
+                m_DisposeSentinel = null;
+            }
+            else
+            {
+                DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, 2, allocator.ToAllocator);
+            }
+
+            CollectionHelper.SetStaticSafetyId<EntityOperationCommandBuffer>(ref m_Safety, ref s_staticSafetyId.Data);
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+#endif
+
             int                   dataPayloadSize = 0;
             FixedList64Bytes<int> typesSizes      = new FixedList64Bytes<int>();
             FixedList64Bytes<int> typesWithData   = new FixedList64Bytes<int>();
@@ -79,13 +90,9 @@ namespace Latios
                 typesWithData.Add(componentTypesWithData[i].TypeIndex);
             }
             CheckComponentTypesValid(BuildComponentTypesFromFixedList(typesWithData));
-            m_prefabSortkeyBlockList = (UnsafeParallelBlockList*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<UnsafeParallelBlockList>(),
-                                                                                      UnsafeUtility.AlignOf<UnsafeParallelBlockList>(),
-                                                                                      allocator);
-            m_componentDataBlockList = (UnsafeParallelBlockList*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<UnsafeParallelBlockList>(),
-                                                                                      UnsafeUtility.AlignOf<UnsafeParallelBlockList>(),
-                                                                                      allocator);
-            m_state                   = (State*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<State>(), UnsafeUtility.AlignOf<State>(), allocator);
+            m_prefabSortkeyBlockList  = AllocatorManager.Allocate<UnsafeParallelBlockList>(allocator, 1);
+            m_componentDataBlockList  = AllocatorManager.Allocate<UnsafeParallelBlockList>(allocator, 1);
+            m_state                   = AllocatorManager.Allocate<State>(allocator, 1);
             *m_prefabSortkeyBlockList = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<PrefabSortkey>(), 256, allocator);
             *m_componentDataBlockList = new UnsafeParallelBlockList(dataPayloadSize, 256, allocator);
             *m_state                  = new State
@@ -96,16 +103,6 @@ namespace Latios
                 allocator     = allocator,
                 playedBack    = false
             };
-
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, disposeSentinalStackDepth, allocator);
-
-            if (s_staticSafetyId.Data == 0)
-            {
-                CreateStaticSafetyId();
-            }
-            AtomicSafetyHandle.SetStaticSafetyId(ref m_Safety, s_staticSafetyId.Data);
-#endif
         }
 
         [BurstCompile]
@@ -160,9 +157,12 @@ namespace Latios
             var allocator = state->allocator;
             prefabSortkeyBlockList->Dispose();
             componentDataBlockList->Dispose();
-            UnsafeUtility.Free(prefabSortkeyBlockList, allocator);
-            UnsafeUtility.Free(componentDataBlockList, allocator);
-            UnsafeUtility.Free(state,                  allocator);
+            AllocatorManager.Free(allocator, prefabSortkeyBlockList, 1);
+            AllocatorManager.Free(allocator, componentDataBlockList, 1);
+            AllocatorManager.Free(allocator, state, 1);
+            //UnsafeUtility.Free(prefabSortkeyBlockList, allocator);
+            //UnsafeUtility.Free(componentDataBlockList, allocator);
+            //UnsafeUtility.Free(state,                  allocator);
         }
         #endregion
 
@@ -347,9 +347,8 @@ namespace Latios
         {
             var writer = new ParallelWriter(m_prefabSortkeyBlockList, m_componentDataBlockList, m_state);
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
             writer.m_Safety = m_Safety;
-            AtomicSafetyHandle.UseSecondaryVersion(ref writer.m_Safety);
+            CollectionHelper.SetStaticSafetyId<ParallelWriter>(ref writer.m_Safety, ref ParallelWriter.s_staticSafetyId.Data);
 #endif
             return writer;
         }
@@ -730,7 +729,16 @@ namespace Latios
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             throw new InvalidOperationException(
-                "At least 5 tags have already been added and adding more is not supported. Use SetComponentTags instead.");
+                "At least 15 tags have already been added and adding more is not supported.");
+#endif
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
+        {
+            if (allocator.ToAllocator <= Allocator.None)
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                throw new System.InvalidOperationException("Allocator cannot be Invalid or None");
 #endif
         }
         #endregion
@@ -754,6 +762,7 @@ namespace Latios
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             //More ugly Unity naming
             internal AtomicSafetyHandle m_Safety;
+            internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
             internal ParallelWriter(UnsafeParallelBlockList* prefabSortkeyBlockList, UnsafeParallelBlockList* componentDataBlockList, void* state)
@@ -865,4 +874,6 @@ namespace Latios
         #endregion
     }
 }
+
+
 

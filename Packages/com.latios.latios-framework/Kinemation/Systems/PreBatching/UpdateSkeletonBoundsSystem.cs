@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
@@ -6,52 +5,57 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Rendering;
 using Unity.Transforms;
 
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class UpdateSkeletonBoundsSystem : SubSystem
+    [BurstCompile]
+    public partial struct UpdateSkeletonBoundsSystem : ISystem
     {
         EntityQuery m_exposedBonesQuery;
         EntityQuery m_optimizedSkeletonsQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_exposedBonesQuery = Fluent.WithAll<BoneBounds>(true).WithAll<BoneWorldBounds>(false).WithAll<ChunkBoneWorldBounds>(false, true)
+            m_exposedBonesQuery = state.Fluent().WithAll<BoneBounds>(true).WithAll<BoneWorldBounds>(false).WithAll<ChunkBoneWorldBounds>(false, true)
                                   .WithAll<LocalToWorld>(            true).Build();
 
-            m_optimizedSkeletonsQuery = Fluent.WithAll<OptimizedBoneBounds>(true).WithAll<OptimizedBoneToRoot>(true).WithAll<SkeletonWorldBounds>(false)
+            m_optimizedSkeletonsQuery = state.Fluent().WithAll<OptimizedBoneBounds>(true).WithAll<OptimizedBoneToRoot>(true).WithAll<SkeletonWorldBounds>(false)
                                         .WithAll<ChunkSkeletonWorldBounds>(false, true).WithAll<LocalToWorld>(true).Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var ltwHandle         = GetComponentTypeHandle<LocalToWorld>(true);
-            var lastSystemVersion = LastSystemVersion;
+            var ltwHandle         = state.GetComponentTypeHandle<LocalToWorld>(true);
+            var lastSystemVersion = state.LastSystemVersion;
 
-            Dependency = new ExposedBoneBoundsJob
+            state.Dependency = new ExposedBoneBoundsJob
             {
-                boneBoundsHandle              = GetComponentTypeHandle<BoneBounds>(true),
+                boneBoundsHandle              = state.GetComponentTypeHandle<BoneBounds>(true),
                 ltwHandle                     = ltwHandle,
-                boneWorldBoundsReadOnlyHandle = GetComponentTypeHandle<BoneWorldBounds>(true),
-                boneWorldBoundsHandle         = GetComponentTypeHandle<BoneWorldBounds>(false),
-                chunkBoneWorldBoundsHandle    = GetComponentTypeHandle<ChunkBoneWorldBounds>(false),
+                boneWorldBoundsReadOnlyHandle = state.GetComponentTypeHandle<BoneWorldBounds>(true),
+                boneWorldBoundsHandle         = state.GetComponentTypeHandle<BoneWorldBounds>(false),
+                chunkBoneWorldBoundsHandle    = state.GetComponentTypeHandle<ChunkBoneWorldBounds>(false),
                 lastSystemVersion             = lastSystemVersion
-            }.ScheduleParallel(m_exposedBonesQuery, Dependency);
+            }.ScheduleParallel(m_exposedBonesQuery, state.Dependency);
 
             // Todo: Increase batches per chunk?
-            Dependency = new OptimizedBoneBoundsJob
+            state.Dependency = new OptimizedBoneBoundsJob
             {
-                boneBoundsHandle                  = GetBufferTypeHandle<OptimizedBoneBounds>(true),
-                boneToRootHandle                  = GetBufferTypeHandle<OptimizedBoneToRoot>(true),
+                boneBoundsHandle                  = state.GetBufferTypeHandle<OptimizedBoneBounds>(true),
+                boneToRootHandle                  = state.GetBufferTypeHandle<OptimizedBoneToRoot>(true),
                 ltwHandle                         = ltwHandle,
-                skeletonWorldBoundsReadOnlyHandle = GetComponentTypeHandle<SkeletonWorldBounds>(true),
-                skeletonWorldBoundsHandle         = GetComponentTypeHandle<SkeletonWorldBounds>(false),
-                chunkSkeletonWorldBoundsHandle    = GetComponentTypeHandle<ChunkSkeletonWorldBounds>(false),
+                skeletonWorldBoundsReadOnlyHandle = state.GetComponentTypeHandle<SkeletonWorldBounds>(true),
+                skeletonWorldBoundsHandle         = state.GetComponentTypeHandle<SkeletonWorldBounds>(false),
+                chunkSkeletonWorldBoundsHandle    = state.GetComponentTypeHandle<ChunkSkeletonWorldBounds>(false),
                 lastSystemVersion                 = lastSystemVersion
-            }.ScheduleParallel(m_optimizedSkeletonsQuery, Dependency);
+            }.ScheduleParallel(m_optimizedSkeletonsQuery, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         [BurstCompile]
@@ -90,11 +94,11 @@ namespace Latios.Kinemation.Systems
                 worldBounds[0]   = new BoneWorldBounds { bounds = chunkBounds };
                 for (int i = 1; i < batchInChunk.Count; i++)
                 {
-                    var newBounds  = ComputeBounds(boneBounds[i].radialOffsetInBoneSpace, ltws[i].Value);
-                    newBounds.min -= boneBounds[i].radialOffsetInWorldSpace;
-                    newBounds.max += boneBounds[i].radialOffsetInWorldSpace;
-                    worldBounds[i] = new BoneWorldBounds { bounds = newBounds };
-                    chunkBounds    = Physics.CombineAabb(chunkBounds, newBounds);
+                    var newBounds   = ComputeBounds(boneBounds[i].radialOffsetInBoneSpace, ltws[i].Value);
+                    newBounds.min  -= boneBounds[i].radialOffsetInWorldSpace;
+                    newBounds.max  += boneBounds[i].radialOffsetInWorldSpace;
+                    worldBounds[i]  = new BoneWorldBounds { bounds = newBounds };
+                    chunkBounds     = Physics.CombineAabb(chunkBounds, newBounds);
                 }
 
                 batchInChunk.SetChunkComponentData(chunkBoneWorldBoundsHandle, new ChunkBoneWorldBounds { chunkBounds = FromAabb(chunkBounds) });
@@ -113,7 +117,7 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public BufferTypeHandle<OptimizedBoneBounds>                                   boneBoundsHandle;
             [ReadOnly] public BufferTypeHandle<OptimizedBoneToRoot>                                   boneToRootHandle;
             [ReadOnly] public ComponentTypeHandle<LocalToWorld>                                       ltwHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonShaderBoundsOffset> shaderBoundsHandle;
+            [ReadOnly] public ComponentTypeHandle<SkeletonShaderBoundsOffset>                         shaderBoundsHandle;
             [ReadOnly] public ComponentTypeHandle<SkeletonWorldBounds>                                skeletonWorldBoundsReadOnlyHandle;
             [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<SkeletonWorldBounds> skeletonWorldBoundsHandle;
             public ComponentTypeHandle<ChunkSkeletonWorldBounds>                                      chunkSkeletonWorldBoundsHandle;
@@ -139,21 +143,21 @@ namespace Latios.Kinemation.Systems
                 if (!needsUpdate)
                     return;
 
-                var boneBounds  = batchInChunk.GetBufferAccessor(boneBoundsHandle);
-                var boneToRoots = batchInChunk.GetBufferAccessor(boneToRootHandle);
-                var ltws        = batchInChunk.GetNativeArray(ltwHandle);
+                var boneBounds   = batchInChunk.GetBufferAccessor(boneBoundsHandle);
+                var boneToRoots  = batchInChunk.GetBufferAccessor(boneToRootHandle);
+                var ltws         = batchInChunk.GetNativeArray(ltwHandle);
                 var shaderBounds = batchInChunk.GetNativeArray(shaderBoundsHandle);
-                var worldBounds = batchInChunk.GetNativeArray(skeletonWorldBoundsHandle);
+                var worldBounds  = batchInChunk.GetNativeArray(skeletonWorldBoundsHandle);
 
                 Aabb chunkBounds = ComputeBounds(boneBounds[0], boneToRoots[0], ltws[0].Value);
                 worldBounds[0]   = new SkeletonWorldBounds { bounds = FromAabb(chunkBounds) };
                 for (int i = 1; i < batchInChunk.Count; i++)
                 {
-                    var newBounds  = ComputeBounds(boneBounds[i], boneToRoots[i], ltws[i].Value);
-                    newBounds.min -= shaderBounds[i].radialBoundsInWorldSpace;
-                    newBounds.max += shaderBounds[i].radialBoundsInWorldSpace;
-                    worldBounds[i] = new SkeletonWorldBounds { bounds = FromAabb(newBounds) };
-                    chunkBounds    = Physics.CombineAabb(chunkBounds, newBounds);
+                    var newBounds   = ComputeBounds(boneBounds[i], boneToRoots[i], ltws[i].Value);
+                    newBounds.min  -= shaderBounds[i].radialBoundsInWorldSpace;
+                    newBounds.max  += shaderBounds[i].radialBoundsInWorldSpace;
+                    worldBounds[i]  = new SkeletonWorldBounds { bounds = FromAabb(newBounds) };
+                    chunkBounds     = Physics.CombineAabb(chunkBounds, newBounds);
                 }
 
                 batchInChunk.SetChunkComponentData(chunkSkeletonWorldBoundsHandle, new ChunkSkeletonWorldBounds { chunkBounds = FromAabb(chunkBounds) });

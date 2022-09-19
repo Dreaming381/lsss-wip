@@ -18,6 +18,7 @@ namespace Lsss
 
         protected unsafe override void OnUpdate()
         {
+            var settings       = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             var warpZoneBodies = new NativeArray<ColliderBody>(m_warpZoneQuery.CalculateEntityCount(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
             Entities.WithAll<GravityWarpZoneTag>().WithStoreEntityQueryInField(ref m_warpZoneQuery).
@@ -31,7 +32,7 @@ namespace Lsss
                 };
             }).ScheduleParallel();
 
-            Dependency = Physics.BuildCollisionLayer(warpZoneBodies).ScheduleParallel(out CollisionLayer warpZoneLayer, Allocator.TempJob, Dependency);
+            Dependency = Physics.BuildCollisionLayer(warpZoneBodies).WithSettings(settings).ScheduleParallel(out CollisionLayer warpZoneLayer, Allocator.TempJob, Dependency);
 
             int warpedCount  = m_warpedQuery.CalculateEntityCount();
             var warpedBodies = new NativeArray<ColliderBody>(warpedCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
@@ -54,7 +55,9 @@ namespace Lsss
                 };
             }).ScheduleParallel();
 
-            Dependency = Physics.BuildCollisionLayer(warpedBodies, warpedAabbs).ScheduleParallel(out CollisionLayer warpedLayer, Allocator.TempJob, Dependency);
+            Dependency = Physics.BuildCollisionLayer(warpedBodies, warpedAabbs)
+                         .WithSettings(settings)
+                         .ScheduleParallel(out CollisionLayer warpedLayer, Allocator.TempJob, Dependency);
 
             ApplyWarpZoneDataProcessor processor = new ApplyWarpZoneDataProcessor
             {
@@ -85,7 +88,7 @@ namespace Lsss
             public PhysicsComponentDataFromEntity<GravityWarpZoneParamsProperty>         paramsCdfe;
             [ReadOnly] public ComponentDataFromEntity<GravityWarpZone>                   warpZoneCdfe;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
                 SphereCollider sphere = result.bodyA.collider;
                 var            bounds = boundsCdfe[result.entityB];

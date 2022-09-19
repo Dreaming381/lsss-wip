@@ -14,42 +14,46 @@ namespace Latios.Psyshock
 
     public struct CollisionLayer : IDisposable
     {
-        [NoAlias] internal NativeArray<int2>                                              bucketStartsAndCounts;
-        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float>        xmins;
-        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float>        xmaxs;
-        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<float4>       yzminmaxs;
-        [NoAlias, NativeDisableParallelForRestriction] internal NativeArray<ColliderBody> bodies;
-        internal float3                                                                   worldMin;
-        internal float3                                                                   worldAxisStride;
-        internal int3                                                                     worldSubdivisionsPerAxis;
+        internal NativeArray<int2>                                                   bucketStartsAndCounts;
+        [NativeDisableParallelForRestriction] internal NativeArray<float>            xmins;
+        [NativeDisableParallelForRestriction] internal NativeArray<float>            xmaxs;
+        [NativeDisableParallelForRestriction] internal NativeArray<float4>           yzminmaxs;
+        [NativeDisableParallelForRestriction] internal NativeArray<IntervalTreeNode> intervalTrees;
+        [NativeDisableParallelForRestriction] internal NativeArray<ColliderBody>     bodies;
+        internal float3                                                              worldMin;
+        internal float3                                                              worldAxisStride;
+        internal int3                                                                worldSubdivisionsPerAxis;
 
         //Todo: World settings?
-        internal CollisionLayer(int bodyCount, CollisionLayerSettings settings, Allocator allocator)
+        internal CollisionLayer(int bodyCount, CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator)
         {
             worldMin                 = settings.worldAABB.min;
             worldAxisStride          = (settings.worldAABB.max - worldMin) / settings.worldSubdivisionsPerAxis;
             worldSubdivisionsPerAxis = settings.worldSubdivisionsPerAxis;
 
-            bucketStartsAndCounts = new NativeArray<int2>(settings.worldSubdivisionsPerAxis.x * settings.worldSubdivisionsPerAxis.y * settings.worldSubdivisionsPerAxis.z + 1,
-                                                          allocator,
-                                                          NativeArrayOptions.UninitializedMemory);
-            xmins     = new NativeArray<float>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
-            xmaxs     = new NativeArray<float>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
-            yzminmaxs = new NativeArray<float4>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
-            bodies    = new NativeArray<ColliderBody>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
+            bucketStartsAndCounts = CollectionHelper.CreateNativeArray<int2>(
+                settings.worldSubdivisionsPerAxis.x * settings.worldSubdivisionsPerAxis.y * settings.worldSubdivisionsPerAxis.z + 2,
+                allocator,
+                NativeArrayOptions.UninitializedMemory);
+            xmins         = CollectionHelper.CreateNativeArray<float>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
+            xmaxs         = CollectionHelper.CreateNativeArray<float>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
+            yzminmaxs     = CollectionHelper.CreateNativeArray<float4>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
+            intervalTrees = CollectionHelper.CreateNativeArray<IntervalTreeNode>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
+            bodies        = CollectionHelper.CreateNativeArray<ColliderBody>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
         }
 
-        public CollisionLayer(CollisionLayer sourceLayer, Allocator allocator)
+        public CollisionLayer(CollisionLayer sourceLayer, AllocatorManager.AllocatorHandle allocator)
         {
             worldMin                 = sourceLayer.worldMin;
             worldAxisStride          = sourceLayer.worldAxisStride;
             worldSubdivisionsPerAxis = sourceLayer.worldSubdivisionsPerAxis;
 
-            bucketStartsAndCounts = new NativeArray<int2>(sourceLayer.bucketStartsAndCounts, allocator);
-            xmins                 = new NativeArray<float>(sourceLayer.xmins, allocator);
-            xmaxs                 = new NativeArray<float>(sourceLayer.xmaxs, allocator);
-            yzminmaxs             = new NativeArray<float4>(sourceLayer.yzminmaxs, allocator);
-            bodies                = new NativeArray<ColliderBody>(sourceLayer.bodies, allocator);
+            bucketStartsAndCounts = CollectionHelper.CreateNativeArray(sourceLayer.bucketStartsAndCounts, allocator);
+            xmins                 = CollectionHelper.CreateNativeArray(sourceLayer.xmins, allocator);
+            xmaxs                 = CollectionHelper.CreateNativeArray(sourceLayer.xmaxs, allocator);
+            yzminmaxs             = CollectionHelper.CreateNativeArray(sourceLayer.yzminmaxs, allocator);
+            intervalTrees         = CollectionHelper.CreateNativeArray(sourceLayer.intervalTrees, allocator);
+            bodies                = CollectionHelper.CreateNativeArray(sourceLayer.bodies, allocator);
         }
 
         public void Dispose()
@@ -58,24 +62,26 @@ namespace Latios.Psyshock
             xmins.Dispose();
             xmaxs.Dispose();
             yzminmaxs.Dispose();
+            intervalTrees.Dispose();
             bodies.Dispose();
         }
 
         public unsafe JobHandle Dispose(JobHandle inputDeps)
         {
-            JobHandle* deps = stackalloc JobHandle[5]
+            JobHandle* deps = stackalloc JobHandle[6]
             {
                 bucketStartsAndCounts.Dispose(inputDeps),
                 xmins.Dispose(inputDeps),
                 xmaxs.Dispose(inputDeps),
                 yzminmaxs.Dispose(inputDeps),
+                intervalTrees.Dispose(inputDeps),
                 bodies.Dispose(inputDeps)
             };
-            return Unity.Jobs.LowLevel.Unsafe.JobHandleUnsafeUtility.CombineDependencies(deps, 5);
+            return Unity.Jobs.LowLevel.Unsafe.JobHandleUnsafeUtility.CombineDependencies(deps, 6);
         }
 
         public int Count => xmins.Length;
-        public int BucketCount => bucketStartsAndCounts.Length;
+        public int BucketCount => bucketStartsAndCounts.Length - 1;  // For algorithmic purposes, we pretend the nan bucket doesn't exist.
 
         public bool IsCreated => bucketStartsAndCounts.IsCreated;
 
@@ -86,11 +92,12 @@ namespace Latios.Psyshock
 
             return new BucketSlices
             {
-                xmins       = xmins.GetSubArray(start, count),
-                xmaxs       = xmaxs.GetSubArray(start, count),
-                yzminmaxs   = yzminmaxs.GetSubArray(start, count),
-                bodies      = bodies.GetSubArray(start, count),
-                bucketIndex = bucketIndex,
+                xmins             = xmins.GetSubArray(start, count),
+                xmaxs             = xmaxs.GetSubArray(start, count),
+                yzminmaxs         = yzminmaxs.GetSubArray(start, count),
+                intervalTree      = intervalTrees.GetSubArray(start, count),
+                bodies            = bodies.GetSubArray(start, count),
+                bucketIndex       = bucketIndex,
                 bucketGlobalStart = start
             };
         }
@@ -98,13 +105,22 @@ namespace Latios.Psyshock
 
     internal struct BucketSlices
     {
-        public NativeArray<float>        xmins;
-        public NativeArray<float>        xmaxs;
-        public NativeArray<float4>       yzminmaxs;
-        public NativeArray<ColliderBody> bodies;
+        public NativeArray<float>            xmins;
+        public NativeArray<float>            xmaxs;
+        public NativeArray<float4>           yzminmaxs;
+        public NativeArray<IntervalTreeNode> intervalTree;
+        public NativeArray<ColliderBody>     bodies;
         public int count => xmins.Length;
         public int bucketIndex;
         public int bucketGlobalStart;
+    }
+
+    internal struct IntervalTreeNode
+    {
+        public float xmin;
+        public float xmax;
+        public float subtreeXmax;
+        public int   bucketRelativeBodyIndex;
     }
 
     /*public struct RayQueryLayer : IDisposable
@@ -123,12 +139,12 @@ namespace Latios.Psyshock
      *       this.gridCells1DFromOrigin = gridCells1DFromOrigin;
      *       gridSpacing                = worldHalfExtent / gridCells1DFromOrigin;
      *       int entityCount            = query.CalculateLength();
-     *       bucketRanges               = new NativeArray<int2>(gridCells1DFromOrigin * gridCells1DFromOrigin + 1, allocator, NativeArrayOptions.UninitializedMemory);
-     *       xmin                       = new NativeArray<float>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       xmax                       = new NativeArray<float>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       yzminmax                   = new NativeArray<float4>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       entity                     = new NativeArray<Entity>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       ray                        = new NativeArray<Ray>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
+     *       bucketRanges               = CollectionHelper.CreateNativeArray<int2>(gridCells1DFromOrigin * gridCells1DFromOrigin + 1, allocator, NativeArrayOptions.UninitializedMemory);
+     *       xmin                       = CollectionHelper.CreateNativeArray<float>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
+     *       xmax                       = CollectionHelper.CreateNativeArray<float>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
+     *       yzminmax                   = CollectionHelper.CreateNativeArray<float4>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
+     *       entity                     = CollectionHelper.CreateNativeArray<Entity>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
+     *       ray                        = CollectionHelper.CreateNativeArray<Ray>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
      *   }
      *
      *   public void Dispose()

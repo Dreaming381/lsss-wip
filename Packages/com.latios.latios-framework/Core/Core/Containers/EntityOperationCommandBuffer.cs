@@ -29,12 +29,6 @@ namespace Latios
 
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<EntityOperationCommandBuffer>();
 
-        [BurstDiscard]
-        static void CreateStaticSafetyId()
-        {
-            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<EntityOperationCommandBuffer>();
-        }
-
         [NativeSetClassTypeToNullOnSchedule]
         //Unfortunately this name is hardcoded into Unity.
         DisposeSentinel m_DisposeSentinel;
@@ -42,7 +36,7 @@ namespace Latios
 
         private struct State
         {
-            public Allocator allocator;
+            public AllocatorManager.AllocatorHandle allocator;
         }
 
         private struct EntityWithOperation : IRadixSortableInt, IRadixSortableInt3
@@ -64,31 +58,36 @@ namespace Latios
         /// Create an EntityOperationCommandBuffer which can be used to write entities from multiple threads and retrieve them in a deterministic order.
         /// </summary>
         /// <param name="allocator">The type of allocator to use for allocating the buffer</param>
-        public EntityOperationCommandBuffer(Allocator allocator) : this(allocator, 1)
+        public EntityOperationCommandBuffer(AllocatorManager.AllocatorHandle allocator) : this(allocator, 1)
         {
         }
 
-        internal EntityOperationCommandBuffer(Allocator allocator, int disposeSentinalStackDepth)
+        internal EntityOperationCommandBuffer(AllocatorManager.AllocatorHandle allocator, int disposeSentinalStackDepth)
         {
-            m_blockList = (UnsafeParallelBlockList*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<UnsafeParallelBlockList>(),
-                                                                         UnsafeUtility.AlignOf<UnsafeParallelBlockList>(),
-                                                                         allocator);
-            m_state      = (State*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<State>(), UnsafeUtility.AlignOf<State>(), allocator);
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            CheckAllocator(allocator);
+
+            if (allocator.IsCustomAllocator)
+            {
+                m_Safety = AtomicSafetyHandle.Create();
+                m_DisposeSentinel = null;
+            }
+            else
+            {
+                DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, 2, allocator.ToAllocator);
+            }
+
+            CollectionHelper.SetStaticSafetyId<EntityOperationCommandBuffer>(ref m_Safety, ref s_staticSafetyId.Data);
+            AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+#endif
+
+            m_blockList  = AllocatorManager.Allocate<UnsafeParallelBlockList>(allocator, 1);
+            m_state      = AllocatorManager.Allocate<State>(allocator, 1);
             *m_blockList = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<EntityWithOperation>(), 256, allocator);
             *m_state     = new State
             {
                 allocator = allocator,
             };
-
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, disposeSentinalStackDepth, allocator);
-
-            if (s_staticSafetyId.Data == 0)
-            {
-                CreateStaticSafetyId();
-            }
-            AtomicSafetyHandle.SetStaticSafetyId(ref m_Safety, s_staticSafetyId.Data);
-#endif
         }
 
         [BurstCompile]
@@ -143,8 +142,8 @@ namespace Latios
         {
             var allocator = state->allocator;
             blockList->Dispose();
-            UnsafeUtility.Free(blockList, allocator);
-            UnsafeUtility.Free(state,     allocator);
+            AllocatorManager.Free(allocator, blockList, 1);
+            AllocatorManager.Free(allocator, state, 1);
         }
         #endregion
 
@@ -283,9 +282,8 @@ namespace Latios
         {
             var writer = new ParallelWriter(m_blockList, m_state);
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
             writer.m_Safety = m_Safety;
-            AtomicSafetyHandle.UseSecondaryVersion(ref writer.m_Safety);
+            CollectionHelper.SetStaticSafetyId<ParallelWriter>(ref writer.m_Safety, ref ParallelWriter.s_staticSafetyId.Data);
 #endif
             return writer;
         }
@@ -392,6 +390,15 @@ namespace Latios
             AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
 #endif
         }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
+        {
+            if (allocator.ToAllocator <= Allocator.None)
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                throw new System.InvalidOperationException("Allocator cannot be Invalid or None");
+#endif
+        }
         #endregion
 
         #region ParallelWriter
@@ -414,6 +421,7 @@ namespace Latios
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             //More ugly Unity naming
             internal AtomicSafetyHandle m_Safety;
+            internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
             internal ParallelWriter(UnsafeParallelBlockList* blockList, void* state)
@@ -441,11 +449,15 @@ namespace Latios
             void CheckWriteAccess()
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-                AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+                AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
 #endif
             }
         }
         #endregion
     }
 }
+
+
+
+
 

@@ -1383,6 +1383,42 @@ namespace Latios.Psyshock
         }
         #endregion
 
+        #region Layer
+
+        public static bool ColliderCast(Collider colliderToCast,
+                                        RigidTransform castStart,
+                                        float3 castEnd,
+                                        CollisionLayer layer,
+                                        out ColliderCastResult result,
+                                        out LayerBodyInfo layerBodyInfo)
+        {
+            result        = default;
+            layerBodyInfo = default;
+            var processor = new LayerQueryProcessors.ColliderCastClosestImmediateProcessor(colliderToCast, castStart, castEnd, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(colliderToCast, castStart, castEnd), layer, processor).RunImmediate();
+            var hit                         = result.subColliderIndexOnTarget >= 0;
+            result.subColliderIndexOnTarget = math.max(result.subColliderIndexOnTarget, 0);
+            return hit;
+        }
+
+        public static bool ColliderCastAny(Collider colliderToCast,
+                                           RigidTransform castStart,
+                                           float3 castEnd,
+                                           CollisionLayer layer,
+                                           out ColliderCastResult result,
+                                           out LayerBodyInfo layerBodyInfo)
+        {
+            result        = default;
+            layerBodyInfo = default;
+            var processor = new LayerQueryProcessors.ColliderCastAnyImmediateProcessor(colliderToCast, castStart, castEnd, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(colliderToCast, castStart, castEnd), layer, processor).RunImmediate();
+            var hit                         = result.subColliderIndexOnTarget >= 0;
+            result.subColliderIndexOnTarget = math.max(result.subColliderIndexOnTarget, 0);
+            return hit;
+        }
+
+        #endregion
+
         #region Internal
         internal static bool ColliderCastMpr(Collider colliderToCast,
                                              RigidTransform castStart,

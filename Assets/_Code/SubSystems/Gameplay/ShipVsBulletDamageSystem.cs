@@ -69,7 +69,7 @@ namespace Lsss
             public DestroyCommandBuffer.ParallelWriter                            dcb;
             public InstantiateCommandBuffer<Rotation, Translation>.ParallelWriter icb;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
                 var bulletFirer = bulletFirerCdfe[result.entityA];
 

@@ -27,7 +27,7 @@ namespace Lsss
         {
             public DestroyCommandBuffer.ParallelWriter dcb;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {

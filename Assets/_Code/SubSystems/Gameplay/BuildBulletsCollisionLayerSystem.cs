@@ -18,14 +18,17 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var bodies = new NativeArray<ColliderBody>(m_query.CalculateEntityCount(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
 
-            Entities.WithAll<BulletTag>().WithStoreEntityQueryInField(ref m_query).ForEach((Entity entity,
-                                                                                            int entityInQueryIndex,
-                                                                                            in Translation translation,
-                                                                                            in Rotation rotation,
-                                                                                            in Collider collider,
-                                                                                            in BulletPreviousPosition previousPosition) =>
+            var bodies =
+                CollectionHelper.CreateNativeArray<ColliderBody>(m_query.CalculateEntityCount(), World.UpdateAllocator.ToAllocator, NativeArrayOptions.UninitializedMemory);
+
+            Entities.WithAll<BulletTag>().ForEach((Entity entity,
+                                                   int entityInQueryIndex,
+                                                   in Translation translation,
+                                                   in Rotation rotation,
+                                                   in Collider collider,
+                                                   in BulletPreviousPosition previousPosition) =>
             {
                 CapsuleCollider capsule     = collider;
                 float           tailLength  = math.distance(translation.Value, previousPosition.previousPosition);
@@ -38,12 +41,10 @@ namespace Lsss
                     entity    = entity,
                     transform = new RigidTransform(rotation.Value, translation.Value)
                 };
-            }).ScheduleParallel();
+            }).WithStoreEntityQueryInField(ref m_query).ScheduleParallel();
 
-            Dependency = Physics.BuildCollisionLayer(bodies).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
-            Dependency = bodies.Dispose(Dependency);
-
-            var bcl = new BulletCollisionLayer { layer = layer };
+            Dependency = Physics.BuildCollisionLayer(bodies).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+            var bcl    = new BulletCollisionLayer { layer = layer };
             sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
         }
     }

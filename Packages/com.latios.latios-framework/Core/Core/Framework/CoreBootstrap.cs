@@ -36,12 +36,24 @@ namespace Latios
             if (world.Flags.HasFlag(WorldFlags.Conversion))
                 throw new System.InvalidOperationException("Cannot install Improved Transforms in a conversion world.");
 
-            if (world.GetExistingSystem<ExtremeLocalToParentSystem>() != null)
+            var unmanaged = world.Unmanaged;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            bool caughtException = false;
+
+            try
             {
-                throw new System.InvalidOperationException("Cannot install Improved Transforms when Extreme Transforms are already installed.");
+                unmanaged.GetExistingUnmanagedSystem<ExtremeParentSystem>();
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Failed to find the unmanaged system
+                caughtException = true;
             }
 
-            var unmanaged = world.Unmanaged;
+            if (!caughtException)
+                throw new System.InvalidOperationException("Cannot install Improved Transforms when Extreme Transforms are already installed.");
+#endif
 
             try
             {
@@ -80,6 +92,7 @@ namespace Latios
 
             var unmanaged = world.Unmanaged;
 
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
             bool caughtException = false;
 
             try
@@ -94,6 +107,7 @@ namespace Latios
 
             if (!caughtException)
                 throw new System.InvalidOperationException("Cannot install Extreme Transforms when Improved Transforms are already installed");
+#endif
 
             try
             {

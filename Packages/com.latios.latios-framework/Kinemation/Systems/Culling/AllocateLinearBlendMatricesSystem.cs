@@ -3,7 +3,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 // This system doesn't actually allocate the compute buffer.
 // Doing so now would introduce a sync point.
@@ -11,52 +10,58 @@ using Unity.Transforms;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class AllocateLinearBlendMatricesSystem : SubSystem
+    [BurstCompile]
+    public partial struct AllocateLinearBlendMatricesSystem : ISystem
     {
         EntityQuery m_metaQuery;
 
-        protected override void OnCreate()
+        public void OnCreate(ref SystemState state)
         {
-            m_metaQuery = Fluent.WithAll<ChunkHeader>(true).WithAll<ChunkLinearBlendSkinningMemoryMetadata>().Build();
+            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkLinearBlendSkinningMemoryMetadata>().Build();
 
-            worldBlackboardEntity.AddComponent<MaxRequiredLinearBlendMatrices>();
+            state.GetWorldBlackboardEntity().AddComponent<MaxRequiredLinearBlendMatrices>();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            int linearBlendIndex = worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>().AsNativeArray()
+            int linearBlendIndex = state.GetWorldBlackboardEntity().GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>().AsNativeArray()
                                    .IndexOf(ComponentType.ReadOnly<LinearBlendSkinningShaderIndex>());
             ulong linearBlendMaterialMaskLower = (ulong)linearBlendIndex >= 64UL ? 0UL : (1UL << linearBlendIndex);
             ulong linearBlendMaterialMaskUpper = (ulong)linearBlendIndex >= 64UL ? (1UL << (linearBlendIndex - 64)) : 0UL;
 
-            var metaHandle          = GetComponentTypeHandle<ChunkLinearBlendSkinningMemoryMetadata>();
-            var perCameraMaskHandle = GetComponentTypeHandle<ChunkPerCameraCullingMask>(true);
-            var perFrameMaskHandle  = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true);
+            var metaHandle          = state.GetComponentTypeHandle<ChunkLinearBlendSkinningMemoryMetadata>();
+            var perCameraMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true);
+            var perFrameMaskHandle  = state.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true);
 
-            var chunkList = World.UpdateAllocator.AllocateNativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering());
+            var chunkList = state.WorldUnmanaged.UpdateAllocator.AllocateNativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering());
 
-            Dependency = new ChunkPrefixSumJob
+            state.Dependency = new ChunkPrefixSumJob
             {
                 perCameraMaskHandle                = perCameraMaskHandle,
                 perFrameMaskHandle                 = perFrameMaskHandle,
-                chunkHeaderHandle                  = GetComponentTypeHandle<ChunkHeader>(true),
+                chunkHeaderHandle                  = state.GetComponentTypeHandle<ChunkHeader>(true),
                 metaHandle                         = metaHandle,
-                materialMaskHandle                 = GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(),
-                maxRequiredLinearBlendMatricesCdfe = GetComponentDataFromEntity<MaxRequiredLinearBlendMatrices>(),
-                worldBlackboardEntity              = worldBlackboardEntity,
+                materialMaskHandle                 = state.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(),
+                maxRequiredLinearBlendMatricesCdfe = state.GetComponentDataFromEntity<MaxRequiredLinearBlendMatrices>(),
+                worldBlackboardEntity              = state.GetWorldBlackboardEntity(),
                 changedChunkList                   = chunkList,
                 linearBlendMaterialMaskLower       = linearBlendMaterialMaskLower,
                 linearBlendMaterialMaskUpper       = linearBlendMaterialMaskUpper
-            }.Schedule(m_metaQuery, Dependency);
+            }.Schedule(m_metaQuery, state.Dependency);
 
-            Dependency = new AssignComputeDeformMeshOffsetsJob
+            state.Dependency = new AssignComputeDeformMeshOffsetsJob
             {
                 perCameraMaskHandle = perCameraMaskHandle,
                 perFrameMaskHandle  = perFrameMaskHandle,
                 metaHandle          = metaHandle,
                 changedChunks       = chunkList.AsDeferredJobArray(),
-                indicesHandle       = GetComponentTypeHandle<LinearBlendSkinningShaderIndex>()
-            }.Schedule(chunkList, 1, Dependency);
+                indicesHandle       = state.GetComponentTypeHandle<LinearBlendSkinningShaderIndex>()
+            }.Schedule(chunkList, 1, state.Dependency);
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state) {
         }
 
         // Schedule single

@@ -16,8 +16,11 @@ namespace Lsss
 {
     public partial class CheckSpawnPointIsSafeSystem : SubSystem
     {
+        int frameCount = 0;
+
         protected override void OnUpdate()
         {
+            frameCount++;
             Profiler.BeginSample("CheckSpawnPointIsSafe_OnUpdate");
 
             Profiler.BeginSample("Clear safe");
@@ -44,12 +47,12 @@ namespace Lsss
             Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
-            Profiler.BeginSample("Fetch");
-            var wallLayer = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
-            Profiler.EndSample();
-            Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(Dependency);
-            Profiler.EndSample();
+            //Profiler.BeginSample("Fetch");
+            //var wallLayer = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            //Profiler.EndSample();
+            //Profiler.BeginSample("Schedule");
+            //Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(Dependency);
+            //Profiler.EndSample();
 
             Profiler.BeginSample("Fetch");
             var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
@@ -65,12 +68,12 @@ namespace Lsss
             Dependency = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallelUnsafe(Dependency);
             Profiler.EndSample();
 
-            Profiler.BeginSample("Fetch");
-            var wormholeLayer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
-            Profiler.EndSample();
-            Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(Dependency);
-            Profiler.EndSample();
+            //Profiler.BeginSample("Fetch");
+            //var wormholeLayer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            //Profiler.EndSample();
+            //Profiler.BeginSample("Schedule");
+            //Dependency = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(Dependency);
+            //Profiler.EndSample();
 
             //Todo: Remove hack
             //This hack exists because the .Run forces Dependency to complete first. But we don't want that.
@@ -98,9 +101,9 @@ namespace Lsss
         {
             public PhysicsComponentDataFromEntity<SafeToSpawn> safeToSpawnCdfe;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
-                //No need to check narrow phase. AABB check is good enough
+                // No need to check narrow phase. AABB check is good enough
                 safeToSpawnCdfe[result.entityA] = new SafeToSpawn { safe = false };
             }
         }
@@ -109,7 +112,7 @@ namespace Lsss
         {
             public PhysicsComponentDataFromEntity<SafeToSpawn> safeToSpawnCdfe;
 
-            public void Execute(FindPairsResult result)
+            public void Execute(in FindPairsResult result)
             {
                 safeToSpawnCdfe[result.entityA] = new SafeToSpawn { safe = false };
                 safeToSpawnCdfe[result.entityB]                          = new SafeToSpawn { safe = false };

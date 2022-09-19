@@ -53,7 +53,7 @@ namespace Latios.Psyshock
             public CollisionLayer                         layer;
             [NoAlias] public NativeArray<int>             layerIndices;
             [NoAlias] public NativeArray<ColliderAoSData> colliderAoS;
-            [NoAlias] public NativeArray<float>           xmins;
+            [NoAlias] public NativeArray<float2>          xMinMaxs;
             [ReadOnly] public LayerChunkTypeGroup         typeGroup;
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
@@ -277,20 +277,24 @@ namespace Latios.Psyshock
                     aabb           = aabb,
                     entity         = entity
                 };
-                xmins[index] = aabb.min.x;
+                xMinMaxs[index] = new float2(aabb.min.x, aabb.max.x);
 
                 int3 minBucket = math.int3(math.floor((aabb.min - layer.worldMin) / layer.worldAxisStride));
                 int3 maxBucket = math.int3(math.floor((aabb.max - layer.worldMin) / layer.worldAxisStride));
                 minBucket      = math.clamp(minBucket, 0, layer.worldSubdivisionsPerAxis - 1);
                 maxBucket      = math.clamp(maxBucket, 0, layer.worldSubdivisionsPerAxis - 1);
 
-                if (math.all(minBucket == maxBucket))
+                if (math.any(math.isnan(aabb.min) | math.isnan(aabb.max)))
+                {
+                    layerIndices[index] = layer.bucketStartsAndCounts.Length - 1;
+                }
+                else if (math.all(minBucket == maxBucket))
                 {
                     layerIndices[index] = (minBucket.x * layer.worldSubdivisionsPerAxis.y + minBucket.y) * layer.worldSubdivisionsPerAxis.z + minBucket.z;
                 }
                 else
                 {
-                    layerIndices[index] = layer.bucketStartsAndCounts.Length - 1;
+                    layerIndices[index] = layer.bucketStartsAndCounts.Length - 2;
                 }
             }
         }
@@ -304,26 +308,30 @@ namespace Latios.Psyshock
             [NoAlias] public NativeArray<int>           layerIndices;
             [ReadOnly] public NativeArray<ColliderBody> colliderBodies;
             [NoAlias] public NativeArray<Aabb>          aabbs;
-            [NoAlias] public NativeArray<float>         xmins;
+            [NoAlias] public NativeArray<float2>        xMinMaxs;
 
             public void Execute(int i)
             {
-                var aabb = Physics.AabbFrom(colliderBodies[i].collider, colliderBodies[i].transform);
-                aabbs[i] = aabb;
-                xmins[i] = aabb.min.x;
+                var aabb    = Physics.AabbFrom(colliderBodies[i].collider, colliderBodies[i].transform);
+                aabbs[i]    = aabb;
+                xMinMaxs[i] = new float2(aabb.min.x, aabb.max.x);
 
                 int3 minBucket = math.int3(math.floor((aabb.min - layer.worldMin) / layer.worldAxisStride));
                 int3 maxBucket = math.int3(math.floor((aabb.max - layer.worldMin) / layer.worldAxisStride));
                 minBucket      = math.clamp(minBucket, 0, layer.worldSubdivisionsPerAxis - 1);
                 maxBucket      = math.clamp(maxBucket, 0, layer.worldSubdivisionsPerAxis - 1);
 
-                if (math.all(minBucket == maxBucket))
+                if (math.any(math.isnan(aabb.min) | math.isnan(aabb.max)))
+                {
+                    layerIndices[i] = layer.bucketStartsAndCounts.Length - 1;
+                }
+                else if (math.all(minBucket == maxBucket))
                 {
                     layerIndices[i] = (minBucket.x * layer.worldSubdivisionsPerAxis.y + minBucket.y) * layer.worldSubdivisionsPerAxis.z + minBucket.z;
                 }
                 else
                 {
-                    layerIndices[i] = layer.bucketStartsAndCounts.Length - 1;
+                    layerIndices[i] = layer.bucketStartsAndCounts.Length - 2;
                 }
             }
         }
@@ -333,28 +341,39 @@ namespace Latios.Psyshock
         [BurstCompile]
         public struct Part1FromDualArraysJob : IJobFor
         {
-            public CollisionLayer               layer;
-            [NoAlias] public NativeArray<int>   layerIndices;
-            [ReadOnly] public NativeArray<Aabb> aabbs;
-            [NoAlias] public NativeArray<float> xmins;
+            public CollisionLayer             layer;
+            [NoAlias] public NativeArray<int> layerIndices;
+            //[NoAlias] public NativeArray<Aabb>  aabbs;
+            [ReadOnly] public NativeArray<Aabb>  aabbs;
+            [NoAlias] public NativeArray<float2> xMinMaxs;
 
             public void Execute(int i)
             {
                 var aabb = aabbs[i];
-                xmins[i] = aabb.min.x;
+                //if (math.isnan(aabb.min.x) || math.isnan(aabb.max.x))
+                //{
+                //    aabb.min.x = float.PositiveInfinity;
+                //    aabb.max.x = float.PositiveInfinity;
+                //    aabbs[i]   = aabb;
+                //}
+                xMinMaxs[i] = new float2(aabb.min.x, aabb.max.x);
 
                 int3 minBucket = math.int3(math.floor((aabb.min - layer.worldMin) / layer.worldAxisStride));
                 int3 maxBucket = math.int3(math.floor((aabb.max - layer.worldMin) / layer.worldAxisStride));
                 minBucket      = math.clamp(minBucket, 0, layer.worldSubdivisionsPerAxis - 1);
                 maxBucket      = math.clamp(maxBucket, 0, layer.worldSubdivisionsPerAxis - 1);
 
-                if (math.all(minBucket == maxBucket))
+                if (math.any(math.isnan(aabb.min) | math.isnan(aabb.max)))
+                {
+                    layerIndices[i] = layer.bucketStartsAndCounts.Length - 1;
+                }
+                else if (math.all(minBucket == maxBucket))
                 {
                     layerIndices[i] = (minBucket.x * layer.worldSubdivisionsPerAxis.y + minBucket.y) * layer.worldSubdivisionsPerAxis.z + minBucket.z;
                 }
                 else
                 {
-                    layerIndices[i] = layer.bucketStartsAndCounts.Length - 1;
+                    layerIndices[i] = layer.bucketStartsAndCounts.Length - 2;
                 }
             }
         }
@@ -413,16 +432,19 @@ namespace Latios.Psyshock
         [BurstCompile]
         public struct Part4Job : IJobFor
         {
-            [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int> unsortedSrcIndices;
-            [ReadOnly, DeallocateOnJobCompletion] public NativeArray<float>        xmins;
-            [ReadOnly] public NativeArray<int2>                                    bucketStartAndCounts;
+            [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int>              unsortedSrcIndices;
+            [NoAlias, NativeDisableParallelForRestriction] public NativeArray<IntervalTreeNode> trees;
+            [ReadOnly, DeallocateOnJobCompletion] public NativeArray<float2>                    xMinMaxs;
+            [ReadOnly] public NativeArray<int2>                                                 bucketStartAndCounts;
 
             public void Execute(int i)
             {
                 var startAndCount = bucketStartAndCounts[i];
 
-                var intSlice = unsortedSrcIndices.Slice(startAndCount.x, startAndCount.y);
-                RadixSortBucket(intSlice, xmins);
+                var intSlice = unsortedSrcIndices.GetSubArray(startAndCount.x, startAndCount.y);
+                RadixSortBucket(intSlice, xMinMaxs);
+                var tree = trees.GetSubArray(startAndCount.x, startAndCount.y);
+                BuildEytzingerIntervalTree(tree, intSlice, xMinMaxs);
             }
         }
 
@@ -468,7 +490,7 @@ namespace Latios.Psyshock
                 };
                 layer.xmins[i]     = aos.aabb.min.x;
                 layer.xmaxs[i]     = aos.aabb.max.x;
-                layer.yzminmaxs[i] = new float4(aos.aabb.min.yz, aos.aabb.max.yz);
+                layer.yzminmaxs[i] = new float4(aos.aabb.min.yz, -aos.aabb.max.yz);
             }
         }
 
@@ -490,7 +512,7 @@ namespace Latios.Psyshock
                 layer.bodies[i]    = bodies[src];
                 layer.xmins[i]     = aabbs[src].min.x;
                 layer.xmaxs[i]     = aabbs[src].max.x;
-                layer.yzminmaxs[i] = new float4(aabbs[src].min.yz, aabbs[src].max.yz);
+                layer.yzminmaxs[i] = new float4(aabbs[src].min.yz, -aabbs[src].max.yz);
             }
         }
 
@@ -567,7 +589,7 @@ namespace Latios.Psyshock
         {
             var aabbs        = new NativeArray<Aabb>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var layerIndices = new NativeArray<int>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            var xmins        = new NativeArray<float>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var xMinMaxs     = new NativeArray<float2>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
             var p1 = new Part1FromColliderBodyArrayJob
             {
@@ -575,7 +597,7 @@ namespace Latios.Psyshock
                 colliderBodies = bodies,
                 layer          = layer,
                 layerIndices   = layerIndices,
-                xmins          = xmins
+                xMinMaxs       = xMinMaxs
             };
             for (int i = 0; i < layer.Count; i++)
             {
@@ -602,7 +624,8 @@ namespace Latios.Psyshock
             {
                 bucketStartAndCounts = layer.bucketStartsAndCounts,
                 unsortedSrcIndices   = remapSrcArray,
-                xmins                = xmins
+                trees                = layer.intervalTrees,
+                xMinMaxs             = xMinMaxs
             };
             for (int i = 0; i < layer.BucketCount; i++)
             {
@@ -625,14 +648,14 @@ namespace Latios.Psyshock
         public static void BuildImmediate(CollisionLayer layer, NativeArray<int> remapSrcArray, NativeArray<ColliderBody> bodies, NativeArray<Aabb> aabbs)
         {
             var layerIndices = new NativeArray<int>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            var xmins        = new NativeArray<float>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var xMinMaxs     = new NativeArray<float2>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
             var p1 = new Part1FromDualArraysJob
             {
                 aabbs        = aabbs,
                 layer        = layer,
                 layerIndices = layerIndices,
-                xmins        = xmins
+                xMinMaxs     = xMinMaxs
             };
             for (int i = 0; i < layer.Count; i++)
             {
@@ -659,7 +682,7 @@ namespace Latios.Psyshock
             {
                 bucketStartAndCounts = layer.bucketStartsAndCounts,
                 unsortedSrcIndices   = remapSrcArray,
-                xmins                = xmins
+                xMinMaxs             = xMinMaxs
             };
             for (int i = 0; i < layer.BucketCount; i++)
             {
@@ -758,7 +781,7 @@ namespace Latios.Psyshock
             }
         }
 
-        public static void RadixSortBucket(NativeSlice<int> unsortedSrcIndices, NativeArray<float> xmins)
+        private static void RadixSortBucket(NativeArray<int> unsortedSrcIndices, NativeArray<float2> xMinMaxs)
         {
             var count = unsortedSrcIndices.Length;
             if (count <= 0)
@@ -779,7 +802,7 @@ namespace Latios.Psyshock
             //Counts
             for (int i = 0; i < count; i++)
             {
-                var keys            = Keys(xmins[unsortedSrcIndices[i]]);
+                var keys            = Keys(xMinMaxs[unsortedSrcIndices[i]].x);
                 counts1[keys.byte1] = counts1[keys.byte1] + 1;
                 counts2[keys.byte2] = counts2[keys.byte2] + 1;
                 counts3[keys.byte3] = counts3[keys.byte3] + 1;
@@ -824,6 +847,80 @@ namespace Latios.Psyshock
                 int  src                 = backArray[i].index;
                 unsortedSrcIndices[dest] = src;
                 prefixSum4[key]          = prefixSum4[key] + 1;
+            }
+        }
+        #endregion
+
+        #region Eytzinger Interval Tree
+
+        //   Unless otherwise specified, the following functions are C# adaptations of Paul-Virak Khuong and Pat Morin's
+        //   Eytzinger Array builder: https://github.com/patmorin/arraylayout/blob/master/src/eytzinger_array.h
+        //   This code is licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0)
+        private static void BuildEytzingerIntervalTree(NativeArray<IntervalTreeNode> tree, NativeArray<int> sortedSrcIndices, NativeArray<float2> srcXminMaxs)
+        {
+            var builder = new EytzingerIntervalTreeBuilder(tree, sortedSrcIndices, srcXminMaxs);
+            builder.Build();
+        }
+
+        private struct EytzingerIntervalTreeBuilder
+        {
+            private NativeArray<IntervalTreeNode> nodesToPopulate;
+            private NativeArray<int>              sortedSrcIndices;
+            private NativeArray<float2>           srcXminMaxs;
+
+            public EytzingerIntervalTreeBuilder(NativeArray<IntervalTreeNode> tree, NativeArray<int> sortedSrcIndices, NativeArray<float2> srcXminMaxs)
+            {
+                this.nodesToPopulate  = tree;
+                this.sortedSrcIndices = sortedSrcIndices;
+                this.srcXminMaxs      = srcXminMaxs;
+            }
+
+            public void Build()
+            {
+                BuildEytzingerIntervalTreeRecurse(0, 0);
+
+                PatchSubtreeMaxResurse(0);
+            }
+
+            private int BuildEytzingerIntervalTreeRecurse(int bucketRelativeIndex, uint treeIndex)
+            {
+                // It is for this condition that we need treeIndex to be a uint, which can store 2 * (int.MaxValue - 1) + 2 without overflow.
+                // If code reaches beyond this point, it is safe to cast treeIndex to an int.
+                if (treeIndex >= nodesToPopulate.Length)
+                    return bucketRelativeIndex;
+
+                bucketRelativeIndex = BuildEytzingerIntervalTreeRecurse(bucketRelativeIndex, 2 * treeIndex + 1);
+
+                var minmax                      = srcXminMaxs[sortedSrcIndices[bucketRelativeIndex]];
+                nodesToPopulate[(int)treeIndex] = new IntervalTreeNode
+                {
+                    xmin                    = minmax.x,
+                    xmax                    = minmax.y,
+                    subtreeXmax             = minmax.y,
+                    bucketRelativeBodyIndex = bucketRelativeIndex
+                };
+                bucketRelativeIndex++;
+
+                bucketRelativeIndex = BuildEytzingerIntervalTreeRecurse(bucketRelativeIndex, 2 * treeIndex + 2);
+
+                return bucketRelativeIndex;
+            }
+
+            // This function is unique to Latios Framework
+            // Todo: There is likely a more cache-friendly way to iterate this tree and do this work
+            private float PatchSubtreeMaxResurse(uint treeIndex)
+            {
+                if (treeIndex >= nodesToPopulate.Length)
+                    return 0f;
+
+                float leftTreeMax  = PatchSubtreeMaxResurse(2 * treeIndex + 1);
+                float rightTreeMax = PatchSubtreeMaxResurse(2 * treeIndex + 2);
+
+                var node                        = nodesToPopulate[(int)treeIndex];
+                node.subtreeXmax                = math.max(math.max(leftTreeMax, rightTreeMax), node.subtreeXmax);
+                nodesToPopulate[(int)treeIndex] = node;
+
+                return node.subtreeXmax;
             }
         }
 

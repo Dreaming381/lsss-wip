@@ -1,12 +1,5 @@
-using System;
-using Unity.Burst;
-using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
-using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
-using UnityEngine.Rendering;
 
 namespace Latios.Kinemation.Systems
 {
@@ -22,14 +15,14 @@ namespace Latios.Kinemation.Systems
             EnableSystemSorting = false;
 
             GetOrCreateAndAddSystem<FrustumCullExposedSkeletonsSystem>();
-            GetOrCreateAndAddSystem<FrustumCullOptimizedSkeletonsSystem>();
-            GetOrCreateAndAddSystem<UpdateLODsSystem>();
-            GetOrCreateAndAddSystem<FrustumCullSkinnedEntitiesSystem>();
-            GetOrCreateAndAddSystem<AllocateDeformedMeshesSystem>();
-            GetOrCreateAndAddSystem<AllocateLinearBlendMatricesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<FrustumCullOptimizedSkeletonsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateLODsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<FrustumCullSkinnedEntitiesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AllocateDeformedMeshesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AllocateLinearBlendMatricesSystem>();
             GetOrCreateAndAddSystem<SkinningDispatchSystem>();
-            GetOrCreateAndAddSystem<FrustumCullUnskinnedEntitiesSystem>();
-            GetOrCreateAndAddSystem<CopySkinWithCullingSystem>();
+            GetOrCreateAndAddUnmanagedSystem<FrustumCullUnskinnedEntitiesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<CopySkinWithCullingSystem>();
             GetOrCreateAndAddSystem<UploadMaterialPropertiesSystem>();
             GetOrCreateAndAddSystem<UpdateVisibilitiesSystem>();
         }
@@ -42,8 +35,8 @@ namespace Latios.Kinemation.Systems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<UpdateSkeletonBoundsSystem>();
-            GetOrCreateAndAddSystem<UpdateSkinnedMeshChunkBoundsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateSkeletonBoundsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateSkinnedMeshChunkBoundsSystem>();
             GetOrCreateAndAddSystem<BeginPerFrameMeshSkinningBuffersUploadSystem>();
         }
     }
@@ -56,11 +49,11 @@ namespace Latios.Kinemation.Systems
         protected override void CreateSystems()
         {
             GetOrCreateAndAddSystem<EndPerFrameMeshSkinningBuffersUploadSystem>();
-            GetOrCreateAndAddSystem<UpdateMatrixPreviousSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateMatrixPreviousSystem>();
             GetOrCreateAndAddSystem<CombineExposedBonesSystem>();
-            GetOrCreateAndAddSystem<ClearPerFrameCullingMasksSystem>();
-            GetOrCreateAndAddSystem<UpdateChunkComputeDeformMetadataSystem>();
-            GetOrCreateAndAddSystem<UpdateChunkLinearBlendMetadataSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ClearPerFrameCullingMasksSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateChunkComputeDeformMetadataSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateChunkLinearBlendMetadataSystem>();
             GetOrCreateAndAddSystem<ResetPerFrameSkinningMetadataJob>();
         }
     }
@@ -71,8 +64,8 @@ namespace Latios.Kinemation.Systems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<AddMissingMatrixCacheSystem>();
-            GetOrCreateAndAddSystem<AddMissingMasksSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AddMissingMatrixCacheSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AddMissingMasksSystem>();
             GetOrCreateAndAddSystem<SkeletonMeshBindingReactiveSystem>();
         }
     }
@@ -83,8 +76,8 @@ namespace Latios.Kinemation.Systems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<AddMissingMatrixCacheSystem>();
-            GetOrCreateAndAddSystem<AddMissingMasksSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AddMissingMatrixCacheSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AddMissingMasksSystem>();
             GetOrCreateAndAddSystem<SkeletonMeshBindingReactiveSystem>();
         }
     }
