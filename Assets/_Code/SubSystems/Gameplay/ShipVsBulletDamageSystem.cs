@@ -15,6 +15,8 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
+            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation>().AsParallelWriter();
 
@@ -28,8 +30,6 @@ namespace Lsss
                     firer.initialized     = true;
                 }
             }).ScheduleParallel();
-
-            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
