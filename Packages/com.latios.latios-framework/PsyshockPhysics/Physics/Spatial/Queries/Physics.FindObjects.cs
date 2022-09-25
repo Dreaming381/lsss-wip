@@ -74,7 +74,7 @@ namespace Latios.Psyshock
 
     public static partial class Physics
     {
-        public static FindObjectsConfig<T> FindObjects<T>(Aabb aabb, CollisionLayer layer, T processor) where T : struct, IFindObjectsProcessor
+        public static FindObjectsConfig<T> FindObjects<T>(Aabb aabb, in CollisionLayer layer, in T processor) where T : struct, IFindObjectsProcessor
         {
             return new FindObjectsConfig<T>
             {

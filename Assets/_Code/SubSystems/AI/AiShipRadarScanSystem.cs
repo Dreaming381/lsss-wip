@@ -121,6 +121,8 @@ namespace Lsss
                 m_radarsQuery.SetSharedComponentFilter(faction);
                 Dependency = new CopyBackJob { array = array, scanResultsHandle = scanResultsHandle }.ScheduleParallel(m_radarsQuery, Dependency);
             }
+
+            m_radarsQuery.ResetFilter();
         }
 
         [BurstCompile]

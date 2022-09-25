@@ -6,13 +6,51 @@ using Unity.Mathematics;
 
 namespace Latios.Psyshock
 {
+    /// <summary>
+    /// The settings used to create a CollisionLayer
+    /// </summary>
+    /// <remarks>
+    /// A collision layer divides a worldAabb into cells. All element AABBs get binned into cells
+    /// which reduces the number of tests and improves parallelism. AABBs that span across multiple
+    /// cells will be categorized in a "catch-all" cell that is tested against all other cells.
+    /// Each cell contains its own additional acceleration structures. For extremely high element
+    /// counts, a cell with several thousand elements may be acceptable.
+    /// There is often a "sweet spot" for reducing the number of elements per cell without too many
+    /// elements ending up in the "catch-all", and this will lead to the best performance.
+    /// Element AABBs outside of the worldAabb will be binned into surface cells based on their
+    /// projection to the surface of worldAabb. What this means is that CollisionLayerSettings
+    /// in no way affect the correctness of the algorithms and only serve as a way to tune the
+    /// mechanisms for better performance. It is recommended to ignore outliers and focus the
+    /// worldAabb to encapsulate the majority of the elements.
+    /// </remarks>
     public struct CollisionLayerSettings
     {
-        public Aabb worldAABB;
+        /// <summary>
+        /// An AABB which defines the bounds of the subdivision grid.
+        /// Elements do not necessarily need to fit inside of it.
+        /// </summary>
+        public Aabb worldAabb;
+        /// <summary>
+        /// How many "cells" to divide the worldAabb into.
+        /// </summary>
         public int3 worldSubdivisionsPerAxis;
     }
 
-    public struct CollisionLayer : IDisposable
+    /// <summary>
+    /// A spatial query acceleration structure composed of native containers
+    /// </summary>
+    /// <remarks>
+    /// This spatial query structure is composed of "cells" where each cell contains a batch of
+    /// elements sorted by their AABB's minimum x component along with an interval tree of x-axis
+    /// spans. Testing a full cell uses a highly optimized single-axis sweep-and-prune.
+    /// Immediate queries use a combination of sweeping algorithms and traversal of the interval tree.
+    /// Cells do not have a maximum capacity, but are are composed of spans of arrays.
+    /// A CollisionLayer uses O(n) memory and has O(n) build times.
+    /// It is possible (and often recommended) to build many CollisionLayers and test them against
+    /// each other, as long as the CollisionLayers were built with the same CollisionLayerSettings.
+    /// AABBs with NaN components are placed in a special cell that is never tested.
+    /// </remarks>
+    public struct CollisionLayer : INativeDisposable
     {
         internal NativeArray<int2>                                                   bucketStartsAndCounts;
         [NativeDisableParallelForRestriction] internal NativeArray<float>            xmins;
@@ -24,11 +62,10 @@ namespace Latios.Psyshock
         internal float3                                                              worldAxisStride;
         internal int3                                                                worldSubdivisionsPerAxis;
 
-        //Todo: World settings?
         internal CollisionLayer(int bodyCount, CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator)
         {
-            worldMin                 = settings.worldAABB.min;
-            worldAxisStride          = (settings.worldAABB.max - worldMin) / settings.worldSubdivisionsPerAxis;
+            worldMin                 = settings.worldAabb.min;
+            worldAxisStride          = (settings.worldAabb.max - worldMin) / settings.worldSubdivisionsPerAxis;
             worldSubdivisionsPerAxis = settings.worldSubdivisionsPerAxis;
 
             bucketStartsAndCounts = CollectionHelper.CreateNativeArray<int2>(
@@ -42,7 +79,12 @@ namespace Latios.Psyshock
             bodies        = CollectionHelper.CreateNativeArray<ColliderBody>(bodyCount, allocator, NativeArrayOptions.UninitializedMemory);
         }
 
-        public CollisionLayer(CollisionLayer sourceLayer, AllocatorManager.AllocatorHandle allocator)
+        /// <summary>
+        /// Copy a CollisionLayer
+        /// </summary>
+        /// <param name="sourceLayer">The layer to copy from</param>
+        /// <param name="allocator">The allocator to use for the new layer</param>
+        public CollisionLayer(in CollisionLayer sourceLayer, AllocatorManager.AllocatorHandle allocator)
         {
             worldMin                 = sourceLayer.worldMin;
             worldAxisStride          = sourceLayer.worldAxisStride;
@@ -56,6 +98,9 @@ namespace Latios.Psyshock
             bodies                = CollectionHelper.CreateNativeArray(sourceLayer.bodies, allocator);
         }
 
+        /// <summary>
+        /// Disposes the layer immediately
+        /// </summary>
         public void Dispose()
         {
             bucketStartsAndCounts.Dispose();
@@ -66,6 +111,11 @@ namespace Latios.Psyshock
             bodies.Dispose();
         }
 
+        /// <summary>
+        /// Disposes the layer using jobs
+        /// </summary>
+        /// <param name="inputDeps">A JobHandle to wait upon before disposing</param>
+        /// <returns>The final jobHandle of the disposed layers</returns>
         public unsafe JobHandle Dispose(JobHandle inputDeps)
         {
             JobHandle* deps = stackalloc JobHandle[6]
@@ -80,9 +130,17 @@ namespace Latios.Psyshock
             return Unity.Jobs.LowLevel.Unsafe.JobHandleUnsafeUtility.CombineDependencies(deps, 6);
         }
 
+        /// <summary>
+        /// The number of elements in the layer
+        /// </summary>
         public int Count => xmins.Length;
+        /// <summary>
+        /// The number of cells in the layer, including the "catch-all" cell but ignoring the NaN cell
+        /// </summary>
         public int BucketCount => bucketStartsAndCounts.Length - 1;  // For algorithmic purposes, we pretend the nan bucket doesn't exist.
-
+        /// <summary>
+        /// True if the CollisionLayer has been created
+        /// </summary>
         public bool IsCreated => bucketStartsAndCounts.IsCreated;
 
         internal BucketSlices GetBucketSlices(int bucketIndex)

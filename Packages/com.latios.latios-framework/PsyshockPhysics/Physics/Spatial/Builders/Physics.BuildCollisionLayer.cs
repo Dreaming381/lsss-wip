@@ -1,20 +1,92 @@
 ﻿using System;
 using System.Diagnostics;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-//Todo: Switch to IJobChunks to optionally grab translation and rotation
 namespace Latios.Psyshock
 {
+    /// <summary>
+    /// A struct defining the type handles used when building a CollisionLayer from an EntityQuery.
+    /// All handles are ReadOnly. You can cache this structure inside a system to accelerate scheduling costs,
+    /// but you must also ensure the handles are updating during each OnUpdate before building any CollisionLayer.
+    /// </summary>
+    public struct BuildCollisionLayerTypeHandles
+    {
+        [ReadOnly] public ComponentTypeHandle<Collider>     collider;
+        [ReadOnly] public ComponentTypeHandle<Translation>  translation;
+        [ReadOnly] public ComponentTypeHandle<Rotation>     rotation;
+        [ReadOnly] public ComponentTypeHandle<PhysicsScale> scale;
+        [ReadOnly] public ComponentTypeHandle<Parent>       parent;
+        [ReadOnly] public ComponentTypeHandle<LocalToWorld> localToWorld;
+        [ReadOnly] public EntityTypeHandle                  entity;
+
+        /// <summary>
+        /// Constructs the BuildCollsionLayer type handles using a managed system
+        /// </summary>
+        public BuildCollisionLayerTypeHandles(ComponentSystemBase system)
+        {
+            collider     = system.GetComponentTypeHandle<Collider>(true);
+            translation  = system.GetComponentTypeHandle<Translation>(true);
+            rotation     = system.GetComponentTypeHandle<Rotation>(true);
+            scale        = system.GetComponentTypeHandle<PhysicsScale>(true);
+            parent       = system.GetComponentTypeHandle<Parent>(true);
+            localToWorld = system.GetComponentTypeHandle<LocalToWorld>(true);
+            entity       = system.GetEntityTypeHandle();
+        }
+
+        /// <summary>
+        /// Constructs the BuildCollisionLayer type handles using a SystemState
+        /// </summary>
+        public BuildCollisionLayerTypeHandles(ref SystemState system)
+        {
+            collider     = system.GetComponentTypeHandle<Collider>(true);
+            translation  = system.GetComponentTypeHandle<Translation>(true);
+            rotation     = system.GetComponentTypeHandle<Rotation>(true);
+            scale        = system.GetComponentTypeHandle<PhysicsScale>(true);
+            parent       = system.GetComponentTypeHandle<Parent>(true);
+            localToWorld = system.GetComponentTypeHandle<LocalToWorld>(true);
+            entity       = system.GetEntityTypeHandle();
+        }
+
+        /// <summary>
+        /// Updates the type handles using a managed system
+        /// </summary>
+        public void Update(SystemBase system)
+        {
+            collider.Update(system);
+            translation.Update(system);
+            rotation.Update(system);
+            scale.Update(system);
+            parent.Update(system);
+            localToWorld.Update(system);
+            entity = system.GetEntityTypeHandle();
+        }
+
+        /// <summary>
+        /// Updates the type handles using a SystemState
+        /// </summary>
+        public void Update(ref SystemState system)
+        {
+            collider.Update(ref system);
+            translation.Update(ref system);
+            rotation.Update(ref system);
+            scale.Update(ref system);
+            parent.Update(ref system);
+            localToWorld.Update(ref system);
+            entity = system.GetEntityTypeHandle();
+        }
+    }
+
+    /// <summary>
+    /// The config object used in Physics.BuildCollisionLayer fluent chains
+    /// </summary>
     public struct BuildCollisionLayerConfig
     {
-        internal BuildCollisionLayerInternal.LayerChunkTypeGroup typeGroup;
-        internal ComponentSystemBase                             system;
-        internal EntityQuery                                     query;
+        internal BuildCollisionLayerTypeHandles typeGroup;
+        internal EntityQuery                    query;
 
         internal NativeArray<Aabb>         aabbs;
         internal NativeArray<ColliderBody> bodies;
@@ -30,33 +102,83 @@ namespace Latios.Psyshock
 
         internal int count;
 
+        /// <summary>
+        /// The default CollisionLayerSettings used when none is specified.
+        /// These settings divide the world into 8 cells associated with the 8 octants of world space
+        /// </summary>
         public static readonly CollisionLayerSettings defaultSettings = new CollisionLayerSettings
         {
-            worldAABB                = new Aabb(new float3(-1f), new float3(1f)),
+            worldAabb                = new Aabb(new float3(-1f), new float3(1f)),
             worldSubdivisionsPerAxis = new int3(2, 2, 2)
         };
     }
 
     public static partial class Physics
     {
+        /// <summary>
+        /// Adds the necessary components to an EntityQuery to ensure proper building of a CollisionLayer
+        /// </summary>
         public static FluentQuery PatchQueryForBuildingCollisionLayer(this FluentQuery fluent)
         {
             return fluent.WithAllWeak<Collider>();
         }
 
         #region Starters
+        /// <summary>
+        /// Creates a new CollisionLayer by extracting collider and transform data from the entities in an EntityQuery.
+        /// This is a start of a fluent chain.
+        /// </summary>
+        /// <param name="query">The EntityQuery from which to extract collider and transform data</param>
+        /// <param name="system">The system used for extracting ComponentTypeHandles</param>
         public static BuildCollisionLayerConfig BuildCollisionLayer(EntityQuery query, ComponentSystemBase system)
         {
             var config          = new BuildCollisionLayerConfig();
             config.query        = query;
-            config.system       = system;
-            config.typeGroup    = BuildCollisionLayerInternal.BuildLayerChunkTypeGroup(system);
+            config.typeGroup    = new BuildCollisionLayerTypeHandles(system);
             config.hasQueryData = true;
             config.settings     = BuildCollisionLayerConfig.defaultSettings;
             config.count        = query.CalculateEntityCount();
             return config;
         }
 
+        /// <summary>
+        /// Creates a new CollisionLayer by extracting collider and transform data from the entities in an EntityQuery.
+        /// This is a start of a fluent chain.
+        /// </summary>
+        /// <param name="query">The EntityQuery from which to extract collider and transform data</param>
+        /// <param name="system">The system used for extracting ComponentTypeHandles</param>
+        public static BuildCollisionLayerConfig BuildCollisionLayer(EntityQuery query, ref SystemState system)
+        {
+            var config          = new BuildCollisionLayerConfig();
+            config.query        = query;
+            config.typeGroup    = new BuildCollisionLayerTypeHandles(ref system);
+            config.hasQueryData = true;
+            config.settings     = BuildCollisionLayerConfig.defaultSettings;
+            config.count        = query.CalculateEntityCount();
+            return config;
+        }
+
+        /// <summary>
+        /// Creates a new CollisionLayer by extracting collider and transform data from the entities in an EntityQuery.
+        /// This is a start of a fluent chain.
+        /// </summary>
+        /// <param name="query">The EntityQuery from which to extract collider and transform data</param>
+        /// <param name="requiredTypeHandles">Cached type handles that must be updated before invoking this method</param>
+        public static BuildCollisionLayerConfig BuildCollisionLayer(EntityQuery query, in BuildCollisionLayerTypeHandles requiredTypeHandles)
+        {
+            var config          = new BuildCollisionLayerConfig();
+            config.query        = query;
+            config.typeGroup    = requiredTypeHandles;
+            config.hasQueryData = true;
+            config.settings     = BuildCollisionLayerConfig.defaultSettings;
+            config.count        = query.CalculateEntityCount();
+            return config;
+        }
+
+        /// <summary>
+        /// Creates a new CollisionLayer using the collider and transform data provided by the bodies array
+        /// </summary>
+        /// <param name="bodies">The array of ColliderBody instances which should be baked into the CollisionLayer</param>
         public static BuildCollisionLayerConfig BuildCollisionLayer(NativeArray<ColliderBody> bodies)
         {
             var config            = new BuildCollisionLayerConfig();
@@ -67,6 +189,12 @@ namespace Latios.Psyshock
             return config;
         }
 
+        /// <summary>
+        /// Creates a new CollisionLayer using the collider and transform data provided by the bodies array,
+        /// but uses the AABBs provided by the overrideAabbs array instead of calculating AABBs from the bodies
+        /// </summary>
+        /// <param name="bodies">The array of ColliderBody instances which should be baked into the CollisionLayer</param>
+        /// <param name="overrideAabbs">The array of AABBs parallel to the bodies array specifying different AABBs to use for each body</param>
         public static BuildCollisionLayerConfig BuildCollisionLayer(NativeArray<ColliderBody> bodies, NativeArray<Aabb> overrideAabbs)
         {
             var config = new BuildCollisionLayerConfig();
@@ -83,47 +211,72 @@ namespace Latios.Psyshock
         #endregion
 
         #region FluentChain
+        /// <summary>
+        /// Specifies the CollisionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithSettings(this BuildCollisionLayerConfig config, CollisionLayerSettings settings)
         {
             config.settings = settings;
             return config;
         }
 
+        /// <summary>
+        /// Specifies the worldAabb member of the CollisionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithWorldBounds(this BuildCollisionLayerConfig config, Aabb worldAabb)
         {
-            config.settings.worldAABB = worldAabb;
+            config.settings.worldAabb = worldAabb;
             return config;
         }
 
+        /// <summary>
+        /// Specifies the worldSubdivisionsPerAxis member of the CollisionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithSubdivisions(this BuildCollisionLayerConfig config, int3 subdivisions)
         {
             config.settings.worldSubdivisionsPerAxis = subdivisions;
             return config;
         }
 
+        /// <summary>
+        /// Specifies the worldAabb.min of the CollsionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithWorldMin(this BuildCollisionLayerConfig config, float x, float y, float z)
         {
-            config.settings.worldAABB.min = new float3(x, y, z);
+            config.settings.worldAabb.min = new float3(x, y, z);
             return config;
         }
 
+        /// <summary>
+        /// Specifies the worldAabb.max of the CollsionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithWorldMax(this BuildCollisionLayerConfig config, float x, float y, float z)
         {
-            config.settings.worldAABB.max = new float3(x, y, z);
+            config.settings.worldAabb.max = new float3(x, y, z);
             return config;
         }
 
+        /// <summary>
+        /// Specifies the worldAabb of the CollsionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithWorldBounds(this BuildCollisionLayerConfig config, float3 min, float3 max)
         {
             var aabb = new Aabb(min, max);
             return config.WithWorldBounds(aabb);
         }
 
+        /// <summary>
+        /// Specifies the worldSubdivisionsPerAxis of the CollisionLayerSettings which should be used when building the CollisionLayer
+        /// </summary>
         public static BuildCollisionLayerConfig WithSubdivisions(this BuildCollisionLayerConfig config, int x, int y, int z)
         {
             return config.WithSubdivisions(new int3(x, y, z));
         }
 
+        /// <summary>
+        /// Specifies a NativeArray that should be written to where when indexed by a bodyIndex in a FindPairsResult or FindObjects result
+        /// specifies the original array index of entityInQueryIndex of the ColliderBody in the layer
+        /// </summary>
         public static BuildCollisionLayerConfig WithRemapArray(this BuildCollisionLayerConfig config, NativeArray<int> remapSrcIndices)
         {
             ValidateRemapArrayIsRightLength(remapSrcIndices, config.count, config.hasQueryData);
@@ -133,7 +286,15 @@ namespace Latios.Psyshock
             return config;
         }
 
-        public static BuildCollisionLayerConfig WithRemapArray(this BuildCollisionLayerConfig config, out NativeArray<int> remapSrcIndices, Allocator allocator)
+        /// <summary>
+        /// Specifies a NativeArray that should be allocated and written to where when indexed by a bodyIndex in a FindPairsResult or FindObjects result
+        /// specifies the original array index of entityInQueryIndex of the ColliderBody in the layer
+        /// </summary>
+        /// <param name="remapSrcIndices">The generated array containing source indices</param>
+        /// <param name="allocator">The allocator to use for allocating the array</param>
+        public static BuildCollisionLayerConfig WithRemapArray(this BuildCollisionLayerConfig config,
+                                                               out NativeArray<int>             remapSrcIndices,
+                                                               AllocatorManager.AllocatorHandle allocator)
         {
             remapSrcIndices = CollectionHelper.CreateNativeArray<int>(config.count, allocator, NativeArrayOptions.UninitializedMemory);
 
@@ -145,7 +306,12 @@ namespace Latios.Psyshock
         #endregion
 
         #region Schedulers
-        public static void RunImmediate(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator)
+        /// <summary>
+        /// Generates the CollisionLayer immediately without using the Job System
+        /// </summary>
+        /// <param name="layer">The generated CollisionLayer</param>
+        /// <param name="allocator">The allocator to use for allocating the CollisionLayer</param>
+        public static void RunImmediate(this BuildCollisionLayerConfig config, out CollisionLayer layer, AllocatorManager.AllocatorHandle allocator)
         {
             config.ValidateSettings();
 
@@ -158,22 +324,22 @@ namespace Latios.Psyshock
             {
                 layer = new CollisionLayer(config.bodies.Length, config.settings, allocator);
                 if (config.hasRemapSrcIndices)
-                    BuildCollisionLayerInternal.BuildImmediate(layer, config.remapSrcIndices, config.bodies, config.aabbs);
+                    BuildCollisionLayerInternal.BuildImmediate(ref layer, config.remapSrcIndices, config.bodies, config.aabbs);
                 else
                 {
                     var remapArray = new NativeArray<int>(layer.Count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                    BuildCollisionLayerInternal.BuildImmediate(layer, remapArray, config.bodies, config.aabbs);
+                    BuildCollisionLayerInternal.BuildImmediate(ref layer, remapArray, config.bodies, config.aabbs);
                 }
             }
             else if (config.hasBodiesArray)
             {
                 layer = new CollisionLayer(config.bodies.Length, config.settings, allocator);
                 if (config.hasRemapSrcIndices)
-                    BuildCollisionLayerInternal.BuildImmediate(layer, config.remapSrcIndices, config.bodies, config.aabbs);
+                    BuildCollisionLayerInternal.BuildImmediate(ref layer, config.remapSrcIndices, config.bodies, config.aabbs);
                 else
                 {
                     var remapArray = new NativeArray<int>(layer.Count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                    BuildCollisionLayerInternal.BuildImmediate(layer, remapArray, config.bodies, config.aabbs);
+                    BuildCollisionLayerInternal.BuildImmediate(ref layer, remapArray, config.bodies, config.aabbs);
                 }
             }
             else
@@ -195,7 +361,12 @@ namespace Latios.Psyshock
             throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
 
-        public static void Run(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator)
+        /// <summary>
+        /// Generates the CollisionLayer on the same thread using Burst
+        /// </summary>
+        /// <param name="layer">The generated CollisionLayer</param>
+        /// <param name="allocator">The allocator to use for allocating the CollisionLayer</param>
+        public static void Run(this BuildCollisionLayerConfig config, out CollisionLayer layer, AllocatorManager.AllocatorHandle allocator)
         {
             config.ValidateSettings();
 
@@ -298,7 +469,17 @@ namespace Latios.Psyshock
                 throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
 
-        public static JobHandle ScheduleSingle(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator, JobHandle inputDeps = default)
+        /// <summary>
+        /// Generates the CollisionLayer inside a single-threaded job using Burst
+        /// </summary>
+        /// <param name="layer">The generated CollisionLayer</param>
+        /// <param name="allocator">The allocator to use for allocating the CollisionLayer</param>
+        /// <param name="inputDeps">A JobHandle the scheduled job should wait on</param>
+        /// <returns>The JobHandle associated with the scheduled builder job</returns>
+        public static JobHandle ScheduleSingle(this BuildCollisionLayerConfig config,
+                                               out CollisionLayer layer,
+                                               AllocatorManager.AllocatorHandle allocator,
+                                               JobHandle inputDeps = default)
         {
             config.ValidateSettings();
 
@@ -335,7 +516,7 @@ namespace Latios.Psyshock
                 {
                     layerIndices       = layerIndices,
                     unsortedSrcIndices = remapSrcIndices
-                }.Schedule(count, jh);
+                }.Schedule(jh);
 
                 jh = new BuildCollisionLayerInternal.Part4Job
                 {
@@ -343,14 +524,14 @@ namespace Latios.Psyshock
                     unsortedSrcIndices   = remapSrcIndices,
                     trees                = layer.intervalTrees,
                     xMinMaxs             = xMinMaxs
-                }.Schedule(layer.BucketCount, jh);
+                }.Schedule(jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromQueryJob
                 {
                     colliderAoS     = aos,
                     layer           = layer,
                     remapSrcIndices = remapSrcIndices
-                }.Schedule(count, jh);
+                }.Schedule(jh);
 
                 if (!config.hasRemapSrcIndices)
                     jh = remapSrcIndices.Dispose(jh);
@@ -406,7 +587,17 @@ namespace Latios.Psyshock
                 throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
         }
 
-        public static JobHandle ScheduleParallel(this BuildCollisionLayerConfig config, out CollisionLayer layer, Allocator allocator, JobHandle inputDeps = default)
+        /// <summary>
+        /// Generates the CollisionLayer inside a sequence of multi-threaded jobs using Burst
+        /// </summary>
+        /// <param name="layer">The generated CollisionLayer</param>
+        /// <param name="allocator">The allocator to use for allocating the CollisionLayer</param>
+        /// <param name="inputDeps">A JobHandle the scheduled jobs should wait on</param>
+        /// <returns>The JobHandle associated with the scheduled builder jobs</returns>
+        public static JobHandle ScheduleParallel(this BuildCollisionLayerConfig config,
+                                                 out CollisionLayer layer,
+                                                 AllocatorManager.AllocatorHandle allocator,
+                                                 JobHandle inputDeps = default)
         {
             config.ValidateSettings();
 
@@ -443,7 +634,7 @@ namespace Latios.Psyshock
                 {
                     layerIndices       = layerIndices,
                     unsortedSrcIndices = remapSrcIndices
-                }.ScheduleParallel(count, 512, jh);
+                }.Schedule(count, 512, jh);
 
                 jh = new BuildCollisionLayerInternal.Part4Job
                 {
@@ -451,14 +642,14 @@ namespace Latios.Psyshock
                     xMinMaxs             = xMinMaxs,
                     trees                = layer.intervalTrees,
                     bucketStartAndCounts = layer.bucketStartsAndCounts
-                }.ScheduleParallel(layer.BucketCount, 1, jh);
+                }.Schedule(layer.BucketCount, 1, jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromQueryJob
                 {
                     layer           = layer,
                     colliderAoS     = aos,
                     remapSrcIndices = remapSrcIndices
-                }.ScheduleParallel(count, 128, jh);
+                }.Schedule(count, 128, jh);
 
                 if (!config.hasRemapSrcIndices)
                     jh = remapSrcIndices.Dispose(jh);
@@ -486,7 +677,7 @@ namespace Latios.Psyshock
                         aabbs        = aabbs,
                         layerIndices = layerIndices,
                         xMinMaxs     = xMinMaxs
-                    }.ScheduleParallel(count, 64, jh);
+                    }.Schedule(count, 64, jh);
                 }
                 else
                 {
@@ -497,7 +688,7 @@ namespace Latios.Psyshock
                         colliderBodies = config.bodies,
                         layerIndices   = layerIndices,
                         xMinMaxs       = xMinMaxs
-                    }.ScheduleParallel(count, 64, jh);
+                    }.Schedule(count, 64, jh);
                 }
 
                 jh = new BuildCollisionLayerInternal.Part2Job
@@ -510,7 +701,7 @@ namespace Latios.Psyshock
                 {
                     layerIndices       = layerIndices,
                     unsortedSrcIndices = remapSrcIndices
-                }.ScheduleParallel(count, 512, jh);
+                }.Schedule(count, 512, jh);
 
                 jh = new BuildCollisionLayerInternal.Part4Job
                 {
@@ -518,7 +709,7 @@ namespace Latios.Psyshock
                     unsortedSrcIndices   = remapSrcIndices,
                     trees                = layer.intervalTrees,
                     xMinMaxs             = xMinMaxs
-                }.ScheduleParallel(layer.BucketCount, 1, jh);
+                }.Schedule(layer.BucketCount, 1, jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromArraysJob
                 {
@@ -526,7 +717,7 @@ namespace Latios.Psyshock
                     bodies          = config.bodies,
                     layer           = layer,
                     remapSrcIndices = remapSrcIndices
-                }.ScheduleParallel(count, 128, jh);
+                }.Schedule(count, 128, jh);
 
                 if ((!config.hasAabbsArray) && (!config.hasRemapSrcIndices))
                     jh = JobHandle.CombineDependencies(remapSrcIndices.Dispose(jh), aabbs.Dispose(jh));
@@ -546,7 +737,7 @@ namespace Latios.Psyshock
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         private static void ValidateSettings(this BuildCollisionLayerConfig config)
         {
-            if (math.any(config.settings.worldAABB.min > config.settings.worldAABB.max))
+            if (math.any(config.settings.worldAabb.min > config.settings.worldAabb.max))
                 throw new InvalidOperationException("BuildCollisionLayer requires a valid worldBounds AABB");
             if (math.any(config.settings.worldSubdivisionsPerAxis < 1))
                 throw new InvalidOperationException("BuildCollisionLayer requires positive Subdivision values per axis");

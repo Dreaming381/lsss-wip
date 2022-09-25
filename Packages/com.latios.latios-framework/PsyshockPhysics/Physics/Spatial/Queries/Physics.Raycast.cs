@@ -5,12 +5,12 @@ namespace Latios.Psyshock
 {
     public static partial class Physics
     {
-        public static bool Raycast(float3 start, float3 end, SphereCollider sphere, RigidTransform sphereTransform, out RaycastResult result)
+        public static bool Raycast(float3 start, float3 end, in SphereCollider sphere, in RigidTransform sphereTransform, out RaycastResult result)
         {
-            return Raycast(new Ray(start, end), sphere, sphereTransform, out result);
+            return Raycast(new Ray(start, end), in sphere, in sphereTransform, out result);
         }
 
-        public static bool Raycast(Ray ray, SphereCollider sphere, RigidTransform sphereTransform, out RaycastResult result)
+        public static bool Raycast(Ray ray, in SphereCollider sphere, in RigidTransform sphereTransform, out RaycastResult result)
         {
             //Todo: No need to apply rotation to ray for sphere.
             var  rayInSphereSpace   = Ray.TransformRay(math.inverse(sphereTransform), ray);
@@ -22,12 +22,12 @@ namespace Latios.Psyshock
             return hit;
         }
 
-        public static bool Raycast(float3 start, float3 end, CapsuleCollider capsule, RigidTransform capsuleTransform, out RaycastResult result)
+        public static bool Raycast(float3 start, float3 end, in CapsuleCollider capsule, in RigidTransform capsuleTransform, out RaycastResult result)
         {
-            return Raycast(new Ray(start, end), capsule, capsuleTransform, out result);
+            return Raycast(new Ray(start, end), in capsule, in capsuleTransform, out result);
         }
 
-        public static bool Raycast(Ray ray, CapsuleCollider capsule, RigidTransform capsuleTransform, out RaycastResult result)
+        public static bool Raycast(Ray ray, in CapsuleCollider capsule, in RigidTransform capsuleTransform, out RaycastResult result)
         {
             var  rayInCapsuleSpace  = Ray.TransformRay(math.inverse(capsuleTransform), ray);
             bool hit                = SpatialInternal.RaycastCapsule(rayInCapsuleSpace, capsule, out float fraction, out float3 normal);
@@ -38,12 +38,12 @@ namespace Latios.Psyshock
             return hit;
         }
 
-        public static bool Raycast(float3 start, float3 end, BoxCollider box, RigidTransform boxTransform, out RaycastResult result)
+        public static bool Raycast(float3 start, float3 end, in BoxCollider box, in RigidTransform boxTransform, out RaycastResult result)
         {
-            return Raycast(new Ray(start, end), box, boxTransform, out result);
+            return Raycast(new Ray(start, end), in box, in boxTransform, out result);
         }
 
-        public static bool Raycast(Ray ray, BoxCollider box, RigidTransform boxTransform, out RaycastResult result)
+        public static bool Raycast(Ray ray, in BoxCollider box, in RigidTransform boxTransform, out RaycastResult result)
         {
             var  rayInBoxSpace      = Ray.TransformRay(math.inverse(boxTransform), ray);
             bool hit                = SpatialInternal.RaycastBox(rayInBoxSpace, box, out float fraction, out float3 normal);
@@ -54,12 +54,12 @@ namespace Latios.Psyshock
             return hit;
         }
 
-        public static bool Raycast(float3 start, float3 end, TriangleCollider triangle, RigidTransform triangleTransform, out RaycastResult result)
+        public static bool Raycast(float3 start, float3 end, in TriangleCollider triangle, in RigidTransform triangleTransform, out RaycastResult result)
         {
-            return Raycast(new Ray(start, end), triangle, triangleTransform, out result);
+            return Raycast(new Ray(start, end), in triangle, in triangleTransform, out result);
         }
 
-        public static bool Raycast(Ray ray, TriangleCollider triangle, RigidTransform triangleTransform, out RaycastResult result)
+        public static bool Raycast(Ray ray, in TriangleCollider triangle, in RigidTransform triangleTransform, out RaycastResult result)
         {
             var  rayInTriangleSpace = Ray.TransformRay(math.inverse(triangleTransform), ray);
             bool hit                = SpatialInternal.RaycastTriangle(rayInTriangleSpace,
@@ -73,12 +73,12 @@ namespace Latios.Psyshock
             return hit;
         }
 
-        public static bool Raycast(float3 start, float3 end, ConvexCollider convex, RigidTransform convexTransform, out RaycastResult result)
+        public static bool Raycast(float3 start, float3 end, in ConvexCollider convex, in RigidTransform convexTransform, out RaycastResult result)
         {
-            return Raycast(new Ray(start, end), convex, convexTransform, out result);
+            return Raycast(new Ray(start, end), in convex, in convexTransform, out result);
         }
 
-        public static bool Raycast(Ray ray, ConvexCollider convex, RigidTransform convexTransform, out RaycastResult result)
+        public static bool Raycast(Ray ray, in ConvexCollider convex, in RigidTransform convexTransform, out RaycastResult result)
         {
             var  rayInConvexSpace   = Ray.TransformRay(math.inverse(convexTransform), ray);
             bool hit                = SpatialInternal.RaycastConvex(rayInConvexSpace, convex, out float fraction, out float3 normal);
@@ -89,12 +89,12 @@ namespace Latios.Psyshock
             return hit;
         }
 
-        public static bool Raycast(float3 start, float3 end, CompoundCollider compound, RigidTransform compoundTransform, out RaycastResult result)
+        public static bool Raycast(float3 start, float3 end, in CompoundCollider compound, in RigidTransform compoundTransform, out RaycastResult result)
         {
-            return Raycast(new Ray(start, end), compound, compoundTransform, out result);
+            return Raycast(new Ray(start, end), in compound, in compoundTransform, out result);
         }
 
-        public static bool Raycast(Ray ray, CompoundCollider compound, RigidTransform compoundTransform, out RaycastResult result)
+        public static bool Raycast(Ray ray, in CompoundCollider compound, in RigidTransform compoundTransform, out RaycastResult result)
         {
             result                     = default;
             result.distance            = float.MaxValue;

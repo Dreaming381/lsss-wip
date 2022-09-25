@@ -9,6 +9,13 @@ namespace Latios.Psyshock
 {
     public static partial class PhysicsDebug
     {
+        /// <summary>
+        /// Draws the bounding boxes of a CollisionLayer using UnityEngine.Debug.DrawLine calls.
+        /// The boxes are color-coded by the cell they exist in.
+        /// This is the start of a Fluent chain.
+        /// </summary>
+        /// <param name="layer">The collision layer to draw.</param>
+        /// <returns>A context object from which a scheduler should be invoked.</returns>
         public static DrawLayerConfig DrawLayer(CollisionLayer layer)
         {
             var colors                         = new FixedList512Bytes<Color>();
@@ -37,6 +44,9 @@ namespace Latios.Psyshock
                 return this;
             }
 
+            /// <summary>
+            /// Run immediately without using the job system.
+            /// </summary>
             public void RunImmediate()
             {
                 var job = new DebugDrawLayerJob
@@ -51,6 +61,9 @@ namespace Latios.Psyshock
                 }
             }
 
+            /// <summary>
+            /// Run on the same thread using a Burst job.
+            /// </summary>
             public void Run()
             {
                 new DebugDrawLayerJob
@@ -61,6 +74,11 @@ namespace Latios.Psyshock
                 }.Run(layer.BucketCount);
             }
 
+            /// <summary>
+            /// Schedule a single-threaded job to perform the drawing operations
+            /// </summary>
+            /// <param name="inputDeps">The JobHandle that this job should wait for before executing</param>
+            /// <returns>A job handle associated with the scheduled job</returns>
             public JobHandle ScheduleSingle(JobHandle inputDeps = default)
             {
                 return new DebugDrawLayerJob
@@ -71,6 +89,11 @@ namespace Latios.Psyshock
                 }.Schedule(layer.BucketCount, inputDeps);
             }
 
+            /// <summary>
+            /// Schedule a multi-threaded job to perform the drawing operations
+            /// </summary>
+            /// <param name="inputDeps">The JobHandle that this job should wait for before executing</param>
+            /// <returns>A job handle associated with the scheduled job</returns>
             public JobHandle ScheduleParallel(JobHandle inputDeps = default)
             {
                 return new DebugDrawLayerJob
@@ -82,6 +105,12 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Draws overlapping AABBs within the layer using UnityEngine.Debug.DrawLine calls
+        /// This is the start of a Fluent chain.
+        /// </summary>
+        /// <param name="layer">The layer to draw</param>
+        /// <returns>A config object from which a scheduler should be called</returns>
         public static DrawFindPairsConfig DrawFindPairs(CollisionLayer layer)
         {
             return new DrawFindPairsConfig
@@ -94,6 +123,13 @@ namespace Latios.Psyshock
             };
         }
 
+        /// <summary>
+        /// Draws overlapping AABBs between two layers using UnityEngine.Debug.DrawLine calls
+        /// This is the start of a Fluent chain.
+        /// </summary>
+        /// <param name="layerA">The first layer to draw</param>
+        /// <param name="layerB">The second layer to draw</param>
+        /// <returns>A config object from which a scheduler should be called</returns>
         public static DrawFindPairsConfig DrawFindPairs(CollisionLayer layerA, CollisionLayer layerB)
         {
             return new DrawFindPairsConfig
@@ -116,6 +152,13 @@ namespace Latios.Psyshock
             internal bool           drawMisses;
             internal bool           isLayerLayer;
 
+            /// <summary>
+            /// Override the default colors drawn and set whether or not to draw non-overlapping
+            /// </summary>
+            /// <param name="overlapColor">The color for when two AABBs overlap</param>
+            /// <param name="nonOverlapColor">The color for when an AABB does not overlap with anything</param>
+            /// <param name="drawNonOverlapping">If true, AABBs which do not overlap with anything will be drawn using the nonOverlapColor</param>
+            /// <returns>A config object from which a scheduler should be called</returns>
             public DrawFindPairsConfig WithColors(Color overlapColor, Color nonOverlapColor, bool drawNonOverlapping = true)
             {
                 hitColor   = overlapColor;
@@ -124,6 +167,9 @@ namespace Latios.Psyshock
                 return this;
             }
 
+            /// <summary>
+            /// Run immediately without using the job system.
+            /// </summary>
             public void RunImmediate()
             {
                 if (isLayerLayer)
@@ -171,6 +217,9 @@ namespace Latios.Psyshock
                 }
             }
 
+            /// <summary>
+            /// Run on the same thread using Burst jobs
+            /// </summary>
             public void Run()
             {
                 if (isLayerLayer)
@@ -211,6 +260,11 @@ namespace Latios.Psyshock
                 }
             }
 
+            /// <summary>
+            /// Schedule single-threadeds job to perform the drawing operations
+            /// </summary>
+            /// <param name="inputDeps">The JobHandle that these jobs should wait for before executing</param>
+            /// <returns>A job handle associated with the scheduled jobs</returns>
             public JobHandle ScheduleSingle(JobHandle inputDeps = default)
             {
                 if (isLayerLayer)
@@ -251,6 +305,11 @@ namespace Latios.Psyshock
                 }
             }
 
+            /// <summary>
+            /// Schedule multi-threaded jobs to perform the drawing operations
+            /// </summary>
+            /// <param name="inputDeps">The JobHandle that these jobs should wait for before executing</param>
+            /// <returns>A job handle associated with the scheduled jobs</returns>
             public JobHandle ScheduleParallel(JobHandle inputDeps = default)
             {
                 if (isLayerLayer)
@@ -292,6 +351,11 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Draw an AABB wireframe using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="aabb">The AABB to draw</param>
+        /// <param name="color">The color of the wireframe</param>
         public static void DrawAabb(Aabb aabb, Color color)
         {
             float3 leftTopFront     = new float3(aabb.min.x, aabb.max.y, aabb.min.z);

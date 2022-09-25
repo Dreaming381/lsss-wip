@@ -127,7 +127,7 @@ namespace Latios.Psyshock
         /// </summary>
         /// <param name="layer">The layer in which pairs should be detected</param>
         /// <param name="processor">The job-like struct which should process each pair found</param>
-        public static FindPairsLayerSelfConfig<T> FindPairs<T>(CollisionLayer layer, T processor) where T : struct, IFindPairsProcessor
+        public static FindPairsLayerSelfConfig<T> FindPairs<T>(in CollisionLayer layer, in T processor) where T : struct, IFindPairsProcessor
         {
             return new FindPairsLayerSelfConfig<T>
             {
@@ -145,7 +145,7 @@ namespace Latios.Psyshock
         /// <param name="layerA">The first layer in which pairs should be detected</param>
         /// <param name="layerB">The second layer in which pairs should be detected</param>
         /// <param name="processor">The job-like struct which should process each pair found</param>
-        public static FindPairsLayerLayerConfig<T> FindPairs<T>(CollisionLayer layerA, CollisionLayer layerB, T processor) where T : struct, IFindPairsProcessor
+        public static FindPairsLayerLayerConfig<T> FindPairs<T>(in CollisionLayer layerA, in CollisionLayer layerB, in T processor) where T : struct, IFindPairsProcessor
         {
             CheckLayersAreCompatible(layerA, layerB);
             return new FindPairsLayerLayerConfig<T>
@@ -163,7 +163,7 @@ namespace Latios.Psyshock
         /// </summary>
         /// <param name="layer">The layer in which pairs should be detected</param>
         /// <param name="processor">The job-like struct which should process each pair found</param>
-        internal static FindPairsLayerSelfConfigUnrolled<T> FindPairsUnrolled<T>(CollisionLayer layer, T processor) where T : struct, IFindPairsProcessor
+        internal static FindPairsLayerSelfConfigUnrolled<T> FindPairsUnrolled<T>(in CollisionLayer layer, in T processor) where T : struct, IFindPairsProcessor
         {
             return new FindPairsLayerSelfConfigUnrolled<T>
             {
@@ -181,7 +181,8 @@ namespace Latios.Psyshock
         /// <param name="layerA">The first layer in which pairs should be detected</param>
         /// <param name="layerB">The second layer in which pairs should be detected</param>
         /// <param name="processor">The job-like struct which should process each pair found</param>
-        internal static FindPairsLayerLayerConfigUnrolled<T> FindPairsUnrolled<T>(CollisionLayer layerA, CollisionLayer layerB, T processor) where T : struct, IFindPairsProcessor
+        internal static FindPairsLayerLayerConfigUnrolled<T> FindPairsUnrolled<T>(in CollisionLayer layerA, in CollisionLayer layerB, in T processor) where T : struct,
+        IFindPairsProcessor
         {
             CheckLayersAreCompatible(layerA, layerB);
             return new FindPairsLayerLayerConfigUnrolled<T>
@@ -195,7 +196,7 @@ namespace Latios.Psyshock
 
         #region SafetyChecks
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        static void CheckLayersAreCompatible(CollisionLayer layerA, CollisionLayer layerB)
+        static void CheckLayersAreCompatible(in CollisionLayer layerA, in CollisionLayer layerB)
         {
             if (math.any(layerA.worldMin != layerB.worldMin | layerA.worldAxisStride != layerB.worldAxisStride | layerA.worldSubdivisionsPerAxis !=
                          layerB.worldSubdivisionsPerAxis))

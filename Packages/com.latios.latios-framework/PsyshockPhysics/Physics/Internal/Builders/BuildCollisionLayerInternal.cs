@@ -10,32 +10,6 @@ namespace Latios.Psyshock
 {
     internal static class BuildCollisionLayerInternal
     {
-        public struct LayerChunkTypeGroup
-        {
-            [ReadOnly] public ComponentTypeHandle<Collider>     collider;
-            [ReadOnly] public ComponentTypeHandle<Translation>  translation;
-            [ReadOnly] public ComponentTypeHandle<Rotation>     rotation;
-            [ReadOnly] public ComponentTypeHandle<PhysicsScale> scale;
-            [ReadOnly] public ComponentTypeHandle<Parent>       parent;
-            [ReadOnly] public ComponentTypeHandle<LocalToWorld> localToWorld;
-            [ReadOnly] public EntityTypeHandle                  entity;
-        }
-
-        public static LayerChunkTypeGroup BuildLayerChunkTypeGroup(ComponentSystemBase system)
-        {
-            LayerChunkTypeGroup result = new LayerChunkTypeGroup
-            {
-                collider     = system.GetComponentTypeHandle<Collider>(true),
-                translation  = system.GetComponentTypeHandle<Translation>(true),
-                rotation     = system.GetComponentTypeHandle<Rotation>(true),
-                scale        = system.GetComponentTypeHandle<PhysicsScale>(true),
-                parent       = system.GetComponentTypeHandle<Parent>(true),
-                localToWorld = system.GetComponentTypeHandle<LocalToWorld>(true),
-                entity       = system.GetEntityTypeHandle()
-            };
-            return result;
-        }
-
         public struct ColliderAoSData
         {
             public Collider       collider;
@@ -50,11 +24,11 @@ namespace Latios.Psyshock
         [BurstCompile]
         public struct Part1FromQueryJob : IJobEntityBatchWithIndex
         {
-            public CollisionLayer                         layer;
-            [NoAlias] public NativeArray<int>             layerIndices;
-            [NoAlias] public NativeArray<ColliderAoSData> colliderAoS;
-            [NoAlias] public NativeArray<float2>          xMinMaxs;
-            [ReadOnly] public LayerChunkTypeGroup         typeGroup;
+            public CollisionLayer                            layer;
+            [NoAlias] public NativeArray<int>                layerIndices;
+            [NoAlias] public NativeArray<ColliderAoSData>    colliderAoS;
+            [NoAlias] public NativeArray<float2>             xMinMaxs;
+            [ReadOnly] public BuildCollisionLayerTypeHandles typeGroup;
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
                 bool ltw = chunk.Has(typeGroup.localToWorld);
@@ -71,14 +45,14 @@ namespace Latios.Psyshock
 
                 switch (mask)
                 {
-                    case 0x0: ProcessNoTransform(chunk, firstEntityIndex); break;
-                    case 0x1: ProcessScale(chunk, firstEntityIndex); break;
-                    case 0x2: ProcessRotation(chunk, firstEntityIndex); break;
-                    case 0x3: ProcessRotationScale(chunk, firstEntityIndex); break;
-                    case 0x4: ProcessTranslation(chunk, firstEntityIndex); break;
-                    case 0x5: ProcessTranslationScale(chunk, firstEntityIndex); break;
-                    case 0x6: ProcessTranslationRotation(chunk, firstEntityIndex); break;
-                    case 0x7: ProcessTranslationRotationScale(chunk, firstEntityIndex); break;
+                    case 0x0: ProcessNoTransform(ref chunk, firstEntityIndex); break;
+                    case 0x1: ProcessScale(ref chunk, firstEntityIndex); break;
+                    case 0x2: ProcessRotation(ref chunk, firstEntityIndex); break;
+                    case 0x3: ProcessRotationScale(ref chunk, firstEntityIndex); break;
+                    case 0x4: ProcessTranslation(ref chunk, firstEntityIndex); break;
+                    case 0x5: ProcessTranslationScale(ref chunk, firstEntityIndex); break;
+                    case 0x6: ProcessTranslationRotation(ref chunk, firstEntityIndex); break;
+                    case 0x7: ProcessTranslationRotationScale(ref chunk, firstEntityIndex); break;
 
                     case 0x8: ErrorCase(); break;
                     case 0x9: ErrorCase(); break;
@@ -89,23 +63,23 @@ namespace Latios.Psyshock
                     case 0xe: ErrorCase(); break;
                     case 0xf: ErrorCase(); break;
 
-                    case 0x10: ProcessLocalToWorld(chunk, firstEntityIndex); break;
-                    case 0x11: ProcessScale(chunk, firstEntityIndex); break;
-                    case 0x12: ProcessRotation(chunk, firstEntityIndex); break;
-                    case 0x13: ProcessRotationScale(chunk, firstEntityIndex); break;
-                    case 0x14: ProcessTranslation(chunk, firstEntityIndex); break;
-                    case 0x15: ProcessTranslationScale(chunk, firstEntityIndex); break;
-                    case 0x16: ProcessTranslationRotation(chunk, firstEntityIndex); break;
-                    case 0x17: ProcessTranslationRotationScale(chunk, firstEntityIndex); break;
+                    case 0x10: ProcessLocalToWorld(ref chunk, firstEntityIndex); break;
+                    case 0x11: ProcessScale(ref chunk, firstEntityIndex); break;
+                    case 0x12: ProcessRotation(ref chunk, firstEntityIndex); break;
+                    case 0x13: ProcessRotationScale(ref chunk, firstEntityIndex); break;
+                    case 0x14: ProcessTranslation(ref chunk, firstEntityIndex); break;
+                    case 0x15: ProcessTranslationScale(ref chunk, firstEntityIndex); break;
+                    case 0x16: ProcessTranslationRotation(ref chunk, firstEntityIndex); break;
+                    case 0x17: ProcessTranslationRotationScale(ref chunk, firstEntityIndex); break;
 
-                    case 0x18: ProcessParent(chunk, firstEntityIndex); break;
-                    case 0x19: ProcessParentScale(chunk, firstEntityIndex); break;
-                    case 0x1a: ProcessParent(chunk, firstEntityIndex); break;
-                    case 0x1b: ProcessParentScale(chunk, firstEntityIndex); break;
-                    case 0x1c: ProcessParent(chunk, firstEntityIndex); break;
-                    case 0x1d: ProcessParentScale(chunk, firstEntityIndex); break;
-                    case 0x1e: ProcessParent(chunk, firstEntityIndex); break;
-                    case 0x1f: ProcessParentScale(chunk, firstEntityIndex); break;
+                    case 0x18: ProcessParent(ref chunk, firstEntityIndex); break;
+                    case 0x19: ProcessParentScale(ref chunk, firstEntityIndex); break;
+                    case 0x1a: ProcessParent(ref chunk, firstEntityIndex); break;
+                    case 0x1b: ProcessParentScale(ref chunk, firstEntityIndex); break;
+                    case 0x1c: ProcessParent(ref chunk, firstEntityIndex); break;
+                    case 0x1d: ProcessParentScale(ref chunk, firstEntityIndex); break;
+                    case 0x1e: ProcessParent(ref chunk, firstEntityIndex); break;
+                    case 0x1f: ProcessParentScale(ref chunk, firstEntityIndex); break;
 
                     default: ErrorCase(); break;
                 }
@@ -117,7 +91,7 @@ namespace Latios.Psyshock
                 throw new System.InvalidOperationException("BuildCollisionLayer.Part1FromQueryJob received an invalid EntityQuery");
             }
 
-            private void ProcessNoTransform(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessNoTransform(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -127,7 +101,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessScale(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessScale(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -135,11 +109,11 @@ namespace Latios.Psyshock
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     var collider = Physics.ScaleCollider(chunkColliders[i], chunkScales[i]);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], collider, RigidTransform.identity);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], in collider, RigidTransform.identity);
                 }
             }
 
-            private void ProcessRotation(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessRotation(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -147,11 +121,11 @@ namespace Latios.Psyshock
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     var rigidTransform = new RigidTransform(chunkRotations[i].Value, float3.zero);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], in rigidTransform);
                 }
             }
 
-            private void ProcessRotationScale(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessRotationScale(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -161,11 +135,11 @@ namespace Latios.Psyshock
                 {
                     var collider       = Physics.ScaleCollider(chunkColliders[i], chunkScales[i]);
                     var rigidTransform = new RigidTransform(chunkRotations[i].Value, float3.zero);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], collider, rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], in collider, in rigidTransform);
                 }
             }
 
-            private void ProcessTranslation(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslation(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -173,11 +147,11 @@ namespace Latios.Psyshock
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     var rigidTransform = new RigidTransform(quaternion.identity, chunkTranslations[i].Value);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], in rigidTransform);
                 }
             }
 
-            private void ProcessTranslationScale(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslationScale(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -187,11 +161,11 @@ namespace Latios.Psyshock
                 {
                     var collider       = Physics.ScaleCollider(chunkColliders[i], chunkScales[i]);
                     var rigidTransform = new RigidTransform(quaternion.identity, chunkTranslations[i].Value);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], collider, rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], in collider, in rigidTransform);
                 }
             }
 
-            private void ProcessTranslationRotation(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslationRotation(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -200,11 +174,11 @@ namespace Latios.Psyshock
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     var rigidTransform = new RigidTransform(chunkRotations[i].Value, chunkTranslations[i].Value);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], in rigidTransform);
                 }
             }
 
-            private void ProcessTranslationRotationScale(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslationRotationScale(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -215,11 +189,11 @@ namespace Latios.Psyshock
                 {
                     var collider       = Physics.ScaleCollider(chunkColliders[i], chunkScales[i]);
                     var rigidTransform = new RigidTransform(chunkRotations[i].Value, chunkTranslations[i].Value);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], collider, rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], in collider, in rigidTransform);
                 }
             }
 
-            private void ProcessLocalToWorld(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessLocalToWorld(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities      = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders     = chunk.GetNativeArray(typeGroup.collider);
@@ -230,11 +204,11 @@ namespace Latios.Psyshock
                     var rotation       = quaternion.LookRotationSafe(localToWorld.Forward, localToWorld.Up);
                     var position       = localToWorld.Position;
                     var rigidTransform = new RigidTransform(rotation, position);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], in rigidTransform);
                 }
             }
 
-            private void ProcessParent(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessParent(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities      = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders     = chunk.GetNativeArray(typeGroup.collider);
@@ -245,11 +219,11 @@ namespace Latios.Psyshock
                     var rotation       = quaternion.LookRotationSafe(localToWorld.Forward, localToWorld.Up);
                     var position       = localToWorld.Position;
                     var rigidTransform = new RigidTransform(rotation, position);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], chunkColliders[i], in rigidTransform);
                 }
             }
 
-            private void ProcessParentScale(ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessParentScale(ref ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities      = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders     = chunk.GetNativeArray(typeGroup.collider);
@@ -262,13 +236,13 @@ namespace Latios.Psyshock
                     var position       = localToWorld.Position;
                     var rigidTransform = new RigidTransform(rotation, position);
                     var collider       = Physics.ScaleCollider(chunkColliders[i], chunkScales[i]);
-                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], collider, rigidTransform);
+                    ProcessEntity(firstEntityIndex + i, chunkEntities[i], in collider, in rigidTransform);
                 }
             }
 
-            private void ProcessEntity(int index, Entity entity, Collider collider, RigidTransform rigidTransform)
+            private void ProcessEntity(int index, Entity entity, in Collider collider, in RigidTransform rigidTransform)
             {
-                Aabb aabb = Physics.AabbFrom(collider, rigidTransform);
+                Aabb aabb = Physics.AabbFrom(in collider, in rigidTransform);
 
                 colliderAoS[index] = new ColliderAoSData
                 {
@@ -302,13 +276,19 @@ namespace Latios.Psyshock
         //Parallel
         //Calculated Target Bucket and write as layer index
         [BurstCompile]
-        public struct Part1FromColliderBodyArrayJob : IJobFor
+        public struct Part1FromColliderBodyArrayJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             public CollisionLayer                       layer;
             [NoAlias] public NativeArray<int>           layerIndices;
             [ReadOnly] public NativeArray<ColliderBody> colliderBodies;
             [NoAlias] public NativeArray<Aabb>          aabbs;
             [NoAlias] public NativeArray<float2>        xMinMaxs;
+
+            public void Execute()
+            {
+                for (int i = 0; i < colliderBodies.Length; i++)
+                    Execute(i);
+            }
 
             public void Execute(int i)
             {
@@ -339,23 +319,22 @@ namespace Latios.Psyshock
         //Parallel
         //Calculated Target Bucket and write as layer index using the override AABB
         [BurstCompile]
-        public struct Part1FromDualArraysJob : IJobFor
+        public struct Part1FromDualArraysJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
-            public CollisionLayer             layer;
-            [NoAlias] public NativeArray<int> layerIndices;
-            //[NoAlias] public NativeArray<Aabb>  aabbs;
+            public CollisionLayer                layer;
+            [NoAlias] public NativeArray<int>    layerIndices;
             [ReadOnly] public NativeArray<Aabb>  aabbs;
             [NoAlias] public NativeArray<float2> xMinMaxs;
 
+            public void Execute()
+            {
+                for (int i = 0; i < aabbs.Length; i++)
+                    Execute(i);
+            }
+
             public void Execute(int i)
             {
-                var aabb = aabbs[i];
-                //if (math.isnan(aabb.min.x) || math.isnan(aabb.max.x))
-                //{
-                //    aabb.min.x = float.PositiveInfinity;
-                //    aabb.max.x = float.PositiveInfinity;
-                //    aabbs[i]   = aabb;
-                //}
+                var aabb    = aabbs[i];
                 xMinMaxs[i] = new float2(aabb.min.x, aabb.max.x);
 
                 int3 minBucket = math.int3(math.floor((aabb.min - layer.worldMin) / layer.worldAxisStride));
@@ -381,7 +360,7 @@ namespace Latios.Psyshock
         //Single
         //Count total in each bucket and assign global array position to layerIndex
         [BurstCompile]
-        public struct Part2Job : IJob
+        public struct Part2Job : IJobBurstSchedulable
         {
             public CollisionLayer             layer;
             [NoAlias] public NativeArray<int> layerIndices;
@@ -415,10 +394,16 @@ namespace Latios.Psyshock
         //Reverse array of dst indices to array of src indices
         //Todo: Might be faster as an IJob due to potential false sharing
         [BurstCompile]
-        public struct Part3Job : IJobFor
+        public struct Part3Job : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             [ReadOnly, DeallocateOnJobCompletion] public NativeArray<int>          layerIndices;
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int> unsortedSrcIndices;
+
+            public void Execute()
+            {
+                for (int i = 0; i < layerIndices.Length; i++)
+                    Execute(i);
+            }
 
             public void Execute(int i)
             {
@@ -430,12 +415,18 @@ namespace Latios.Psyshock
         //Parallel
         //Sort buckets
         [BurstCompile]
-        public struct Part4Job : IJobFor
+        public struct Part4Job : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int>              unsortedSrcIndices;
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<IntervalTreeNode> trees;
             [ReadOnly, DeallocateOnJobCompletion] public NativeArray<float2>                    xMinMaxs;
             [ReadOnly] public NativeArray<int2>                                                 bucketStartAndCounts;
+
+            public void Execute()
+            {
+                for (int i = 0; i < bucketStartAndCounts.Length - 1; i++)
+                    Execute(i);
+            }
 
             public void Execute(int i)
             {
@@ -469,7 +460,7 @@ namespace Latios.Psyshock
         //Parallel
         //Copy AoS data to SoA layer
         [BurstCompile]
-        public struct Part5FromQueryJob : IJobFor
+        public struct Part5FromQueryJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             [NoAlias, NativeDisableParallelForRestriction]
             public CollisionLayer layer;
@@ -478,6 +469,12 @@ namespace Latios.Psyshock
             public NativeArray<ColliderAoSData> colliderAoS;
 
             [ReadOnly] public NativeArray<int> remapSrcIndices;
+
+            public void Execute()
+            {
+                for (int i = 0; i < remapSrcIndices.Length; i++)
+                    Execute(i);
+            }
 
             public void Execute(int i)
             {
@@ -497,7 +494,7 @@ namespace Latios.Psyshock
         //Parallel
         //Copy array data to layer
         [BurstCompile]
-        public struct Part5FromArraysJob : IJobFor
+        public struct Part5FromArraysJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             [NativeDisableParallelForRestriction]
             public CollisionLayer layer;
@@ -505,6 +502,12 @@ namespace Latios.Psyshock
             [ReadOnly] public NativeArray<Aabb>         aabbs;
             [ReadOnly] public NativeArray<ColliderBody> bodies;
             [ReadOnly] public NativeArray<int>          remapSrcIndices;
+
+            public void Execute()
+            {
+                for (int i = 0; i < remapSrcIndices.Length; i++)
+                    Execute(i);
+            }
 
             public void Execute(int i)
             {
@@ -519,7 +522,7 @@ namespace Latios.Psyshock
         //Single
         //All five steps for custom arrays
         [BurstCompile]
-        public struct BuildFromColliderArraySingleJob : IJob
+        public struct BuildFromColliderArraySingleJob : IJobBurstSchedulable
         {
             public CollisionLayer layer;
 
@@ -528,14 +531,14 @@ namespace Latios.Psyshock
             public void Execute()
             {
                 var remapSrcArray = new NativeArray<int>(layer.Count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                BuildImmediate(layer, remapSrcArray, bodies);
+                BuildImmediate(ref layer, remapSrcArray, bodies);
             }
         }
 
         //Single
         //All five steps for custom arrays
         [BurstCompile]
-        public struct BuildFromDualArraysSingleJob : IJob
+        public struct BuildFromDualArraysSingleJob : IJobBurstSchedulable
         {
             public CollisionLayer layer;
 
@@ -545,14 +548,14 @@ namespace Latios.Psyshock
             public void Execute()
             {
                 var remapSrcArray = new NativeArray<int>(layer.Count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                BuildImmediate(layer, remapSrcArray, bodies, aabbs);
+                BuildImmediate(ref layer, remapSrcArray, bodies, aabbs);
             }
         }
 
         //Single
         //All five steps for custom arrays with remap
         [BurstCompile]
-        public struct BuildFromColliderArraySingleWithRemapJob : IJob
+        public struct BuildFromColliderArraySingleWithRemapJob : IJobBurstSchedulable
         {
             public CollisionLayer layer;
 
@@ -561,14 +564,14 @@ namespace Latios.Psyshock
 
             public void Execute()
             {
-                BuildImmediate(layer, remapSrcIndices, bodies);
+                BuildImmediate(ref layer, remapSrcIndices, bodies);
             }
         }
 
         //Single
         //All five steps for custom arrays with remap
         [BurstCompile]
-        public struct BuildFromDualArraysSingleWithRemapJob : IJob
+        public struct BuildFromDualArraysSingleWithRemapJob : IJobBurstSchedulable
         {
             public CollisionLayer layer;
 
@@ -578,14 +581,14 @@ namespace Latios.Psyshock
 
             public void Execute()
             {
-                BuildImmediate(layer, remapSrcIndices, bodies, aabbs);
+                BuildImmediate(ref layer, remapSrcIndices, bodies, aabbs);
             }
         }
 
         #endregion
 
         #region Immediate
-        public static void BuildImmediate(CollisionLayer layer, NativeArray<int> remapSrcArray, NativeArray<ColliderBody> bodies)
+        public static void BuildImmediate(ref CollisionLayer layer, NativeArray<int> remapSrcArray, NativeArray<ColliderBody> bodies)
         {
             var aabbs        = new NativeArray<Aabb>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var layerIndices = new NativeArray<int>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
@@ -645,7 +648,7 @@ namespace Latios.Psyshock
             }
         }
 
-        public static void BuildImmediate(CollisionLayer layer, NativeArray<int> remapSrcArray, NativeArray<ColliderBody> bodies, NativeArray<Aabb> aabbs)
+        public static void BuildImmediate(ref CollisionLayer layer, NativeArray<int> remapSrcArray, NativeArray<ColliderBody> bodies, NativeArray<Aabb> aabbs)
         {
             var layerIndices = new NativeArray<int>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
             var xMinMaxs     = new NativeArray<float2>(remapSrcArray.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
@@ -772,7 +775,7 @@ namespace Latios.Psyshock
             return result;
         }
 
-        private static void calculatePrefixSum(NativeArray<int> counts, NativeArray<int> sums)
+        private static void CalculatePrefixSum(NativeArray<int> counts, NativeArray<int> sums)
         {
             sums[0] = 0;
             for (int i = 0; i < counts.Length - 1; i++)
@@ -811,10 +814,10 @@ namespace Latios.Psyshock
             }
 
             //Sums
-            calculatePrefixSum(counts1, prefixSum1);
-            calculatePrefixSum(counts2, prefixSum2);
-            calculatePrefixSum(counts3, prefixSum3);
-            calculatePrefixSum(counts4, prefixSum4);
+            CalculatePrefixSum(counts1, prefixSum1);
+            CalculatePrefixSum(counts2, prefixSum2);
+            CalculatePrefixSum(counts3, prefixSum3);
+            CalculatePrefixSum(counts4, prefixSum4);
 
             for (int i = 0; i < count; i++)
             {

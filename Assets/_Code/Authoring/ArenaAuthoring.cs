@@ -32,7 +32,7 @@ namespace Lsss
                 {
                     settings = new CollisionLayerSettings
                     {
-                        worldAABB                = new Aabb(-cornerAlongAxis, cornerAlongAxis),
+                        worldAabb                = new Aabb(-cornerAlongAxis, cornerAlongAxis),
                         worldSubdivisionsPerAxis = new int3(1, subdivisions, subdivisions)
                     }
                 });

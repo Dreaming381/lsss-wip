@@ -9,15 +9,19 @@ namespace Lsss
 {
     public partial class BuildFactionShipsCollisionLayersSystem : SubSystem
     {
-        private EntityQuery m_query;
+        private EntityQuery                    m_query;
+        private BuildCollisionLayerTypeHandles m_typeHandles;
 
         protected override void OnCreate()
         {
-            m_query = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
+            m_query       = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
+            m_typeHandles = new BuildCollisionLayerTypeHandles(this);
         }
 
         protected override void OnUpdate()
         {
+            m_typeHandles.Update(this);
+
             var settings                                                                 = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             sceneBlackboardEntity.SetComponentData(new ArenaCollisionSettings { settings = settings });
 
@@ -31,7 +35,8 @@ namespace Lsss
 
                 var factionMemberFilter = new FactionMember { factionEntity = factionEntity };
                 m_query.SetSharedComponentFilter(factionMemberFilter);
-                Dependency = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+                Dependency =
+                    Physics.BuildCollisionLayer(m_query, in m_typeHandles).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
 
                 EntityManager.SetCollectionComponentAndDisposeOld(factionEntity, new FactionShipsCollisionLayer { layer = layer });
                 m_query.ResetFilter();

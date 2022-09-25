@@ -169,7 +169,7 @@ namespace Latios.Psyshock
 
             public void Execute(in FindObjectsResult result)
             {
-                var hit = Physics.DistanceBetween(m_collider, m_transform, result.collider, result.transform, m_maxDistance, out var newResult);
+                var hit = Physics.DistanceBetween(in m_collider, in m_transform, result.collider, result.transform, m_maxDistance, out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
@@ -207,7 +207,7 @@ namespace Latios.Psyshock
                 if (m_resultPtr->subColliderIndexB >= 0)
                     return;
 
-                var hit = Physics.DistanceBetween(m_collider, m_transform, result.collider, result.transform, m_maxDistance, out var newResult);
+                var hit = Physics.DistanceBetween(in m_collider, in m_transform, result.collider, result.transform, m_maxDistance, out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
@@ -245,7 +245,7 @@ namespace Latios.Psyshock
 
             public void Execute(in FindObjectsResult result)
             {
-                var hit = Physics.ColliderCast(m_collider, m_start, m_end, result.collider, result.transform, out var newResult);
+                var hit = Physics.ColliderCast(in m_collider, in m_start, m_end, result.collider, result.transform, out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
@@ -287,7 +287,7 @@ namespace Latios.Psyshock
                 if (m_resultPtr->subColliderIndexOnTarget >= 0)
                     return;
 
-                var hit = Physics.ColliderCast(m_collider, m_start, m_end, result.collider, result.transform, out var newResult);
+                var hit = Physics.ColliderCast(in m_collider, in m_start, m_end, result.collider, result.transform, out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;

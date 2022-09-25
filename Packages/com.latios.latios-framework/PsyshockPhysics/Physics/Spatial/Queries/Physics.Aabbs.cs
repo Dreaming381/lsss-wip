@@ -7,7 +7,7 @@ namespace Latios.Psyshock
     public static partial class Physics
     {
         #region Rays
-        public static Aabb AabbFrom(Ray ray)
+        public static Aabb AabbFrom(in Ray ray)
         {
             return new Aabb(math.min(ray.start, ray.end), math.max(ray.start, ray.end));
         }
@@ -19,33 +19,33 @@ namespace Latios.Psyshock
         #endregion
 
         #region Colliders
-        public static Aabb AabbFrom(SphereCollider sphere, RigidTransform transform)
+        public static Aabb AabbFrom(in SphereCollider sphere, in RigidTransform transform)
         {
             float3 wc   = math.transform(transform, sphere.center);
             Aabb   aabb = new Aabb(wc - sphere.radius, wc + sphere.radius);
             return aabb;
         }
 
-        public static Aabb AabbFrom(CapsuleCollider capsule, RigidTransform transform)
+        public static Aabb AabbFrom(in CapsuleCollider capsule, in RigidTransform transform)
         {
             float3 a = math.transform(transform, capsule.pointA);
             float3 b = math.transform(transform, capsule.pointB);
             return new Aabb(math.min(a, b) - capsule.radius, math.max(a, b) + capsule.radius);
         }
 
-        public static Aabb AabbFrom(BoxCollider box, RigidTransform transform)
+        public static Aabb AabbFrom(in BoxCollider box, in RigidTransform transform)
         {
             return TransformAabb(new float4x4(transform), box.center, box.halfSize);
         }
 
-        public static Aabb AabbFrom(TriangleCollider triangle, RigidTransform transform)
+        public static Aabb AabbFrom(in TriangleCollider triangle, in RigidTransform transform)
         {
             var transformedTriangle = simd.transform(transform, new simdFloat3(triangle.pointA, triangle.pointB, triangle.pointC, triangle.pointA));
             var aabb                = new Aabb(math.min(transformedTriangle.a, transformedTriangle.b), math.max(transformedTriangle.a, transformedTriangle.b));
             return CombineAabb(transformedTriangle.c, aabb);
         }
 
-        public static Aabb AabbFrom(ConvexCollider convex, RigidTransform transform)
+        public static Aabb AabbFrom(in ConvexCollider convex, in RigidTransform transform)
         {
             var         local = convex.convexColliderBlob.Value.localAabb;
             float3      c     = (local.min + local.max) / 2f;
@@ -53,7 +53,7 @@ namespace Latios.Psyshock
             return AabbFrom(ScaleCollider(box, new PhysicsScale(convex.scale)), transform);
         }
 
-        public static Aabb AabbFrom(CompoundCollider compound, RigidTransform transform)
+        public static Aabb AabbFrom(in CompoundCollider compound, in RigidTransform transform)
         {
             var         local = compound.compoundColliderBlob.Value.localAabb;
             float3      c     = (local.min + local.max) / 2f;
@@ -63,7 +63,7 @@ namespace Latios.Psyshock
         #endregion
 
         #region ColliderCasts
-        public static Aabb AabbFrom(SphereCollider sphereToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in SphereCollider sphereToCast, in RigidTransform castStart, float3 castEnd)
         {
             var aabbStart = AabbFrom(sphereToCast, castStart);
             var diff      = castEnd - castStart.pos;
@@ -71,7 +71,7 @@ namespace Latios.Psyshock
             return CombineAabb(aabbStart, aabbEnd);
         }
 
-        public static Aabb AabbFrom(CapsuleCollider capsuleToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in CapsuleCollider capsuleToCast, in RigidTransform castStart, float3 castEnd)
         {
             var aabbStart = AabbFrom(capsuleToCast, castStart);
             var diff      = castEnd - castStart.pos;
@@ -79,7 +79,7 @@ namespace Latios.Psyshock
             return CombineAabb(aabbStart, aabbEnd);
         }
 
-        public static Aabb AabbFrom(BoxCollider boxToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in BoxCollider boxToCast, in RigidTransform castStart, float3 castEnd)
         {
             var aabbStart = AabbFrom(boxToCast, castStart);
             var diff      = castEnd - castStart.pos;
@@ -87,7 +87,7 @@ namespace Latios.Psyshock
             return CombineAabb(aabbStart, aabbEnd);
         }
 
-        public static Aabb AabbFrom(TriangleCollider triangleToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in TriangleCollider triangleToCast, in RigidTransform castStart, float3 castEnd)
         {
             var aabbStart = AabbFrom(triangleToCast, castStart);
             var diff      = castEnd - castStart.pos;
@@ -95,7 +95,7 @@ namespace Latios.Psyshock
             return CombineAabb(aabbStart, aabbEnd);
         }
 
-        public static Aabb AabbFrom(ConvexCollider convexToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in ConvexCollider convexToCast, in RigidTransform castStart, float3 castEnd)
         {
             var aabbStart = AabbFrom(convexToCast, castStart);
             var diff      = castEnd - castStart.pos;
@@ -103,7 +103,7 @@ namespace Latios.Psyshock
             return CombineAabb(aabbStart, aabbEnd);
         }
 
-        public static Aabb AabbFrom(CompoundCollider compoundToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in CompoundCollider compoundToCast, in RigidTransform castStart, float3 castEnd)
         {
             var aabbStart = AabbFrom(compoundToCast, castStart);
             var diff      = castEnd - castStart.pos;
@@ -113,56 +113,44 @@ namespace Latios.Psyshock
         #endregion
 
         #region Dispatch
-        public static Aabb AabbFrom(Collider collider, RigidTransform transform)
+        public static Aabb AabbFrom(in Collider collider, in RigidTransform transform)
         {
             switch (collider.type)
             {
                 case ColliderType.Sphere:
-                    SphereCollider sphere = collider;
-                    return AabbFrom(sphere, transform);
+                    return AabbFrom(in collider.m_sphere, in transform);
                 case ColliderType.Capsule:
-                    CapsuleCollider capsule = collider;
-                    return AabbFrom(capsule, transform);
+                    return AabbFrom(in collider.m_capsule, in transform);
                 case ColliderType.Box:
-                    BoxCollider box = collider;
-                    return AabbFrom(box, transform);
+                    return AabbFrom(in collider.m_box, in transform);
                 case ColliderType.Triangle:
-                    TriangleCollider triangle = collider;
-                    return AabbFrom(triangle, transform);
+                    return AabbFrom(in collider.m_triangle, in transform);
                 case ColliderType.Convex:
-                    ConvexCollider convex = collider;
-                    return AabbFrom(convex, transform);
+                    return AabbFrom(in collider.m_convex, in transform);
                 case ColliderType.Compound:
-                    CompoundCollider compound = collider;
-                    return AabbFrom(compound, transform);
+                    return AabbFrom(in collider.m_compound, in transform);
                 default:
                     ThrowUnsupportedType();
                     return new Aabb();
             }
         }
 
-        public static Aabb AabbFrom(Collider colliderToCast, RigidTransform castStart, float3 castEnd)
+        public static Aabb AabbFrom(in Collider colliderToCast, in RigidTransform castStart, float3 castEnd)
         {
             switch (colliderToCast.type)
             {
                 case ColliderType.Sphere:
-                    SphereCollider sphere = colliderToCast;
-                    return AabbFrom(sphere, castStart, castEnd);
+                    return AabbFrom(in colliderToCast.m_sphere, in castStart, castEnd);
                 case ColliderType.Capsule:
-                    CapsuleCollider capsule = colliderToCast;
-                    return AabbFrom(capsule, castStart, castEnd);
+                    return AabbFrom(in colliderToCast.m_capsule, in castStart, castEnd);
                 case ColliderType.Box:
-                    BoxCollider box = colliderToCast;
-                    return AabbFrom(box, castStart, castEnd);
+                    return AabbFrom(in colliderToCast.m_box, in castStart, castEnd);
                 case ColliderType.Triangle:
-                    TriangleCollider triangle = colliderToCast;
-                    return AabbFrom(triangle, castStart, castEnd);
+                    return AabbFrom(in colliderToCast.m_triangle, in castStart, castEnd);
                 case ColliderType.Convex:
-                    ConvexCollider convex = colliderToCast;
-                    return AabbFrom(convex, castStart, castEnd);
+                    return AabbFrom(in colliderToCast.m_convex, in castStart, castEnd);
                 case ColliderType.Compound:
-                    CompoundCollider compound = colliderToCast;
-                    return AabbFrom(compound, castStart, castEnd);
+                    return AabbFrom(in colliderToCast.m_compound, in castStart, castEnd);
                 default:
                     ThrowUnsupportedType();
                     return new Aabb();
