@@ -1,9 +1,9 @@
-# Latios Space Shooter Sample - WIP
+# Latios Space Shooter Sample – Latios Framework Open Project \#1
 
-This is an open game project using Unity DOTS. It is used to validate new
-features and improvements in Latios Framework (currently 0.4) as well as serve
-as an example project. A version of the framework is included as an embedded
-package.
+This is the first open game project using Unity DOTS. It was used to validate
+new features and improvements in Latios Framework up to version 0.4 and still
+serves as an example project and compatibility validation. A version of the
+framework is included as an embedded package.
 
 The Unity version is currently 2020.3.30f1
 
@@ -12,7 +12,7 @@ are many features exposed in the project but not used in the release version of
 the game. Feel free to send me your custom versions. I would love to try them
 out!
 
-You can download the latest binary version of the game here:
+You can download a binary version of the game here:
 <https://dreaming381.itch.io/lsss>
 
 ## Getting Started
@@ -27,7 +27,7 @@ All assets in the game can be modified either directly in Unity (free UPM
 package tools count) or via text editors. No other tools should be required.
 Currently, meshes are procedurally generated from built-in primitives. All
 texturing is done procedurally using ShaderGraph. Sound Effects are generated
-from USFXR and music is composed using CSound.
+from USFXR.
 
 In stark contrast to my usual style, I have no intention to establish any
 significant lore or storyline. However, feel free to contribute your own! The
@@ -35,9 +35,13 @@ contributions in the 0.3 version were amazing and I hope to see more!
 
 ## Contributing
 
-Given that I work on this in my spare time, contributions are welcome. The less
-time I spend designing levels, ships, and visuals, the more time I can spend
-building new and exciting tech. No programming skills are required to help.
+Contributions are welcome, and I will monitor for them and ensure they are
+integrated smoothly. No programming skills are required to help.
+
+Please note that I primarily developed this game to help facilitate development
+of new Latios Framework features. As the Latios Framework feature set has
+matured beyond what this game required, I have very little motivation to develop
+new gameplay features.
 
 ### Design Work
 
@@ -46,9 +50,10 @@ Have a look at the existing Mission scenes to understand how the scenes and
 prefabs can be put together. A fun starting place is to try and create a custom
 faction with its own kind of ships.
 
-There are a few planned aspects not present in these scenes:
+There are a few originally planned aspects not present in these scenes:
 
--   Interiors for spawn graphics
+-   A secondary spawning world where spawned ships fly through the wormhole
+    effect to enter the space battle
 -   Asteroid fields
 -   Space stations (provide spatial reference and interconnected hangars for
     interior combat)
@@ -81,7 +86,5 @@ This project is licensed under the MIT license.
 This project includes an embedded version of the Latios Framework which is
 licensed under the Unity Companion License as a derivative work:
 <https://github.com/Dreaming381/Latios-Framework/blob/master/LICENSE.md>
-
-This project includes CSoundUnity via UPM which is licensed under LGPL 2.1.
 
 This project includes USFXR via UPM which is licensed under Apache License 2.0.
