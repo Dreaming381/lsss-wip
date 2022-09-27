@@ -106,7 +106,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct DisposeJob : IJob
+        private struct DisposeJob : IJobBurstSchedulable
         {
             [NativeDisableUnsafePtrRestriction]
             public State* state;
@@ -356,7 +356,7 @@ namespace Latios
 
         #region Implementation
         [BurstCompile]
-        private struct InstantiateAndBuildListsJob : IJob
+        private struct InstantiateAndBuildListsJob : IJobBurstSchedulable
         {
             [ReadOnly] public InstantiateCommandBufferUntyped icb;
             //public ExclusiveEntityTransaction                     eet;
@@ -486,7 +486,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct WriteComponentDataJob : IJobFor
+        private struct WriteComponentDataJob : IJobParallelForBurstSchedulable
         {
             [ReadOnly] public InstantiateCommandBufferUntyped                 icb;
             [ReadOnly] public NativeArray<ArchetypeChunk>                     chunks;
@@ -874,6 +874,12 @@ namespace Latios
         #endregion
     }
 }
+
+
+
+
+
+
 
 
 

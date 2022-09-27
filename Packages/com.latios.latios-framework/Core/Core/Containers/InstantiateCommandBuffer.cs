@@ -103,7 +103,7 @@ namespace Latios
 
         #region PlaybackJobs
         [BurstCompile]
-        private struct PlaybackJob : IJob
+        private struct PlaybackJob : IJobBurstSchedulable
         {
             [ReadOnly] public EntityOperationCommandBuffer eocb;
             public ExclusiveEntityTransaction              eet;

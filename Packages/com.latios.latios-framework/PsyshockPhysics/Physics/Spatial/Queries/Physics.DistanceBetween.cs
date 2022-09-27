@@ -577,6 +577,7 @@ namespace Latios.Psyshock
 
         #endregion
 
+        #region Layer
         public static bool DistanceBetween(Collider collider,
                                            RigidTransform transform,
                                            CollisionLayer layer,
@@ -584,10 +585,14 @@ namespace Latios.Psyshock
                                            out ColliderDistanceResult result,
                                            out LayerBodyInfo layerBodyInfo)
         {
-            result        = default;
-            layerBodyInfo = default;
-            var processor = new LayerQueryProcessors.ColliderDistanceClosestImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
-            FindObjects(AabbFrom(in collider, in transform), layer, processor).RunImmediate();
+            result              = default;
+            layerBodyInfo       = default;
+            var processor       = new LayerQueryProcessors.ColliderDistanceClosestImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
+            var aabb            = AabbFrom(in collider, in transform);
+            var offsetDistance  = math.max(maxDistance, 0f);
+            aabb.min           -= offsetDistance;
+            aabb.max           += offsetDistance;
+            FindObjects(aabb, layer, processor).RunImmediate();
             var hit                  = result.subColliderIndexB >= 0;
             result.subColliderIndexB = math.max(result.subColliderIndexB, 0);
             return hit;
@@ -600,17 +605,18 @@ namespace Latios.Psyshock
                                               out ColliderDistanceResult result,
                                               out LayerBodyInfo layerBodyInfo)
         {
-            result        = default;
-            layerBodyInfo = default;
-            var processor = new LayerQueryProcessors.ColliderDistanceAnyImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
-            FindObjects(AabbFrom(in collider, in transform), layer, processor).RunImmediate();
+            result              = default;
+            layerBodyInfo       = default;
+            var processor       = new LayerQueryProcessors.ColliderDistanceAnyImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
+            var aabb            = AabbFrom(in collider, in transform);
+            var offsetDistance  = math.max(maxDistance, 0f);
+            aabb.min           -= offsetDistance;
+            aabb.max           += offsetDistance;
+            FindObjects(aabb, layer, processor).RunImmediate();
             var hit                  = result.subColliderIndexB >= 0;
             result.subColliderIndexB = math.max(result.subColliderIndexB, 0);
             return hit;
         }
-
-        #region Layer
-
         #endregion
 
         private static ColliderDistanceResult FlipResult(in ColliderDistanceResult resultToFlip)
@@ -749,10 +755,11 @@ namespace Latios.Psyshock
 
         public static bool DistanceBetween(float3 point, in CollisionLayer layer, float maxDistance, out PointDistanceResult result, out LayerBodyInfo layerBodyInfo)
         {
-            result        = default;
-            layerBodyInfo = default;
-            var processor = new LayerQueryProcessors.PointDistanceClosestImmediateProcessor(point, maxDistance, ref result, ref layerBodyInfo);
-            FindObjects(AabbFrom(point - maxDistance, point + maxDistance), layer, processor).RunImmediate();
+            result             = default;
+            layerBodyInfo      = default;
+            var processor      = new LayerQueryProcessors.PointDistanceClosestImmediateProcessor(point, maxDistance, ref result, ref layerBodyInfo);
+            var offsetDistance = math.max(maxDistance, 0f);
+            FindObjects(AabbFrom(point - offsetDistance, point + offsetDistance), layer, processor).RunImmediate();
             var hit                 = result.subColliderIndex >= 0;
             result.subColliderIndex = math.max(result.subColliderIndex, 0);
             return hit;
@@ -760,10 +767,11 @@ namespace Latios.Psyshock
 
         public static bool DistanceBetweenAny(float3 point, in CollisionLayer layer, float maxDistance, out PointDistanceResult result, out LayerBodyInfo layerBodyInfo)
         {
-            result        = default;
-            layerBodyInfo = default;
-            var processor = new LayerQueryProcessors.PointDistanceAnyImmediateProcessor(point, maxDistance, ref result, ref layerBodyInfo);
-            FindObjects(AabbFrom(point - maxDistance, point + maxDistance), layer, processor).RunImmediate();
+            result             = default;
+            layerBodyInfo      = default;
+            var processor      = new LayerQueryProcessors.PointDistanceAnyImmediateProcessor(point, maxDistance, ref result, ref layerBodyInfo);
+            var offsetDistance = math.max(maxDistance, 0f);
+            FindObjects(AabbFrom(point - offsetDistance, point + offsetDistance), layer, processor).RunImmediate();
             var hit                 = result.subColliderIndex >= 0;
             result.subColliderIndex = math.max(result.subColliderIndex, 0);
             return hit;

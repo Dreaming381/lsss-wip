@@ -91,7 +91,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct DisposeJob : IJob
+        private struct DisposeJob : IJobBurstSchedulable
         {
             [NativeDisableUnsafePtrRestriction]
             public State* state;
@@ -456,6 +456,8 @@ namespace Latios
         #endregion
     }
 }
+
+
 
 
 

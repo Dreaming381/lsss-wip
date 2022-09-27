@@ -121,7 +121,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct PrepJob : IJob
+        private struct PrepJob : IJobBurstSchedulable
         {
             [ReadOnly] public BufferFromEntity<LinkedEntityGroup> linkedFE;
             [ReadOnly] public EntityOperationCommandBuffer        eocb;

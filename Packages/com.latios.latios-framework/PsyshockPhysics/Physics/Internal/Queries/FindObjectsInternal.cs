@@ -16,7 +16,7 @@ namespace Latios.Psyshock
         {
             #region Jobs
             [BurstCompile]
-            public struct Single : IJob
+            public struct Single : IJobBurstSchedulable
             {
                 [ReadOnly] public CollisionLayer layer;
                 public T                         processor;

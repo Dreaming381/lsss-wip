@@ -228,7 +228,7 @@ namespace Latios.Unsafe
         }
 
         [BurstCompile]
-        struct DisposeJob : IJob
+        struct DisposeJob : IJobBurstSchedulable
         {
             public UnsafeParallelBlockList upbl;
 

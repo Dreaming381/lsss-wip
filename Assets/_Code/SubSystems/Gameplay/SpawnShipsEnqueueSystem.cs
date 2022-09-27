@@ -116,7 +116,7 @@ namespace Lsss
         bool FindAndStealAiShip(Entity player, SpawnQueues spawnQueues)
         {
             var factionMember        = EntityManager.GetSharedComponentData<FactionMember>(player);
-            var disabledShipsHashSet = new NativeHashSet<Entity>(1024, Allocator.TempJob);
+            var disabledShipsHashSet = new NativeParallelHashSet<Entity>(1024, Allocator.TempJob);
             Entities.WithAll<ShipTag,
                              Disabled>().WithNone<PlayerTag>().WithSharedComponentFilter(factionMember).ForEach((Entity entity) => { disabledShipsHashSet.Add(entity); }).Run();
             if (!disabledShipsHashSet.IsEmpty)

@@ -86,7 +86,7 @@ namespace Latios.Psyshock
                     layer      = layer,
                     colors     = colors,
                     crossColor = crossColor
-                }.Schedule(layer.BucketCount, inputDeps);
+                }.Schedule(inputDeps);
             }
 
             /// <summary>
@@ -101,7 +101,7 @@ namespace Latios.Psyshock
                     layer      = layer,
                     colors     = colors,
                     crossColor = crossColor
-                }.ScheduleParallel(layer.BucketCount, 1, inputDeps);
+                }.Schedule(layer.BucketCount, 1, inputDeps);
             }
         }
 
@@ -281,10 +281,10 @@ namespace Latios.Psyshock
                         missColor  = missColor,
                         drawMisses = drawMisses
                     };
-                    jh           = job.Schedule(layerA.Count, jh);
+                    jh           = job.Schedule(jh);
                     job.hitArray = hitArrayB;
                     job.layer    = layerB;
-                    jh           = job.Schedule(layerB.Count, jh);
+                    jh           = job.Schedule(jh);
                     jh           = hitArrayA.Dispose(jh);
                     return hitArrayB.Dispose(jh);
                 }
@@ -300,7 +300,7 @@ namespace Latios.Psyshock
                         hitColor   = hitColor,
                         missColor  = missColor,
                         drawMisses = drawMisses
-                    }.Schedule(layerA.Count, jh);
+                    }.Schedule(jh);
                     return hitArray.Dispose(jh);
                 }
             }
@@ -326,10 +326,10 @@ namespace Latios.Psyshock
                         missColor  = missColor,
                         drawMisses = drawMisses
                     };
-                    jh           = job.ScheduleParallel(layerA.Count, 64, jh);
+                    jh           = job.Schedule(layerA.Count, 64, jh);
                     job.hitArray = hitArrayB;
                     job.layer    = layerB;
-                    jh           = job.ScheduleParallel(layerB.Count, 64, jh);
+                    jh           = job.Schedule(layerB.Count, 64, jh);
                     jh           = hitArrayA.Dispose(jh);
                     return hitArrayB.Dispose(jh);
                 }
@@ -345,7 +345,7 @@ namespace Latios.Psyshock
                         hitColor   = hitColor,
                         missColor  = missColor,
                         drawMisses = drawMisses
-                    }.ScheduleParallel(layerA.Count, 64, jh);
+                    }.Schedule(layerA.Count, 64, jh);
                     return hitArray.Dispose(jh);
                 }
             }
@@ -385,11 +385,17 @@ namespace Latios.Psyshock
 
         #region DrawLayerUtils
         [BurstCompile]
-        private struct DebugDrawLayerJob : IJobFor
+        private struct DebugDrawLayerJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             [ReadOnly] public CollisionLayer layer;
             public FixedList512Bytes<Color>  colors;
             public Color                     crossColor;
+
+            public void Execute()
+            {
+                for (int i = 0; i < layer.BucketCount; i++)
+                    Execute(i);
+            }
 
             public void Execute(int index)
             {
@@ -442,13 +448,19 @@ namespace Latios.Psyshock
         }
 
         [BurstCompile]
-        private struct DebugFindPairsDrawJob : IJobFor
+        private struct DebugFindPairsDrawJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
         {
             [ReadOnly] public CollisionLayer layer;
             [ReadOnly] public NativeBitArray hitArray;
             public Color                     hitColor;
             public Color                     missColor;
             public bool                      drawMisses;
+
+            public void Execute()
+            {
+                for (int i = 0; i < layer.Count; i++)
+                    Execute(i);
+            }
 
             public void Execute(int i)
             {
