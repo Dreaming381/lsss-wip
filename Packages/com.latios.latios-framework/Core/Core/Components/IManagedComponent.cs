@@ -25,10 +25,10 @@ namespace Latios
 
     //public struct ManagedComponentTag<T> : IComponentData where T : struct, IManagedComponent { }
 
-    internal struct ManagedComponentSystemStateTag<T> : ISystemStateComponentData where T : struct, IManagedComponent { }
+    internal struct ManagedComponentSystemStateTag<T> : ICleanupComponentData where T : struct, IManagedComponent { }
 
     //public struct CollectionComponentTag<T> : IComponentData where T : struct, ICollectionComponent { }
 
-    internal struct CollectionComponentSystemStateTag<T> : ISystemStateComponentData where T : struct, ICollectionComponent { }
+    internal struct CollectionComponentSystemStateTag<T> : ICleanupComponentData where T : struct, ICollectionComponent { }
 }
 

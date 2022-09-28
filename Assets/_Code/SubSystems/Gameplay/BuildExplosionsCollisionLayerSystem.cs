@@ -9,7 +9,6 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    [AlwaysUpdateSystem]
     public partial class BuildExplosionsCollisionLayerSystem : SubSystem
     {
         private EntityQuery m_query;
@@ -18,7 +17,11 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            CollisionLayerSettings settings;
+            if (sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            else
+                settings = BuildCollisionLayerConfig.defaultSettings;
 
             var bodies =
                 CollectionHelper.CreateNativeArray<ColliderBody>(m_query.CalculateEntityCount(), World.UpdateAllocator.ToAllocator, NativeArrayOptions.UninitializedMemory);

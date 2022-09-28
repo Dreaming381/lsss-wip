@@ -10,6 +10,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [BurstCompile]
+    [RequireMatchingQueriesForUpdate]
     public partial struct MoveShipsSystem : ISystem
     {
         [BurstCompile]
@@ -23,15 +24,25 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dt          = state.Time.DeltaTime;
+            var dt          = SystemAPI.Time.DeltaTime;
             var arenaRadius = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius;
 
-            state.Entities.WithAll<ShipTag>().ForEach((ref Translation translation,
-                                                       ref Rotation rotation,
-                                                       ref Speed speed,
-                                                       ref ShipBoostTank boostTank,
-                                                       in ShipSpeedStats stats,
-                                                       in ShipDesiredActions desiredActions) =>
+            new Job { dt = dt, arenaRadius = arenaRadius }.ScheduleParallel();
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(ShipTag))]
+        partial struct Job : IJobEntity
+        {
+            public float dt;
+            public float arenaRadius;
+
+            public void Execute(ref Translation translation,
+                                ref Rotation rotation,
+                                ref Speed speed,
+                                ref ShipBoostTank boostTank,
+                                in ShipSpeedStats stats,
+                                in ShipDesiredActions desiredActions)
             {
                 //Rotation
                 var oldRotation = rotation.Value;
@@ -47,7 +58,6 @@ namespace Lsss
 
                 //Speed
                 bool isBoosting = desiredActions.boost && boostTank.boost > 0f;
-                bool isReverse  = speed.speed < 0f;
 
                 speed.speed = Physics.StepVelocityWithInput(desiredActions.gas,
                                                             speed.speed,
@@ -67,7 +77,7 @@ namespace Lsss
                 //Boost Tank
                 boostTank.boost += math.select(stats.boostRechargeRate, -stats.boostDepleteRate, isBoosting) * dt;
                 boostTank.boost  = math.min(boostTank.boost, stats.boostCapacity);
-            }).ScheduleParallel();
+            }
         }
     }
 }

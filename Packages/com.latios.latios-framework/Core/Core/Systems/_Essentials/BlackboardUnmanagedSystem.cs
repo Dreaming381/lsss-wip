@@ -37,13 +37,15 @@ namespace Latios
     {
         public static BlackboardEntity GetWorldBlackboardEntity(this ref SystemState state)
         {
-            var entity = state.WorldUnmanaged.GetExistingUnmanagedSystem<Systems.BlackboardUnmanagedSystem>().Struct.worldBlackboardEntity;
+            var system = state.WorldUnmanaged.GetExistingUnmanagedSystem<Systems.BlackboardUnmanagedSystem>();
+            var entity = state.WorldUnmanaged.GetUnsafeSystemRef<Systems.BlackboardUnmanagedSystem>(system).worldBlackboardEntity;
             return new BlackboardEntity(entity, state.EntityManager);
         }
 
         public static BlackboardEntity GetSceneBlackboardEntity(this ref SystemState state)
         {
-            var entity = state.WorldUnmanaged.GetExistingUnmanagedSystem<Systems.BlackboardUnmanagedSystem>().Struct.sceneBlackboardEntity;
+            var system = state.WorldUnmanaged.GetExistingUnmanagedSystem<Systems.BlackboardUnmanagedSystem>();
+            var entity = state.WorldUnmanaged.GetUnsafeSystemRef<Systems.BlackboardUnmanagedSystem>(system).sceneBlackboardEntity;
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (entity == Entity.Null)
             {

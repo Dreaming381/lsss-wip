@@ -6,10 +6,11 @@ namespace Latios.Psyshock.Authoring.Systems
     [UpdateInGroup(typeof(GameObjectConversionGroup))]
     [DisableAutoCreation]
     [ConverterVersion("latios", 4)]
-    public class LegacyColliderConversionSystem : GameObjectConversionSystem
+    public partial class LegacyColliderConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
+            var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
             Entities.WithNone<DontConvertColliderTag>().ForEach((UnityEngine.SphereCollider goSphere) =>
             {
                 DeclareDependency(goSphere,
@@ -28,8 +29,8 @@ namespace Latios.Psyshock.Authoring.Systems
                     center = goSphere.center,
                     radius = goSphere.radius * goSphere.transform.localScale.x
                 };
-                DstEntityManager.AddComponentData(entity, icdSphere);
-            });
+                ecb.AddComponent(entity, icdSphere);
+            }).WithoutBurst().Run();
 
             Entities.WithNone<DontConvertColliderTag>().ForEach((UnityEngine.CapsuleCollider goCap) =>
             {
@@ -63,8 +64,8 @@ namespace Latios.Psyshock.Authoring.Systems
                     pointA = (float3)goCap.center - ((goCap.height / 2f - goCap.radius) * goCap.transform.lossyScale.x * dir),
                     radius = goCap.radius * goCap.transform.lossyScale.x
                 };
-                DstEntityManager.AddComponentData(entity, icdCap);
-            });
+                ecb.AddComponent(entity, icdCap);
+            }).WithoutBurst().Run();
 
             Entities.WithNone<DontConvertColliderTag>().ForEach((UnityEngine.BoxCollider goBox) =>
             {
@@ -77,8 +78,8 @@ namespace Latios.Psyshock.Authoring.Systems
                     center   = goBox.center,
                     halfSize = goBox.size * lossyScale / 2f
                 };
-                DstEntityManager.AddComponentData(entity, icdBox);
-            });
+                ecb.AddComponent(entity, icdBox);
+            }).WithoutBurst().Run();
 
             Entities.ForEach((ConvexMeshColliderConversionList list) =>
             {
@@ -95,9 +96,11 @@ namespace Latios.Psyshock.Authoring.Systems
                         convexColliderBlob = blob,
                         scale              = mc.mesh.transform.lossyScale
                     };
-                    DstEntityManager.AddComponentData(entity, icdConvex);
+                    ecb.AddComponent(entity, icdConvex);
                 }
-            });
+            }).WithoutBurst().Run();
+
+            ecb.Playback(DstEntityManager);
         }
     }
 }

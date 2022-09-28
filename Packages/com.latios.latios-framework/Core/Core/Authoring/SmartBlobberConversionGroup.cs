@@ -20,7 +20,7 @@ namespace Latios.Authoring.Systems
     /// but before SmartBlobberConversion.
     /// </summary>
     [UpdateInGroup(typeof(GameObjectBeforeConversionGroup))]
-    public class RequestSmartBlobAssetsConversionSystem : GameObjectConversionSystem
+    public partial class RequestSmartBlobAssetsConversionSystem : GameObjectConversionSystem
     {
         void Convert(Transform transform, List<IRequestBlobAssets> convertibles)
         {
@@ -53,10 +53,10 @@ namespace Latios.Authoring.Systems
         {
             var convertibles = new List<IRequestBlobAssets>();
 
-            Entities.ForEach((Transform transform) => Convert(transform, convertibles));
+            Entities.ForEach((Transform transform) => Convert(transform, convertibles)).WithoutBurst().Run();
             convertibles.Clear();
 
-            Entities.ForEach((RectTransform transform) => Convert(transform, convertibles));
+            Entities.ForEach((RectTransform transform) => Convert(transform, convertibles)).WithoutBurst().Run();
         }
     }
 }

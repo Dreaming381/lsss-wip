@@ -58,7 +58,7 @@ namespace Latios.Authoring
         /// </summary>
         public static CustomConversionSettings GetSettings(this GameObjectConversionSystem system)
         {
-            return system.World.GetExistingSystem<ConversionBootstrapUtilities.CustomConversionBootstrapSystem>().customConversionSettings;
+            return system.World.GetExistingSystemManaged<ConversionBootstrapUtilities.CustomConversionBootstrapSystem>().customConversionSettings;
         }
     }
 
@@ -85,56 +85,60 @@ namespace Latios.Authoring
         {
             if (!m_isRegistered)
             {
-                m_isRegistered                                                = true;
-                Unity.Entities.Exposed.WorldExposedExtensions.OnWorldCreated += InitializeConversionWorld;
+                m_isRegistered                                                 = true;
+                Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated += InitializeConversionWorld;
             }
         }
 
-        static void InitializeConversionWorld(World conversionWorldWithoutSystems)
+        static void InitializeConversionWorld(World conversionWorldWithoutSystems, ComponentSystemBase system)
         {
             if (!conversionWorldWithoutSystems.Flags.HasFlag(WorldFlags.Conversion))
                 return;
 
-            conversionWorldWithoutSystems.GetOrCreateSystem<CustomConversionBootstrapDetectorSystem>();
+            // This will filter out duplicates.
+            //conversionWorldWithoutSystems.GetOrCreateSystem<CustomConversionBootstrapDetectorSystem>();
+
+            // We now capture after the mapping system is created.
+            conversionWorldWithoutSystems.GetOrCreateSystemManaged<CustomConversionBootstrapSystem>();
         }
 
+        //[DisableAutoCreation]
+        //class CustomConversionBootstrapDetectorSystem : SystemBase
+        //{
+        //    bool bootstrapRan = false;
+        //
+        //    protected override void OnCreate()
+        //    {
+        //        Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated += CreateBootstrapSystem;
+        //    }
+        //
+        //    protected override void OnDestroy()
+        //    {
+        //        if (!bootstrapRan)
+        //            Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated -= CreateBootstrapSystem;
+        //    }
+        //
+        //    protected override void OnUpdate()
+        //    {
+        //    }
+        //
+        //    void CreateBootstrapSystem(World world, ComponentSystemBase system)
+        //    {
+        //        if (world != World)
+        //            return;
+        //
+        //        if (system == this)
+        //            return;
+        //
+        //        bootstrapRan                                                   = true;
+        //        Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated -= CreateBootstrapSystem;
+        //
+        //        world.CreateSystem<CustomConversionBootstrapSystem>();
+        //    }
+        //}
+
         [DisableAutoCreation]
-        class CustomConversionBootstrapDetectorSystem : ComponentSystem
-        {
-            bool bootstrapRan = false;
-
-            protected override void OnCreate()
-            {
-                Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated += CreateBootstrapSystem;
-            }
-
-            protected override void OnDestroy()
-            {
-                if (!bootstrapRan)
-                    Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated -= CreateBootstrapSystem;
-            }
-
-            protected override void OnUpdate()
-            {
-            }
-
-            void CreateBootstrapSystem(World world, ComponentSystemBase system)
-            {
-                if (world != World)
-                    return;
-
-                if (system == this)
-                    return;
-
-                bootstrapRan                                                   = true;
-                Unity.Entities.Exposed.WorldExposedExtensions.OnSystemCreated -= CreateBootstrapSystem;
-
-                world.CreateSystem<CustomConversionBootstrapSystem>();
-            }
-        }
-
-        [DisableAutoCreation]
-        public class CustomConversionBootstrapSystem : GameObjectConversionSystem
+        public partial class CustomConversionBootstrapSystem : GameObjectConversionSystem
         {
             public CustomConversionSettings customConversionSettings { get; private set; }
 
@@ -203,13 +207,13 @@ namespace Latios.Authoring
                 var settingsType       = settings.GetType();
                 var conversionAssembly = settingsType.Assembly;
 
-                var incremental    = World.GetOrCreateSystem(conversionAssembly.GetType("Unity.Entities.ConversionSetupGroup")) as ComponentSystemGroup;
+                var incremental    = World.GetOrCreateSystemManaged(conversionAssembly.GetType("Unity.Entities.ConversionSetupGroup")) as ComponentSystemGroup;
                 var declareConvert = World.GetOrCreateSystem<GameObjectDeclareReferencedObjectsGroup>();
                 var earlyConvert   = World.GetOrCreateSystem<GameObjectBeforeConversionGroup>();
                 var convert        = World.GetOrCreateSystem<GameObjectConversionGroup>();
                 var lateConvert    = World.GetOrCreateSystem<GameObjectAfterConversionGroup>();
 
-                var export = settings.SupportsExporting ? World.GetOrCreateSystem<GameObjectExportGroup>() : null;
+                var export = settings.SupportsExporting ? World.GetOrCreateSystemManaged<GameObjectExportGroup>() : null;
 
                 {
                     // for various reasons, this system needs to be present before any other system initializes

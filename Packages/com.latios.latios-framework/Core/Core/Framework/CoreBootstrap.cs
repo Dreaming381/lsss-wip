@@ -38,39 +38,16 @@ namespace Latios
 
             var unmanaged = world.Unmanaged;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            bool caughtException = false;
-
-            try
-            {
-                unmanaged.GetExistingUnmanagedSystem<ExtremeParentSystem>();
-            }
-            catch (System.InvalidOperationException)
-            {
-                // Failed to find the unmanaged system
-                caughtException = true;
-            }
-
-            if (!caughtException)
+            if (unmanaged.GetExistingUnmanagedSystem<ExtremeParentSystem>() != SystemHandle.Null)
                 throw new System.InvalidOperationException("Cannot install Improved Transforms when Extreme Transforms are already installed.");
-#endif
 
-            try
-            {
-                unmanaged.ResolveSystemState(unmanaged.GetExistingUnmanagedSystem<LocalToParentSystem>().Handle)->Enabled = false;
-            }
-            catch (System.InvalidOperationException)
-            {
-                // Failed to find the unmanaged system
-            }
-            try
-            {
-                unmanaged.ResolveSystemState(unmanaged.GetExistingUnmanagedSystem<ParentSystem>().Handle)->Enabled = false;
-            }
-            catch (System.InvalidOperationException)
-            {
-                // Failed to find the unmanaged system
-            }
+            var existingLTPSystem = unmanaged.GetExistingUnmanagedSystem<LocalToParentSystem>();
+            if (existingLTPSystem != SystemHandle.Null)
+                unmanaged.ResolveSystemStateRef(existingLTPSystem).Enabled = false;
+
+            var existingParentSystem = unmanaged.GetExistingUnmanagedSystem<ParentSystem>();
+            if (existingParentSystem != SystemHandle.Null)
+                unmanaged.ResolveSystemStateRef(existingParentSystem).Enabled = false;
 
             BootstrapTools.InjectSystem(typeof(ImprovedParentSystem),        world);
             BootstrapTools.InjectSystem(typeof(ImprovedLocalToParentSystem), world);
@@ -92,39 +69,16 @@ namespace Latios
 
             var unmanaged = world.Unmanaged;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            bool caughtException = false;
-
-            try
-            {
-                unmanaged.GetExistingUnmanagedSystem<ImprovedParentSystem>();
-            }
-            catch (System.InvalidOperationException)
-            {
-                // Failed to find the unmanaged system
-                caughtException = true;
-            }
-
-            if (!caughtException)
+            if (unmanaged.GetExistingUnmanagedSystem<ImprovedParentSystem>() != SystemHandle.Null)
                 throw new System.InvalidOperationException("Cannot install Extreme Transforms when Improved Transforms are already installed");
-#endif
 
-            try
-            {
-                unmanaged.ResolveSystemState(unmanaged.GetExistingUnmanagedSystem<LocalToParentSystem>().Handle)->Enabled = false;
-            }
-            catch (System.InvalidOperationException)
-            {
-                // Failed to find the unmanaged system
-            }
-            try
-            {
-                unmanaged.ResolveSystemState(unmanaged.GetExistingUnmanagedSystem<ParentSystem>().Handle)->Enabled = false;
-            }
-            catch (System.InvalidOperationException)
-            {
-                // Failed to find the unmanaged system
-            }
+            var existingLTPSystem = unmanaged.GetExistingUnmanagedSystem<LocalToParentSystem>();
+            if (existingLTPSystem != SystemHandle.Null)
+                unmanaged.ResolveSystemStateRef(existingLTPSystem).Enabled = false;
+
+            var existingParentSystem = unmanaged.GetExistingUnmanagedSystem<ParentSystem>();
+            if (existingParentSystem != SystemHandle.Null)
+                unmanaged.ResolveSystemStateRef(existingParentSystem).Enabled = false;
 
             BootstrapTools.InjectSystem(typeof(ExtremeParentSystem),        world);
             BootstrapTools.InjectSystem(typeof(ExtremeChildDepthsSystem),   world);

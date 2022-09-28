@@ -119,9 +119,8 @@ namespace Latios.Myri.Systems
             var ecsJH = Dependency;
 
             //Query arrays
-            var aliveListenerEntities = m_aliveListenersQuery.ToEntityArrayAsync(Allocator.TempJob, out JobHandle aliveListenerEntitiesJH);
-            var deadListenerEntities  = m_deadListenersQuery.ToEntityArrayAsync(Allocator.TempJob, out JobHandle deadListenerEntitiesJH);
-            var listenerEntitiesJH    = JobHandle.CombineDependencies(aliveListenerEntitiesJH, deadListenerEntitiesJH);
+            var aliveListenerEntities = m_aliveListenersQuery.ToEntityArray(Allocator.TempJob);
+            var deadListenerEntities  = m_deadListenersQuery.ToEntityArray(Allocator.TempJob);
 
             //Type handles
             var entityHandle      = GetEntityTypeHandle();
@@ -134,10 +133,10 @@ namespace Latios.Myri.Systems
             var ltwHandle         = GetComponentTypeHandle<LocalToWorld>(true);
             var parentHandle      = GetComponentTypeHandle<Parent>(true);
 
-            var audioSettingsCdfe          = GetComponentDataFromEntity<AudioSettings>(true);
-            var listenerCdfe               = GetComponentDataFromEntity<AudioListener>(true);
-            var listenerGraphStateCdfe     = GetComponentDataFromEntity<ListenerGraphState>(false);
-            var entityOutputGraphStateCdfe = GetComponentDataFromEntity<EntityOutputGraphState>(false);
+            var audioSettingsCdfe          = GetComponentLookup<AudioSettings>(true);
+            var listenerCdfe               = GetComponentLookup<AudioListener>(true);
+            var listenerGraphStateCdfe     = GetComponentLookup<ListenerGraphState>(false);
+            var entityOutputGraphStateCdfe = GetComponentLookup<EntityOutputGraphState>(false);
 
             //Buffer
             m_currentBufferId++;
@@ -225,7 +224,7 @@ namespace Latios.Myri.Systems
                 outputSamplesMegaBufferChannels     = ildBuffer.channels,
                 bufferId                            = m_currentBufferId,
                 samplesPerFrame                     = m_samplesPerFrame
-            }.Schedule(JobHandle.CombineDependencies(captureListenersJH, captureFrameJH, listenerEntitiesJH));
+            }.Schedule(JobHandle.CombineDependencies(captureListenersJH, captureFrameJH));
 
             var destroyOneshotsJH = new InitUpdateDestroy.DestroyOneshotsWhenFinishedJob
             {

@@ -86,8 +86,8 @@ namespace Latios.Systems
             foreach (var instance in m_playbackInstances)
             {
                 //Todo: We don't fail as gracefully as EntityCommandBufferSystem, but I'm not sure what is exactly required to meet that. There's way too much magic there.
-                var systemName = instance.requestingSystemType != null? TypeManager.GetSystemName(instance.requestingSystemType) : "Unknown";
-                Profiler.BeginSample(systemName);
+                //var systemName = instance.requestingSystemType != null? TypeManager.GetSystemName(instance.requestingSystemType) : "Unknown";
+                //Profiler.BeginSample(systemName);
                 switch (instance.type)
                 {
                     case PlaybackType.Entity:
@@ -101,7 +101,7 @@ namespace Latios.Systems
                     case PlaybackType.Enable:
                     {
                         var ecb = m_enableCommandBuffers[enableIndex];
-                        ecb.Playback(EntityManager, GetBufferFromEntity<LinkedEntityGroup>(true));
+                        ecb.Playback(EntityManager, GetBufferLookup<LinkedEntityGroup>(true));
                         //ecb.Dispose();
                         enableIndex++;
                         break;
@@ -109,7 +109,7 @@ namespace Latios.Systems
                     case PlaybackType.Disable:
                     {
                         var dcb = m_disableCommandBuffers[disableIndex];
-                        dcb.Playback(EntityManager, GetBufferFromEntity<LinkedEntityGroup>(true));
+                        dcb.Playback(EntityManager, GetBufferLookup<LinkedEntityGroup>(true));
                         //dcb.Dispose();
                         disableIndex++;
                         break;
@@ -147,7 +147,7 @@ namespace Latios.Systems
                         break;
                     }
                 }
-                Profiler.EndSample();
+                //Profiler.EndSample();
             }
             m_playbackInstances.Clear();
             m_entityCommandBuffers.Clear();

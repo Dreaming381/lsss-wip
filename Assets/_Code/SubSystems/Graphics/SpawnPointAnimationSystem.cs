@@ -22,7 +22,15 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Entities.ForEach((ref Rotation rot, ref Scale scale, in TimeToLive timeToLive, in SpawnPointAnimationData data) =>
+            new Job().ScheduleParallel();
+
+            //state.CompleteDependency();
+        }
+
+        [BurstCompile]
+        partial struct Job : IJobEntity
+        {
+            public void Execute(ref Rotation rot, ref Scale scale, in TimeToLive timeToLive, in SpawnPointAnimationData data)
             {
                 float growFactor   = math.unlerp(data.growStartTime, data.growEndTime, timeToLive.timeToLive);
                 growFactor         = math.select(growFactor, 1f, data.growStartTime == data.growEndTime);
@@ -36,9 +44,7 @@ namespace Lsss
 
                 rot.Value   = quaternion.Euler(0f, 0f, rads);
                 scale.Value = factor;
-            }).ScheduleParallel();
-
-            //state.CompleteDependency();
+            }
         }
     }
 }

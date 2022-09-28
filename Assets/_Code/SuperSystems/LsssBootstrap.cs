@@ -13,11 +13,36 @@ public class LatiosConversionBootstrap : ICustomConversionBootstrap
 {
     public bool InitializeConversion(World conversionWorldWithGroupsAndMappingSystems, CustomConversionSettings settings, ref List<Type> filteredSystems)
     {
-        var defaultGroup = conversionWorldWithGroupsAndMappingSystems.GetExistingSystem<GameObjectConversionGroup>();
+        for (int i = 0; i < filteredSystems.Count; i++)
+        {
+            var type = filteredSystems[i];
+            if (type.Name == "NameChangeSystem")
+            {
+                filteredSystems.RemoveAtSwapBack(i);
+                i--;
+            }
+            else if (type.Name.Contains("Incremental"))
+            {
+                filteredSystems.RemoveAtSwapBack(i);
+                i--;
+            }
+            //else if (type.Name == "TransformIncrementalConversionSystem")
+            //{
+            //    filteredSystems.RemoveAtSwapBack(i);
+            //    i--;
+            //}
+            //else if (type.Name == "SceneSectionIncrementalConversionSystem")
+            //{
+            //    filteredSystems.RemoveAtSwapBack(i);
+            //    i--;
+            //}
+        }
+
+        var defaultGroup = conversionWorldWithGroupsAndMappingSystems.GetExistingSystemManaged<GameObjectConversionGroup>();
         BootstrapTools.InjectSystems(filteredSystems, conversionWorldWithGroupsAndMappingSystems, defaultGroup);
 
         Latios.Psyshock.Authoring.PsyshockConversionBootstrap.InstallLegacyColliderConversion(conversionWorldWithGroupsAndMappingSystems);
-        Latios.Kinemation.Authoring.KinemationConversionBootstrap.InstallKinemationConversion(conversionWorldWithGroupsAndMappingSystems);
+        //Latios.Kinemation.Authoring.KinemationConversionBootstrap.InstallKinemationConversion(conversionWorldWithGroupsAndMappingSystems);
         return true;
     }
 }
@@ -35,13 +60,13 @@ public class LatiosBootstrap : ICustomBootstrap
         BootstrapTools.InjectUnitySystems(systems, world, world.simulationSystemGroup);
         BootstrapTools.InjectRootSuperSystems(systems, world, world.simulationSystemGroup);
 
-        world.GetExistingSystem<Unity.Transforms.CopyInitialTransformFromGameObjectSystem>().Enabled = false;  // Leaks LocalToWorld query and generates ECB.
+        //world.GetExistingSystemManaged<Unity.Transforms.CopyInitialTransformFromGameObjectSystem>().Enabled = false;  // Leaks LocalToWorld query and generates ECB.
 
         CoreBootstrap.InstallSceneManager(world);
         CoreBootstrap.InstallExtremeTransforms(world);
         //CoreBootstrap.InstallImprovedTransforms(world);
         Latios.Myri.MyriBootstrap.InstallMyri(world);
-        Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
+        //Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
 
         world.initializationSystemGroup.SortSystems();
         world.simulationSystemGroup.SortSystems();

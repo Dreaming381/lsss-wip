@@ -7,6 +7,7 @@ using Unity.Jobs;
 
 namespace Lsss
 {
+    [RequireMatchingQueriesForUpdate]
     public partial class BuildFactionShipsCollisionLayersSystem : SubSystem
     {
         private EntityQuery                    m_query;

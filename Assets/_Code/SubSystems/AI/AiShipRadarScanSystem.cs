@@ -22,7 +22,12 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var collisionLayerSettings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            CollisionLayerSettings settings;
+            if (sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            else
+                settings               = BuildCollisionLayerConfig.defaultSettings;
+            var collisionLayerSettings = settings;
             var wallLayer              = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var allocator = World.UpdateAllocator.ToAllocator;
@@ -47,7 +52,7 @@ namespace Lsss
 
             var scanFriendsProcessor = new ScanFriendsProcessor
             {
-                radarCdfe = GetComponentDataFromEntity<AiShipRadar>(true),
+                radarCdfe = GetComponentLookup<AiShipRadar>(true),
                 wallLayer = wallLayer
             };
 
@@ -210,7 +215,7 @@ namespace Lsss
         struct ScanFriendsProcessor : IFindPairsProcessor
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
-            [ReadOnly] public ComponentDataFromEntity<AiShipRadar>                           radarCdfe;
+            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarCdfe;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
             [ReadOnly] public NativeArray<int>                                               remapArray;
 
@@ -241,7 +246,7 @@ namespace Lsss
         struct ScanEnemiesProcessor : IFindPairsProcessor
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
-            [ReadOnly] public ComponentDataFromEntity<AiShipRadar>                           radarCdfe;
+            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarCdfe;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
             [ReadOnly] public NativeArray<int>                                               remapArray;
 

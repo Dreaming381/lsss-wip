@@ -385,7 +385,7 @@ namespace Latios.Psyshock
 
         #region DrawLayerUtils
         [BurstCompile]
-        private struct DebugDrawLayerJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        private struct DebugDrawLayerJob : IJob, IJobParallelFor
         {
             [ReadOnly] public CollisionLayer layer;
             public FixedList512Bytes<Color>  colors;
@@ -448,7 +448,7 @@ namespace Latios.Psyshock
         }
 
         [BurstCompile]
-        private struct DebugFindPairsDrawJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        private struct DebugFindPairsDrawJob : IJob, IJobParallelFor
         {
             [ReadOnly] public CollisionLayer layer;
             [ReadOnly] public NativeBitArray hitArray;

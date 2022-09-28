@@ -14,6 +14,7 @@ using UnityEngine.Profiling;
 
 namespace Lsss
 {
+    [RequireMatchingQueriesForUpdate]
     public partial class CheckSpawnPointIsSafeSystem : SubSystem
     {
         int frameCount = 0;
@@ -32,7 +33,7 @@ namespace Lsss
 
             var processor = new SpawnPointIsNotSafeProcessor
             {
-                safeToSpawnCdfe = GetComponentDataFromEntity<SafeToSpawn>()
+                safeToSpawnCdfe = GetComponentLookup<SafeToSpawn>()
             };
 
             var closeProcessor = new SpawnPointsAreTooCloseProcessor
@@ -99,7 +100,7 @@ namespace Lsss
         //Assumes A is SpawnPoint
         struct SpawnPointIsNotSafeProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<SafeToSpawn> safeToSpawnCdfe;
+            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnCdfe;
 
             public void Execute(in FindPairsResult result)
             {
@@ -110,7 +111,7 @@ namespace Lsss
 
         struct SpawnPointsAreTooCloseProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<SafeToSpawn> safeToSpawnCdfe;
+            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnCdfe;
 
             public void Execute(in FindPairsResult result)
             {

@@ -67,7 +67,7 @@ namespace Latios
         /// </summary>
         /// <param name="entityManager">The EntityManager with which to play back the EnableCommandBuffer</param>
         /// <param name="linkedFEReadOnly">A ReadOnly accessor to the entities' LinkedEntityGroup</param>
-        public void Playback(EntityManager entityManager, BufferFromEntity<LinkedEntityGroup> linkedFEReadOnly)
+        public void Playback(EntityManager entityManager, BufferLookup<LinkedEntityGroup> linkedFEReadOnly)
         {
             CheckDidNotPlayback();
             bool               ran      = false;
@@ -113,7 +113,7 @@ namespace Latios
 
         #region PlaybackJobs
         [BurstDiscard]
-        private void RunPrepInJob(BufferFromEntity<LinkedEntityGroup> linkedFE, ref bool ran, ref NativeList<Entity> entities)
+        private void RunPrepInJob(BufferLookup<LinkedEntityGroup> linkedFE, ref bool ran, ref NativeList<Entity> entities)
         {
             ran                    = true;
             entities               = new NativeList<Entity>(0, Allocator.TempJob);
@@ -121,11 +121,11 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct PrepJob : IJobBurstSchedulable
+        private struct PrepJob : IJob
         {
-            [ReadOnly] public BufferFromEntity<LinkedEntityGroup> linkedFE;
-            [ReadOnly] public EntityOperationCommandBuffer        eocb;
-            public NativeList<Entity>                             entities;
+            [ReadOnly] public BufferLookup<LinkedEntityGroup> linkedFE;
+            [ReadOnly] public EntityOperationCommandBuffer    eocb;
+            public NativeList<Entity>                         entities;
 
             public void Execute()
             {

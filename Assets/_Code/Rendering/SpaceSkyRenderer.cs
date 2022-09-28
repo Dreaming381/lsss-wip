@@ -52,7 +52,7 @@ namespace Lsss.Graphics
         protected override bool Update(BuiltinSkyParameters builtinParams)
         {
             var newResolution = GetCubemapResolutionFromQualityLevel(QualitySettings.GetQualityLevel());
-            if (m_cubemapSize != newResolution)
+            if (m_cubemapSize != newResolution || m_spaceSkyCubemapRenderTexture == null)
             {
                 CoreUtils.Destroy(m_spaceSkyCubemapRenderTexture);
                 m_cubemapSize                  = newResolution;

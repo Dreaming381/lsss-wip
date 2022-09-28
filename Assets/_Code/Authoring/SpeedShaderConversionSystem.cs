@@ -10,14 +10,14 @@ using Unity.Transforms;
 
 namespace Lsss.Authoring
 {
-    [UpdateInGroup(typeof(GameObjectAfterConversionGroup))]
-    public partial class SpeedShaderConversionSystem : GameObjectConversionSystem
-    {
+    /*[UpdateInGroup(typeof(GameObjectAfterConversionGroup))]
+       public partial class SpeedShaderConversionSystem : GameObjectConversionSystem
+       {
         protected override void OnUpdate()
         {
-            var system = DstEntityManager.World.GetOrCreateSystem<SpeedShaderDestinationWorldConversionSystem>();
+            var system = DstEntityManager.World.GetOrCreateSystemManaged<SpeedShaderDestinationWorldConversionSystem>();
             system.Update();
-            DstEntityManager.World.DestroySystem(system);
+            DstEntityManager.World.DestroySystem(system.SystemHandle);
         }
 
         partial class SpeedShaderDestinationWorldConversionSystem : SystemBase
@@ -25,7 +25,7 @@ namespace Lsss.Authoring
             protected override void OnUpdate()
             {
                 var renderMeshes = new List<RenderMesh>();
-                EntityManager.GetAllUniqueSharedComponentData(renderMeshes);
+                EntityManager.GetAllUniqueSharedComponentsManaged(renderMeshes);
                 EntityQuery query = EntityManager.Fluent().WithAll<RenderMesh>(true).Build();
 
                 foreach (var renderMesh in renderMeshes)
@@ -79,6 +79,6 @@ namespace Lsss.Authoring
                 query.Dispose();
             }
         }
-    }
+       }*/
 }
 

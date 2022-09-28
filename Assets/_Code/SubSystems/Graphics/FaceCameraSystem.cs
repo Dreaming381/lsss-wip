@@ -23,26 +23,40 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             // We use NativeList here because NativeReference is broken in ISystem
-            var foundCamera = state.WorldUnmanaged.UpdateAllocator.AllocateNativeList<float3>(1);
+            var foundCamera = new NativeReference<float3>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
-            state.Entities.WithAll<CameraManager>().ForEach((in Translation translation) =>
-            {
-                if (foundCamera.IsEmpty)
-                    foundCamera.Add(translation.Value);
-            }).Schedule();
-            state.Entities.WithAll<FaceCameraTag>().ForEach((ref Rotation rotation, in LocalToWorld ltw) =>
-            {
-                if (foundCamera.IsEmpty)
-                    return;
+            new JobA { foundCamera = foundCamera }.Schedule();
+            new JobB {foundCamera  = foundCamera}.ScheduleParallel();
+        }
 
-                var    camPos    = foundCamera[0];
+        [BurstCompile]
+        [WithAll(typeof(CameraManager))]
+        partial struct JobA : IJobEntity
+        {
+            public NativeReference<float3> foundCamera;
+
+            public void Execute(in Translation translation)
+            {
+                foundCamera.Value = translation.Value;
+            }
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(FaceCameraTag))]
+        partial struct JobB : IJobEntity
+        {
+            [ReadOnly] public NativeReference<float3> foundCamera;
+
+            public void Execute(ref Rotation rotation, in LocalToWorld ltw)
+            {
+                var    camPos    = foundCamera.Value;
                 float3 direction = math.normalize(camPos - ltw.Position);
                 if (math.abs(math.dot(direction, new float3(0f, 1f, 0f))) < 0.9999f)
                 {
                     var parentRot  = math.mul(ltw.Rotation, math.inverse(rotation.Value));
                     rotation.Value = math.mul(math.inverse(parentRot), quaternion.LookRotationSafe(direction, new float3(0f, 1f, 0f)));
                 }
-            }).WithReadOnly(foundCamera).ScheduleParallel();
+            }
         }
     }
 }

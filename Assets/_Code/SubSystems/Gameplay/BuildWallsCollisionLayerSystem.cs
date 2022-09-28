@@ -9,7 +9,6 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    [AlwaysUpdateSystem]
     public partial class BuildWallsCollisionLayerSystem : SubSystem
     {
         EntityQuery m_query;
@@ -33,7 +32,11 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            var settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            CollisionLayerSettings settings;
+            if (sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            else
+                settings = BuildCollisionLayerConfig.defaultSettings;
             m_query.ResetFilter();
             Dependency = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
             var wcl    = new WallCollisionLayer { layer = layer };

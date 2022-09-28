@@ -61,10 +61,10 @@ namespace Lsss
 
             ApplyWarpZoneDataProcessor processor = new ApplyWarpZoneDataProcessor
             {
-                boundsCdfe         = GetComponentDataFromEntity<RenderBounds>(),
-                positionRadiusCdfe = GetComponentDataFromEntity<GravityWarpZonePositionRadiusProperty>(),
-                paramsCdfe         = GetComponentDataFromEntity<GravityWarpZoneParamsProperty>(),
-                warpZoneCdfe       = GetComponentDataFromEntity<GravityWarpZone>()
+                boundsCdfe         = GetComponentLookup<RenderBounds>(),
+                positionRadiusCdfe = GetComponentLookup<GravityWarpZonePositionRadiusProperty>(),
+                paramsCdfe         = GetComponentLookup<GravityWarpZoneParamsProperty>(),
+                warpZoneCdfe       = GetComponentLookup<GravityWarpZone>()
             };
 
             Dependency       = Physics.FindPairs(warpZoneLayer, warpedLayer, processor).ScheduleParallel(Dependency);
@@ -83,10 +83,10 @@ namespace Lsss
         //Assumes warpZone is A
         struct ApplyWarpZoneDataProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<RenderBounds>                          boundsCdfe;
-            public PhysicsComponentDataFromEntity<GravityWarpZonePositionRadiusProperty> positionRadiusCdfe;
-            public PhysicsComponentDataFromEntity<GravityWarpZoneParamsProperty>         paramsCdfe;
-            [ReadOnly] public ComponentDataFromEntity<GravityWarpZone>                   warpZoneCdfe;
+            public PhysicsComponentLookup<RenderBounds>                          boundsCdfe;
+            public PhysicsComponentLookup<GravityWarpZonePositionRadiusProperty> positionRadiusCdfe;
+            public PhysicsComponentLookup<GravityWarpZoneParamsProperty>         paramsCdfe;
+            [ReadOnly] public ComponentLookup<GravityWarpZone>                   warpZoneCdfe;
 
             public void Execute(in FindPairsResult result)
             {

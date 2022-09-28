@@ -22,10 +22,21 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var scanCdfe = state.GetComponentDataFromEntity<AiShipRadarScanResults>(true);
-            state.Entities.WithAll<AiTag>().ForEach((ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity) =>
+            var scanCdfe = state.GetComponentLookup<AiShipRadarScanResults>(true);
+
+            new JobA { scanClu = scanCdfe }.ScheduleParallel();
+            new JobB().ScheduleParallel();
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(AiTag))]
+        partial struct JobA : IJobEntity
+        {
+            [ReadOnly] public ComponentLookup<AiShipRadarScanResults> scanClu;
+
+            public void Execute(ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity)
             {
-                var scanResults = scanCdfe[shipRadarEntity.shipRadar];
+                var scanResults = scanClu[shipRadarEntity.shipRadar];
                 output.fire     = !scanResults.friendFound && scanResults.nearestEnemy != Entity.Null;
 
                 if (scanResults.target != Entity.Null)
@@ -37,12 +48,17 @@ namespace Lsss
                 {
                     output.isPositionValid = false;
                 }
-            }).WithReadOnly(scanCdfe).ScheduleParallel();
+            }
+        }
 
-            state.Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadar radar, in AiShipRadarScanResults results) =>
+        [BurstCompile]
+        [WithAll(typeof(AiRadarTag))]
+        partial struct JobB : IJobEntity
+        {
+            public void Execute(ref AiShipRadar radar, in AiShipRadarScanResults results)
             {
                 radar.target = results.target;
-            }).ScheduleParallel();
+            }
         }
     }
 }

@@ -12,7 +12,6 @@
         "Unity.InputSystem",
         "Unity.Jobs",
         "Unity.Mathematics",
-        "Unity.Rendering.Hybrid",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.HighDefinition.Runtime",
         "Unity.TextMeshPro",
@@ -21,7 +20,8 @@
         "Unity.Transforms.Hybrid",
         "Unity.Mathematics.Extensions",
         "Unity.usfxr",
-        "Latios.Kinemation"
+        "Latios.Kinemation",
+        "Unity.Entities.Graphics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

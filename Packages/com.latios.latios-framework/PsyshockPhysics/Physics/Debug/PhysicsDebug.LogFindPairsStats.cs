@@ -90,7 +90,7 @@ namespace Latios.Psyshock
         }
 
         [BurstCompile]
-        struct LogBucketCountsForLayerJob : IJobBurstSchedulable
+        struct LogBucketCountsForLayerJob : IJob
         {
             [ReadOnly] public CollisionLayer layer;
             public FixedString128Bytes       layerName;

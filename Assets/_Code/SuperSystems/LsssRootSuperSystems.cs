@@ -10,7 +10,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<BeginFrameProfilingSystem>();
+            GetOrCreateAndAddManagedSystem<BeginFrameProfilingSystem>();
         }
     }
 
@@ -19,10 +19,10 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<GameplaySyncPointSuperSystem>();
+            GetOrCreateAndAddManagedSystem<GameplaySyncPointSuperSystem>();
 
-            GetOrCreateAndAddSystem<TransformSystemGroup>();
-            GetOrCreateAndAddSystem<CompanionGameObjectUpdateTransformSystem>();  //Todo: Namespace
+            GetOrCreateAndAddManagedSystem<TransformSystemGroup>();
+            //GetOrCreateAndAddManagedSystem<CompanionGameObjectUpdateTransformSystem>();  //Todo: Namespace
         }
     }
 
@@ -32,8 +32,8 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<PlayerInGameSuperSystem>();
-            GetOrCreateAndAddSystem<AdvanceGameplayMotionSuperSystem>();
+            GetOrCreateAndAddManagedSystem<PlayerInGameSuperSystem>();
+            GetOrCreateAndAddManagedSystem<AdvanceGameplayMotionSuperSystem>();
         }
     }
 
@@ -43,10 +43,10 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<UpdateTransformSpatialQueriesSuperSystem>();
-            GetOrCreateAndAddSystem<AiUpdateSuperSystem>();
-            GetOrCreateAndAddSystem<ProcessGameplayEventsSuperSystem>();
-            GetOrCreateAndAddSystem<GraphicsTransformsSuperSystem>();
+            GetOrCreateAndAddManagedSystem<UpdateTransformSpatialQueriesSuperSystem>();
+            GetOrCreateAndAddManagedSystem<AiUpdateSuperSystem>();
+            GetOrCreateAndAddManagedSystem<ProcessGameplayEventsSuperSystem>();
+            GetOrCreateAndAddManagedSystem<GraphicsTransformsSuperSystem>();
         }
     }
 
@@ -55,12 +55,12 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<UiMainMenuSuperSystem>();
-            GetOrCreateAndAddSystem<UiResultsSuperSystem>();
-            GetOrCreateAndAddSystem<AudioSuperSystem>();
-            GetOrCreateAndAddSystem<ShaderPropertySuperSystem>();
-            GetOrCreateAndAddSystem<ProfilingDisplayUpdateSystem>();
-            GetOrCreateAndAddSystem<UiGameplaySuperSystem>();
+            GetOrCreateAndAddManagedSystem<UiMainMenuSuperSystem>();
+            GetOrCreateAndAddManagedSystem<UiResultsSuperSystem>();
+            GetOrCreateAndAddManagedSystem<AudioSuperSystem>();
+            GetOrCreateAndAddManagedSystem<ShaderPropertySuperSystem>();
+            GetOrCreateAndAddManagedSystem<ProfilingDisplayUpdateSystem>();
+            GetOrCreateAndAddManagedSystem<UiGameplaySuperSystem>();
         }
     }
 }

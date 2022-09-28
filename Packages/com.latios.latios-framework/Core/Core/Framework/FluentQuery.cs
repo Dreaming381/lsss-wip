@@ -1,5 +1,6 @@
 ﻿using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections.NotBurstCompatible;
 using Unity.Entities;
 
 namespace Latios
@@ -61,24 +62,27 @@ namespace Latios
         /// </summary>
         public static unsafe FluentQuery Fluent(this ref SystemState state)
         {
-            return new FluentQuery
+            fixed (SystemState* statePtr = &state)
             {
-                m_all                    = new NativeList<ComponentType>(Allocator.TempJob),
-                m_any                    = new NativeList<ComponentType>(Allocator.TempJob),
-                m_none                   = new NativeList<ComponentType>(Allocator.TempJob),
-                m_anyIfNotExcluded       = new NativeList<ComponentType>(Allocator.TempJob),
-                m_allWeak                = new NativeList<ComponentType>(Allocator.TempJob),
-                m_anyWeak                = new NativeList<ComponentType>(Allocator.TempJob),
-                m_anyIfNotExcludedWeak   = new NativeList<ComponentType>(Allocator.TempJob),
-                m_targetSystem           = null,
-                m_targetState            = (SystemState*)UnsafeUtility.AddressOf(ref state),
-                m_targetManager          = default,
-                m_anyIsSatisfiedByAll    = false,
-                m_sharedComponentFilterA = null,
-                m_sharedComponentFilterB = null,
-                m_changeFilters          = new NativeList<ComponentType>(Allocator.TempJob),
-                m_options                = EntityQueryOptions.Default
-            };
+                return new FluentQuery
+                {
+                    m_all                    = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_any                    = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_none                   = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_anyIfNotExcluded       = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_allWeak                = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_anyWeak                = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_anyIfNotExcludedWeak   = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_targetSystem           = null,
+                    m_targetState            = statePtr,
+                    m_targetManager          = default,
+                    m_anyIsSatisfiedByAll    = false,
+                    m_sharedComponentFilterA = null,
+                    m_sharedComponentFilterB = null,
+                    m_changeFilters          = new NativeList<ComponentType>(Allocator.TempJob),
+                    m_options                = EntityQueryOptions.Default
+                };
+            }
         }
     }
 
@@ -113,7 +117,7 @@ namespace Latios
             public abstract void ApplyFilter(EntityQuery query);
         }
 
-        internal class SharedComponentFilter<T> : SharedComponentFilterBase where T : struct, ISharedComponentData
+        internal class SharedComponentFilter<T> : SharedComponentFilterBase where T : unmanaged, ISharedComponentData
         {
             private T m_scd;
             public SharedComponentFilter(T scd)
@@ -263,7 +267,7 @@ namespace Latios
         /// Adds a shared component value as a filter to the query
         /// </summary>
         /// <param name="value">The ISharedComponentData value that entities in the query are required to match</param>
-        public FluentQuery WithSharedComponent<T>(T value) where T : struct, ISharedComponentData
+        public FluentQuery WithSharedComponent<T>(T value) where T : unmanaged, ISharedComponentData
         {
             var em = m_targetManager;
             if (em == default)
@@ -297,7 +301,7 @@ namespace Latios
         /// <returns></returns>
         public FluentQuery IncludeDisabled()
         {
-            m_options |= EntityQueryOptions.IncludeDisabled;
+            m_options |= EntityQueryOptions.IncludeDisabledEntities;
             return this;
         }
 
@@ -460,9 +464,9 @@ namespace Latios
 
             var desc = new EntityQueryDesc()
             {
-                All     = m_all.ToArray(),
-                Any     = m_any.ToArray(),
-                None    = m_none.ToArray(),
+                All     = m_all.ToArrayNBC(),
+                Any     = m_any.ToArrayNBC(),
+                None    = m_none.ToArrayNBC(),
                 Options = m_options
             };
 

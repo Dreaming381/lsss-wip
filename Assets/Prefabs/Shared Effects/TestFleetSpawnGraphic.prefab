@@ -27,6 +27,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 5, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6361006046460169703}
   m_RootOrder: 3
@@ -71,6 +72,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6361006046460169703}
   m_RootOrder: 5
@@ -115,6 +117,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6361006046460169703}
   m_RootOrder: 6
@@ -159,6 +162,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -5, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6361006046460169703}
   m_RootOrder: 4
@@ -203,6 +207,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6361006046460169703}
   m_RootOrder: 2
@@ -225,6 +230,7 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 316939684022399557, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
@@ -244,6 +250,10 @@ PrefabInstance:
       value: 27
       objectReference: {fileID: 0}
     - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -256,6 +266,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
       propertyPath: m_LocalRotation.x
       value: 0
       objectReference: {fileID: 0}
@@ -265,14 +279,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
-      propertyPath: m_RootOrder
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
@@ -304,6 +310,24 @@ PrefabInstance:
       value: TestFleetSpawnGraphic
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 569164176067433420}
+    - targetCorrespondingSourceObject: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7565278047379472678}
+    - targetCorrespondingSourceObject: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6906289081059610530}
+    - targetCorrespondingSourceObject: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2064658928435834094}
+    - targetCorrespondingSourceObject: {fileID: 1172924654106857868, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3698091822070473562}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 855d344d8708dfc42b74e5d1d3797a5a, type: 3}
 --- !u!4 &6361006046460169703 stripped
 Transform:

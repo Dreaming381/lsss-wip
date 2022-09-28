@@ -279,7 +279,7 @@ namespace Lsss
                     titleAndMenu.scrollRight = false;
                 }
 
-                float a                             = 0.75f * (float)math.sin(Time.ElapsedTime / titleAndMenu.pulsePeriod * 2d * math.PI_DBL) + 0.5f;
+                float a                             = 0.75f * (float)math.sin(SystemAPI.Time.ElapsedTime / titleAndMenu.pulsePeriod * 2d * math.PI_DBL) + 0.5f;
                 titleAndMenu.pressToStartText.color = new UnityEngine.Color(1f, 1f, 1f, a);
             }).WithoutBurst().Run();
         }

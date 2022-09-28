@@ -9,6 +9,7 @@ using UnityEngine;
 
 namespace Lsss
 {
+    [RequireMatchingQueriesForUpdate]
     public partial class EvaluateMissionSystem : SubSystem
     {
         struct MissionStatus

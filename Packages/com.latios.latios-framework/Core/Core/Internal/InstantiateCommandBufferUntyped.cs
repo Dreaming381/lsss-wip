@@ -36,7 +36,7 @@ namespace Latios
 
         private struct State
         {
-            public ComponentTypes                   tagsToAdd;
+            public ComponentTypeSet                 tagsToAdd;
             public FixedList64Bytes<int>            typesWithData;
             public FixedList64Bytes<int>            typesSizes;
             public AllocatorManager.AllocatorHandle allocator;
@@ -106,7 +106,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct DisposeJob : IJobBurstSchedulable
+        private struct DisposeJob : IJob
         {
             [NativeDisableUnsafePtrRestriction]
             public State* state;
@@ -254,7 +254,7 @@ namespace Latios
             var chunks            = new NativeList<ArchetypeChunk>(Allocator.TempJob);
             var indicesInChunks   = new NativeList<int>(Allocator.TempJob);
             var componentDataPtrs = new NativeList<UnsafeParallelBlockList.ElementPtr>(Allocator.TempJob);
-            entityManager.CompleteAllJobs();
+            entityManager.CompleteAllTrackedJobs();
             //var eet = entityManager.BeginExclusiveEntityTransaction();
             //Run job that instantiates entities and populates hashmap
             var job0 = new InstantiateAndBuildListsJob
@@ -306,7 +306,7 @@ namespace Latios
             componentDataPtrs.Dispose();
         }
 
-        public void SetTags(ComponentTypes types)
+        public void SetTags(ComponentTypeSet types)
         {
             CheckWriteAccess();
             CheckHasNotPlayedBack();
@@ -319,13 +319,13 @@ namespace Latios
             CheckHasNotPlayedBack();
             switch (m_state->tagsToAdd.Length)
             {
-                case 0: m_state->tagsToAdd = new ComponentTypes(type); break;
-                case 1: m_state->tagsToAdd = new ComponentTypes(m_state->tagsToAdd.GetComponentType(0), type); break;
-                case 2: m_state->tagsToAdd = new ComponentTypes(m_state->tagsToAdd.GetComponentType(0), m_state->tagsToAdd.GetComponentType(1), type); break;
+                case 0: m_state->tagsToAdd = new ComponentTypeSet(type); break;
+                case 1: m_state->tagsToAdd = new ComponentTypeSet(m_state->tagsToAdd.GetComponentType(0), type); break;
+                case 2: m_state->tagsToAdd = new ComponentTypeSet(m_state->tagsToAdd.GetComponentType(0), m_state->tagsToAdd.GetComponentType(1), type); break;
                 case 3: m_state->tagsToAdd =
-                    new ComponentTypes(m_state->tagsToAdd.GetComponentType(0), m_state->tagsToAdd.GetComponentType(1), m_state->tagsToAdd.GetComponentType(2), type); break;
+                    new ComponentTypeSet(m_state->tagsToAdd.GetComponentType(0), m_state->tagsToAdd.GetComponentType(1), m_state->tagsToAdd.GetComponentType(2), type); break;
                 case 4: m_state->tagsToAdd =
-                    new ComponentTypes(m_state->tagsToAdd.GetComponentType(0),
+                    new ComponentTypeSet(m_state->tagsToAdd.GetComponentType(0),
                                        m_state->tagsToAdd.GetComponentType(1),
                                        m_state->tagsToAdd.GetComponentType(2),
                                        m_state->tagsToAdd.GetComponentType(3),
@@ -336,7 +336,7 @@ namespace Latios
                     for (int i = 0; i < m_state->tagsToAdd.Length; i++)
                         types.Add(m_state->tagsToAdd.GetComponentType(i));
                     types.Add(type);
-                    m_state->tagsToAdd = new ComponentTypes(types);
+                    m_state->tagsToAdd = new ComponentTypeSet(types);
                     break;
                 }
                 default: ThrowTooManyTags(); break;
@@ -356,7 +356,7 @@ namespace Latios
 
         #region Implementation
         [BurstCompile]
-        private struct InstantiateAndBuildListsJob : IJobBurstSchedulable
+        private struct InstantiateAndBuildListsJob : IJob
         {
             [ReadOnly] public InstantiateCommandBufferUntyped icb;
             //public ExclusiveEntityTransaction                     eet;
@@ -486,7 +486,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct WriteComponentDataJob : IJobParallelForBurstSchedulable
+        private struct WriteComponentDataJob : IJobParallelFor
         {
             [ReadOnly] public InstantiateCommandBufferUntyped                 icb;
             [ReadOnly] public NativeArray<ArchetypeChunk>                     chunks;
@@ -663,16 +663,16 @@ namespace Latios
         private struct DummyTypeT4 : IComponentData { public int dummy; }
 #pragma warning restore CS0649
 
-        static ComponentTypes BuildComponentTypesFromFixedList(FixedList64Bytes<int> types)
+        static ComponentTypeSet BuildComponentTypesFromFixedList(FixedList64Bytes<int> types)
         {
             switch (types.Length)
             {
-                case 1: return new ComponentTypes(ComponentType.ReadWrite(types[0]));
-                case 2: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]));
-                case 3: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]));
-                case 4: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
+                case 1: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]));
+                case 2: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]));
+                case 3: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]));
+                case 4: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
                                                   ComponentType.ReadWrite(types[3]));
-                case 5: return new ComponentTypes(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
+                case 5: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
                                                   ComponentType.ReadWrite(types[3]), ComponentType.ReadWrite(types[4]));
                 default: return default;
             }
@@ -697,12 +697,16 @@ namespace Latios
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        static void CheckComponentTypesValid(ComponentTypes types)
+        static void CheckComponentTypesValid(ComponentTypeSet types)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (types.m_masks.m_ZeroSizedMask != 0)
-                throw new InvalidOperationException(
-                    "InstantiateCommandBuffer cannot be created with zero-sized component types. You can instead add such types using AddTagComponent() after creation.");
+            for (int i = 0; i < types.Length; i++)
+            {
+                var t = types.GetComponentType(i);
+                if (t.IsZeroSized)
+                    throw new InvalidOperationException(
+                        "InstantiateCommandBuffer cannot be created with zero-sized component types. You can instead add such types using AddTagComponent() after creation.");
+            }                
 #endif
         }
 
@@ -874,6 +878,10 @@ namespace Latios
         #endregion
     }
 }
+
+
+
+
 
 
 

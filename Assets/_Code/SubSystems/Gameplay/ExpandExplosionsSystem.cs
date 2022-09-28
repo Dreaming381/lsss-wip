@@ -21,12 +21,21 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt = state.Time.DeltaTime;
-            state.Entities.WithAll<ExplosionTag>().ForEach((ref Scale scale, in ExplosionStats stats) =>
+            float dt     = SystemAPI.Time.DeltaTime;
+            new Job { dt = dt }.ScheduleParallel();
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(ExplosionTag))]
+        partial struct Job : IJobEntity
+        {
+            public float dt;
+
+            public void Execute(ref Scale scale, in ExplosionStats stats)
             {
                 scale.Value += stats.expansionRate * dt;
                 scale.Value  = math.min(scale.Value, stats.radius);
-            }).ScheduleParallel();
+            }
         }
     }
 }

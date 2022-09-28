@@ -8,6 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
+    [RequireMatchingQueriesForUpdate]
     public partial class SpawnShipsDequeueSystem : SubSystem
     {
         struct NextSpawnCounter : IComponentData
@@ -20,7 +21,7 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            float dt = Time.DeltaTime;
+            float dt = SystemAPI.Time.DeltaTime;
             Entities.WithAll<SpawnPointTag>().ForEach((ref SpawnTimes spawnTimes) =>
             {
                 spawnTimes.enableTime -= dt;

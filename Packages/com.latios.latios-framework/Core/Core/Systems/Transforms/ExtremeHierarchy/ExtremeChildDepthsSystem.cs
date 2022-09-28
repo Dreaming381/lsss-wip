@@ -37,10 +37,10 @@ namespace Latios.Systems
             state.Dependency = new UpdateDepthsJob
             {
                 parentHandle      = state.GetComponentTypeHandle<PreviousParent>(true),
-                parentCdfe        = state.GetComponentDataFromEntity<PreviousParent>(true),
+                parentCdfe        = state.GetComponentLookup<PreviousParent>(true),
                 childHandle       = state.GetBufferTypeHandle<Child>(true),
-                childBfe          = state.GetBufferFromEntity<Child>(true),
-                depthCdfe         = state.GetComponentDataFromEntity<Depth>(false),
+                childBfe          = state.GetBufferLookup<Child>(true),
+                depthCdfe         = state.GetComponentLookup<Depth>(false),
                 depthHandle       = state.GetComponentTypeHandle<Depth>(false),
                 lastSystemVersion = state.LastSystemVersion
             }.ScheduleParallel(m_query, state.Dependency);
@@ -68,10 +68,10 @@ namespace Latios.Systems
         struct UpdateDepthsJob : IJobEntityBatch
         {
             [ReadOnly] public ComponentTypeHandle<PreviousParent>                           parentHandle;
-            [ReadOnly] public ComponentDataFromEntity<PreviousParent>                       parentCdfe;
+            [ReadOnly] public ComponentLookup<PreviousParent>                       parentCdfe;
             [ReadOnly] public BufferTypeHandle<Child>                                       childHandle;
-            [ReadOnly] public BufferFromEntity<Child>                                       childBfe;
-            [NativeDisableContainerSafetyRestriction] public ComponentDataFromEntity<Depth> depthCdfe;
+            [ReadOnly] public BufferLookup<Child>                                       childBfe;
+            [NativeDisableContainerSafetyRestriction] public ComponentLookup<Depth> depthCdfe;
             public ComponentTypeHandle<Depth>                                               depthHandle;
 
             public uint lastSystemVersion;

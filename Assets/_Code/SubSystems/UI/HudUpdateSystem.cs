@@ -69,7 +69,7 @@ namespace Lsss
 
             if (playerFound)
             {
-                hud.blackFadeControl = math.saturate(hud.blackFadeControl - math.rcp(hud.blackFadeOutTime) * Time.DeltaTime);
+                hud.blackFadeControl = math.saturate(hud.blackFadeControl - math.rcp(hud.blackFadeOutTime) * SystemAPI.Time.DeltaTime);
             }
             else
             {
@@ -78,7 +78,7 @@ namespace Lsss
                 if (queues.playerQueue.Count == 0)
                 {
                     //Player has been dequeued and will spawn soon. Fade to black.
-                    hud.blackFadeControl = math.saturate(hud.blackFadeControl + math.rcp(hud.blackFadeInTime) * Time.DeltaTime);
+                    hud.blackFadeControl = math.saturate(hud.blackFadeControl + math.rcp(hud.blackFadeInTime) * SystemAPI.Time.DeltaTime);
                 }
             }
             hud.blackFade.color = new UnityEngine.Color(0f, 0f, 0f, hud.blackFadeControl);

@@ -103,7 +103,7 @@ namespace Latios
 
         #region PlaybackJobs
         [BurstCompile]
-        private struct PlaybackJob : IJobBurstSchedulable
+        private struct PlaybackJob : IJob
         {
             [ReadOnly] public EntityOperationCommandBuffer eocb;
             public ExclusiveEntityTransaction              eet;
@@ -241,7 +241,7 @@ namespace Latios
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
-        public void SetComponentTags(ComponentTypes tags)
+        public void SetComponentTags(ComponentTypeSet tags)
         {
             m_instantiateCommandBufferUntyped.SetTags(tags);
         }
@@ -375,7 +375,7 @@ namespace Latios
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
-        public void SetComponentTags(ComponentTypes tags)
+        public void SetComponentTags(ComponentTypeSet tags)
         {
             m_instantiateCommandBufferUntyped.SetTags(tags);
         }
@@ -513,7 +513,7 @@ namespace Latios
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
-        public void SetComponentTags(ComponentTypes tags)
+        public void SetComponentTags(ComponentTypeSet tags)
         {
             m_instantiateCommandBufferUntyped.SetTags(tags);
         }
@@ -654,7 +654,7 @@ namespace Latios
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
-        public void SetComponentTags(ComponentTypes tags)
+        public void SetComponentTags(ComponentTypeSet tags)
         {
             m_instantiateCommandBufferUntyped.SetTags(tags);
         }
@@ -798,7 +798,7 @@ namespace Latios
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
-        public void SetComponentTags(ComponentTypes tags)
+        public void SetComponentTags(ComponentTypeSet tags)
         {
             m_instantiateCommandBufferUntyped.SetTags(tags);
         }

@@ -21,7 +21,7 @@ namespace Lsss
         {
             var   icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Translation>().AsParallelWriter();
             var   dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
-            float dt  = Time.DeltaTime;
+            float dt  = SystemAPI.Time.DeltaTime;
 
             // The below seems to cause a sync point in Entities 0.50. So we use IJobEntityBatch instead.
 

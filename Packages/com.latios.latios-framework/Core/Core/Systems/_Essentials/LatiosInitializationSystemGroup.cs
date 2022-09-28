@@ -19,11 +19,11 @@ namespace Latios.Systems
         protected override void OnCreate()
         {
             base.OnCreate();
-            m_syncPlayback = World.CreateSystem<SyncPointPlaybackSystem>();
-            m_mergeGlobals = World.CreateSystem<MergeBlackboardsSystem>();
-            m_cleanupGroup = World.CreateSystem<ManagedComponentsReactiveSystemGroup>();
-            m_syncGroup    = World.GetOrCreateSystem<LatiosWorldSyncGroup>();
-            m_preSyncGroup = World.GetOrCreateSystem<PreSyncPointGroup>();
+            m_syncPlayback = World.CreateSystemManaged<SyncPointPlaybackSystem>();
+            m_mergeGlobals = World.CreateSystemManaged<MergeBlackboardsSystem>();
+            m_cleanupGroup = World.CreateSystemManaged<ManagedComponentsReactiveSystemGroup>();
+            m_syncGroup    = World.GetOrCreateSystemManaged<LatiosWorldSyncGroup>();
+            m_preSyncGroup = World.GetOrCreateSystemManaged<PreSyncPointGroup>();
             AddSystemToUpdateList(m_syncPlayback);
             AddSystemToUpdateList(m_syncGroup);
             AddSystemToUpdateList(m_preSyncGroup);

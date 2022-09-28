@@ -7,7 +7,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<TitleAndMenuUpdateSystem>();
+            GetOrCreateAndAddManagedSystem<TitleAndMenuUpdateSystem>();
         }
     }
 
@@ -15,7 +15,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<HudUpdateSystem>();
+            GetOrCreateAndAddManagedSystem<HudUpdateSystem>();
         }
     }
 
@@ -23,7 +23,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<GameResultsSystem>();
+            GetOrCreateAndAddManagedSystem<GameResultsSystem>();
         }
     }
 }

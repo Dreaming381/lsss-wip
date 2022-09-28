@@ -14,7 +14,7 @@ using UnityCollider = UnityEngine.Collider;
 namespace Latios.Psyshock.Authoring.Systems
 {
     [ConverterVersion("latios", 2)]
-    public class ColliderConversionSystem : GameObjectConversionSystem
+    public partial class ColliderConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
@@ -82,7 +82,7 @@ namespace Latios.Psyshock.Authoring.Systems
                     }
                 }
                 m_authorings.Add(colliderAuthoring);
-            });
+            }).WithoutBurst().Run();
 
             if (m_authorings.Count > 0)
             {
@@ -118,9 +118,9 @@ namespace Latios.Psyshock.Authoring.Systems
                     {
                         new ComputeCompoundBlobs
                         {
-                            colliders       = m_nativeColliders,
-                            transforms      = m_nativeTransforms,
-                            ranges          = m_compoundRanges,
+                            colliders       = m_nativeColliders.AsArray(),
+                            transforms      = m_nativeTransforms.AsArray(),
+                            ranges          = m_compoundRanges.AsArray(),
                             computationData = computationData
                         }.ScheduleParallel(computationData.Length, 1, default).Complete();
 
@@ -131,6 +131,8 @@ namespace Latios.Psyshock.Authoring.Systems
                     }
 
                     //Step 5: Build Collider component
+                    var ecb = new EntityCommandBuffer(Allocator.Temp);
+
                     var index = 0;
                     Entities.ForEach((ColliderAuthoring colliderAuthoring) =>
                     {
@@ -151,8 +153,10 @@ namespace Latios.Psyshock.Authoring.Systems
                             compoundColliderBlob = blob,
                             scale                = scale.x
                         };
-                        DstEntityManager.AddComponentData(targetEntity, icdCompound);
-                    });
+                        ecb.AddComponent(targetEntity, icdCompound);
+                    }).WithoutBurst().Run();
+
+                    ecb.Playback(DstEntityManager);
 
                     hashes.Dispose();
                 }

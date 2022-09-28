@@ -20,7 +20,7 @@ namespace Latios.Systems
         EntityQuery m_ExistingParentsQuery;
         EntityQuery m_DeletedParentsQuery;
 
-        ComponentTypes m_NewParentComponents;
+        ComponentTypeSet m_NewParentComponents;
 
         static readonly ProfilerMarker k_ProfileDeletedParents = new ProfilerMarker("ExtremeParentSystem.DeletedParents");
         static readonly ProfilerMarker k_ProfileRemoveParents  = new ProfilerMarker("ExtremeParentSystem.RemoveParents");
@@ -56,14 +56,14 @@ namespace Latios.Systems
         [BurstCompile]
         struct GatherChangedParents : IJobEntityBatch
         {
-            public NativeParallelMultiHashMap<Entity, Entity>.ParallelWriter ParentChildrenToAdd;
-            public NativeParallelMultiHashMap<Entity, Entity>.ParallelWriter ParentChildrenToRemove;
-            public NativeParallelHashMap<Entity, int>.ParallelWriter         UniqueParents;
+            public NativeMultiHashMap<Entity, Entity>.ParallelWriter ParentChildrenToAdd;
+            public NativeMultiHashMap<Entity, Entity>.ParallelWriter ParentChildrenToRemove;
+            public NativeParallelHashMap<Entity, int>.ParallelWriter UniqueParents;
             public ComponentTypeHandle<PreviousParent>               PreviousParentTypeHandle;
 
             [ReadOnly] public ComponentTypeHandle<Parent> ParentTypeHandle;
             [ReadOnly] public EntityTypeHandle            EntityTypeHandle;
-            [ReadOnly] public BufferFromEntity<Child>     ChildFromEntity;
+            [ReadOnly] public BufferLookup<Child>         ChildFromEntity;
             public uint                                   LastSystemVersion;
 
             public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
@@ -106,8 +106,8 @@ namespace Latios.Systems
         struct FindMissingChild : IJob
         {
             [ReadOnly] public NativeParallelHashMap<Entity, int> UniqueParents;
-            [ReadOnly] public BufferFromEntity<Child>    ChildFromEntity;
-            public NativeList<Entity>                    ParentsMissingChild;
+            [ReadOnly] public BufferLookup<Child>                ChildFromEntity;
+            public NativeList<Entity>                            ParentsMissingChild;
 
             public void Execute()
             {
@@ -126,11 +126,11 @@ namespace Latios.Systems
         [BurstCompile]
         struct FixupChangedChildren : IJob
         {
-            [ReadOnly] public NativeParallelMultiHashMap<Entity, Entity> ParentChildrenToAdd;
-            [ReadOnly] public NativeParallelMultiHashMap<Entity, Entity> ParentChildrenToRemove;
-            [ReadOnly] public NativeParallelHashMap<Entity, int>         UniqueParents;
+            [ReadOnly] public NativeMultiHashMap<Entity, Entity> ParentChildrenToAdd;
+            [ReadOnly] public NativeMultiHashMap<Entity, Entity> ParentChildrenToRemove;
+            [ReadOnly] public NativeParallelHashMap<Entity, int> UniqueParents;
 
-            public BufferFromEntity<Child> ChildFromEntity;
+            public BufferLookup<Child> ChildFromEntity;
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             private static void ThrowChildEntityNotInParent()
@@ -215,9 +215,10 @@ namespace Latios.Systems
         //[BurstCompile]
         public unsafe void OnCreate(ref SystemState state)
         {
-            state.WorldUnmanaged.ResolveSystemState(state.WorldUnmanaged.GetExistingUnmanagedSystem<ParentSystem>().Handle)->Enabled = false;
+            //state.WorldUnmanaged.ResolveSystemState(state.WorldUnmanaged.GetExistingUnmanagedSystem<ParentSystem>().Handle)->Enabled = false;
 
-            m_NewParentComponents = new ComponentTypes(ComponentType.ReadWrite<PreviousParent>(), ComponentType.ReadWrite<Depth>(), ComponentType.ChunkComponent<ChunkDepthMask>());
+            m_NewParentComponents =
+                new ComponentTypeSet(ComponentType.ReadWrite<PreviousParent>(), ComponentType.ReadWrite<Depth>(), ComponentType.ChunkComponent<ChunkDepthMask>());
 
             m_NewParentsQuery = state.GetEntityQuery(new EntityQueryDesc
             {
@@ -324,8 +325,8 @@ namespace Latios.Systems
             // 2. Get (Parent,Child) to add
             // 3. Get unique Parent change list
             // 4. Set PreviousParent to new Parent
-            var parentChildrenToAdd     = new NativeParallelMultiHashMap<Entity, Entity>(count, Allocator.TempJob);
-            var parentChildrenToRemove  = new NativeParallelMultiHashMap<Entity, Entity>(count, Allocator.TempJob);
+            var parentChildrenToAdd     = new NativeMultiHashMap<Entity, Entity>(count, Allocator.TempJob);
+            var parentChildrenToRemove  = new NativeMultiHashMap<Entity, Entity>(count, Allocator.TempJob);
             var uniqueParents           = new NativeParallelHashMap<Entity, int>(count, Allocator.TempJob);
             var gatherChangedParentsJob = new GatherChangedParents
             {
@@ -333,7 +334,7 @@ namespace Latios.Systems
                 ParentChildrenToRemove   = parentChildrenToRemove.AsParallelWriter(),
                 UniqueParents            = uniqueParents.AsParallelWriter(),
                 PreviousParentTypeHandle = state.GetComponentTypeHandle<PreviousParent>(false),
-                ChildFromEntity          = state.GetBufferFromEntity<Child>(),
+                ChildFromEntity          = state.GetBufferLookup<Child>(),
                 ParentTypeHandle         = state.GetComponentTypeHandle<Parent>(true),
                 EntityTypeHandle         = state.GetEntityTypeHandle(),
                 LastSystemVersion        = state.LastSystemVersion
@@ -346,7 +347,7 @@ namespace Latios.Systems
             var findMissingChildJob = new FindMissingChild
             {
                 UniqueParents       = uniqueParents,
-                ChildFromEntity     = state.GetBufferFromEntity<Child>(true),
+                ChildFromEntity     = state.GetBufferLookup<Child>(true),
                 ParentsMissingChild = parentsMissingChild
             };
             //var findMissingChildJobHandle = findMissingChildJob.Schedule();
@@ -363,7 +364,7 @@ namespace Latios.Systems
                 ParentChildrenToAdd    = parentChildrenToAdd,
                 ParentChildrenToRemove = parentChildrenToRemove,
                 UniqueParents          = uniqueParents,
-                ChildFromEntity        = state.GetBufferFromEntity<Child>()
+                ChildFromEntity        = state.GetBufferLookup<Child>()
             };
 
             //var fixupChangedChildrenJobHandle = fixupChangedChildrenJob.Schedule();
@@ -379,10 +380,10 @@ namespace Latios.Systems
         [BurstCompile]
         struct GatherChildEntities : IJob
         {
-            [ReadOnly] public NativeArray<Entity>             Parents;
-            public NativeList<Entity>                         Children;
-            [ReadOnly] public BufferFromEntity<Child>         ChildFromEntity;
-            [ReadOnly] public ComponentDataFromEntity<Parent> ParentFromEntity;
+            [ReadOnly] public NativeArray<Entity>     Parents;
+            public NativeList<Entity>                 Children;
+            [ReadOnly] public BufferLookup<Child>     ChildFromEntity;
+            [ReadOnly] public ComponentLookup<Parent> ParentFromEntity;
 
             public void Execute()
             {
@@ -415,8 +416,8 @@ namespace Latios.Systems
             {
                 Parents          = previousParents,
                 Children         = childEntities,
-                ChildFromEntity  = state.GetBufferFromEntity<Child>(true),
-                ParentFromEntity = state.GetComponentDataFromEntity<Parent>(true),
+                ChildFromEntity  = state.GetBufferLookup<Child>(true),
+                ParentFromEntity = state.GetComponentLookup<Parent>(true),
             };
             //var gatherChildEntitiesJobHandle = gatherChildEntitiesJob.Schedule();
             //gatherChildEntitiesJobHandle.Complete();
@@ -439,7 +440,7 @@ namespace Latios.Systems
             previousParents.Dispose();
         }
 
-        //burst disabled pending IJobBurstSchedulable not requiring hardcoded calls to init
+        //burst disabled pending IJob not requiring hardcoded calls to init
         //for every distinct job
         [BurstCompile]
         public void OnUpdate(ref SystemState state)  //JobHandle inputDeps)

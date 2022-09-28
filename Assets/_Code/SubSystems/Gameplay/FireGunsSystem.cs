@@ -17,7 +17,7 @@ namespace Lsss
             var effectIcbMainThread = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>();
             effectIcbMainThread.AddComponentTag<LocalToParent>();
             var   effectIcb = effectIcbMainThread.AsParallelWriter();
-            float dt        = Time.DeltaTime;
+            float dt        = SystemAPI.Time.DeltaTime;
 
             Entities.WithAll<ShipTag>().ForEach((Entity entity,
                                                  int entityInQueryIndex,

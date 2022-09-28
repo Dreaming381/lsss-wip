@@ -7,8 +7,10 @@ using Unity.Entities;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
+using System.Linq;
 using Latios.Systems;
 using Unity.Collections;
+using Unity.Entities.Exposed;
 using Unity.Entities.Exposed;
 
 namespace Latios
@@ -97,13 +99,13 @@ namespace Latios
             }
         }
 
-        public struct ComponentSystemBaseSystemHandleUntypedUnion
+        public struct ComponentSystemBaseSystemHandleUnion
         {
             public ComponentSystemBase systemManaged;
-            public SystemHandleUntyped systemHandle;
+            public SystemHandle        systemHandle;
 
-            public static implicit operator ComponentSystemBase(ComponentSystemBaseSystemHandleUntypedUnion me) => me.systemManaged;
-            public static implicit operator SystemHandleUntyped(ComponentSystemBaseSystemHandleUntypedUnion me) => me.systemHandle;
+            public static implicit operator ComponentSystemBase(ComponentSystemBaseSystemHandleUnion me) => me.systemManaged;
+            public static implicit operator SystemHandle(ComponentSystemBaseSystemHandleUnion me) => me.systemHandle;
         }
 
         //Copied and pasted from Entities package and then modified as needed.
@@ -115,10 +117,10 @@ namespace Latios
         /// <param name="world">The world to inject the system into</param>
         /// <param name="defaultGroup">If no UpdateInGroupAttributes exist on the type and this value is not null, the system is injected in this group</param>
         /// <param name="groupRemap">If a type in an UpdateInGroupAttribute matches a key in this dictionary, it will be swapped with the value</param>
-        public static ComponentSystemBaseSystemHandleUntypedUnion InjectSystem(Type type,
-                                                                               World world,
-                                                                               ComponentSystemGroup defaultGroup          = null,
-                                                                               IReadOnlyDictionary<Type, Type> groupRemap = null)
+        public static ComponentSystemBaseSystemHandleUnion InjectSystem(Type type,
+                                                                        World world,
+                                                                        ComponentSystemGroup defaultGroup          = null,
+                                                                        IReadOnlyDictionary<Type, Type> groupRemap = null)
         {
             bool isManaged = false;
             if (typeof(ComponentSystemBase).IsAssignableFrom(type))
@@ -132,11 +134,11 @@ namespace Latios
 
             var groups = TypeManager.GetSystemAttributes(type, typeof(UpdateInGroupAttribute));
 
-            ComponentSystemBaseSystemHandleUntypedUnion newSystem = default;
+            ComponentSystemBaseSystemHandleUnion newSystem = default;
             if (isManaged)
             {
-                newSystem.systemManaged = world.GetOrCreateSystem(type);
-                newSystem.systemHandle  = newSystem.systemManaged.SystemHandleUntyped;
+                newSystem.systemManaged = world.GetOrCreateSystemManaged(type);
+                newSystem.systemHandle  = newSystem.systemManaged.SystemHandle;
             }
             else
             {
@@ -145,9 +147,9 @@ namespace Latios
             if (groups.Length == 0 && defaultGroup != null)
             {
                 if (isManaged)
-                    defaultGroup.AddSystemToUpdateList(newSystem);
+                    defaultGroup.AddSystemToUpdateList(newSystem.systemManaged);
                 else
-                    defaultGroup.AddUnmanagedSystemToUpdateList(newSystem);
+                    defaultGroup.AddSystemToUpdateList(newSystem.systemHandle);
             }
             foreach (var g in groups)
             {
@@ -158,9 +160,9 @@ namespace Latios
                 if (group != null)
                 {
                     if (isManaged)
-                        group.AddSystemToUpdateList(newSystem);
+                        group.AddSystemToUpdateList(newSystem.systemManaged);
                     else
-                        group.AddUnmanagedSystemToUpdateList(newSystem);
+                        group.AddSystemToUpdateList(newSystem.systemHandle);
                 }
             }
             return newSystem;
@@ -176,40 +178,33 @@ namespace Latios
         /// <param name="world">The world to inject the system into</param>
         /// <param name="defaultGroup">If no UpdateInGroupAttributes exist on the type and this value is not null, the system is injected in this group</param>
         /// <param name="groupRemap">If a type in an UpdateInGroupAttribute matches a key in this dictionary, it will be swapped with the value</param>
-        public static ComponentSystemBaseSystemHandleUntypedUnion[] InjectSystems(IReadOnlyList<Type> types,
-                                                                                  World world,
-                                                                                  ComponentSystemGroup defaultGroup          = null,
-                                                                                  IReadOnlyDictionary<Type, Type> groupRemap = null)
+        public static ComponentSystemBaseSystemHandleUnion[] InjectSystems(IReadOnlyList<Type> types,
+                                                                           World world,
+                                                                           ComponentSystemGroup defaultGroup          = null,
+                                                                           IReadOnlyDictionary<Type, Type> groupRemap = null)
         {
-            var managedTypes   = new List<Type>();
-            var unmanagedTypes = new List<Type>();
-
-            foreach (var stype in types)
-            {
-                if (typeof(ComponentSystemBase).IsAssignableFrom(stype))
-                    managedTypes.Add(stype);
-                else if (typeof(ISystem).IsAssignableFrom(stype))
-                    unmanagedTypes.Add(stype);
-                else
-                    throw new InvalidOperationException("Bad type");
-            }
-
-            var systems = world.GetOrCreateSystemsAndLogException(managedTypes.ToArray());
+            var systems = world.GetOrCreateSystemsAndLogException(types.ToArray(), Allocator.Temp);
 
             // Add systems to their groups, based on the [UpdateInGroup] attribute.
+            int typesIndex = -1;
             foreach (var system in systems)
             {
-                if (system == null)
+                typesIndex++;
+                if (system == SystemHandle.Null)
                     continue;
 
                 // Skip the built-in root-level system groups
-                var type = system.GetType();
+                var type = types[typesIndex];
 
-                var noUpdateInGroupAttributes = TypeManager.GetSystemAttributes(system.GetType(), typeof(NoGroupInjectionAttribute));
-                if (noUpdateInGroupAttributes.Length > 0)
-                    continue;
+                if (type.IsClass)
+                {
+                    var managedSystem             = world.AsManagedSystem(system);
+                    var noUpdateInGroupAttributes = TypeManager.GetSystemAttributes(managedSystem.GetType(), typeof(NoGroupInjectionAttribute));
+                    if (noUpdateInGroupAttributes.Length > 0)
+                        continue;
+                }
 
-                var updateInGroupAttributes = TypeManager.GetSystemAttributes(system.GetType(), typeof(UpdateInGroupAttribute));
+                var updateInGroupAttributes = TypeManager.GetSystemAttributes(type, typeof(UpdateInGroupAttribute));
                 if (updateInGroupAttributes.Length == 0)
                 {
                     defaultGroup.AddSystemToUpdateList(system);
@@ -225,56 +220,28 @@ namespace Latios
                 }
             }
 
-            // Create unmanaged systems in batch
-            NativeArray<SystemHandleUntyped> handles = world.CreateUnmanagedSystems(unmanagedTypes, Allocator.Temp);
-
-            // Add systems to their groups, based on the [UpdateInGroup] attribute.
-            for (int i = 0; i < unmanagedTypes.Count; ++i)
-            {
-                var                 type      = unmanagedTypes[i];
-                SystemHandleUntyped sysHandle = handles[i];
-
-                var noUpdateInGroupAttributes = TypeManager.GetSystemAttributes(type, typeof(NoGroupInjectionAttribute));
-                if (noUpdateInGroupAttributes.Length > 0)
-                    continue;
-
-                var updateInGroupAttributes = TypeManager.GetSystemAttributes(type, typeof(UpdateInGroupAttribute));
-                if (updateInGroupAttributes.Length == 0)
-                {
-                    defaultGroup.AddUnmanagedSystemToUpdateList(sysHandle);
-                }
-
-                foreach (var attr in updateInGroupAttributes)
-                {
-                    ComponentSystemGroup groupSys = FindOrCreateGroup(world, type, attr, defaultGroup, groupRemap);
-
-                    if (groupSys != null)
-                    {
-                        groupSys.AddUnmanagedSystemToUpdateList(sysHandle);
-                    }
-                }
-            }
-
-            var result = new ComponentSystemBaseSystemHandleUntypedUnion[systems.Length + handles.Length];
+            var result = new ComponentSystemBaseSystemHandleUnion[systems.Length];
             for (int i = 0; i < systems.Length; i++)
             {
-                result[i] = new ComponentSystemBaseSystemHandleUntypedUnion
+                var isManaged = typeof(ComponentSystemBase).IsAssignableFrom(types[i]);
+                if (isManaged)
                 {
-                    systemManaged = systems[i],
-                    systemHandle  = systems[i].SystemHandleUntyped
-                };
-            }
-            int b = systems.Length;
-            for (int i = 0; i < handles.Length; i++)
-            {
-                result[b + i] = new ComponentSystemBaseSystemHandleUntypedUnion
+                    result[i] = new ComponentSystemBaseSystemHandleUnion
+                    {
+                        systemManaged = world.AsManagedSystem(systems[i]),
+                        systemHandle  = systems[i]
+                    };
+                }
+                else
                 {
-                    systemHandle  = handles[i],
-                    systemManaged = null
-                };
+                    result[i] = new ComponentSystemBaseSystemHandleUnion
+                    {
+                        systemManaged = null,
+                        systemHandle  = systems[i]
+                    };
+                }
             }
 
-            handles.Dispose();
             return result;
         }
 
@@ -301,7 +268,7 @@ namespace Latios
                 throw new InvalidOperationException($"The system {systemType} can not specify both OrderFirst=true and OrderLast=true in its [UpdateInGroup] attribute.");
             }
 
-            var groupSys = world.GetExistingSystem(groupType);
+            var groupSys = world.GetExistingSystemManaged(groupType);
             if (groupSys == null)
             {
                 groupSys = InjectSystem(groupType, world, defaultGroup, remap);
@@ -332,7 +299,7 @@ namespace Latios
             var groupList = new List<(Type, ComponentSystemGroup)>();
             foreach (var system in groupsToCreate)
             {
-                groupList.Add((system, world.CreateSystem(system) as ComponentSystemGroup));
+                groupList.Add((system, world.CreateSystemManaged(system) as ComponentSystemGroup));
             }
 
             foreach (var system in groupList)
@@ -424,10 +391,10 @@ namespace Latios
 
             if (world != null)
             {
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<InitializationSystemGroup>(),  ref playerLoop, typeof(Initialization));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<SimulationSystemGroup>(),      ref playerLoop, typeof(PostLateUpdate));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<PresentationSystemGroup>(),    ref playerLoop, typeof(PreLateUpdate));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<FixedSimulationSystemGroup>(), ref playerLoop, typeof(FixedUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<InitializationSystemGroup>(),  ref playerLoop, typeof(Initialization));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<SimulationSystemGroup>(),      ref playerLoop, typeof(PostLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<PresentationSystemGroup>(),    ref playerLoop, typeof(PreLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<FixedSimulationSystemGroup>(), ref playerLoop, typeof(FixedUpdate));
             }
             PlayerLoop.SetPlayerLoop(playerLoop);
         }
@@ -444,10 +411,10 @@ namespace Latios
             {
                 InjectSystem(typeof(DeferredSimulationEndFrameControllerSystem), world);
 
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<InitializationSystemGroup>(), ref playerLoop, typeof(Initialization));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<InitializationSystemGroup>(), ref playerLoop, typeof(Initialization));
                 // We add it here for visibility in tools. But really we don't update until EndOfFrame
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<SimulationSystemGroup>(),     ref playerLoop, typeof(PostLateUpdate));
-                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystem<PresentationSystemGroup>(),   ref playerLoop, typeof(PreLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<SimulationSystemGroup>(),     ref playerLoop, typeof(PostLateUpdate));
+                ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(world.GetExistingSystemManaged<PresentationSystemGroup>(),   ref playerLoop, typeof(PreLateUpdate));
             }
             PlayerLoop.SetPlayerLoop(playerLoop);
         }
@@ -455,8 +422,8 @@ namespace Latios
         #endregion
 
         #region TypeManager
-        private delegate void TmAddTypeInfoToTables(Type type, TypeManager.TypeInfo typeInfo, string name);
-        private delegate TypeManager.TypeInfo TmBuildComponentType(Type type);
+        private delegate void TmAddTypeInfoToTables(Type type, TypeManager.TypeInfo typeInfo, string name, int descendentCount);
+        private delegate TypeManager.TypeInfo TmBuildComponentType(Type type, Dictionary<Type, ulong> hashCache, HashSet<Type> nestedContainerCache);
 
         //Todo: Replace with codegen
         public static void PopulateTypeManagerWithGenerics(Type genericWrapperIcdType, Type interfaceType)
@@ -466,8 +433,8 @@ namespace Latios
 
             //Snag methods from TypeManager
             //var tmAddTypeInfoToTables = GetStaticMethod("AddTypeInfoToTables", 2).CreateDelegate(typeof(TmAddTypeInfoToTables)) as TmAddTypeInfoToTables;
-            var tmAddTypeInfoToTables = GetStaticMethod("AddTypeInfoToTables", 3).CreateDelegate(typeof(TmAddTypeInfoToTables)) as TmAddTypeInfoToTables;
-            var tmBuildComponentType  = GetStaticMethod("BuildComponentType", 1).CreateDelegate(typeof(TmBuildComponentType)) as TmBuildComponentType;
+            var tmAddTypeInfoToTables = GetStaticMethod("AddTypeInfoToTables", 4).CreateDelegate(typeof(TmAddTypeInfoToTables)) as TmAddTypeInfoToTables;
+            var tmBuildComponentType  = GetStaticMethod("BuildComponentType", 3).CreateDelegate(typeof(TmBuildComponentType)) as TmBuildComponentType;
 
             //Create a hashset of all types so far so we don't dupe types.
             HashSet<Type> typesHash = new HashSet<Type>();
@@ -475,6 +442,10 @@ namespace Latios
             {
                 typesHash.Add(t.Type);
             }
+
+            // Unity needs these
+            Dictionary<Type, ulong> hashCache            = new Dictionary<Type, ulong>();
+            HashSet<Type>           nestedContainerCache = new HashSet<Type>();
 
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             foreach (var assembly in assemblies)
@@ -500,8 +471,8 @@ namespace Latios
                         if (typesHash.Contains(concrete))
                             continue;
 
-                        var info = tmBuildComponentType(concrete);
-                        tmAddTypeInfoToTables(concrete, info, concrete.FullName);
+                        var info = tmBuildComponentType(concrete, hashCache, nestedContainerCache);
+                        tmAddTypeInfoToTables(concrete, info, concrete.FullName, 0);  // Todo: Is 0 correct?
                     }
                 }
             }

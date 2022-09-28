@@ -24,11 +24,17 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Entities.ForEach((ref FadeProperty fade, in TimeToLive timeToLive, in TimeToLiveFadeStart timeToLiveFadeStart) =>
-            {
-                fade.fade  = math.saturate(timeToLive.timeToLive / timeToLiveFadeStart.fadeTimeWindow);
-                fade.fade *= fade.fade;
-            }).ScheduleParallel();
+            new Job().ScheduleParallel();
+        }
+    }
+
+    [BurstCompile]
+    partial struct Job : IJobEntity
+    {
+        public void Execute(ref FadeProperty fade, in TimeToLive timeToLive, in TimeToLiveFadeStart timeToLiveFadeStart)
+        {
+            fade.fade  = math.saturate(timeToLive.timeToLive / timeToLiveFadeStart.fadeTimeWindow);
+            fade.fade *= fade.fade;
         }
     }
 }

@@ -86,11 +86,11 @@ namespace Latios
         private CollectionComponentStorage         m_collectionsStorage = new CollectionComponentStorage();
         private UnmanagedExtraInterfacesDispatcher m_interfacesDispatcher;
 
-        private InitializationSystemGroup               m_initializationSystemGroup;
-        private SimulationSystemGroup                   m_simulationSystemGroup;
-        private PresentationSystemGroup                 m_presentationSystemGroup;
-        private SyncPointPlaybackSystem                 m_syncPointPlaybackSystem;
-        private SystemHandle<BlackboardUnmanagedSystem> m_blackboardUnmanagedSystem;
+        private InitializationSystemGroup m_initializationSystemGroup;
+        private SimulationSystemGroup     m_simulationSystemGroup;
+        private PresentationSystemGroup   m_presentationSystemGroup;
+        private SyncPointPlaybackSystem   m_syncPointPlaybackSystem;
+        private SystemHandle              m_blackboardUnmanagedSystem;
 
         private bool m_paused          = false;
         private bool m_resumeNextFrame = false;
@@ -118,20 +118,20 @@ namespace Latios
             BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentSystemStateTag<>), typeof(ICollectionComponent));
             m_interfacesDispatcher = new UnmanagedExtraInterfacesDispatcher();
 
-            var bus                     = this.GetOrCreateSystem<BlackboardUnmanagedSystem>();
-            m_blackboardUnmanagedSystem = bus.Handle;
+            m_blackboardUnmanagedSystem = this.GetOrCreateSystem<BlackboardUnmanagedSystem>();
 
             worldBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
             worldBlackboardEntity.AddComponentData(new WorldBlackboardTag());
             EntityManager.SetName(worldBlackboardEntity, "World Blackboard Entity");
-            bus.Struct.worldBlackboardEntity = (Entity)worldBlackboardEntity;
-            bus.Struct.sceneBlackboardEntity = default;
+            ref var bus               = ref Unmanaged.GetUnsafeSystemRef<BlackboardUnmanagedSystem>(m_blackboardUnmanagedSystem);
+            bus.worldBlackboardEntity = (Entity)worldBlackboardEntity;
+            bus.sceneBlackboardEntity = default;
 
             if (role == WorldRole.Default)
             {
-                m_initializationSystemGroup = GetOrCreateSystem<LatiosInitializationSystemGroup>();
-                m_simulationSystemGroup     = GetOrCreateSystem<LatiosSimulationSystemGroup>();
-                m_presentationSystemGroup   = GetOrCreateSystem<LatiosPresentationSystemGroup>();
+                m_initializationSystemGroup = GetOrCreateSystemManaged<LatiosInitializationSystemGroup>();
+                m_simulationSystemGroup     = GetOrCreateSystemManaged<LatiosSimulationSystemGroup>();
+                m_presentationSystemGroup   = GetOrCreateSystemManaged<LatiosPresentationSystemGroup>();
             }
             else if (role == WorldRole.Client)
             {
@@ -149,7 +149,7 @@ namespace Latios
 #endif
             }
 
-            m_syncPointPlaybackSystem = GetExistingSystem<SyncPointPlaybackSystem>();
+            m_syncPointPlaybackSystem = GetExistingSystemManaged<SyncPointPlaybackSystem>();
         }
 
         /// <summary>
@@ -201,7 +201,7 @@ namespace Latios
             {
                 sceneBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
                 sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());
-                Unmanaged.ResolveSystem(m_blackboardUnmanagedSystem).sceneBlackboardEntity = (Entity)sceneBlackboardEntity;
+                Unmanaged.GetUnsafeSystemRef<BlackboardUnmanagedSystem>(m_blackboardUnmanagedSystem).sceneBlackboardEntity = (Entity)sceneBlackboardEntity;
                 EntityManager.SetName(sceneBlackboardEntity, "Scene Blackboard Entity");
 
                 foreach (var system in Systems)
@@ -212,15 +212,16 @@ namespace Latios
                     }
                 }
 
-                var unmanaged       = Unmanaged;
-                var unmanagedStates = unmanaged.GetAllSystemStates(Allocator.TempJob);
-                for (int i = 0; i < unmanagedStates.Length; i++)
+                var unmanaged        = Unmanaged;
+                var unmanagedSystems = unmanaged.GetAllUnmanagedSystems(Allocator.TempJob);
+                for (int i = 0; i < unmanagedSystems.Length; i++)
                 {
-                    var dispatcher = m_interfacesDispatcher.GetDispatch(ref unmanagedStates.At(i));
+                    ref var systemState = ref unmanaged.ResolveSystemStateRef(unmanagedSystems[i]);
+                    var     dispatcher  = m_interfacesDispatcher.GetDispatch(ref systemState);
                     if (dispatcher != null)
-                        dispatcher.OnNewScene(ref unmanagedStates.At(i));
+                        dispatcher.OnNewScene(ref systemState);
                 }
-                unmanagedStates.Dispose();
+                unmanagedSystems.Dispose();
             }
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             m_sceneBlackboardSafetyOverride = false;

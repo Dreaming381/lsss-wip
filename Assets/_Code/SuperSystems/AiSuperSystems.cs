@@ -6,10 +6,10 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<AiShipRadarScanSystem>();
-            GetOrCreateAndAddSystem<AiSearchAndDestroyInitializePersonalitySystem>();
+            GetOrCreateAndAddManagedSystem<AiShipRadarScanSystem>();
+            GetOrCreateAndAddManagedSystem<AiSearchAndDestroyInitializePersonalitySystem>();
             GetOrCreateAndAddUnmanagedSystem<AiSearchAndDestroySystem>();
-            GetOrCreateAndAddSystem<AiExploreInitializePersonalitySystem>();
+            GetOrCreateAndAddManagedSystem<AiExploreInitializePersonalitySystem>();
             GetOrCreateAndAddUnmanagedSystem<AiExploreSystem>();
             GetOrCreateAndAddUnmanagedSystem<AiEvaluateGoalsSystem>();
             GetOrCreateAndAddUnmanagedSystem<AiCreateDesiredActionsSystem>();

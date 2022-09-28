@@ -27,16 +27,16 @@ namespace Latios.Systems
         [BurstCompile]
         struct UpdateHierarchy : IJobEntityBatch
         {
-            [ReadOnly] public ComponentTypeHandle<LocalToWorld>       LocalToWorldTypeHandle;
-            [ReadOnly] public BufferTypeHandle<Child>                 ChildTypeHandle;
-            [ReadOnly] public BufferFromEntity<Child>                 ChildFromEntity;
-            [ReadOnly] public ComponentDataFromEntity<PreviousParent> ParentFromEntity;
-            [ReadOnly] public ComponentDataFromEntity<LocalToParent>  LocalToParentFromEntity;
-            [ReadOnly] public EntityQueryMask                         LocalToWorldWriteGroupMask;
-            public uint                                               LastSystemVersion;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> LocalToWorldTypeHandle;
+            [ReadOnly] public BufferTypeHandle<Child>           ChildTypeHandle;
+            [ReadOnly] public BufferLookup<Child>               ChildFromEntity;
+            [ReadOnly] public ComponentLookup<PreviousParent>   ParentFromEntity;
+            [ReadOnly] public ComponentLookup<LocalToParent>    LocalToParentFromEntity;
+            [ReadOnly] public EntityQueryMask                   LocalToWorldWriteGroupMask;
+            public uint                                         LastSystemVersion;
 
             [NativeDisableContainerSafetyRestriction]
-            public ComponentDataFromEntity<LocalToWorld> LocalToWorldFromEntity;
+            public ComponentLookup<LocalToWorld> LocalToWorldFromEntity;
 
             void ChildLocalToWorld(ref float4x4 parentLocalToWorld,
                                    Entity entity,
@@ -51,7 +51,7 @@ namespace Latios.Systems
                 float4x4 localToWorldMatrix = default;
                 bool     ltwIsValid         = false;
 
-                bool isDependent = LocalToWorldWriteGroupMask.Matches(entity);
+                bool isDependent = LocalToWorldWriteGroupMask.MatchesIgnoreFilter(entity);
                 if (updateChildrenTransform && isDependent)
                 {
                     if (!parentLtwValid)
@@ -68,7 +68,7 @@ namespace Latios.Systems
                 {
                     updateChildrenTransform = updateChildrenTransform || LocalToWorldFromEntity.DidChange(entity, LastSystemVersion);
                 }
-                if (ChildFromEntity.HasComponent(entity))
+                if (ChildFromEntity.HasBuffer(entity))
                 {
                     var children        = ChildFromEntity[entity];
                     var childrenChanged = updateChildrenTransform || ChildFromEntity.DidChange(entity, LastSystemVersion);
@@ -105,7 +105,7 @@ namespace Latios.Systems
         //[BurstCompile]
         public unsafe void OnCreate(ref SystemState state)
         {
-            state.WorldUnmanaged.ResolveSystemState(state.WorldUnmanaged.GetExistingUnmanagedSystem<LocalToParentSystem>().Handle)->Enabled = false;
+            //state.WorldUnmanaged.ResolveSystemState(state.WorldUnmanaged.GetExistingUnmanagedSystem<LocalToParentSystem>().Handle)->Enabled = false;
 
             m_RootsQuery = state.GetEntityQuery(new EntityQueryDesc
             {
@@ -146,10 +146,10 @@ namespace Latios.Systems
         {
             var localToWorldType        = state.GetComponentTypeHandle<LocalToWorld>(true);
             var childType               = state.GetBufferTypeHandle<Child>(true);
-            var childFromEntity         = state.GetBufferFromEntity<Child>(true);
-            var parentFromEntity        = state.GetComponentDataFromEntity<PreviousParent>(true);
-            var localToParentFromEntity = state.GetComponentDataFromEntity<LocalToParent>(true);
-            var localToWorldFromEntity  = state.GetComponentDataFromEntity<LocalToWorld>();
+            var childFromEntity         = state.GetBufferLookup<Child>(true);
+            var parentFromEntity        = state.GetComponentLookup<PreviousParent>(true);
+            var localToParentFromEntity = state.GetComponentLookup<LocalToParent>(true);
+            var localToWorldFromEntity  = state.GetComponentLookup<LocalToWorld>();
 
             var updateHierarchyJob = new UpdateHierarchy
             {

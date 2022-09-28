@@ -9,6 +9,7 @@ using Unity.Transforms;
 namespace Lsss
 {
     [BurstCompile]
+    [RequireMatchingQueriesForUpdate]
     public partial struct AiExploreSystem : ISystem, ISystemNewScene
     {
         struct AiRng : IComponentData
@@ -32,12 +33,24 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float arenaRadius                                                 = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius;
-            var   rng                                                         = state.GetSceneBlackboardEntity().GetComponentData<AiRng>().rng.Shuffle();
+            var rng                                                           = state.GetSceneBlackboardEntity().GetComponentData<AiRng>().rng.Shuffle();
             state.GetSceneBlackboardEntity().SetComponentData(new AiRng { rng = rng });
+            new Job
+            {
+                arenaRadius = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius,
+                rng         = rng
+            }.ScheduleParallel();
+        }
 
-            state.Entities.WithAll<AiTag>().ForEach((int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
-                                                     in Translation translation) =>
+        [BurstCompile]
+        [WithAll(typeof(AiTag))]
+        partial struct Job : IJobEntity
+        {
+            public float arenaRadius;
+            public Rng   rng;
+
+            public void Execute([EntityInQueryIndex] int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
+                                in Translation translation)
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)
                 {
@@ -56,7 +69,7 @@ namespace Lsss
                 }
                 output.wanderPosition      = state.wanderPosition;
                 output.wanderPositionValid = true;
-            }).ScheduleParallel();
+            }
         }
     }
 }

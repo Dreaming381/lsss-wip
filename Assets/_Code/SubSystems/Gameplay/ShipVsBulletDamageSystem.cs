@@ -33,10 +33,10 @@ namespace Lsss
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
-                bulletDamageCdfe        = GetComponentDataFromEntity<Damage>(true),
-                bulletFirerCdfe         = GetComponentDataFromEntity<BulletFirer>(),
-                shipHealthCdfe          = GetComponentDataFromEntity<ShipHealth>(),
-                shipHitEffectPrefabCdfe = GetComponentDataFromEntity<ShipHitEffectPrefab>(true),
+                bulletDamageCdfe        = GetComponentLookup<Damage>(true),
+                bulletFirerCdfe         = GetComponentLookup<BulletFirer>(),
+                shipHealthCdfe          = GetComponentLookup<ShipHealth>(),
+                shipHitEffectPrefabCdfe = GetComponentLookup<ShipHitEffectPrefab>(true),
                 dcb                     = dcb,
                 icb                     = icb,
                 frameId                 = frameId
@@ -60,11 +60,11 @@ namespace Lsss
         //Assumes A is bullet and B is ship.
         struct DamageHitShipsAndDestroyBulletProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<ShipHealth>              shipHealthCdfe;
-            public PhysicsComponentDataFromEntity<BulletFirer>             bulletFirerCdfe;
-            [ReadOnly] public ComponentDataFromEntity<Damage>              bulletDamageCdfe;
-            [ReadOnly] public ComponentDataFromEntity<ShipHitEffectPrefab> shipHitEffectPrefabCdfe;
-            public int                                                     frameId;
+            public PhysicsComponentLookup<ShipHealth>              shipHealthCdfe;
+            public PhysicsComponentLookup<BulletFirer>             bulletFirerCdfe;
+            [ReadOnly] public ComponentLookup<Damage>              bulletDamageCdfe;
+            [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabCdfe;
+            public int                                             frameId;
 
             public DestroyCommandBuffer.ParallelWriter                            dcb;
             public InstantiateCommandBuffer<Rotation, Translation>.ParallelWriter icb;

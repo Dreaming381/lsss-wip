@@ -22,13 +22,21 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt = state.Time.DeltaTime;
+            float dt     = SystemAPI.Time.DeltaTime;
+            new Job { dt = dt }.ScheduleParallel();
+        }
 
-            state.Entities.WithAll<BulletTag>().ForEach((ref Translation translation, ref BulletPreviousPosition prevPosition, in Speed speed, in Rotation rotation) =>
+        [BurstCompile]
+        [WithAll(typeof(BulletTag))]
+        partial struct Job : IJobEntity
+        {
+            public float dt;
+
+            public void Execute(ref Translation translation, ref BulletPreviousPosition prevPosition, in Speed speed, in Rotation rotation)
             {
                 prevPosition.previousPosition  = translation.Value;
                 translation.Value             += math.forward(rotation.Value) * speed.speed * dt;
-            }).ScheduleParallel();
+            }
         }
     }
 }

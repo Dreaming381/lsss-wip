@@ -48,7 +48,7 @@ namespace Lsss
                         float2 mouseDelta             = mouse.delta.ReadValue();
                         mouseDelta                   *= new float2(1920f, 1080f) / new float2(UnityEngine.Screen.width, UnityEngine.Screen.height);
                         mouseDelta                   *= math.radians(80f) / 1080f;  //FOV is 80
-                        mouseDelta                   /= Time.DeltaTime;
+                        mouseDelta                   /= SystemAPI.Time.DeltaTime;
                         mouseDelta                   *= worldBlackboardEntity.GetComponentData<MouseLookMultiplier>().multiplier;
                         if (mouse.rightButton.isPressed)
                         {

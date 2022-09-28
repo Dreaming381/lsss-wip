@@ -20,7 +20,7 @@ namespace Latios.Psyshock.Authoring.Systems
     [UpdateInGroup(typeof(GameObjectBeforeConversionGroup))]
     [DisableAutoCreation]
     [ConverterVersion("latios", 4)]
-    public class LegacyConvexColliderPreConversionSystem : GameObjectConversionSystem
+    public partial class LegacyConvexColliderPreConversionSystem : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
@@ -38,7 +38,7 @@ namespace Latios.Psyshock.Authoring.Systems
                         blobHandle = this.CreateBlob(goMesh.gameObject, new ConvexColliderBakeData { sharedMesh = goMesh.sharedMesh })
                     });
                 }
-            });
+            }).WithoutBurst().Run();
 
             var e                                                                                    = EntityManager.CreateEntity();
             EntityManager.AddComponentObject(e, new ConvexMeshColliderConversionList { meshColliders = convexUnityList });

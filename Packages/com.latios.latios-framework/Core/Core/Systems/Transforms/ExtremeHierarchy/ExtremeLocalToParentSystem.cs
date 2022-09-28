@@ -70,7 +70,7 @@ namespace Latios.Systems
             m_ltpHandle.Update(ref state);
             m_parentHandle.Update(ref state);
             m_ltwHandle.Update(ref state);
-            var ltwCdfe = state.GetComponentDataFromEntity<LocalToWorld>(false);
+            var ltwCdfe = state.GetComponentLookup<LocalToWorld>(false);
 
             state.Dependency = new AllocateBlockListsJob
             {
@@ -124,17 +124,17 @@ namespace Latios.Systems
 
             state.Dependency = new UpdateMatricesOfDeepChildrenJob
             {
-                childBfe          = state.GetBufferFromEntity<Child>(true),
+                childBfe          = state.GetBufferLookup<Child>(true),
                 childHandle       = state.GetBufferTypeHandle<Child>(true),
                 chunkList         = finalChunkList.AsDeferredJobArray(),
                 depthHandle       = m_depthHandle,
                 depthLevel        = kMaxDepthIterations - 1,
                 lastSystemVersion = state.LastSystemVersion,
-                ltpCdfe           = state.GetComponentDataFromEntity<LocalToParent>(true),
+                ltpCdfe           = state.GetComponentLookup<LocalToParent>(true),
                 ltwCdfe           = ltwCdfe,
                 ltwHandle         = m_ltwHandle,
                 ltwWriteGroupMask = m_childWithParentDependencyMask,
-                parentCdfe        = state.GetComponentDataFromEntity<PreviousParent>(true)
+                parentCdfe        = state.GetComponentLookup<PreviousParent>(true)
             }.Schedule(finalChunkList, 1, state.Dependency);
         }
 
@@ -210,7 +210,7 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct AllocateBlockListsJob : IJobParallelForBurstSchedulable
+        struct AllocateBlockListsJob : IJobParallelFor
         {
             public NativeArray<UnsafeParallelBlockList> chunkBlockLists;
 
@@ -255,7 +255,7 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct FlattenBlocklistsJob : IJobParallelForBurstSchedulable
+        struct FlattenBlocklistsJob : IJobParallelFor
         {
             public NativeArray<UnsafeParallelBlockList>                 chunkBlockLists;
             [NativeDisableParallelForRestriction] public ChunkListArray chunkListArray;
@@ -274,11 +274,11 @@ namespace Latios.Systems
         {
             [ReadOnly] public NativeArray<ArchetypeChunk> chunkList;
 
-            [ReadOnly] public ComponentTypeHandle<LocalToParent>    ltpHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousParent>   parentHandle;
-            [ReadOnly] public ComponentTypeHandle<Depth>            depthHandle;
-            [ReadOnly] public EntityTypeHandle                      entityHandle;
-            [ReadOnly] public ComponentDataFromEntity<LocalToWorld> ltwCdfe;
+            [ReadOnly] public ComponentTypeHandle<LocalToParent>  ltpHandle;
+            [ReadOnly] public ComponentTypeHandle<PreviousParent> parentHandle;
+            [ReadOnly] public ComponentTypeHandle<Depth>          depthHandle;
+            [ReadOnly] public EntityTypeHandle                    entityHandle;
+            [ReadOnly] public ComponentLookup<LocalToWorld>       ltwCdfe;
 
             public ComponentTypeHandle<ChunkDepthMask> depthMaskHandle;
 
@@ -290,7 +290,7 @@ namespace Latios.Systems
             {
                 var chunk = chunkList[index];
 
-                if (!shouldUpdateMask.Matches(chunk.GetNativeArray(entityHandle)[0]))
+                if (!shouldUpdateMask.MatchesIgnoreFilter(chunk.GetNativeArray(entityHandle)[0]))
                 {
                     return;
                 }
@@ -334,10 +334,10 @@ namespace Latios.Systems
             [ReadOnly] public NativeArray<ArchetypeChunk>                                      chunkList;
             [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<LocalToWorld> ltwHandle;
 
-            [ReadOnly] public ComponentTypeHandle<LocalToParent>    ltpHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousParent>   parentHandle;
-            [ReadOnly] public ComponentTypeHandle<Depth>            depthHandle;
-            [ReadOnly] public ComponentDataFromEntity<LocalToWorld> ltwCdfe;
+            [ReadOnly] public ComponentTypeHandle<LocalToParent>  ltpHandle;
+            [ReadOnly] public ComponentTypeHandle<PreviousParent> parentHandle;
+            [ReadOnly] public ComponentTypeHandle<Depth>          depthHandle;
+            [ReadOnly] public ComponentLookup<LocalToWorld>       ltwCdfe;
 
             [ReadOnly] public ComponentTypeHandle<ChunkDepthMask> depthMaskHandle;
 
@@ -367,19 +367,19 @@ namespace Latios.Systems
         [BurstCompile]
         struct UpdateMatricesOfDeepChildrenJob : IJobParallelForDefer
         {
-            [ReadOnly] public NativeArray<ArchetypeChunk>             chunkList;
-            [ReadOnly] public ComponentTypeHandle<LocalToWorld>       ltwHandle;
-            [ReadOnly] public ComponentTypeHandle<Depth>              depthHandle;
-            [ReadOnly] public BufferTypeHandle<Child>                 childHandle;
-            [ReadOnly] public BufferFromEntity<Child>                 childBfe;
-            [ReadOnly] public ComponentDataFromEntity<LocalToParent>  ltpCdfe;
-            [ReadOnly] public ComponentDataFromEntity<PreviousParent> parentCdfe;
-            [ReadOnly] public EntityQueryMask                         ltwWriteGroupMask;
-            public uint                                               lastSystemVersion;
-            public int                                                depthLevel;
+            [ReadOnly] public NativeArray<ArchetypeChunk>       chunkList;
+            [ReadOnly] public ComponentTypeHandle<LocalToWorld> ltwHandle;
+            [ReadOnly] public ComponentTypeHandle<Depth>        depthHandle;
+            [ReadOnly] public BufferTypeHandle<Child>           childHandle;
+            [ReadOnly] public BufferLookup<Child>               childBfe;
+            [ReadOnly] public ComponentLookup<LocalToParent>    ltpCdfe;
+            [ReadOnly] public ComponentLookup<PreviousParent>   parentCdfe;
+            [ReadOnly] public EntityQueryMask                   ltwWriteGroupMask;
+            public uint                                         lastSystemVersion;
+            public int                                          depthLevel;
 
             [NativeDisableContainerSafetyRestriction]
-            public ComponentDataFromEntity<LocalToWorld> ltwCdfe;
+            public ComponentLookup<LocalToWorld> ltwCdfe;
 
             void ChildLocalToWorld(ref float4x4 parentLocalToWorld,
                                    Entity entity,
@@ -394,7 +394,7 @@ namespace Latios.Systems
                 float4x4 localToWorldMatrix = default;
                 bool     ltwIsValid         = false;
 
-                bool isDependent = ltwWriteGroupMask.Matches(entity);
+                bool isDependent = ltwWriteGroupMask.MatchesIgnoreFilter(entity);
                 if (updateChildrenTransform && isDependent)
                 {
                     if (!parentLtwValid)

@@ -9,7 +9,7 @@ namespace Latios
 {
     public static class EntityManagerExtensions
     {
-        [BurstCompatible]
+        [GenerateTestsForBurstCompatibility]
         public static unsafe void CopyComponentData(this EntityManager entityManager, Entity src, Entity dst, ComponentType componentType)
         {
             CheckComponentTypeIsUnmanagedComponentData(componentType);
@@ -40,7 +40,7 @@ namespace Latios
             UnsafeUtility.MemCpy(dstPtr, srcPtr, size);
         }
 
-        [BurstCompatible]
+        [GenerateTestsForBurstCompatibility]
         public static unsafe void CopyDynamicBuffer(this EntityManager entityManager, Entity src, Entity dst, ComponentType componentType)
         {
             CheckComponentTypeIsBuffer(componentType);

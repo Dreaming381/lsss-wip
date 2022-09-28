@@ -158,14 +158,14 @@ namespace Lsss.Authoring
     }
 
     [UpdateInGroup(typeof(GameObjectBeforeConversionGroup))]
-    public class CapsuleMeshAuthoringConversion : GameObjectConversionSystem
+    public partial class CapsuleMeshAuthoringConversion : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
             Entities.ForEach((CapsuleMeshAuthoring c) =>
             {
                 c.ProcessMesh(true);
-            });
+            }).WithoutBurst().Run();
         }
     }
 }

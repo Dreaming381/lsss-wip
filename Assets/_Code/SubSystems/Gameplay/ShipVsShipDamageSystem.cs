@@ -31,8 +31,8 @@ namespace Lsss
 
             var processor = new DamageCollidingShipsProcessor
             {
-                shipHealthCdfe = GetComponentDataFromEntity<ShipHealth>(),
-                shipDamageCdfe = GetComponentDataFromEntity<Damage>()
+                shipHealthCdfe = GetComponentLookup<ShipHealth>(),
+                shipDamageCdfe = GetComponentLookup<Damage>()
             };
 
             foreach (var layer in m_layers)
@@ -51,8 +51,8 @@ namespace Lsss
 
         struct DamageCollidingShipsProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<ShipHealth> shipHealthCdfe;
-            [ReadOnly] public ComponentDataFromEntity<Damage> shipDamageCdfe;
+            public PhysicsComponentLookup<ShipHealth> shipHealthCdfe;
+            [ReadOnly] public ComponentLookup<Damage> shipDamageCdfe;
 
             public void Execute(in FindPairsResult result)
             {

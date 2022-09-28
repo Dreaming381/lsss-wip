@@ -24,14 +24,14 @@ namespace Lsss.Authoring
     }
 
     [UpdateInGroup(typeof(GameObjectDeclareReferencedObjectsGroup))]
-    public class RemoveUsfxrPlayers : GameObjectConversionSystem
+    public partial class RemoveUsfxrPlayers : GameObjectConversionSystem
     {
         protected override void OnUpdate()
         {
             Entities.ForEach((SfxrPlayer player) =>
             {
                 //Object.DestroyImmediate(player);
-            });
+            }).WithoutBurst().Run();
         }
     }
 }

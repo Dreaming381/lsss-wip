@@ -96,7 +96,7 @@ namespace Latios
         }
 
         public EntityQuery GetEntityQuery(EntityQueryDesc desc) => GetEntityQuery(new EntityQueryDesc[] { desc });
-        public EntityQuery GetEntityQuery(EntityQueryDescBuilder desc) => GetEntityQuery(desc);
+        public EntityQuery GetEntityQuery(EntityQueryBuilder desc) => GetEntityQuery(desc);
 
         #region API
         /// <summary>
@@ -119,23 +119,23 @@ namespace Latios
         /// </summary>
         /// <param name="type">The type of system to add. It can be managed or unmanaged.</param>
         /// <returns>A union object that contains the created managed or unmanaged system added</returns>
-        public BootstrapTools.ComponentSystemBaseSystemHandleUntypedUnion GetOrCreateAndAddSystem(Type type)
+        public BootstrapTools.ComponentSystemBaseSystemHandleUnion GetOrCreateAndAddSystem(Type type)
         {
             if (typeof(ComponentSystemBase).IsAssignableFrom(type))
             {
-                var system = World.GetOrCreateSystem(type);
+                var system = World.GetOrCreateSystemManaged(type);
                 AddSystemToUpdateList(system);
-                return new BootstrapTools.ComponentSystemBaseSystemHandleUntypedUnion
+                return new BootstrapTools.ComponentSystemBaseSystemHandleUnion
                 {
-                    systemHandle  = system.SystemHandleUntyped,
+                    systemHandle  = system.SystemHandle,
                     systemManaged = system
                 };
             }
             if (typeof(ISystem).IsAssignableFrom(type))
             {
-                var system = World.GetOrCreateUnmanagedSystem(type);
-                AddUnmanagedSystemToUpdateList(system);
-                return new BootstrapTools.ComponentSystemBaseSystemHandleUntypedUnion
+                var system = World.GetOrCreateSystem(type);
+                AddSystemToUpdateList(system);
+                return new BootstrapTools.ComponentSystemBaseSystemHandleUnion
                 {
                     systemHandle  = system,
                     systemManaged = null
@@ -151,9 +151,9 @@ namespace Latios
         /// </summary>
         /// <typeparam name="T">The type of managed system to create</typeparam>
         /// <returns>The managed system added</returns>
-        public T GetOrCreateAndAddSystem<T>() where T : ComponentSystemBase
+        public T GetOrCreateAndAddManagedSystem<T>() where T : ComponentSystemBase
         {
-            var system = World.GetOrCreateSystem<T>();
+            var system = World.GetOrCreateSystemManaged<T>();
             AddSystemToUpdateList(system);
             return system;
         }
@@ -165,11 +165,11 @@ namespace Latios
         /// </summary>
         /// <typeparam name="T">The type of unmanaged system to create</typeparam>
         /// <returns>The unmanaged system added</returns>
-        public SystemRef<T> GetOrCreateAndAddUnmanagedSystem<T>() where T : unmanaged, ISystem
+        public ref T GetOrCreateAndAddUnmanagedSystem<T>() where T : unmanaged, ISystem
         {
             var system = World.GetOrCreateSystem<T>();
-            AddUnmanagedSystemToUpdateList(system.Handle);
-            return system;
+            AddSystemToUpdateList(system);
+            return ref World.Unmanaged.GetUnsafeSystemRef<T>(system);
         }
 
         public void SortSystemsUsingAttributes(bool enableSortingAlways = true)
@@ -184,7 +184,7 @@ namespace Latios
         /// </summary>
         /// <param name="world">The world containing the system</param>
         /// <param name="system">The system's handle</param>
-        new public static unsafe void UpdateSystem(ref WorldUnmanaged world, SystemHandleUntyped system)
+        public static unsafe void UpdateSystem(ref WorldUnmanaged world, SystemHandle system)
         {
             var managed = world.AsManagedSystem(system);
             if (managed != null)
@@ -194,7 +194,7 @@ namespace Latios
             else
             {
                 var     wu    = world;
-                ref var state = ref UnsafeUtility.AsRef<SystemState>(wu.ResolveSystemState(system));
+                ref var state = ref wu.ResolveSystemStateRef(system);
                 if(state.World is LatiosWorld lw)
                 {
                     var dispatcher = lw.UnmanagedExtraInterfacesDispatcher.GetDispatch(ref state);
@@ -210,7 +210,7 @@ namespace Latios
                     }
                 }
 
-                ComponentSystemGroup.UpdateSystem(ref wu, system);
+                system.Update(wu);
             }
         }
 
@@ -261,9 +261,8 @@ namespace Latios
             LatiosWorld lw = group.World as LatiosWorld;
 
             // Update all unmanaged and managed systems together, in the correct sort order.
-            var world                     = group.World.Unmanaged;
-            var previouslyExecutingSystem = world.ExecutingSystemHandle();
-            var enumerator                = group.GetSystemEnumerator();
+            var world      = group.World.Unmanaged;
+            var enumerator = group.GetSystemEnumerator();
             while (enumerator.MoveNext())
             {
                 if (lw.paused)
@@ -275,7 +274,6 @@ namespace Latios
                     {
                         // Update unmanaged (burstable) code.
                         var handle = enumerator.current;
-                        group.SetExecutingSystem(ref world, handle);
                         UpdateSystem(ref world, handle);
                     }
                     else
@@ -295,16 +293,10 @@ namespace Latios
                     throw;
 #endif
                 }
-                finally
-                {
-                    group.SetExecutingSystem(ref world, previouslyExecutingSystem);
-                }
 
                 if (group.World.QuitUpdate)
                     break;
             }
-
-            group.DestroyPendingSystemsInWorld(ref world);
         }
 
         internal static void DoSuperSystemUpdate(ComponentSystemGroup group, ref SystemSortingTracker tracker)

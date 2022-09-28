@@ -115,7 +115,7 @@ namespace Lsss
 
         bool FindAndStealAiShip(Entity player, SpawnQueues spawnQueues)
         {
-            var factionMember        = EntityManager.GetSharedComponentData<FactionMember>(player);
+            var factionMember        = EntityManager.GetSharedComponentManaged<FactionMember>(player);
             var disabledShipsHashSet = new NativeParallelHashSet<Entity>(1024, Allocator.TempJob);
             Entities.WithAll<ShipTag,
                              Disabled>().WithNone<PlayerTag>().WithSharedComponentFilter(factionMember).ForEach((Entity entity) => { disabledShipsHashSet.Add(entity); }).Run();
@@ -193,10 +193,10 @@ namespace Lsss
             m_entityListCache.AddRange(EntityManager.GetBuffer<LinkedEntityGroup>(root).Reinterpret<Entity>().AsNativeArray());
             foreach (var e in m_entityListCache)
             {
-                EntityManager.AddSharedComponentData(e, sharedComponent);
+                EntityManager.AddSharedComponentManaged(e, sharedComponent);
             }
             if (!EntityManager.HasComponent<T>(root))
-                EntityManager.AddSharedComponentData(root, sharedComponent);
+                EntityManager.AddSharedComponentManaged(root, sharedComponent);
         }
     }
 }

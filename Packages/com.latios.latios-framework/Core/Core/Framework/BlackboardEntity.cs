@@ -30,17 +30,17 @@ namespace Latios
             return entity.entity;
         }
 
-        public bool AddComponent<T>() where T : struct, IComponentData
+        public bool AddComponent<T>() where T : unmanaged, IComponentData
         {
             return em.AddComponent<T>(entity);
         }
 
-        public bool AddComponentData<T>(T data) where T : struct, IComponentData
+        public bool AddComponentData<T>(T data) where T : unmanaged, IComponentData
         {
             return em.AddComponentData(entity, data);
         }
 
-        public bool AddComponentDataIfMissing<T>(T data) where T : struct, IComponentData
+        public bool AddComponentDataIfMissing<T>(T data) where T : unmanaged, IComponentData
         {
             if (em.HasComponent<T>(entity))
                 return false;
@@ -48,17 +48,17 @@ namespace Latios
             return true;
         }
 
-        public void SetComponentData<T>(T data) where T : struct, IComponentData
+        public void SetComponentData<T>(T data) where T : unmanaged, IComponentData
         {
             em.SetComponentData(entity, data);
         }
 
-        public T GetComponentData<T>() where T : struct, IComponentData
+        public T GetComponentData<T>() where T : unmanaged, IComponentData
         {
             return em.GetComponentData<T>(entity);
         }
 
-        public bool HasComponent<T>() where T : struct, IComponentData
+        public bool HasComponent<T>() where T : unmanaged, IComponentData
         {
             return em.HasComponent<T>(entity);
         }
@@ -68,27 +68,27 @@ namespace Latios
             return em.HasComponent(entity, componentType);
         }
 
-        public bool AddSharedComponentData<T>(T data) where T : struct, ISharedComponentData
+        public bool AddSharedComponentData<T>(T data) where T : unmanaged, ISharedComponentData
         {
-            return em.AddSharedComponentData(entity, data);
+            return em.AddSharedComponentManaged(entity, data);
         }
 
-        public void SetSharedComponentData<T>(T data) where T : struct, ISharedComponentData
+        public void SetSharedComponentData<T>(T data) where T : unmanaged, ISharedComponentData
         {
-            em.SetSharedComponentData(entity, data);
+            em.SetSharedComponentManaged(entity, data);
         }
 
-        public T GetSharedComponentData<T>() where T : struct, ISharedComponentData
+        public T GetSharedComponentData<T>() where T : unmanaged, ISharedComponentData
         {
-            return em.GetSharedComponentData<T>(entity);
+            return em.GetSharedComponentManaged<T>(entity);
         }
 
-        public DynamicBuffer<T> AddBuffer<T>() where T : struct, IBufferElementData
+        public DynamicBuffer<T> AddBuffer<T>() where T : unmanaged, IBufferElementData
         {
             return em.AddBuffer<T>(entity);
         }
 
-        public DynamicBuffer<T> GetBuffer<T>(bool readOnly = false) where T : struct, IBufferElementData
+        public DynamicBuffer<T> GetBuffer<T>(bool readOnly = false) where T : unmanaged, IBufferElementData
         {
             return em.GetBuffer<T>(entity, readOnly);
         }

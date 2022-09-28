@@ -2,7 +2,7 @@
 
 namespace Latios
 {
-    public struct EntityWith<T> where T : struct, IComponentData
+    public struct EntityWith<T> where T : unmanaged, IComponentData
     {
         public Entity entity;
 
@@ -11,22 +11,22 @@ namespace Latios
             this.entity = entity;
         }
 
-        public T this[ComponentDataFromEntity<T> cdfe]
+        public T this[ComponentLookup<T> cdfe]
         {
             get => cdfe[entity];
             set => cdfe[entity] = value;
         }
 
-        public bool IsValid(ComponentDataFromEntity<T> cdfe) => cdfe.HasComponent(entity);
+        public bool IsValid(ComponentLookup<T> cdfe) => cdfe.HasComponent(entity);
 
-        public bool DidChange(ComponentDataFromEntity<T> cdfe, uint version) => cdfe.DidChange(entity, version);
+        public bool DidChange(ComponentLookup<T> cdfe, uint version) => cdfe.DidChange(entity, version);
 
         public static implicit operator Entity(EntityWith<T> entityWith) => entityWith.entity;
 
         public static implicit operator EntityWith<T>(Entity entity) => new EntityWith<T>(entity);
     }
 
-    public struct EntityWithBuffer<T> where T : struct, IBufferElementData
+    public struct EntityWithBuffer<T> where T : unmanaged, IBufferElementData
     {
         public Entity entity;
 
@@ -35,11 +35,11 @@ namespace Latios
             this.entity = entity;
         }
 
-        public DynamicBuffer<T> this[BufferFromEntity<T> bfe] => bfe[entity];
+        public DynamicBuffer<T> this[BufferLookup<T> bfe] => bfe[entity];
 
-        public bool IsValid(BufferFromEntity<T> bfe) => bfe.HasComponent(entity);
+        public bool IsValid(BufferLookup<T> bfe) => bfe.HasBuffer(entity);
 
-        public bool DidChange(BufferFromEntity<T> bfe, uint version) => bfe.DidChange(entity, version);
+        public bool DidChange(BufferLookup<T> bfe, uint version) => bfe.DidChange(entity, version);
 
         public static implicit operator Entity(EntityWithBuffer<T> entityWithBuffer) => entityWithBuffer.entity;
 

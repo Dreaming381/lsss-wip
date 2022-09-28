@@ -23,10 +23,9 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var volumes = state.GetWorldBlackboardEntity().GetComponentData<AudioMasterVolumes>();
-            state.Entities.ForEach((ref AudioListener listener) =>
-            {
-                listener.volume = volumes.sfxVolume;
-            }).Run();
+
+            foreach (var listener in SystemAPI.Query<RefRW<AudioListener> >())
+                listener.ValueRW.volume = volumes.sfxVolume;
 
             //Todo: Music
         }

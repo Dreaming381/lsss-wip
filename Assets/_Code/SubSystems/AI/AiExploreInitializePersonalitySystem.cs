@@ -8,6 +8,7 @@ using Unity.Transforms;
 
 namespace Lsss
 {
+    [RequireMatchingQueriesForUpdate]
     public partial class AiExploreInitializePersonalitySystem : SubSystem
     {
         struct AiRng : IComponentData

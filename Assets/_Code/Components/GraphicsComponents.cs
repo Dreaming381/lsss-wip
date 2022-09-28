@@ -17,7 +17,7 @@ namespace Lsss
         public FixedList32Bytes<float> distances;
     }
 
-    [MaterialProperty("_Fade", MaterialPropertyFormat.Float)]
+    [MaterialProperty("_Fade")]
     public struct FadeProperty : IComponentData
     {
         public float fade;
@@ -56,13 +56,13 @@ namespace Lsss
         public Entity entityWithSpeed;
     }
 
-    [MaterialProperty("_Speed", MaterialPropertyFormat.Float)]
+    [MaterialProperty("_Speed")]
     public struct SpeedProperty : IComponentData
     {
         public float speed;
     }
 
-    [MaterialProperty("_IntegratedSpeed", MaterialPropertyFormat.Float)]
+    [MaterialProperty("_IntegratedSpeed")]
     public struct IntegratedSpeedProperty : IComponentData
     {
         public float integratedSpeed;
@@ -81,14 +81,14 @@ namespace Lsss
         public float radius;
     }
 
-    [MaterialProperty("_WarpPositionRadius", MaterialPropertyFormat.Float4)]
+    [MaterialProperty("_WarpPositionRadius")]
     public struct GravityWarpZonePositionRadiusProperty : IComponentData
     {
         public float3 position;
         public float  radius;
     }
 
-    [MaterialProperty("_WarpParams", MaterialPropertyFormat.Float4)]
+    [MaterialProperty("_WarpParams")]
     public struct GravityWarpZoneParamsProperty : IComponentData
     {
         public float active;

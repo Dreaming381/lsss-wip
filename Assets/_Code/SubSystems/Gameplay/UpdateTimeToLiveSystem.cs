@@ -13,7 +13,7 @@ namespace Lsss
         protected override void OnUpdate()
         {
             var   dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
-            float dt  = Time.DeltaTime;
+            float dt  = SystemAPI.Time.DeltaTime;
 
             Entities.ForEach((Entity entity, int entityInQueryIndex, ref TimeToLive timeToLive) =>
             {

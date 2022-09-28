@@ -113,7 +113,7 @@ namespace Latios
         {
             public override void OnNewScene(ref SystemState state)
             {
-                state.GetStronglyTypedUnmanagedSystem<T>().Struct.OnNewScene(ref state);
+                state.WorldUnmanaged.GetUnsafeSystemRef<T>(state.SystemHandle).OnNewScene(ref state);
             }
 
             public override bool ShouldUpdateSystem(ref SystemState state)
@@ -130,7 +130,7 @@ namespace Latios
 
             public override bool ShouldUpdateSystem(ref SystemState state)
             {
-                return state.GetStronglyTypedUnmanagedSystem<T>().Struct.ShouldUpdateSystem(ref state);
+                return state.WorldUnmanaged.GetUnsafeSystemRef<T>(state.SystemHandle).ShouldUpdateSystem(ref state);
             }
         }
 
@@ -138,12 +138,12 @@ namespace Latios
         {
             public override void OnNewScene(ref SystemState state)
             {
-                state.GetStronglyTypedUnmanagedSystem<T>().Struct.OnNewScene(ref state);
+                state.WorldUnmanaged.GetUnsafeSystemRef<T>(state.SystemHandle).OnNewScene(ref state);
             }
 
             public override bool ShouldUpdateSystem(ref SystemState state)
             {
-                return state.GetStronglyTypedUnmanagedSystem<T>().Struct.ShouldUpdateSystem(ref state);
+                return state.WorldUnmanaged.GetUnsafeSystemRef<T>(state.SystemHandle).ShouldUpdateSystem(ref state);
             }
         }
     }

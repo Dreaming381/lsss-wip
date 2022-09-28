@@ -21,14 +21,14 @@ namespace Latios.Myri.Authoring
                                                                          GameObject gameObject,
                                                                          ListenerProfileBakeData bakeData)
         {
-            return conversionSystem.World.GetExistingSystem<Systems.ListenerProfileSmartBlobberSystem>().AddToConvert(gameObject, bakeData);
+            return conversionSystem.World.GetExistingSystemManaged<Systems.ListenerProfileSmartBlobberSystem>().AddToConvert(gameObject, bakeData);
         }
 
         public static SmartBlobberHandleUntyped CreateBlobUntyped(this GameObjectConversionSystem conversionSystem,
                                                                   GameObject gameObject,
                                                                   ListenerProfileBakeData bakeData)
         {
-            return conversionSystem.World.GetExistingSystem<Systems.ListenerProfileSmartBlobberSystem>().AddToConvertUntyped(gameObject, bakeData);
+            return conversionSystem.World.GetExistingSystemManaged<Systems.ListenerProfileSmartBlobberSystem>().AddToConvertUntyped(gameObject, bakeData);
         }
     }
 }
@@ -36,7 +36,7 @@ namespace Latios.Myri.Authoring
 namespace Latios.Myri.Authoring.Systems
 {
     [ConverterVersion("Latios", 4)]
-    public sealed class ListenerProfileSmartBlobberSystem : SmartBlobberConversionSystem<ListenerProfileBlob, ListenerProfileBakeData, ListenerProfileConverter>
+    public sealed partial class ListenerProfileSmartBlobberSystem : SmartBlobberConversionSystem<ListenerProfileBlob, ListenerProfileBakeData, ListenerProfileConverter>
     {
         struct AuthoringHandlePair
         {
@@ -67,7 +67,7 @@ namespace Latios.Myri.Authoring.Systems
             {
                 var handle = AddToConvert(authoring.gameObject, new ListenerProfileBakeData { builder = authoring.listenerResponseProfile });
                 m_listenerList.Add(new AuthoringHandlePair { authoring                                = authoring, handle = handle });
-            });
+            }).WithoutBurst().Run();
         }
 
         protected override void FinalizeOutputs()

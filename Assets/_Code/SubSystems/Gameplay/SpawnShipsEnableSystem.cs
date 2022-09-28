@@ -21,24 +21,24 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var ecb       = new EnableCommandBuffer(Allocator.TempJob);
-            var transCdfe = state.GetComponentDataFromEntity<Translation>(false);
-            var rotCdfe   = state.GetComponentDataFromEntity<Rotation>(false);
+            var transCdfe = state.GetComponentLookup<Translation>(false);
+            var rotCdfe   = state.GetComponentLookup<Rotation>(false);
 
-            state.Entities.WithAll<SpawnPointTag>().ForEach((Entity entity, ref SpawnPayload payload, in SpawnTimes times) =>
+            foreach ((var payload, var times, var entity) in SystemAPI.Query<RefRW<SpawnPayload>, RefRO<SpawnTimes> >().WithEntityAccess())
             {
-                if (times.enableTime <= 0f && payload.disabledShip != Entity.Null)
+                if (times.ValueRO.enableTime <= 0f && payload.ValueRO.disabledShip != Entity.Null)
                 {
-                    var ship = payload.disabledShip;
+                    var ship = payload.ValueRO.disabledShip;
                     ecb.Add(ship);
-                    var trans            = transCdfe[entity];
-                    var rot              = rotCdfe[entity];
-                    transCdfe[ship]      = trans;
-                    rotCdfe[ship]        = rot;
-                    payload.disabledShip = Entity.Null;
+                    var trans                    = transCdfe[entity];
+                    var rot                      = rotCdfe[entity];
+                    transCdfe[ship]              = trans;
+                    rotCdfe[ship]                = rot;
+                    payload.ValueRW.disabledShip = Entity.Null;
                 }
-            }).WithReadOnly(transCdfe).WithReadOnly(rotCdfe).Run();
+            }
 
-            ecb.Playback(state.EntityManager, state.GetBufferFromEntity<LinkedEntityGroup>(true));
+            ecb.Playback(state.EntityManager, state.GetBufferLookup<LinkedEntityGroup>(true));
             ecb.Dispose();
         }
     }

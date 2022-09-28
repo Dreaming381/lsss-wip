@@ -276,7 +276,7 @@ namespace Latios.Psyshock
         //Parallel
         //Calculated Target Bucket and write as layer index
         [BurstCompile]
-        public struct Part1FromColliderBodyArrayJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        public struct Part1FromColliderBodyArrayJob : IJob, IJobParallelFor
         {
             public CollisionLayer                       layer;
             [NoAlias] public NativeArray<int>           layerIndices;
@@ -319,7 +319,7 @@ namespace Latios.Psyshock
         //Parallel
         //Calculated Target Bucket and write as layer index using the override AABB
         [BurstCompile]
-        public struct Part1FromDualArraysJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        public struct Part1FromDualArraysJob : IJob, IJobParallelFor
         {
             public CollisionLayer                layer;
             [NoAlias] public NativeArray<int>    layerIndices;
@@ -360,7 +360,7 @@ namespace Latios.Psyshock
         //Single
         //Count total in each bucket and assign global array position to layerIndex
         [BurstCompile]
-        public struct Part2Job : IJobBurstSchedulable
+        public struct Part2Job : IJob
         {
             public CollisionLayer             layer;
             [NoAlias] public NativeArray<int> layerIndices;
@@ -394,7 +394,7 @@ namespace Latios.Psyshock
         //Reverse array of dst indices to array of src indices
         //Todo: Might be faster as an IJob due to potential false sharing
         [BurstCompile]
-        public struct Part3Job : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        public struct Part3Job : IJob, IJobParallelFor
         {
             [ReadOnly, DeallocateOnJobCompletion] public NativeArray<int>          layerIndices;
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int> unsortedSrcIndices;
@@ -415,7 +415,7 @@ namespace Latios.Psyshock
         //Parallel
         //Sort buckets
         [BurstCompile]
-        public struct Part4Job : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        public struct Part4Job : IJob, IJobParallelFor
         {
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int>              unsortedSrcIndices;
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<IntervalTreeNode> trees;
@@ -460,7 +460,7 @@ namespace Latios.Psyshock
         //Parallel
         //Copy AoS data to SoA layer
         [BurstCompile]
-        public struct Part5FromQueryJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        public struct Part5FromQueryJob : IJob, IJobParallelFor
         {
             [NoAlias, NativeDisableParallelForRestriction]
             public CollisionLayer layer;
@@ -494,7 +494,7 @@ namespace Latios.Psyshock
         //Parallel
         //Copy array data to layer
         [BurstCompile]
-        public struct Part5FromArraysJob : IJobBurstSchedulable, IJobParallelForBurstSchedulable
+        public struct Part5FromArraysJob : IJob, IJobParallelFor
         {
             [NativeDisableParallelForRestriction]
             public CollisionLayer layer;
@@ -522,7 +522,7 @@ namespace Latios.Psyshock
         //Single
         //All five steps for custom arrays
         [BurstCompile]
-        public struct BuildFromColliderArraySingleJob : IJobBurstSchedulable
+        public struct BuildFromColliderArraySingleJob : IJob
         {
             public CollisionLayer layer;
 
@@ -538,7 +538,7 @@ namespace Latios.Psyshock
         //Single
         //All five steps for custom arrays
         [BurstCompile]
-        public struct BuildFromDualArraysSingleJob : IJobBurstSchedulable
+        public struct BuildFromDualArraysSingleJob : IJob
         {
             public CollisionLayer layer;
 
@@ -555,7 +555,7 @@ namespace Latios.Psyshock
         //Single
         //All five steps for custom arrays with remap
         [BurstCompile]
-        public struct BuildFromColliderArraySingleWithRemapJob : IJobBurstSchedulable
+        public struct BuildFromColliderArraySingleWithRemapJob : IJob
         {
             public CollisionLayer layer;
 
@@ -571,7 +571,7 @@ namespace Latios.Psyshock
         //Single
         //All five steps for custom arrays with remap
         [BurstCompile]
-        public struct BuildFromDualArraysSingleWithRemapJob : IJobBurstSchedulable
+        public struct BuildFromDualArraysSingleWithRemapJob : IJob
         {
             public CollisionLayer layer;
 

@@ -11,8 +11,6 @@ namespace Lsss
     [BurstCompile]
     public partial struct CameraFollowPlayerSystem : ISystem
     {
-        EntityQuery m_query;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -24,26 +22,40 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            if (m_query.IsEmpty)
-                return;
+            var mountEntity = new NativeReference<EntityWith<LocalToWorld> >(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var ltwCdfe     = state.GetComponentLookup<LocalToWorld>(true);
 
-            var mounts = state.WorldUnmanaged.UpdateAllocator.AllocateNativeArray<CameraMountPoint>(1);
+            new JobA { mountEntity = mountEntity }.Schedule();
+            new JobB { mountEntity = mountEntity, ltwClu = ltwCdfe }.Schedule();
+        }
 
-            state.Entities.WithAll<PlayerTag>().WithStoreEntityQueryInField(ref m_query).ForEach((in CameraMountPoint mount) => { mounts[0] = mount; }).Schedule();
+        [BurstCompile]
+        [WithAll(typeof(PlayerTag))]
+        partial struct JobA : IJobEntity
+        {
+            public NativeReference<EntityWith<LocalToWorld> > mountEntity;
 
-            var ltwCdfe = state.GetComponentDataFromEntity<LocalToWorld>(true);
-            if (mounts.Length > 0)
+            public void Execute(in CameraMountPoint mount)
             {
-                state.Entities.WithAll<CameraManager>().ForEach((ref Translation translation, ref Rotation rotation) =>
-                {
-                    var mountEntity = mounts[0].mountPoint;
-                    if (mountEntity == Entity.Null)
-                        return;
+                mountEntity.Value = mount.mountPoint;
+            }
+        }
 
-                    var ltw           = ltwCdfe[mountEntity];
-                    translation.Value = ltw.Position;
-                    rotation.Value    = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
-                }).WithReadOnly(ltwCdfe).Schedule();
+        [BurstCompile]
+        [WithAll(typeof(CameraManager))]
+        partial struct JobB : IJobEntity
+        {
+            public NativeReference<EntityWith<LocalToWorld> > mountEntity;
+            [ReadOnly] public ComponentLookup<LocalToWorld>   ltwClu;
+
+            public void Execute(ref Translation translation, ref Rotation rotation)
+            {
+                if (mountEntity.Value == Entity.Null)
+                    return;
+
+                var ltw           = ltwClu[mountEntity.Value];
+                translation.Value = ltw.Position;
+                rotation.Value    = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
             }
         }
     }

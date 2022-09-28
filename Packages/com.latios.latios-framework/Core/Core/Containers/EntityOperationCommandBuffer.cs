@@ -91,7 +91,7 @@ namespace Latios
         }
 
         [BurstCompile]
-        private struct DisposeJob : IJobBurstSchedulable
+        private struct DisposeJob : IJob
         {
             [NativeDisableUnsafePtrRestriction]
             public State* state;
@@ -232,7 +232,7 @@ namespace Latios
         /// <param name="linkedFEReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
         /// <param name="allocator">The allocator to use for the returned NativeArray</param>
         /// <returns>The array of entities stored in the EntityOperationCommandBuffer ordered by SortKey and their LinkedEntityGroup entities if they have them.</returns>
-        public NativeArray<Entity> GetLinkedEntities(BufferFromEntity<LinkedEntityGroup> linkedFEReadOnly, Allocator allocator)
+        public NativeArray<Entity> GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedFEReadOnly, Allocator allocator)
         {
             GetLinkedEntitiesInternal(linkedFEReadOnly, out _, Allocator.Temp, out var entities, allocator);
             return entities;
@@ -246,7 +246,7 @@ namespace Latios
         /// <param name="allocator">The allocator to use for the returned NativeArray</param>
         /// <param name="roots">An array of entities in the EntityOperationCommandBuffer excluding their LinkedEntityGroup entities</param>
         /// <returns>The array of entities stored in the EntityOperationCommandBuffer ordered by SortKey and their LinkedEntityGroup entities if they have them.</returns>
-        public NativeArray<Entity> GetLinkedEntities(BufferFromEntity<LinkedEntityGroup> linkedFEReadOnly, Allocator allocator, out NativeArray<Entity> roots)
+        public NativeArray<Entity> GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedFEReadOnly, Allocator allocator, out NativeArray<Entity> roots)
         {
             CheckReadAccess();
             GetLinkedEntitiesInternal(linkedFEReadOnly, out roots, allocator, out var entities, allocator);
@@ -259,7 +259,7 @@ namespace Latios
         /// <param name="linkedFEReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
         /// <param name="entities">The list to fill. The list will automatically be resized to fit the new entities.</param>
         /// <param name="append">If true, entities will be appended. If false, the list will be overwritten.</param>
-        public void GetLinkedEntities(BufferFromEntity<LinkedEntityGroup> linkedFEReadOnly, ref NativeList<Entity> entities, bool append = false)
+        public void GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedFEReadOnly, ref NativeList<Entity> entities, bool append = false)
         {
             CheckReadAccess();
             var roots = GetEntities(Allocator.Temp);
@@ -324,7 +324,7 @@ namespace Latios
             }
         }
 
-        private int GetLinkedEntitiesCount(BufferFromEntity<LinkedEntityGroup> linkedFE, NativeArray<Entity> roots)
+        private int GetLinkedEntitiesCount(BufferLookup<LinkedEntityGroup> linkedFE, NativeArray<Entity> roots)
         {
             int count = 0;
             for (int i = 0; i < roots.Length; i++)
@@ -341,7 +341,7 @@ namespace Latios
             return count;
         }
 
-        private void GetLinkedEntitiesFill(BufferFromEntity<LinkedEntityGroup> linkedFE, NativeArray<Entity> roots, NativeArray<Entity> entities)
+        private void GetLinkedEntitiesFill(BufferLookup<LinkedEntityGroup> linkedFE, NativeArray<Entity> roots, NativeArray<Entity> entities)
         {
             int count = 0;
             for (int i = 0; i < roots.Length; i++)
@@ -360,7 +360,7 @@ namespace Latios
             }
         }
 
-        private void GetLinkedEntitiesInternal(BufferFromEntity<LinkedEntityGroup> linkedFE,
+        private void GetLinkedEntitiesInternal(BufferLookup<LinkedEntityGroup> linkedFE,
                                                out NativeArray<Entity>             roots,
                                                Allocator rootsAllocator,
                                                out NativeArray<Entity>             linkedEntities,
@@ -456,6 +456,8 @@ namespace Latios
         #endregion
     }
 }
+
+
 
 
 

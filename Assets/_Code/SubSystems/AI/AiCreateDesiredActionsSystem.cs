@@ -22,8 +22,14 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Entities.WithAll<AiTag>().ForEach((ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in Translation trans,
-                                                     in Rotation rot, in ShipSpeedStats speedStats, in Speed speed) =>
+            new Job().ScheduleParallel();
+        }
+
+        [BurstCompile]
+        partial struct Job : IJobEntity
+        {
+            public void Execute(ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in Translation trans,
+                                in Rotation rot, in ShipSpeedStats speedStats, in Speed speed)
             {
                 float2 destinationTurn = float2.zero;
 
@@ -57,7 +63,7 @@ namespace Lsss
                 finalActions.turn  = destinationTurn;
                 finalActions.fire  = goalData.fire;
                 finalActions.boost = false;
-            }).ScheduleParallel();
+            }
         }
     }
 }

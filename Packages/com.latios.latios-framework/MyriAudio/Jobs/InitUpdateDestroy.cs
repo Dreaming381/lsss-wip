@@ -19,7 +19,7 @@ namespace Latios.Myri
             [ReadOnly] public EntityTypeHandle                        entityHandle;
             [ReadOnly] public NativeReference<int>                    audioFrame;
             [ReadOnly] public NativeReference<int>                    lastPlayedAudioFrame;
-            [ReadOnly] public ComponentDataFromEntity<AudioSettings>  settingsCdfe;
+            [ReadOnly] public ComponentLookup<AudioSettings>  settingsCdfe;
             public Entity                                             worldBlackboardEntity;
             public int                                                sampleRate;
             public int                                                samplesPerFrame;

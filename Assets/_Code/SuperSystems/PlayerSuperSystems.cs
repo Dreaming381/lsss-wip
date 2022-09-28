@@ -9,7 +9,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddSystem<PlayerGameplayReadInputSystem>();
+            GetOrCreateAndAddManagedSystem<PlayerGameplayReadInputSystem>();
         }
     }
 }

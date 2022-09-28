@@ -36,7 +36,7 @@ namespace Latios
             {
                 m_controllerObject                 = new GameObject();
                 var controller                     = m_controllerObject.AddComponent<DeferredSimulationEndFrameController>();
-                controller.simGroup                = World.GetExistingSystem<Systems.LatiosSimulationSystemGroup>();
+                controller.simGroup                = World.GetExistingSystemManaged<Systems.LatiosSimulationSystemGroup>();
                 controller.simGroup.skipInDeferred = true;
                 m_controllerObject.hideFlags       = HideFlags.HideAndDontSave;
             }

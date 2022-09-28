@@ -44,26 +44,26 @@ namespace Latios.Systems
             //return m_allSystemsQuery.IsEmptyIgnoreFilter == false;
         }
 
-        private struct ManagedDefeatStripTag : IComponentData { }
-        private struct ManagedDefeatStripComponent : IManagedComponent
-        {
-            public Type AssociatedComponentType => typeof(ManagedDefeatStripTag);
-        }
-
-        private struct CollectionDefeatStripTag : IComponentData { }
-        private struct CollectionDefeatStripComponent : ICollectionComponent
-        {
-            public Type AssociatedComponentType => typeof(ManagedDefeatStripTag);
-            public JobHandle Dispose(JobHandle inputDeps) => default;
-        }
+        //private struct ManagedDefeatStripTag : IComponentData { }
+        //private struct ManagedDefeatStripComponent : IManagedComponent
+        //{
+        //    public Type AssociatedComponentType => typeof(ManagedDefeatStripTag);
+        //}
+        //
+        //private struct CollectionDefeatStripTag : IComponentData { }
+        //private struct CollectionDefeatStripComponent : ICollectionComponent
+        //{
+        //    public Type AssociatedComponentType => typeof(ManagedDefeatStripTag);
+        //    public JobHandle Dispose(JobHandle inputDeps) => default;
+        //}
 
         protected override void CreateSystems()
         {
             // Defeat stripping
-            World.DestroySystem(World.CreateSystem<ManagedComponentCreateSystem<ManagedDefeatStripComponent> >());
-            World.DestroySystem(World.CreateSystem<ManagedComponentDestroySystem<ManagedDefeatStripComponent> >());
-            World.DestroySystem(World.CreateSystem<CollectionComponentCreateSystem<CollectionDefeatStripComponent> >());
-            World.DestroySystem(World.CreateSystem<CollectionComponentDestroySystem<CollectionDefeatStripComponent> >());
+            //World.DestroySystem(World.CreateSystem<ManagedComponentCreateSystem<ManagedDefeatStripComponent> >());
+            //World.DestroySystem(World.CreateSystem<ManagedComponentDestroySystem<ManagedDefeatStripComponent> >());
+            //World.DestroySystem(World.CreateSystem<CollectionComponentCreateSystem<CollectionDefeatStripComponent> >());
+            //World.DestroySystem(World.CreateSystem<CollectionComponentDestroySystem<CollectionDefeatStripComponent> >());
 
             var managedCreateType         = typeof(ManagedComponentCreateSystem<>);
             var managedDestroyType        = typeof(ManagedComponentDestroySystem<>);
@@ -85,8 +85,10 @@ namespace Latios.Systems
                     if (type.GetCustomAttribute(typeof(DisableAutoTypeRegistrationAttribute)) != null)
                         continue;
 
-                    if (type == typeof(IManagedComponent) || type == typeof(ICollectionComponent) || type == typeof(ManagedDefeatStripComponent) ||
-                        type == typeof(CollectionDefeatStripComponent))
+                    if (type == typeof(IManagedComponent) || type == typeof(ICollectionComponent)
+                        //|| type == typeof(ManagedDefeatStripComponent) ||
+                        //type == typeof(CollectionDefeatStripComponent)
+                        )
                         continue;
 
                     if (typeof(IManagedComponent).IsAssignableFrom(type))

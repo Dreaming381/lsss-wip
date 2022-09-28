@@ -22,14 +22,14 @@ namespace Latios.Myri.Authoring
                                                                    GameObject gameObject,
                                                                    AudioClipBakeData bakeData)
         {
-            return conversionSystem.World.GetExistingSystem<Systems.AudioClipSmartBlobberSystem>().AddToConvert(gameObject, bakeData);
+            return conversionSystem.World.GetExistingSystemManaged<Systems.AudioClipSmartBlobberSystem>().AddToConvert(gameObject, bakeData);
         }
 
         public static SmartBlobberHandleUntyped CreateBlobUntyped(this GameObjectConversionSystem conversionSystem,
                                                                   GameObject gameObject,
                                                                   AudioClipBakeData bakeData)
         {
-            return conversionSystem.World.GetExistingSystem<Systems.AudioClipSmartBlobberSystem>().AddToConvertUntyped(gameObject, bakeData);
+            return conversionSystem.World.GetExistingSystemManaged<Systems.AudioClipSmartBlobberSystem>().AddToConvertUntyped(gameObject, bakeData);
         }
     }
 }
@@ -37,7 +37,7 @@ namespace Latios.Myri.Authoring
 namespace Latios.Myri.Authoring.Systems
 {
     [ConverterVersion("Latios", 4)]
-    public sealed class AudioClipSmartBlobberSystem : SmartBlobberConversionSystem<AudioClipBlob, AudioClipBakeData, AudioClipConverter, AudioClipContext>
+    public sealed partial class AudioClipSmartBlobberSystem : SmartBlobberConversionSystem<AudioClipBlob, AudioClipBakeData, AudioClipConverter, AudioClipContext>
     {
         struct AuthoringHandlePair
         {
@@ -58,7 +58,7 @@ namespace Latios.Myri.Authoring.Systems
                     pair.blobHandle = AddToConvert(authoring.gameObject, new AudioClipBakeData { clip = authoring.clip, numVoices = authoring.voices });
                 }
                 m_sourceList.Add(pair);
-            });
+            }).WithoutBurst().Run();
         }
 
         protected override void FinalizeOutputs()

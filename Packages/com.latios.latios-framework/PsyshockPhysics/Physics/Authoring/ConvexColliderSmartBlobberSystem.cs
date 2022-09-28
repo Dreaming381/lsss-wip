@@ -23,14 +23,14 @@ namespace Latios.Psyshock.Authoring
                                                                         GameObject gameObject,
                                                                         ConvexColliderBakeData bakeData)
         {
-            return conversionSystem.World.GetExistingSystem<Systems.ConvexColliderSmartBlobberSystem>().AddToConvert(gameObject, bakeData);
+            return conversionSystem.World.GetExistingSystemManaged<Systems.ConvexColliderSmartBlobberSystem>().AddToConvert(gameObject, bakeData);
         }
 
         public static SmartBlobberHandleUntyped CreateBlobUntyped(this GameObjectConversionSystem conversionSystem,
                                                                   GameObject gameObject,
                                                                   ConvexColliderBakeData bakeData)
         {
-            return conversionSystem.World.GetExistingSystem<Systems.ConvexColliderSmartBlobberSystem>().AddToConvertUntyped(gameObject, bakeData);
+            return conversionSystem.World.GetExistingSystemManaged<Systems.ConvexColliderSmartBlobberSystem>().AddToConvertUntyped(gameObject, bakeData);
         }
     }
 }

@@ -26,7 +26,7 @@ namespace Lsss.Authoring
                 return;
             }
 
-            dstManager.AddSharedComponentData(entity, new FactionMember { factionEntity = conversionSystem.GetPrimaryEntity(fleetSpawner.faction) });
+            dstManager.AddSharedComponentManaged(entity, new FactionMember { factionEntity = conversionSystem.GetPrimaryEntity(fleetSpawner.faction) });
             dstManager.AddComponent<FleetSpawnSlotTag>(entity);
             if (spawnPlayer)
                 dstManager.AddComponent<FleetSpawnPlayerSlotTag>(entity);

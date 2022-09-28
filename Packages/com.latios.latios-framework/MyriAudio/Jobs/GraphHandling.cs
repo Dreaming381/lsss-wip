@@ -21,7 +21,7 @@ namespace Latios.Myri
             public NativeReference<int>  lastReadBufferId;
 
             public NativeQueue<AudioFrameBufferHistoryElement>       audioFrameHistory;
-            [ReadOnly] public ComponentDataFromEntity<AudioSettings> audioSettingsCdfe;
+            [ReadOnly] public ComponentLookup<AudioSettings> audioSettingsCdfe;
             public Entity                                            worldBlackboardEntity;
 
             public unsafe void Execute()
@@ -52,12 +52,12 @@ namespace Latios.Myri
         {
             [ReadOnly] public NativeArray<Entity>                    listenerEntities;
             [ReadOnly] public NativeArray<Entity>                    destroyedListenerEntities;
-            [ReadOnly] public ComponentDataFromEntity<AudioListener> listenerCdfe;
-            public ComponentDataFromEntity<ListenerGraphState>       listenerGraphStateCdfe;
-            public ComponentDataFromEntity<EntityOutputGraphState>   listenerOutputGraphStateCdfe;
+            [ReadOnly] public ComponentLookup<AudioListener> listenerCdfe;
+            public ComponentLookup<ListenerGraphState>       listenerGraphStateCdfe;
+            public ComponentLookup<EntityOutputGraphState>   listenerOutputGraphStateCdfe;
             public EntityCommandBuffer                               ecb;
 
-            [ReadOnly] public ComponentDataFromEntity<AudioSettings> audioSettingsCdfe;
+            [ReadOnly] public ComponentLookup<AudioSettings> audioSettingsCdfe;
             public Entity                                            worldBlackboardEntity;
 
             [ReadOnly] public NativeReference<int>             audioFrame;

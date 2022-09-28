@@ -17,8 +17,8 @@ namespace Lsss
 
             var processor = new DamageHitShipsProcessor
             {
-                explosionDamageCdfe = GetComponentDataFromEntity<Damage>(true),
-                shipHealthCdfe      = GetComponentDataFromEntity<ShipHealth>(),
+                explosionDamageCdfe = GetComponentLookup<Damage>(true),
+                shipHealthCdfe      = GetComponentLookup<ShipHealth>(),
             };
 
             var backup = Dependency;
@@ -36,8 +36,8 @@ namespace Lsss
         //Assumes A is explosion and B is ship.
         struct DamageHitShipsProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<ShipHealth> shipHealthCdfe;
-            [ReadOnly] public ComponentDataFromEntity<Damage> explosionDamageCdfe;
+            public PhysicsComponentLookup<ShipHealth> shipHealthCdfe;
+            [ReadOnly] public ComponentLookup<Damage> explosionDamageCdfe;
 
             public void Execute(in FindPairsResult result)
             {

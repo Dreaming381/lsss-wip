@@ -18,12 +18,12 @@ namespace Lsss
 
             var processor = new TeleportWormholeTravelersProcessor
             {
-                posCDFE     = GetComponentDataFromEntity<Translation>(),
-                rotCDFE     = GetComponentDataFromEntity<Rotation>(),
-                destCDFE    = GetComponentDataFromEntity<WormholeDestination>(true),
-                ltwCDFE     = GetComponentDataFromEntity<LocalToWorld>(true),
-                colCDFE     = GetComponentDataFromEntity<Collider>(true),
-                prevPosCDFE = GetComponentDataFromEntity<BulletPreviousPosition>()
+                posCDFE     = GetComponentLookup<Translation>(),
+                rotCDFE     = GetComponentLookup<Rotation>(),
+                destCDFE    = GetComponentLookup<WormholeDestination>(true),
+                ltwCDFE     = GetComponentLookup<LocalToWorld>(true),
+                colCDFE     = GetComponentLookup<Collider>(true),
+                prevPosCDFE = GetComponentLookup<BulletPreviousPosition>()
             };
 
             var backup = Dependency;
@@ -44,14 +44,14 @@ namespace Lsss
         //Assumes B is traveler
         struct TeleportWormholeTravelersProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentDataFromEntity<Translation>             posCDFE;
-            public PhysicsComponentDataFromEntity<Rotation>                rotCDFE;
-            [ReadOnly] public ComponentDataFromEntity<WormholeDestination> destCDFE;
-            [ReadOnly] public ComponentDataFromEntity<LocalToWorld>        ltwCDFE;
-            [ReadOnly] public ComponentDataFromEntity<Collider>            colCDFE;
+            public PhysicsComponentLookup<Translation>             posCDFE;
+            public PhysicsComponentLookup<Rotation>                rotCDFE;
+            [ReadOnly] public ComponentLookup<WormholeDestination> destCDFE;
+            [ReadOnly] public ComponentLookup<LocalToWorld>        ltwCDFE;
+            [ReadOnly] public ComponentLookup<Collider>            colCDFE;
 
             //Todo: Remove hack
-            public PhysicsComponentDataFromEntity<BulletPreviousPosition> prevPosCDFE;
+            public PhysicsComponentLookup<BulletPreviousPosition> prevPosCDFE;
 
             public void Execute(in FindPairsResult result)
             {
