@@ -6,6 +6,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 //Firing effects will spawn parented to their ships.
 //If the ship is destroyed the same frame, then the parent won't exist
 //when the transform system runs which produces an error.
@@ -29,11 +31,9 @@ namespace Lsss
             var dcb = new DestroyCommandBuffer(Allocator.TempJob);
             // LocalToWorld is what Parent System uses to reactively remove Child buffers.
             // Testing for entity existence here doesn't work since the entity may be getting cleaned up.
-            var ltwClu = state.GetComponentLookup<LocalToWorld>(true);
-
-            foreach((var parent, var entity) in SystemAPI.Query<RefRO<Parent> >().WithEntityAccess())
+            foreach((var parent, var entity) in Query<RefRO<Parent> >().WithEntityAccess())
             {
-                if (!ltwClu.HasComponent(parent.ValueRO.Value))
+                if (!HasComponent<LocalToWorld>(parent.ValueRO.Value))
                 {
                     dcb.Add(entity);
                 }

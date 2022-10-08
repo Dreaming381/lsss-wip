@@ -6,6 +6,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [BurstCompile]
@@ -22,8 +24,9 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt     = SystemAPI.Time.DeltaTime;
-            new Job { dt = dt }.ScheduleParallel();
+            var job = new Job();
+            job.dt  = Time.DeltaTime;
+            job.ScheduleParallel();
         }
 
         [BurstCompile]
@@ -31,9 +34,10 @@ namespace Lsss
         partial struct Job : IJobEntity
         {
             public float dt;
-
             public void Execute(ref Translation translation, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime)
             {
+                // !!!!!!!!!!!!!!!!!!!!! SERIOUSLY UNITY? !!!!!!!!!!!!!!!!!!!
+                //var    dt                   = Time.DeltaTime;
                 var    rotation             = quaternion.AxisAngle(path.orbitPlaneNormal, path.orbitSpeed * dt);
                 float3 currentOutwardVector = translation.Value - path.center;
                 float3 newOutwardVector     = math.rotate(rotation, currentOutwardVector);

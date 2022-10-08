@@ -60,11 +60,20 @@ namespace Latios.Psyshock
         [FieldOffset(8)]
         internal ConvexCollider m_convex;
 
-        [FieldOffset(8)]
-        internal CompoundCollider m_compound;
+        //[FieldOffset(8)]
+        internal ref CompoundCollider m_compound
+        {
+            get
+            {
+                CompoundCollider* ret;
+                fixed (void*      ptr = &m_convex)
+                ret                   = (CompoundCollider*)ptr;
+                return ref *ret;
+            }
+        }
 
-        [FieldOffset(8)]
-        UnsafeUntypedBlobAssetReference m_blobRef;
+        //[FieldOffset(8)]
+        //UnsafeUntypedBlobAssetReference m_blobRef;
 
         public ColliderType type => m_type;
 

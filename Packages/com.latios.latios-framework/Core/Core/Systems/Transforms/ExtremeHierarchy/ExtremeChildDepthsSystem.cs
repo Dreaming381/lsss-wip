@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -20,12 +21,24 @@ namespace Latios.Systems
     {
         EntityQuery m_query;
 
+        ComponentTypeHandle<PreviousParent> m_previousParentHandle;
+        BufferTypeHandle<Child>             m_childHandle;
+        ComponentTypeHandle<Depth>          m_depthHandleRW;
+        ComponentTypeHandle<Depth>          m_depthHandleRO;
+        ComponentTypeHandle<ChunkDepthMask> m_chunkDepthMaskHandle;
+
         // For a 32-bit depth mask, the upper 16 bits are used as a scratch list if updates are needed.
         const int kMaxDepthIterations = 16;
 
         public void OnCreate(ref SystemState state)
         {
             m_query = state.Fluent().WithAll<Parent>(true).WithAll<Depth>(false).WithAll<ChunkDepthMask>(false, true).Build();
+
+            m_previousParentHandle = state.GetComponentTypeHandle<PreviousParent>(true);
+            m_childHandle          = state.GetBufferTypeHandle<Child>(true);
+            m_depthHandleRW        = state.GetComponentTypeHandle<Depth>(false);
+            m_depthHandleRO        = state.GetComponentTypeHandle<Depth>(true);
+            m_chunkDepthMaskHandle = state.GetComponentTypeHandle<ChunkDepthMask>(false);
         }
 
         [BurstCompile] public void OnDestroy(ref SystemState state) {
@@ -34,21 +47,27 @@ namespace Latios.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            m_previousParentHandle.Update(ref state);
+            m_childHandle.Update(ref state);
+            m_depthHandleRW.Update(ref state);
+            m_depthHandleRO.Update(ref state);
+            m_chunkDepthMaskHandle.Update(ref state);
+
             state.Dependency = new UpdateDepthsJob
             {
-                parentHandle      = state.GetComponentTypeHandle<PreviousParent>(true),
-                parentCdfe        = state.GetComponentLookup<PreviousParent>(true),
-                childHandle       = state.GetBufferTypeHandle<Child>(true),
-                childBfe          = state.GetBufferLookup<Child>(true),
-                depthCdfe         = state.GetComponentLookup<Depth>(false),
-                depthHandle       = state.GetComponentTypeHandle<Depth>(false),
+                parentHandle      = m_previousParentHandle,
+                parentLookup      = SystemAPI.GetComponentLookup<PreviousParent>(true),
+                childHandle       = m_childHandle,
+                childLookup       = SystemAPI.GetBufferLookup<Child>(true),
+                depthLookup       = SystemAPI.GetComponentLookup<Depth>(false),
+                depthHandle       = m_depthHandleRW,
                 lastSystemVersion = state.LastSystemVersion
             }.ScheduleParallel(m_query, state.Dependency);
 
             state.Dependency = new UpdateChunkDepthMasksJob
             {
-                depthHandle          = state.GetComponentTypeHandle<Depth>(true),
-                chunkDepthMaskHandle = state.GetComponentTypeHandle<ChunkDepthMask>(false),
+                depthHandle          = m_depthHandleRO,
+                chunkDepthMaskHandle = m_chunkDepthMaskHandle,
                 lastSystemVersion    = state.LastSystemVersion
             }.ScheduleParallel(m_query, state.Dependency);
         }
@@ -65,36 +84,36 @@ namespace Latios.Systems
         // Todo: We could however capture the list of changed entities from ExtremeParentSystem
         // and using either a bit array or a hashset run this algorithm with entity granularity.
         [BurstCompile]
-        struct UpdateDepthsJob : IJobEntityBatch
+        struct UpdateDepthsJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<PreviousParent>                           parentHandle;
-            [ReadOnly] public ComponentLookup<PreviousParent>                       parentCdfe;
-            [ReadOnly] public BufferTypeHandle<Child>                                       childHandle;
-            [ReadOnly] public BufferLookup<Child>                                       childBfe;
-            [NativeDisableContainerSafetyRestriction] public ComponentLookup<Depth> depthCdfe;
-            public ComponentTypeHandle<Depth>                                               depthHandle;
+            [ReadOnly] public ComponentTypeHandle<PreviousParent>                   parentHandle;
+            [ReadOnly] public ComponentLookup<PreviousParent>                       parentLookup;
+            [ReadOnly] public BufferTypeHandle<Child>                               childHandle;
+            [ReadOnly] public BufferLookup<Child>                                   childLookup;
+            [NativeDisableContainerSafetyRestriction] public ComponentLookup<Depth> depthLookup;
+            public ComponentTypeHandle<Depth>                                       depthHandle;
 
             public uint lastSystemVersion;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                if (!batchInChunk.DidChange(parentHandle, lastSystemVersion))
+                if (!chunk.DidChange(parentHandle, lastSystemVersion))
                     return;
 
-                var parents = batchInChunk.GetNativeArray(parentHandle);
+                var parents = chunk.GetNativeArray(parentHandle);
 
                 BufferAccessor<Child> childAccess         = default;
-                bool                  hasChildrenToUpdate = batchInChunk.Has(childHandle);
+                bool                  hasChildrenToUpdate = chunk.Has(childHandle);
                 if (hasChildrenToUpdate)
-                    childAccess           = batchInChunk.GetBufferAccessor(childHandle);
+                    childAccess           = chunk.GetBufferAccessor(childHandle);
                 NativeArray<Depth> depths = default;
 
-                for (int i = 0; i < batchInChunk.Count; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     if (IsDepthChangeRoot(parents[i].Value, out var depth))
                     {
                         if (!depths.IsCreated)
-                            depths = batchInChunk.GetNativeArray(depthHandle);
+                            depths = chunk.GetNativeArray(depthHandle);
 
                         var startDepth = new Depth { depth = depth };
                         depths[i]                          = startDepth;
@@ -115,25 +134,25 @@ namespace Latios.Systems
             {
                 var current = parent;
                 depth       = 0;
-                while (parentCdfe.HasComponent(current))
+                while (parentLookup.HasComponent(current))
                 {
-                    if (parentCdfe.DidChange(current, lastSystemVersion))
+                    if (parentLookup.DidChange(current, lastSystemVersion))
                     {
                         return false;
                     }
                     depth++;
-                    current = parentCdfe[current].Value;
+                    current = parentLookup[current].Value;
                 }
                 return true;
             }
 
             void WriteDepthAndRecurse(Entity child, Depth depth)
             {
-                depthCdfe[child] = depth;
+                depthLookup[child] = depth;
                 depth.depth++;
-                if (childBfe.HasComponent(child))
+                if (childLookup.HasBuffer(child))
                 {
-                    foreach (var c in childBfe[child])
+                    foreach (var c in childLookup[child])
                     {
                         WriteDepthAndRecurse(c.Value, depth);
                     }
@@ -142,25 +161,25 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct UpdateChunkDepthMasksJob : IJobEntityBatch
+        struct UpdateChunkDepthMasksJob : IJobChunk
         {
             [ReadOnly] public ComponentTypeHandle<Depth> depthHandle;
             public ComponentTypeHandle<ChunkDepthMask>   chunkDepthMaskHandle;
             public uint                                  lastSystemVersion;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                if (batchInChunk.DidChange(depthHandle, lastSystemVersion) || batchInChunk.DidOrderChange(lastSystemVersion))
+                if (chunk.DidChange(depthHandle, lastSystemVersion) || chunk.DidOrderChange(lastSystemVersion))
                 {
                     BitField32 depthMask = default;
-                    var        depths    = batchInChunk.GetNativeArray(depthHandle);
-                    for (int i = 0; i < batchInChunk.Count; i++)
+                    var        depths    = chunk.GetNativeArray(depthHandle);
+                    for (int i = 0; i < chunk.Count; i++)
                     {
                         if (depths[i].depth < kMaxDepthIterations)
                             depthMask.SetBits(depths[i].depth, true);
                     }
 
-                    batchInChunk.SetChunkComponentData(chunkDepthMaskHandle, new ChunkDepthMask { chunkDepthMask = depthMask });
+                    chunk.SetChunkComponentData(chunkDepthMaskHandle, new ChunkDepthMask { chunkDepthMask = depthMask });
                 }
             }
         }

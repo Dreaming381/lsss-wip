@@ -7,20 +7,23 @@ namespace Lsss
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Objects/Arena")]
-    public class ArenaAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class ArenaAuthoring : MonoBehaviour
     {
         public float radius;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class ArenaBaker : Baker<ArenaAuthoring>
+    {
+        public override void Bake(ArenaAuthoring authoring)
         {
-            dstManager.AddComponentData(entity, new ArenaRadius { radius = radius });
-            dstManager.AddComponent<ArenaTag>(entity);
+            AddComponent(new ArenaRadius { radius = authoring.radius });
+            AddComponent<ArenaTag>();
 
-            float cornerAlongAxis = math.sqrt((radius * radius) / 3f);
+            float cornerAlongAxis = math.sqrt((authoring.radius * authoring.radius) / 3f);
 
             if (cornerAlongAxis <= 250f)
             {
-                dstManager.AddComponentData(entity, new ArenaCollisionSettings
+                AddComponent(new ArenaCollisionSettings
                 {
                     settings = BuildCollisionLayerConfig.defaultSettings
                 });
@@ -28,7 +31,7 @@ namespace Lsss
             else
             {
                 int subdivisions = Mathf.CeilToInt(cornerAlongAxis / 250f) * 2;
-                dstManager.AddComponentData(entity, new ArenaCollisionSettings
+                AddComponent(new ArenaCollisionSettings
                 {
                     settings = new CollisionLayerSettings
                     {

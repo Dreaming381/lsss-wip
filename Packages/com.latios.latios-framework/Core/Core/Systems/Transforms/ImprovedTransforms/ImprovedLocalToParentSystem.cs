@@ -1,5 +1,6 @@
 using System;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -25,7 +26,7 @@ namespace Latios.Systems
 
         // LocalToWorld = Parent.LocalToWorld * LocalToParent
         [BurstCompile]
-        struct UpdateHierarchy : IJobEntityBatch
+        struct UpdateHierarchy : IJobChunk
         {
             [ReadOnly] public ComponentTypeHandle<LocalToWorld> LocalToWorldTypeHandle;
             [ReadOnly] public BufferTypeHandle<Child>           ChildTypeHandle;
@@ -79,23 +80,23 @@ namespace Latios.Systems
                 }
             }
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 bool updateChildrenTransform =
-                    batchInChunk.DidChange<LocalToWorld>(LocalToWorldTypeHandle, LastSystemVersion) ||
-                    batchInChunk.DidChange<Child>(ChildTypeHandle, LastSystemVersion);
+                    chunk.DidChange<LocalToWorld>(LocalToWorldTypeHandle, LastSystemVersion) ||
+                    chunk.DidChange<Child>(ChildTypeHandle, LastSystemVersion);
 
-                var  chunkLocalToWorld = batchInChunk.GetNativeArray(LocalToWorldTypeHandle);
-                var  chunkChildren     = batchInChunk.GetBufferAccessor(ChildTypeHandle);
+                var  chunkLocalToWorld = chunk.GetNativeArray(LocalToWorldTypeHandle);
+                var  chunkChildren     = chunk.GetBufferAccessor(ChildTypeHandle);
                 bool ltwIsValid        = true;
-                for (int i = 0; i < batchInChunk.Count; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     var localToWorldMatrix = chunkLocalToWorld[i].Value;
                     var children           = chunkChildren[i];
                     for (int j = 0; j < children.Length; j++)
                     {
                         ChildLocalToWorld(ref localToWorldMatrix, children[j].Value, updateChildrenTransform, Entity.Null, ref ltwIsValid,
-                                          batchInChunk.DidChange(ChildTypeHandle, LastSystemVersion));
+                                          chunk.DidChange(ChildTypeHandle, LastSystemVersion));
                     }
                 }
             }
@@ -121,7 +122,7 @@ namespace Latios.Systems
                 Options = EntityQueryOptions.FilterWriteGroup
             });
 
-            m_LocalToWorldWriteGroupMask = state.EntityManager.GetEntityQueryMask(state.GetEntityQuery(new EntityQueryDesc
+            m_LocalToWorldWriteGroupMask = state.GetEntityQuery(new EntityQueryDesc
             {
                 All = new ComponentType[]
                 {
@@ -130,7 +131,7 @@ namespace Latios.Systems
                     ComponentType.ReadOnly<Parent>()
                 },
                 Options = EntityQueryOptions.FilterWriteGroup
-            }));
+            }).GetEntityQueryMask();
         }
 
         [BurstCompile]

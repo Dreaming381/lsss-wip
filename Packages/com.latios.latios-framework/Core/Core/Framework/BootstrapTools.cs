@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using Debug = UnityEngine.Debug;
+using Latios.Systems;
+using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.Exposed;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 
-using System.Linq;
-using Latios.Systems;
-using Unity.Collections;
-using Unity.Entities.Exposed;
-using Unity.Entities.Exposed;
+using Debug = UnityEngine.Debug;
 
 namespace Latios
 {
@@ -142,7 +141,7 @@ namespace Latios
             }
             else
             {
-                newSystem.systemHandle = world.GetOrCreateUnmanagedSystem(type);
+                newSystem.systemHandle = world.GetOrCreateSystem(type);
             }
             if (groups.Length == 0 && defaultGroup != null)
             {

@@ -2,6 +2,7 @@
 using Latios;
 using Latios.Psyshock;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -52,14 +53,14 @@ namespace Lsss
 
             var scanFriendsProcessor = new ScanFriendsProcessor
             {
-                radarCdfe = GetComponentLookup<AiShipRadar>(true),
-                wallLayer = wallLayer
+                radarLookup = GetComponentLookup<AiShipRadar>(true),
+                wallLayer   = wallLayer
             };
 
             var scanEnemiesProcessor = new ScanEnemiesProcessor
             {
-                radarCdfe = scanFriendsProcessor.radarCdfe,
-                wallLayer = wallLayer
+                radarLookup = scanFriendsProcessor.radarLookup,
+                wallLayer   = wallLayer
             };
 
             var rootDependency = Dependency;
@@ -119,41 +120,34 @@ namespace Lsss
             {
                 var array   = m_scanResultsArrayListCache[i];
                 var faction = new FactionMember { factionEntity = factionEntities[i] };
-                //Entities.WithAll<AiRadarTag>().WithSharedComponentFilter(faction).ForEach((int entityInQueryIndex, ref AiShipRadarScanResults result) =>
-                //{
-                //    result = array[entityInQueryIndex];
-                //}).ScheduleParallel();
+
                 m_radarsQuery.SetSharedComponentFilter(faction);
-                Dependency = new CopyBackJob { array = array, scanResultsHandle = scanResultsHandle }.ScheduleParallel(m_radarsQuery, Dependency);
+                var indices = m_radarsQuery.CalculateBaseEntityIndexArrayAsync(allocator, Dependency, out var jh);
+                Dependency  = new CopyBackJob
+                {
+                    array                         = array,
+                    scanResultsHandle             = scanResultsHandle,
+                    indicesOfFirstEntitiesInChunk = indices
+                }.ScheduleParallel(m_radarsQuery, jh);
             }
 
             m_radarsQuery.ResetFilter();
         }
 
         [BurstCompile]
-        public struct CopyBackJob : IJobEntityBatchWithIndex
+        public struct CopyBackJob : IJobChunk
         {
-            [ReadOnly] public NativeArray<AiShipRadarScanResults> array;
-            public ComponentTypeHandle<AiShipRadarScanResults>    scanResultsHandle;
+            [ReadOnly] public NativeArray<AiShipRadarScanResults>         array;
+            public ComponentTypeHandle<AiShipRadarScanResults>            scanResultsHandle;
+            [NativeDisableParallelForRestriction] public NativeArray<int> indicesOfFirstEntitiesInChunk;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex, int indexOfFirstEntityInQuery)
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var dst = batchInChunk.GetNativeArray(scanResultsHandle);
-                var src = array.GetSubArray(indexOfFirstEntityInQuery, batchInChunk.Count);
+                var dst = chunk.GetNativeArray(scanResultsHandle);
+                var src = array.GetSubArray(indicesOfFirstEntitiesInChunk[unfilteredChunkIndex], chunk.Count);
                 dst.CopyFrom(src);
             }
         }
-
-        //[BurstCompile]
-        //public partial struct CopyBackJob : IJobEntity
-        //{
-        //    [ReadOnly] public NativeArray<AiShipRadarScanResults> array;
-        //
-        //    public void Execute(int entityInQueryIndex, ref AiShipRadarScanResults result)
-        //    {
-        //        result = array[entityInQueryIndex];
-        //    }
-        //}
 
         private JobHandle BuildRadarLayer(FactionMember factionMember,
                                           CollisionLayerSettings settings,
@@ -215,13 +209,13 @@ namespace Lsss
         struct ScanFriendsProcessor : IFindPairsProcessor
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
-            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarCdfe;
+            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarLookup;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
             [ReadOnly] public NativeArray<int>                                               remapArray;
 
             public void Execute(in FindPairsResult result)
             {
-                var    radar       = radarCdfe[result.entityA];
+                var    radar       = radarLookup[result.entityA];
                 float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
                 bool   isInRange   = math.lengthsq(radarToShip) < radar.friendCrossHairsDistanceFilter * radar.friendCrossHairsDistanceFilter;
                 bool   isInView    =
@@ -246,13 +240,13 @@ namespace Lsss
         struct ScanEnemiesProcessor : IFindPairsProcessor
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
-            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarCdfe;
+            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarLookup;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
             [ReadOnly] public NativeArray<int>                                               remapArray;
 
             public void Execute(in FindPairsResult result)
             {
-                var    radar       = radarCdfe[result.entityA];
+                var    radar       = radarLookup[result.entityA];
                 float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
 
                 bool  useFullRange  = radar.target.entity == result.entityB || radar.target == Entity.Null;

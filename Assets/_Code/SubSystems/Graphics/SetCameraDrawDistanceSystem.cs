@@ -25,6 +25,8 @@ namespace Lsss
 
             Entities.ForEach((CameraManager camera, in DrawDistances distances) =>
             {
+                if (camera.camera == null)
+                    return;
                 if (qualityLevel.level != lastSeenQualityLevel || camera.camera != lastSeenCamera)
                 {
                     camera.camera.farClipPlane = distances.distances[math.min(distances.distances.Length - 1, qualityLevel.level)];

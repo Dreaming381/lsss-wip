@@ -6,12 +6,16 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/AI/AI Brain", 0)]
-    public class AiBrainAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class AiBrainAuthoring : MonoBehaviour
     {
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    }
+
+    public class AiBrainBaker : Baker<AiBrainAuthoring>
+    {
+        public override void Bake(AiBrainAuthoring authoring)
         {
-            dstManager.AddComponent<AiGoalOutput>( entity);
-            dstManager.AddComponent<AiTag>(        entity);
+            AddComponent<AiGoalOutput>();
+            AddComponent<AiTag>();
         }
     }
 }

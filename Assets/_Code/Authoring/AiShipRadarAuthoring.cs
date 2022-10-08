@@ -6,7 +6,7 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/AI/Radar")]
-    public class AiShipRadarAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class AiShipRadarAuthoring : MonoBehaviour
     {
         public float fieldOfView                    = 90f;
         public float range                          = 100f;
@@ -16,26 +16,6 @@ namespace Lsss.Authoring
         public float enemyCrossHairsRange           = 50f;
         public float enemyCrossHairsFieldOfView     = 10f;
         public bool  biasCrossHairsUsingRootForward = false;
-
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
-        {
-            quaternion crossHairsForwardDirectionBias = quaternion.identity;
-            if (biasCrossHairsUsingRootForward)
-                crossHairsForwardDirectionBias = quaternion.LookRotationSafe(transform.InverseTransformDirection(transform.root.forward), transform.up);
-            dstManager.AddComponentData(entity, new AiShipRadar
-            {
-                distance                             = range,
-                cosFov                               = math.cos(math.radians(fieldOfView) / 2f),
-                preferredTargetDistance              = preferredTargetDistance,
-                friendCrossHairsDistanceFilter       = friendlyFireDisableRange,
-                friendCrossHairsCosFovFilter         = math.cos(math.radians(friendlyFireDisableFieldOfView) / 2f),
-                nearestEnemyCrossHairsDistanceFilter = enemyCrossHairsRange,
-                nearestEnemyCrossHairsCosFovFilter   = math.cos(math.radians(enemyCrossHairsFieldOfView) / 2f),
-                crossHairsForwardDirectionBias       = crossHairsForwardDirectionBias
-            });
-            dstManager.AddComponent<AiShipRadarScanResults>(entity);
-            dstManager.AddComponent<AiRadarTag>(            entity);
-        }
 
         private void OnDrawGizmos()
         {
@@ -56,6 +36,32 @@ namespace Lsss.Authoring
             bias         = transform.InverseTransformDirection(bias);
             Gizmos.DrawRay(float3.zero, bias * range);
             Gizmos.matrix = mBack;
+        }
+    }
+
+    public class AiShipRadarBaker : Baker<AiShipRadarAuthoring>
+    {
+        public override void Bake(AiShipRadarAuthoring authoring)
+        {
+            quaternion crossHairsForwardDirectionBias = quaternion.identity;
+            if (authoring.biasCrossHairsUsingRootForward)
+            {
+                var transform                  = GetComponent<Transform>();
+                crossHairsForwardDirectionBias = quaternion.LookRotationSafe(transform.InverseTransformDirection(transform.root.forward), transform.up);
+            }
+            AddComponent(new AiShipRadar
+            {
+                distance                             = authoring.range,
+                cosFov                               = math.cos(math.radians(authoring.fieldOfView) / 2f),
+                preferredTargetDistance              = authoring.preferredTargetDistance,
+                friendCrossHairsDistanceFilter       = authoring.friendlyFireDisableRange,
+                friendCrossHairsCosFovFilter         = math.cos(math.radians(authoring.friendlyFireDisableFieldOfView) / 2f),
+                nearestEnemyCrossHairsDistanceFilter = authoring.enemyCrossHairsRange,
+                nearestEnemyCrossHairsCosFovFilter   = math.cos(math.radians(authoring.enemyCrossHairsFieldOfView) / 2f),
+                crossHairsForwardDirectionBias       = crossHairsForwardDirectionBias
+            });
+            AddComponent<AiShipRadarScanResults>();
+            AddComponent<AiRadarTag>();
         }
     }
 }

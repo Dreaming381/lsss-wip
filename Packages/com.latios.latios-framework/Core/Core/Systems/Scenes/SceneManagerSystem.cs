@@ -6,7 +6,6 @@ using UnityEngine.SceneManagement;
 namespace Latios.Systems
 {
     [DisableAutoCreation]
-    [AlwaysUpdateSystem]
     [UpdateInGroup(typeof(LatiosInitializationSystemGroup), OrderFirst = true)]
     [UpdateAfter(typeof(SyncPointPlaybackSystem))]
     public partial class SceneManagerSystem : SubSystem

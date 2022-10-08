@@ -6,23 +6,26 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/AI/Explore Module")]
-    public class AiExploreAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class AiExploreAuthoring : MonoBehaviour
     {
         public float2 spawnForwardDistanceMinMax       = new float2(10f, 20f);
         public float2 wanderDestinationRadiusMinMax    = new float2(3f, 15f);
         public float2 wanderPositionSearchRadiusMinMax = new float2(25f, 100f);
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class AiExploreBaker : Baker<AiExploreAuthoring>
+    {
+        public override void Bake(AiExploreAuthoring authoring)
         {
-            dstManager.AddComponentData(entity, new AiExplorePersonalityInitializerValues
+            AddComponent(new AiExplorePersonalityInitializerValues
             {
-                spawnForwardDistanceMinMax       = spawnForwardDistanceMinMax,
-                wanderDestinationRadiusMinMax    = wanderDestinationRadiusMinMax,
-                wanderPositionSearchRadiusMinMax = wanderPositionSearchRadiusMinMax
+                spawnForwardDistanceMinMax       = authoring.spawnForwardDistanceMinMax,
+                wanderDestinationRadiusMinMax    = authoring.wanderDestinationRadiusMinMax,
+                wanderPositionSearchRadiusMinMax = authoring.wanderPositionSearchRadiusMinMax
             });
-            dstManager.AddComponent<AiExplorePersonality>(entity);
-            dstManager.AddComponent<AiExploreState>(      entity);
-            dstManager.AddComponent<AiExploreOutput>(     entity);
+            AddComponent<AiExplorePersonality>();
+            AddComponent<AiExploreState>();
+            AddComponent<AiExploreOutput>();
         }
     }
 }

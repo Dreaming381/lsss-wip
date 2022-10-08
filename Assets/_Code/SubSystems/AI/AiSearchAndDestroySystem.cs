@@ -6,6 +6,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [BurstCompile]
@@ -22,9 +24,9 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var scanCdfe = state.GetComponentLookup<AiShipRadarScanResults>(true);
-
-            new JobA { scanClu = scanCdfe }.ScheduleParallel();
+            var jobA               = new JobA();
+            jobA.scanResultsLookup = GetComponentLookup<AiShipRadarScanResults>(true);
+            jobA.ScheduleParallel();
             new JobB().ScheduleParallel();
         }
 
@@ -32,11 +34,13 @@ namespace Lsss
         [WithAll(typeof(AiTag))]
         partial struct JobA : IJobEntity
         {
-            [ReadOnly] public ComponentLookup<AiShipRadarScanResults> scanClu;
-
+            [ReadOnly] public ComponentLookup<AiShipRadarScanResults> scanResultsLookup;
             public void Execute(ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity)
             {
-                var scanResults = scanClu[shipRadarEntity.shipRadar];
+                // !!!!!!!!!UNITY FIX THIS!!!!!!!!!!!!!!!!
+                // var scanResults = GetComponent<AiShipRadarScanResults>(shipRadarEntity.shipRadar);
+                //var scanResults = GetComponentLookup<AiShipRadarScanResults>(true)[shipRadarEntity.shipRadar];
+                var scanResults = scanResultsLookup[shipRadarEntity.shipRadar];
                 output.fire     = !scanResults.friendFound && scanResults.nearestEnemy != Entity.Null;
 
                 if (scanResults.target != Entity.Null)

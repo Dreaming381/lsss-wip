@@ -6,6 +6,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [BurstCompile]
@@ -23,10 +25,10 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var mountEntity = new NativeReference<EntityWith<LocalToWorld> >(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
-            var ltwCdfe     = state.GetComponentLookup<LocalToWorld>(true);
 
             new JobA { mountEntity = mountEntity }.Schedule();
-            new JobB { mountEntity = mountEntity, ltwClu = ltwCdfe }.Schedule();
+            var jobB               = new JobB { mountEntity = mountEntity, ltwLookup = GetComponentLookup<LocalToWorld>(true) };
+            jobB.Schedule();
         }
 
         [BurstCompile]
@@ -46,14 +48,16 @@ namespace Lsss
         partial struct JobB : IJobEntity
         {
             public NativeReference<EntityWith<LocalToWorld> > mountEntity;
-            [ReadOnly] public ComponentLookup<LocalToWorld>   ltwClu;
+            [ReadOnly] public ComponentLookup<LocalToWorld>   ltwLookup;
 
             public void Execute(ref Translation translation, ref Rotation rotation)
             {
                 if (mountEntity.Value == Entity.Null)
                     return;
 
-                var ltw           = ltwClu[mountEntity.Value];
+                // !!!!!!!!!!!!!!!!Unity FIX THIS!!!!!!!!!!!!!!!
+                // var ltw           = GetComponent<LocalToWorld>(mountEntity.Value);
+                var ltw           = ltwLookup[mountEntity.Value];
                 translation.Value = ltw.Position;
                 rotation.Value    = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
             }

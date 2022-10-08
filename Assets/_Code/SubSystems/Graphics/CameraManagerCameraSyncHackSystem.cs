@@ -40,14 +40,17 @@ namespace Lsss
             Dependency = default;
             Entities.ForEach((CameraManager manager) =>
             {
+                if (manager.camera == null)
+                    manager.camera = UnityEngine.Camera.main;
+
                 m_transforms.Add(manager.camera.transform);
             }).WithoutBurst().Run();
 
-            var ltws = m_query.ToComponentDataArrayAsync<LocalToWorld>(Allocator.TempJob, out var jh2);
+            var ltws = m_query.ToComponentDataListAsync<LocalToWorld>(Allocator.TempJob, out var jh2);
 
             Dependency = new CopyTransformsJob
             {
-                ltws = ltws
+                ltws = ltws.AsDeferredJobArray()
             }.Schedule(m_transforms, JobHandle.CombineDependencies(jh, jh2));
 
             Dependency = ltws.Dispose(Dependency);

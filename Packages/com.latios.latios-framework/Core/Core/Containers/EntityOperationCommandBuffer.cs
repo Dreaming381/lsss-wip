@@ -26,12 +26,7 @@ namespace Latios
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         //Unfortunately this name is hardcoded into Unity. No idea how EntityCommandBuffer gets away with multiple safety handles.
         AtomicSafetyHandle m_Safety;
-
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<EntityOperationCommandBuffer>();
-
-        [NativeSetClassTypeToNullOnSchedule]
-        //Unfortunately this name is hardcoded into Unity.
-        DisposeSentinel m_DisposeSentinel;
 #endif
 
         private struct State
@@ -67,16 +62,7 @@ namespace Latios
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             CheckAllocator(allocator);
 
-            if (allocator.IsCustomAllocator)
-            {
-                m_Safety = AtomicSafetyHandle.Create();
-                m_DisposeSentinel = null;
-            }
-            else
-            {
-                DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, 2, allocator.ToAllocator);
-            }
-
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
             CollectionHelper.SetStaticSafetyId<EntityOperationCommandBuffer>(ref m_Safety, ref s_staticSafetyId.Data);
             AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
@@ -99,6 +85,10 @@ namespace Latios
             [NativeDisableUnsafePtrRestriction]
             public UnsafeParallelBlockList* blockList;
 
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            internal AtomicSafetyHandle m_Safety;
+#endif
+
             public void Execute()
             {
                 Deallocate(state, blockList);
@@ -112,18 +102,20 @@ namespace Latios
         /// <returns></returns>
         public JobHandle Dispose(JobHandle inputDeps)
         {
+            var jobHandle = new DisposeJob 
+            { 
+                blockList = m_blockList, 
+                state     = m_state,
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            // [DeallocateOnJobCompletion] is not supported, but we want the deallocation
-            // to happen in a thread. DisposeSentinel needs to be cleared on main thread.
-            // AtomicSafetyHandle can be destroyed after the job was scheduled (Job scheduling
-            // will check that no jobs are writing to the container).
-            DisposeSentinel.Clear(ref m_DisposeSentinel);
+                m_Safety = m_Safety
 #endif
-            var jobHandle = new DisposeJob { blockList = m_blockList, state = m_state }.Schedule(inputDeps);
+            }.Schedule(inputDeps);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.Release(m_Safety);
 #endif
+            m_blockList = null;
+            m_state     = null;
             return jobHandle;
         }
 
@@ -133,9 +125,11 @@ namespace Latios
         public void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Dispose(ref m_Safety, ref m_DisposeSentinel);
+            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
 #endif
             Deallocate(m_state, m_blockList);
+            m_blockList = null;
+            m_state     = null;
         }
 
         private static void Deallocate(State* state, UnsafeParallelBlockList* blockList)
@@ -222,19 +216,19 @@ namespace Latios
             else
             {
                 entities.ResizeUninitialized(count);
-                GetEntities(entities);
+                GetEntities(entities.AsArray());
             }
         }
 
         /// <summary>
         /// Returns an array of entities stored in the EntityOperationCommandBuffer ordered by SortKey and their LinkedEntityGroup entities if they have them.
         /// </summary>
-        /// <param name="linkedFEReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
+        /// <param name="linkedLookupReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
         /// <param name="allocator">The allocator to use for the returned NativeArray</param>
         /// <returns>The array of entities stored in the EntityOperationCommandBuffer ordered by SortKey and their LinkedEntityGroup entities if they have them.</returns>
-        public NativeArray<Entity> GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedFEReadOnly, Allocator allocator)
+        public NativeArray<Entity> GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedLookupReadOnly, Allocator allocator)
         {
-            GetLinkedEntitiesInternal(linkedFEReadOnly, out _, Allocator.Temp, out var entities, allocator);
+            GetLinkedEntitiesInternal(linkedLookupReadOnly, out _, Allocator.Temp, out var entities, allocator);
             return entities;
         }
 
@@ -242,39 +236,39 @@ namespace Latios
         /// Returns an array of entities stored in the EntityOperationCommandBuffer ordered by SortKey and their LinkedEntityGroup entities if they have them.
         /// This override also returns the root entities stored in the EntityOperationCommandBuffer as a separate array.
         /// </summary>
-        /// <param name="linkedFEReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
+        /// <param name="linkedLookupReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
         /// <param name="allocator">The allocator to use for the returned NativeArray</param>
         /// <param name="roots">An array of entities in the EntityOperationCommandBuffer excluding their LinkedEntityGroup entities</param>
         /// <returns>The array of entities stored in the EntityOperationCommandBuffer ordered by SortKey and their LinkedEntityGroup entities if they have them.</returns>
-        public NativeArray<Entity> GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedFEReadOnly, Allocator allocator, out NativeArray<Entity> roots)
+        public NativeArray<Entity> GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedLookupReadOnly, Allocator allocator, out NativeArray<Entity> roots)
         {
             CheckReadAccess();
-            GetLinkedEntitiesInternal(linkedFEReadOnly, out roots, allocator, out var entities, allocator);
+            GetLinkedEntitiesInternal(linkedLookupReadOnly, out roots, allocator, out var entities, allocator);
             return entities;
         }
 
         /// <summary>
         /// Fills the native list with entities stored in the EntityOperationCommandBuffer sorted by SortKey and their LinkedEntityGroup entities if they have them.
         /// </summary>
-        /// <param name="linkedFEReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
+        /// <param name="linkedLookupReadOnly">A ReadOnly accessor to the Entities' LinkedEntityGroup</param>
         /// <param name="entities">The list to fill. The list will automatically be resized to fit the new entities.</param>
         /// <param name="append">If true, entities will be appended. If false, the list will be overwritten.</param>
-        public void GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedFEReadOnly, ref NativeList<Entity> entities, bool append = false)
+        public void GetLinkedEntities(BufferLookup<LinkedEntityGroup> linkedLookupReadOnly, ref NativeList<Entity> entities, bool append = false)
         {
             CheckReadAccess();
             var roots = GetEntities(Allocator.Temp);
-            int count = GetLinkedEntitiesCount(linkedFEReadOnly, roots);
+            int count = GetLinkedEntitiesCount(linkedLookupReadOnly, roots);
             if (append)
             {
                 int originalLength = entities.Length;
                 entities.ResizeUninitialized(originalLength + count);
                 var subArray = entities.AsArray().GetSubArray(originalLength, count);
-                GetLinkedEntitiesFill(linkedFEReadOnly, roots, subArray);
+                GetLinkedEntitiesFill(linkedLookupReadOnly, roots, subArray);
             }
             else
             {
                 entities.ResizeUninitialized(count);
-                GetLinkedEntitiesFill(linkedFEReadOnly, roots, entities);
+                GetLinkedEntitiesFill(linkedLookupReadOnly, roots, entities.AsArray());
             }
         }
 
@@ -324,14 +318,14 @@ namespace Latios
             }
         }
 
-        private int GetLinkedEntitiesCount(BufferLookup<LinkedEntityGroup> linkedFE, NativeArray<Entity> roots)
+        private int GetLinkedEntitiesCount(BufferLookup<LinkedEntityGroup> linkedLookup, NativeArray<Entity> roots)
         {
             int count = 0;
             for (int i = 0; i < roots.Length; i++)
             {
-                if (linkedFE.HasComponent(roots[i]))
+                if (linkedLookup.HasBuffer(roots[i]))
                 {
-                    count += linkedFE[roots[i]].Length;
+                    count += linkedLookup[roots[i]].Length;
                 }
                 else
                 {
@@ -341,14 +335,14 @@ namespace Latios
             return count;
         }
 
-        private void GetLinkedEntitiesFill(BufferLookup<LinkedEntityGroup> linkedFE, NativeArray<Entity> roots, NativeArray<Entity> entities)
+        private void GetLinkedEntitiesFill(BufferLookup<LinkedEntityGroup> linkedLookup, NativeArray<Entity> roots, NativeArray<Entity> entities)
         {
             int count = 0;
             for (int i = 0; i < roots.Length; i++)
             {
-                if (linkedFE.HasComponent(roots[i]))
+                if (linkedLookup.HasBuffer(roots[i]))
                 {
-                    var currentGroup = linkedFE[roots[i]];
+                    var currentGroup = linkedLookup[roots[i]];
                     NativeArray<Entity>.Copy(currentGroup.AsNativeArray().Reinterpret<Entity>(), 0, entities, count, currentGroup.Length);
                     count += currentGroup.Length;
                 }
@@ -360,7 +354,7 @@ namespace Latios
             }
         }
 
-        private void GetLinkedEntitiesInternal(BufferLookup<LinkedEntityGroup> linkedFE,
+        private void GetLinkedEntitiesInternal(BufferLookup<LinkedEntityGroup> linkedLookup,
                                                out NativeArray<Entity>             roots,
                                                Allocator rootsAllocator,
                                                out NativeArray<Entity>             linkedEntities,
@@ -368,9 +362,9 @@ namespace Latios
         {
             CheckReadAccess();
             roots          = GetEntities(rootsAllocator);
-            int count      = GetLinkedEntitiesCount(linkedFE, roots);
+            int count      = GetLinkedEntitiesCount(linkedLookup, roots);
             linkedEntities = new NativeArray<Entity>(count, linkedAllocator, NativeArrayOptions.UninitializedMemory);
-            GetLinkedEntitiesFill(linkedFE, roots, linkedEntities);
+            GetLinkedEntitiesFill(linkedLookup, roots, linkedEntities);
         }
         #endregion
 
@@ -456,6 +450,20 @@ namespace Latios
         #endregion
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

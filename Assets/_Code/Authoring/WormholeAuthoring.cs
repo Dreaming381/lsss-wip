@@ -6,25 +6,28 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Objects/Wormhole")]
-    public class WormholeAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class WormholeAuthoring : MonoBehaviour
     {
         public WormholeAuthoring otherEnd;
         public float             swarchschildRadius    = 0.1f;
         public float             maxW                  = 5f;
         public float             gravityWarpZoneRadius = 10f;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class WormholeBaker : Baker<WormholeAuthoring>
+    {
+        public override void Bake(WormholeAuthoring authoring)
         {
-            dstManager.AddComponentData(entity, new WormholeDestination { wormholeDestination = conversionSystem.TryGetPrimaryEntity(otherEnd) });
-            dstManager.AddComponent<WormholeTag>(entity);
+            AddComponent(new WormholeDestination { wormholeDestination = GetEntity(authoring.otherEnd) });
+            AddComponent<WormholeTag>();
 
-            dstManager.AddComponentData(entity, new GravityWarpZone
+            AddComponent(new GravityWarpZone
             {
-                swarchschildRadius = swarchschildRadius,
-                maxW               = maxW
+                swarchschildRadius = authoring.swarchschildRadius,
+                maxW               = authoring.maxW
             });
-            dstManager.AddComponentData(entity, new GravityWarpZoneRadius { radius = gravityWarpZoneRadius });
-            dstManager.AddComponent<GravityWarpZoneTag>(entity);
+            AddComponent(new GravityWarpZoneRadius { radius = authoring.gravityWarpZoneRadius });
+            AddComponent<GravityWarpZoneTag>();
         }
     }
 }

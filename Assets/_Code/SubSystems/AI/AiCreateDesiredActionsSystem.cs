@@ -26,6 +26,7 @@ namespace Lsss
         }
 
         [BurstCompile]
+        [WithNone(typeof(PlayerTag))]
         partial struct Job : IJobEntity
         {
             public void Execute(ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in Translation trans,

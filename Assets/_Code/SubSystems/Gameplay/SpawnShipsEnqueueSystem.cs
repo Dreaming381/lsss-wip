@@ -8,7 +8,6 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    [AlwaysUpdateSystem]
     public partial class SpawnShipsEnqueueSystem : SubSystem
     {
         private struct NewShipTag : IComponentData { }

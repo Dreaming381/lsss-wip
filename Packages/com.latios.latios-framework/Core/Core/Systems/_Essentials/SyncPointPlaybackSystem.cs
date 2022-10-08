@@ -50,7 +50,7 @@ namespace Latios.Systems
         protected override void OnDestroy()
         {
             m_playbackInstances.Clear();
-            JobHandle.CompleteAll(m_jobHandles);
+            JobHandle.CompleteAll(m_jobHandles.AsArray());
             m_jobHandles.Dispose();
             foreach (var ecb in m_entityCommandBuffers)
                 ecb.Dispose();
@@ -73,7 +73,7 @@ namespace Latios.Systems
 
         protected override void OnUpdate()
         {
-            JobHandle.CompleteAll(m_jobHandles);
+            JobHandle.CompleteAll(m_jobHandles.AsArray());
             m_jobHandles.Clear();
             CompleteDependency();
 

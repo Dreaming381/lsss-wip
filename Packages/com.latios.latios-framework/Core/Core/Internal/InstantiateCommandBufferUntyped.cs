@@ -28,10 +28,6 @@ namespace Latios
         AtomicSafetyHandle m_Safety;
 
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<InstantiateCommandBufferUntyped>();
-
-        [NativeSetClassTypeToNullOnSchedule]
-        //Unfortunately this name is hardcoded into Unity.
-        DisposeSentinel m_DisposeSentinel;
 #endif
 
         private struct State
@@ -65,16 +61,7 @@ namespace Latios
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             CheckAllocator(allocator);
 
-            if (allocator.IsCustomAllocator)
-            {
-                m_Safety = AtomicSafetyHandle.Create();
-                m_DisposeSentinel = null;
-            }
-            else
-            {
-                DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, 2, allocator.ToAllocator);
-            }
-
+            m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
             CollectionHelper.SetStaticSafetyId<EntityOperationCommandBuffer>(ref m_Safety, ref s_staticSafetyId.Data);
             AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
@@ -116,6 +103,10 @@ namespace Latios
             [NativeDisableUnsafePtrRestriction]
             public UnsafeParallelBlockList* componentDataBlockList;
 
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            internal AtomicSafetyHandle m_Safety;
+#endif
+
             public void Execute()
             {
                 Deallocate(state, prefabSortkeyBlockList, componentDataBlockList);
@@ -124,30 +115,29 @@ namespace Latios
 
         public JobHandle Dispose(JobHandle inputDeps)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            // [DeallocateOnJobCompletion] is not supported, but we want the deallocation
-            // to happen in a thread. DisposeSentinel needs to be cleared on main thread.
-            // AtomicSafetyHandle can be destroyed after the job was scheduled (Job scheduling
-            // will check that no jobs are writing to the container).
-            DisposeSentinel.Clear(ref m_DisposeSentinel);
-#endif
             var jobHandle = new DisposeJob
             {
                 prefabSortkeyBlockList = m_prefabSortkeyBlockList,
                 componentDataBlockList = m_componentDataBlockList,
-                state                  = m_state
+                state                  = m_state,
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                m_Safety = m_Safety
+#endif
             }.Schedule(inputDeps);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.Release(m_Safety);
 #endif
+            m_state                  = null;
+            m_componentDataBlockList = null;
+            m_prefabSortkeyBlockList = null;
             return jobHandle;
         }
 
         public void Dispose()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            DisposeSentinel.Dispose(ref m_Safety, ref m_DisposeSentinel);
+            CollectionHelper.DisposeSafetyHandle(ref m_Safety);
 #endif
             Deallocate(m_state, m_prefabSortkeyBlockList, m_componentDataBlockList);
         }
@@ -273,10 +263,10 @@ namespace Latios
             var chunkJob = new WriteComponentDataJob
             {
                 icb               = this,
-                chunks            = chunks,
-                chunkRanges       = chunkRanges,
-                indicesInChunks   = indicesInChunks,
-                componentDataPtrs = componentDataPtrs,
+                chunks            = chunks.AsArray(),
+                chunkRanges       = chunkRanges.AsArray(),
+                indicesInChunks   = indicesInChunks.AsArray(),
+                componentDataPtrs = componentDataPtrs.AsArray(),
                 entityHandle      = entityManager.GetEntityTypeHandle(),
                 t0                = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[0]))
             };
@@ -409,8 +399,8 @@ namespace Latios
                     //eet.EntityManager.AddComponents(firstEntity, typesWithDataToAdd);
                     //eet.EntityManager.AddComponents(firstEntity, icb.m_state->tagsToAdd);
                     var firstEntity = em.Instantiate(sortedPrefabs[i]);
-                    em.AddComponents(firstEntity, typesWithDataToAdd);
-                    em.AddComponents(firstEntity, icb.m_state->tagsToAdd);
+                    em.AddComponent(firstEntity, typesWithDataToAdd);
+                    em.AddComponent(firstEntity, icb.m_state->tagsToAdd);
                     instantiatedEntities[startIndex] = firstEntity;
                     startIndex++;
 
@@ -878,6 +868,12 @@ namespace Latios
         #endregion
     }
 }
+
+
+
+
+
+
 
 
 

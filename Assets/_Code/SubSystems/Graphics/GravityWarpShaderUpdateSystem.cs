@@ -53,7 +53,7 @@ namespace Lsss
                     transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position),
                     entity    = entity
                 };
-            }).ScheduleParallel();
+            }).WithStoreEntityQueryInField(ref m_warpedQuery).ScheduleParallel();
 
             Dependency = Physics.BuildCollisionLayer(warpedBodies, warpedAabbs)
                          .WithSettings(settings)
@@ -61,10 +61,10 @@ namespace Lsss
 
             ApplyWarpZoneDataProcessor processor = new ApplyWarpZoneDataProcessor
             {
-                boundsCdfe         = GetComponentLookup<RenderBounds>(),
-                positionRadiusCdfe = GetComponentLookup<GravityWarpZonePositionRadiusProperty>(),
-                paramsCdfe         = GetComponentLookup<GravityWarpZoneParamsProperty>(),
-                warpZoneCdfe       = GetComponentLookup<GravityWarpZone>()
+                boundsLookup         = GetComponentLookup<RenderBounds>(),
+                positionRadiusLookup = GetComponentLookup<GravityWarpZonePositionRadiusProperty>(),
+                paramsLookup         = GetComponentLookup<GravityWarpZoneParamsProperty>(),
+                warpZoneLookup       = GetComponentLookup<GravityWarpZone>()
             };
 
             Dependency       = Physics.FindPairs(warpZoneLayer, warpedLayer, processor).ScheduleParallel(Dependency);
@@ -83,32 +83,32 @@ namespace Lsss
         //Assumes warpZone is A
         struct ApplyWarpZoneDataProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<RenderBounds>                          boundsCdfe;
-            public PhysicsComponentLookup<GravityWarpZonePositionRadiusProperty> positionRadiusCdfe;
-            public PhysicsComponentLookup<GravityWarpZoneParamsProperty>         paramsCdfe;
-            [ReadOnly] public ComponentLookup<GravityWarpZone>                   warpZoneCdfe;
+            public PhysicsComponentLookup<RenderBounds>                          boundsLookup;
+            public PhysicsComponentLookup<GravityWarpZonePositionRadiusProperty> positionRadiusLookup;
+            public PhysicsComponentLookup<GravityWarpZoneParamsProperty>         paramsLookup;
+            [ReadOnly] public ComponentLookup<GravityWarpZone>                   warpZoneLookup;
 
             public void Execute(in FindPairsResult result)
             {
                 SphereCollider sphere = result.bodyA.collider;
-                var            bounds = boundsCdfe[result.entityB];
+                var            bounds = boundsLookup[result.entityB];
 
-                boundsCdfe[result.entityB] = new RenderBounds {
-                    Value                  = new AABB {
-                        Center             = sphere.center,
-                        Extents            = sphere.radius + math.abs(bounds.Value.Center) + bounds.Value.Extents
+                boundsLookup[result.entityB] = new RenderBounds {
+                    Value                    = new AABB {
+                        Center               = sphere.center,
+                        Extents              = sphere.radius + math.abs(bounds.Value.Center) + bounds.Value.Extents
                     }
                 };
 
-                var warpZone               = warpZoneCdfe[result.entityA];
-                paramsCdfe[result.entityB] = new GravityWarpZoneParamsProperty
+                var warpZone                 = warpZoneLookup[result.entityA];
+                paramsLookup[result.entityB] = new GravityWarpZoneParamsProperty
                 {
                     active             = 1f,
                     swarchschildRadius = warpZone.swarchschildRadius,
                     maxW               = warpZone.maxW,
                 };
 
-                positionRadiusCdfe[result.entityB] = new GravityWarpZonePositionRadiusProperty { position = result.bodyA.transform.pos, radius = sphere.radius };
+                positionRadiusLookup[result.entityB] = new GravityWarpZonePositionRadiusProperty { position = result.bodyA.transform.pos, radius = sphere.radius };
             }
         }
     }

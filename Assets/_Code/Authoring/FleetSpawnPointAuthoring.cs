@@ -7,26 +7,19 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Spawning/Fleet Spawner")]
-    public class FleetSpawnPointAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
+    public class FleetSpawnPointAuthoring : MonoBehaviour
     {
-        public FactionAuthoring           faction;
+        public FactionAuthoring           faction;  // Read by slots
         public SpawnPointGraphicAuthoring spawnPointGraphic;
-        public float                      lifeTime = 15f;
+    }
 
-        //We don't actually declare any referenced prefabs. We are just using this to modify the spawnPointGraphic before it gets converted.
-        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
+    public class FleetSpawnPointBaker : Baker<FleetSpawnPointAuthoring>
+    {
+        public override void Bake(FleetSpawnPointAuthoring authoring)
         {
-            spawnPointGraphic.lifeTime  = lifeTime;
-            spawnPointGraphic.growTime  = 0f;
-            spawnPointGraphic.growSpins = 0f;
-            spawnPointGraphic.spawnTime = 0f;
-        }
-
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
-        {
-            dstManager.AddComponentData(entity, new TimeToLive { timeToLive = lifeTime });
-            dstManager.AddComponent<FleetSpawnPointTag>(entity);
-            conversionSystem.DeclareLinkedEntityGroup(gameObject);
+            GetComponent<SpawnPointGraphicAuthoring>(authoring.spawnPointGraphic);
+            AddComponent(new TimeToLive { timeToLive = authoring.spawnPointGraphic.lifeTime });
+            AddComponent<FleetSpawnPointTag>();
         }
     }
 }

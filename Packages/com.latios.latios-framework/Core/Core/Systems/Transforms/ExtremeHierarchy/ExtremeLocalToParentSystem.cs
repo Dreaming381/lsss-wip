@@ -1,5 +1,6 @@
 using Latios.Unsafe;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -35,6 +36,8 @@ namespace Latios.Systems
         ComponentTypeHandle<LocalToParent>  m_ltpHandle;
         ComponentTypeHandle<PreviousParent> m_parentHandle;
         ComponentTypeHandle<LocalToWorld>   m_ltwHandle;
+        BufferTypeHandle<Child>             m_childHandle;
+        EntityTypeHandle                    m_entityHandle;
 
         public void OnCreate(ref SystemState state)
         {
@@ -49,6 +52,8 @@ namespace Latios.Systems
             m_ltpHandle       = state.GetComponentTypeHandle<LocalToParent>(true);
             m_parentHandle    = state.GetComponentTypeHandle<PreviousParent>(true);
             m_ltwHandle       = state.GetComponentTypeHandle<LocalToWorld>(false);
+            m_childHandle     = state.GetBufferTypeHandle<Child>(true);
+            m_entityHandle    = state.GetEntityTypeHandle();
         }
 
         public bool ShouldUpdateSystem(ref SystemState state)
@@ -66,11 +71,13 @@ namespace Latios.Systems
             m_headerHandle.Update(ref state);
             m_depthMaskHandle.Update(ref state);
             m_depthHandle.Update(ref state);
-            var entityHandle = state.GetEntityTypeHandle();
+            m_entityHandle.Update(ref state);
             m_ltpHandle.Update(ref state);
             m_parentHandle.Update(ref state);
             m_ltwHandle.Update(ref state);
-            var ltwCdfe = state.GetComponentLookup<LocalToWorld>(false);
+            m_childHandle.Update(ref state);
+            m_entityHandle.Update(ref state);
+            var ltwLookup = SystemAPI.GetComponentLookup<LocalToWorld>(false);
 
             state.Dependency = new AllocateBlockListsJob
             {
@@ -88,7 +95,7 @@ namespace Latios.Systems
             {
                 chunkBlockLists = blockLists,
                 chunkListArray  = chunkListArray
-            }.Schedule(kMaxDepthIterations, 1, state.Dependency);
+            }.ScheduleParallel(kMaxDepthIterations, 1, state.Dependency);
 
             for (int i = 0; i < kMaxDepthIterations; i++)
             {
@@ -99,10 +106,10 @@ namespace Latios.Systems
                     depth             = i,
                     depthHandle       = m_depthHandle,
                     depthMaskHandle   = m_depthMaskHandle,
-                    entityHandle      = entityHandle,
+                    entityHandle      = m_entityHandle,
                     lastSystemVersion = state.LastSystemVersion,
                     ltpHandle         = m_ltpHandle,
-                    ltwCdfe           = ltwCdfe,
+                    ltwLookup         = ltwLookup,
                     parentHandle      = m_parentHandle,
                     shouldUpdateMask  = m_childWithParentDependencyMask
                 }.Schedule(chunkList, 1, state.Dependency);
@@ -114,7 +121,7 @@ namespace Latios.Systems
                     depthHandle     = m_depthHandle,
                     depthMaskHandle = m_depthMaskHandle,
                     ltpHandle       = m_ltpHandle,
-                    ltwCdfe         = ltwCdfe,
+                    ltwLookup       = ltwLookup,
                     ltwHandle       = m_ltwHandle,
                     parentHandle    = m_parentHandle
                 }.Schedule(chunkList, 1, state.Dependency);
@@ -124,17 +131,17 @@ namespace Latios.Systems
 
             state.Dependency = new UpdateMatricesOfDeepChildrenJob
             {
-                childBfe          = state.GetBufferLookup<Child>(true),
-                childHandle       = state.GetBufferTypeHandle<Child>(true),
+                childLookup       = SystemAPI.GetBufferLookup<Child>(true),
+                childHandle       = m_childHandle,
                 chunkList         = finalChunkList.AsDeferredJobArray(),
                 depthHandle       = m_depthHandle,
                 depthLevel        = kMaxDepthIterations - 1,
                 lastSystemVersion = state.LastSystemVersion,
-                ltpCdfe           = state.GetComponentLookup<LocalToParent>(true),
-                ltwCdfe           = ltwCdfe,
+                ltpLookup         = SystemAPI.GetComponentLookup<LocalToParent>(true),
+                ltwLookup         = ltwLookup,
                 ltwHandle         = m_ltwHandle,
                 ltwWriteGroupMask = m_childWithParentDependencyMask,
-                parentCdfe        = state.GetComponentLookup<PreviousParent>(true)
+                parentLookup      = SystemAPI.GetComponentLookup<PreviousParent>(true)
             }.Schedule(finalChunkList, 1, state.Dependency);
         }
 
@@ -221,7 +228,7 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct ClassifyChunksAndResetMasksJob : IJobEntityBatch
+        struct ClassifyChunksAndResetMasksJob : IJobChunk
         {
             [ReadOnly] public ComponentTypeHandle<ChunkHeader> headerHandle;
             public ComponentTypeHandle<ChunkDepthMask>         depthMaskHandle;
@@ -232,12 +239,12 @@ namespace Latios.Systems
             [NativeSetThreadIndex]
             int threadIndex;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var headers    = batchInChunk.GetNativeArray(headerHandle);
-                var depthMasks = batchInChunk.GetNativeArray(depthMaskHandle);
+                var headers    = chunk.GetNativeArray(headerHandle);
+                var depthMasks = chunk.GetNativeArray(depthMaskHandle);
 
-                for (int i = 0; i < batchInChunk.Count; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     var mask                   = depthMasks[i];
                     mask.chunkDepthMask.Value &= 0xffff;
@@ -255,7 +262,7 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        struct FlattenBlocklistsJob : IJobParallelFor
+        struct FlattenBlocklistsJob : IJobFor
         {
             public NativeArray<UnsafeParallelBlockList>                 chunkBlockLists;
             [NativeDisableParallelForRestriction] public ChunkListArray chunkListArray;
@@ -278,7 +285,7 @@ namespace Latios.Systems
             [ReadOnly] public ComponentTypeHandle<PreviousParent> parentHandle;
             [ReadOnly] public ComponentTypeHandle<Depth>          depthHandle;
             [ReadOnly] public EntityTypeHandle                    entityHandle;
-            [ReadOnly] public ComponentLookup<LocalToWorld>       ltwCdfe;
+            [ReadOnly] public ComponentLookup<LocalToWorld>       ltwLookup;
 
             public ComponentTypeHandle<ChunkDepthMask> depthMaskHandle;
 
@@ -310,7 +317,7 @@ namespace Latios.Systems
                         if (depth == depths[i].depth)
                         {
                             var parent = parents[i].Value;
-                            if (ltwCdfe.DidChange(parent, lastSystemVersion))
+                            if (ltwLookup.DidChange(parent, lastSystemVersion))
                             {
                                 SetNeedsUpdate(chunk);
                                 return;
@@ -337,7 +344,7 @@ namespace Latios.Systems
             [ReadOnly] public ComponentTypeHandle<LocalToParent>  ltpHandle;
             [ReadOnly] public ComponentTypeHandle<PreviousParent> parentHandle;
             [ReadOnly] public ComponentTypeHandle<Depth>          depthHandle;
-            [ReadOnly] public ComponentLookup<LocalToWorld>       ltwCdfe;
+            [ReadOnly] public ComponentLookup<LocalToWorld>       ltwLookup;
 
             [ReadOnly] public ComponentTypeHandle<ChunkDepthMask> depthMaskHandle;
 
@@ -358,7 +365,7 @@ namespace Latios.Systems
                 {
                     if (depth == depths[i].depth)
                     {
-                        ltws[i] = new LocalToWorld { Value = math.mul(ltwCdfe[parents[i].Value].Value, ltps[i].Value) };
+                        ltws[i] = new LocalToWorld { Value = math.mul(ltwLookup[parents[i].Value].Value, ltps[i].Value) };
                     }
                 }
             }
@@ -371,15 +378,15 @@ namespace Latios.Systems
             [ReadOnly] public ComponentTypeHandle<LocalToWorld> ltwHandle;
             [ReadOnly] public ComponentTypeHandle<Depth>        depthHandle;
             [ReadOnly] public BufferTypeHandle<Child>           childHandle;
-            [ReadOnly] public BufferLookup<Child>               childBfe;
-            [ReadOnly] public ComponentLookup<LocalToParent>    ltpCdfe;
-            [ReadOnly] public ComponentLookup<PreviousParent>   parentCdfe;
+            [ReadOnly] public BufferLookup<Child>               childLookup;
+            [ReadOnly] public ComponentLookup<LocalToParent>    ltpLookup;
+            [ReadOnly] public ComponentLookup<PreviousParent>   parentLookup;
             [ReadOnly] public EntityQueryMask                   ltwWriteGroupMask;
             public uint                                         lastSystemVersion;
             public int                                          depthLevel;
 
             [NativeDisableContainerSafetyRestriction]
-            public ComponentLookup<LocalToWorld> ltwCdfe;
+            public ComponentLookup<LocalToWorld> ltwLookup;
 
             void ChildLocalToWorld(ref float4x4 parentLocalToWorld,
                                    Entity entity,
@@ -388,8 +395,8 @@ namespace Latios.Systems
                                    ref bool parentLtwValid,
                                    bool parentsChildBufferChanged)
             {
-                updateChildrenTransform = updateChildrenTransform || ltpCdfe.DidChange(entity, lastSystemVersion);
-                updateChildrenTransform = updateChildrenTransform || (parentsChildBufferChanged && parentCdfe.DidChange(entity, lastSystemVersion));
+                updateChildrenTransform = updateChildrenTransform || ltpLookup.DidChange(entity, lastSystemVersion);
+                updateChildrenTransform = updateChildrenTransform || (parentsChildBufferChanged && parentLookup.DidChange(entity, lastSystemVersion));
 
                 float4x4 localToWorldMatrix = default;
                 bool     ltwIsValid         = false;
@@ -399,22 +406,22 @@ namespace Latios.Systems
                 {
                     if (!parentLtwValid)
                     {
-                        parentLocalToWorld = ltwCdfe[parent].Value;
+                        parentLocalToWorld = ltwLookup[parent].Value;
                         parentLtwValid     = true;
                     }
-                    var localToParent  = ltpCdfe[entity];
+                    var localToParent  = ltpLookup[entity];
                     localToWorldMatrix = math.mul(parentLocalToWorld, localToParent.Value);
                     ltwIsValid         = true;
-                    ltwCdfe[entity]    = new LocalToWorld { Value = localToWorldMatrix };
+                    ltwLookup[entity]  = new LocalToWorld { Value = localToWorldMatrix };
                 }
                 else if (!isDependent)  //This entity has a component with the WriteGroup(LocalToWorld)
                 {
-                    updateChildrenTransform = updateChildrenTransform || ltwCdfe.DidChange(entity, lastSystemVersion);
+                    updateChildrenTransform = updateChildrenTransform || ltwLookup.DidChange(entity, lastSystemVersion);
                 }
-                if (childBfe.HasComponent(entity))
+                if (childLookup.HasBuffer(entity))
                 {
-                    var children        = childBfe[entity];
-                    var childrenChanged = updateChildrenTransform || childBfe.DidChange(entity, lastSystemVersion);
+                    var children        = childLookup[entity];
+                    var childrenChanged = updateChildrenTransform || childLookup.DidChange(entity, lastSystemVersion);
                     for (int i = 0; i < children.Length; i++)
                     {
                         ChildLocalToWorld(ref localToWorldMatrix, children[i].Value, updateChildrenTransform, entity, ref ltwIsValid, childrenChanged);

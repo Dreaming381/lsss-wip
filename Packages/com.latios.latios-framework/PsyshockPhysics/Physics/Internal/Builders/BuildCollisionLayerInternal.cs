@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -22,15 +23,19 @@ namespace Latios.Psyshock
         //Parallel
         //Calculate RigidTransform, AABB, and target bucket. Write the targetBucket as the layerIndex
         [BurstCompile]
-        public struct Part1FromQueryJob : IJobEntityBatchWithIndex
+        public struct Part1FromQueryJob : IJobChunk
         {
-            public CollisionLayer                            layer;
-            [NoAlias] public NativeArray<int>                layerIndices;
-            [NoAlias] public NativeArray<ColliderAoSData>    colliderAoS;
-            [NoAlias] public NativeArray<float2>             xMinMaxs;
-            [ReadOnly] public BuildCollisionLayerTypeHandles typeGroup;
-            public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+            [ReadOnly] public CollisionLayer                                                   layer;
+            [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int>             layerIndices;
+            [NoAlias, NativeDisableParallelForRestriction] public NativeArray<ColliderAoSData> colliderAoS;
+            [NoAlias, NativeDisableParallelForRestriction] public NativeArray<float2>          xMinMaxs;
+            [ReadOnly] public BuildCollisionLayerTypeHandles                                   typeGroup;
+            [ReadOnly, DeallocateOnJobCompletion] public NativeArray<int>                      firstEntityInChunkIndices;
+
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                var firstEntityIndex = firstEntityInChunkIndices[unfilteredChunkIndex];
+
                 bool ltw = chunk.Has(typeGroup.localToWorld);
                 bool p   = chunk.Has(typeGroup.parent);
                 bool t   = chunk.Has(typeGroup.translation);
@@ -45,14 +50,14 @@ namespace Latios.Psyshock
 
                 switch (mask)
                 {
-                    case 0x0: ProcessNoTransform(ref chunk, firstEntityIndex); break;
-                    case 0x1: ProcessScale(ref chunk, firstEntityIndex); break;
-                    case 0x2: ProcessRotation(ref chunk, firstEntityIndex); break;
-                    case 0x3: ProcessRotationScale(ref chunk, firstEntityIndex); break;
-                    case 0x4: ProcessTranslation(ref chunk, firstEntityIndex); break;
-                    case 0x5: ProcessTranslationScale(ref chunk, firstEntityIndex); break;
-                    case 0x6: ProcessTranslationRotation(ref chunk, firstEntityIndex); break;
-                    case 0x7: ProcessTranslationRotationScale(ref chunk, firstEntityIndex); break;
+                    case 0x0: ProcessNoTransform(in chunk, firstEntityIndex); break;
+                    case 0x1: ProcessScale(in chunk, firstEntityIndex); break;
+                    case 0x2: ProcessRotation(in chunk, firstEntityIndex); break;
+                    case 0x3: ProcessRotationScale(in chunk, firstEntityIndex); break;
+                    case 0x4: ProcessTranslation(in chunk, firstEntityIndex); break;
+                    case 0x5: ProcessTranslationScale(in chunk, firstEntityIndex); break;
+                    case 0x6: ProcessTranslationRotation(in chunk, firstEntityIndex); break;
+                    case 0x7: ProcessTranslationRotationScale(in chunk, firstEntityIndex); break;
 
                     case 0x8: ErrorCase(); break;
                     case 0x9: ErrorCase(); break;
@@ -63,23 +68,23 @@ namespace Latios.Psyshock
                     case 0xe: ErrorCase(); break;
                     case 0xf: ErrorCase(); break;
 
-                    case 0x10: ProcessLocalToWorld(ref chunk, firstEntityIndex); break;
-                    case 0x11: ProcessScale(ref chunk, firstEntityIndex); break;
-                    case 0x12: ProcessRotation(ref chunk, firstEntityIndex); break;
-                    case 0x13: ProcessRotationScale(ref chunk, firstEntityIndex); break;
-                    case 0x14: ProcessTranslation(ref chunk, firstEntityIndex); break;
-                    case 0x15: ProcessTranslationScale(ref chunk, firstEntityIndex); break;
-                    case 0x16: ProcessTranslationRotation(ref chunk, firstEntityIndex); break;
-                    case 0x17: ProcessTranslationRotationScale(ref chunk, firstEntityIndex); break;
+                    case 0x10: ProcessLocalToWorld(in chunk, firstEntityIndex); break;
+                    case 0x11: ProcessScale(in chunk, firstEntityIndex); break;
+                    case 0x12: ProcessRotation(in chunk, firstEntityIndex); break;
+                    case 0x13: ProcessRotationScale(in chunk, firstEntityIndex); break;
+                    case 0x14: ProcessTranslation(in chunk, firstEntityIndex); break;
+                    case 0x15: ProcessTranslationScale(in chunk, firstEntityIndex); break;
+                    case 0x16: ProcessTranslationRotation(in chunk, firstEntityIndex); break;
+                    case 0x17: ProcessTranslationRotationScale(in chunk, firstEntityIndex); break;
 
-                    case 0x18: ProcessParent(ref chunk, firstEntityIndex); break;
-                    case 0x19: ProcessParentScale(ref chunk, firstEntityIndex); break;
-                    case 0x1a: ProcessParent(ref chunk, firstEntityIndex); break;
-                    case 0x1b: ProcessParentScale(ref chunk, firstEntityIndex); break;
-                    case 0x1c: ProcessParent(ref chunk, firstEntityIndex); break;
-                    case 0x1d: ProcessParentScale(ref chunk, firstEntityIndex); break;
-                    case 0x1e: ProcessParent(ref chunk, firstEntityIndex); break;
-                    case 0x1f: ProcessParentScale(ref chunk, firstEntityIndex); break;
+                    case 0x18: ProcessParent(in chunk, firstEntityIndex); break;
+                    case 0x19: ProcessParentScale(in chunk, firstEntityIndex); break;
+                    case 0x1a: ProcessParent(in chunk, firstEntityIndex); break;
+                    case 0x1b: ProcessParentScale(in chunk, firstEntityIndex); break;
+                    case 0x1c: ProcessParent(in chunk, firstEntityIndex); break;
+                    case 0x1d: ProcessParentScale(in chunk, firstEntityIndex); break;
+                    case 0x1e: ProcessParent(in chunk, firstEntityIndex); break;
+                    case 0x1f: ProcessParentScale(in chunk, firstEntityIndex); break;
 
                     default: ErrorCase(); break;
                 }
@@ -91,7 +96,7 @@ namespace Latios.Psyshock
                 throw new System.InvalidOperationException("BuildCollisionLayer.Part1FromQueryJob received an invalid EntityQuery");
             }
 
-            private void ProcessNoTransform(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessNoTransform(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -101,7 +106,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessScale(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessScale(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -113,7 +118,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessRotation(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessRotation(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -125,7 +130,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessRotationScale(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessRotationScale(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities  = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders = chunk.GetNativeArray(typeGroup.collider);
@@ -139,7 +144,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessTranslation(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslation(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -151,7 +156,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessTranslationScale(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslationScale(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -165,7 +170,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessTranslationRotation(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslationRotation(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -178,7 +183,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessTranslationRotationScale(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessTranslationRotationScale(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities     = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders    = chunk.GetNativeArray(typeGroup.collider);
@@ -193,7 +198,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessLocalToWorld(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessLocalToWorld(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities      = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders     = chunk.GetNativeArray(typeGroup.collider);
@@ -208,7 +213,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessParent(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessParent(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities      = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders     = chunk.GetNativeArray(typeGroup.collider);
@@ -223,7 +228,7 @@ namespace Latios.Psyshock
                 }
             }
 
-            private void ProcessParentScale(ref ArchetypeChunk chunk, int firstEntityIndex)
+            private void ProcessParentScale(in ArchetypeChunk chunk, int firstEntityIndex)
             {
                 var chunkEntities      = chunk.GetNativeArray(typeGroup.entity);
                 var chunkColliders     = chunk.GetNativeArray(typeGroup.collider);

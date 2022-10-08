@@ -615,13 +615,15 @@ namespace Latios.Psyshock
                                                                                                                              Allocator.TempJob,
                                                                                                                              NativeArrayOptions.UninitializedMemory);
 
-                jh = new BuildCollisionLayerInternal.Part1FromQueryJob
+                var part1Indices = config.query.CalculateBaseEntityIndexArrayAsync(Allocator.TempJob, jh, out jh);
+                jh               = new BuildCollisionLayerInternal.Part1FromQueryJob
                 {
-                    layer        = layer,
-                    typeGroup    = config.typeGroup,
-                    layerIndices = layerIndices,
-                    xMinMaxs     = xMinMaxs,
-                    colliderAoS  = aos
+                    layer                     = layer,
+                    typeGroup                 = config.typeGroup,
+                    layerIndices              = layerIndices,
+                    xMinMaxs                  = xMinMaxs,
+                    colliderAoS               = aos,
+                    firstEntityInChunkIndices = part1Indices
                 }.ScheduleParallel(config.query, jh);
 
                 jh = new BuildCollisionLayerInternal.Part2Job

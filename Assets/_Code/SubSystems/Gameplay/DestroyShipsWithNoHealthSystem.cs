@@ -1,5 +1,6 @@
 ﻿using Latios;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -53,7 +54,7 @@ namespace Lsss
         }
 
         [BurstCompile]
-        struct DestroyJob : IJobEntityBatch
+        struct DestroyJob : IJobChunk
         {
             [ReadOnly] public EntityTypeHandle                         entityHandle;
             [ReadOnly] public ComponentTypeHandle<ShipHealth>          healthHandle;
@@ -66,23 +67,23 @@ namespace Lsss
             public float dt;
             public uint  lastSystemVersion;
 
-            public void Execute(ArchetypeChunk batchInChunk, int batchIndex)
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                if (!batchInChunk.DidChange(healthHandle, lastSystemVersion))
+                if (!chunk.DidChange(healthHandle, lastSystemVersion))
                     return;
 
-                var entities         = batchInChunk.GetNativeArray(entityHandle);
-                var healths          = batchInChunk.GetNativeArray(healthHandle);
-                var explosionPrefabs = batchInChunk.GetNativeArray(explosionPrefabHandle);
-                var ltws             = batchInChunk.GetNativeArray(ltwHandle);
+                var entities         = chunk.GetNativeArray(entityHandle);
+                var healths          = chunk.GetNativeArray(healthHandle);
+                var explosionPrefabs = chunk.GetNativeArray(explosionPrefabHandle);
+                var ltws             = chunk.GetNativeArray(ltwHandle);
 
-                for (int i = 0; i < batchInChunk.Count; i++)
+                for (int i = 0; i < chunk.Count; i++)
                 {
                     if (healths[i].health <= 0f)
                     {
-                        dcb.Add(entities[i], batchIndex);
+                        dcb.Add(entities[i], unfilteredChunkIndex);
                         if (explosionPrefabs[i].explosionPrefab != Entity.Null)
-                            icb.Add(explosionPrefabs[i].explosionPrefab, new Translation { Value = ltws[i].Position }, batchIndex);
+                            icb.Add(explosionPrefabs[i].explosionPrefab, new Translation { Value = ltws[i].Position }, unfilteredChunkIndex);
                     }
                 }
             }

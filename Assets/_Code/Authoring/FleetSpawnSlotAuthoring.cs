@@ -6,30 +6,27 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Spawning/Fleet Spawner Slot")]
-    public class FleetSpawnSlotAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class FleetSpawnSlotAuthoring : MonoBehaviour
     {
         public bool spawnPlayer = false;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class FleetSpawnSlotBaker : Baker<FleetSpawnSlotAuthoring>
+    {
+        public override void Bake(FleetSpawnSlotAuthoring authoring)
         {
-            FleetSpawnPointAuthoring fleetSpawner   = null;
-            var                      fleetTransform = transform;
-            while (fleetSpawner == null && fleetTransform != null)
-            {
-                fleetSpawner   = fleetTransform.GetComponent<FleetSpawnPointAuthoring>();
-                fleetTransform = fleetTransform.parent;
-            }
+            var fleetSpawner = GetComponentInParent<FleetSpawnPointAuthoring>();
 
             if (fleetSpawner == null)
             {
-                Debug.LogWarning("FleetSpawnSlot was created without a parent FleetSpawnPoint and was not converted");
+                Debug.LogWarning("FleetSpawnSlot was created without a parent FleetSpawnPoint and was not baked");
                 return;
             }
 
-            dstManager.AddSharedComponentManaged(entity, new FactionMember { factionEntity = conversionSystem.GetPrimaryEntity(fleetSpawner.faction) });
-            dstManager.AddComponent<FleetSpawnSlotTag>(entity);
-            if (spawnPlayer)
-                dstManager.AddComponent<FleetSpawnPlayerSlotTag>(entity);
+            AddComponent(new FleetSpawnSlotFactionReference { factionEntity = GetEntity(fleetSpawner.faction) });
+            AddComponent<FleetSpawnSlotTag>();
+            if (authoring.spawnPlayer)
+                AddComponent<FleetSpawnPlayerSlotTag>();
         }
     }
 }

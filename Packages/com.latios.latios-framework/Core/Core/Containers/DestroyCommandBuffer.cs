@@ -75,7 +75,7 @@ namespace Latios
             RunPrepInJob(ref ran, ref entities);
             if (ran)
             {
-                entityManager.DestroyEntity(entities);
+                entityManager.DestroyEntity(entities.AsArray());
                 entities.Dispose();
             }
             else

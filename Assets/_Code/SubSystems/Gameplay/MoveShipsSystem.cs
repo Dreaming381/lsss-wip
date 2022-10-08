@@ -7,6 +7,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [BurstCompile]
@@ -24,7 +26,7 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dt          = SystemAPI.Time.DeltaTime;
+            var dt          = Time.DeltaTime;
             var arenaRadius = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius;
 
             new Job { dt = dt, arenaRadius = arenaRadius }.ScheduleParallel();

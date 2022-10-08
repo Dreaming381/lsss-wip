@@ -18,6 +18,8 @@ namespace Lsss.Authoring
 
         private Mesh m_mesh;
 
+        public Mesh GeneratedMesh => m_mesh;
+
         public float         m_height = 2f;
         public float         m_radius = 0.5f;
         public DirectionAxis m_axis   = DirectionAxis.Y;
@@ -31,6 +33,20 @@ namespace Lsss.Authoring
         private void OnValidate()
         {
             ProcessMesh();
+        }
+
+        private void Awake()
+        {
+            ProcessMesh();
+        }
+
+        public static bool StaticMeshNull => s_srcCapsuleMesh == null;
+        public static void SetStaticMesh(Mesh mesh)
+        {
+            if (s_srcCapsuleMesh != null)
+                return;
+
+            s_srcCapsuleMesh = mesh;
         }
 
         public void ProcessMesh(bool runtime = false)
@@ -60,8 +76,16 @@ namespace Lsss.Authoring
 
             bool dirty = false;
 
+            char axname          = m_axis == DirectionAxis.X ? 'x' : m_axis == DirectionAxis.Y ? 'y' : 'z';
+            var  capsuleMeshName = $"capsule_{axname}_{m_radius}_{m_height}";
+
             var mfmesh = GetComponent<MeshFilter>().sharedMesh;
-            if (m_mesh != mfmesh || mfmesh == null || runtime)
+            if (mfmesh != null && m_mesh == null && capsuleMeshName == mfmesh.name)
+            {
+                m_mesh = mfmesh;
+                return;
+            }
+            if (m_mesh == null || capsuleMeshName != m_mesh.name || mfmesh == null || m_mesh.name != mfmesh.name || runtime)
             {
                 m_mesh = new Mesh();
                 if (runtime)
@@ -151,21 +175,8 @@ namespace Lsss.Authoring
                 m_savedAxis   = m_axis;
                 m_savedHeight = m_height;
                 m_savedRadius = m_radius;
-                char axname   = m_axis == DirectionAxis.X ? 'x' : m_axis == DirectionAxis.Y ? 'y' : 'z';
-                m_mesh.name   = $"capsule_{axname}_{m_radius}_{m_height}";
+                m_mesh.name   = capsuleMeshName;
             }
-        }
-    }
-
-    [UpdateInGroup(typeof(GameObjectBeforeConversionGroup))]
-    public partial class CapsuleMeshAuthoringConversion : GameObjectConversionSystem
-    {
-        protected override void OnUpdate()
-        {
-            Entities.ForEach((CapsuleMeshAuthoring c) =>
-            {
-                c.ProcessMesh(true);
-            }).WithoutBurst().Run();
         }
     }
 }

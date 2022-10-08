@@ -39,17 +39,17 @@ namespace Lsss
             //    integratedSpeedProperty.integratedSpeed = integratedSpeed.integratedSpeed;
             //}).ScheduleParallel();
             //
-            //var speedCdfe = state.GetComponentLookup<Speed>(true);
+            //var speedLookup = state.GetComponentLookup<Speed>(true);
             //state.Entities.WithNone<Speed>().ForEach((Entity entity, ref SpeedProperty speedProperty, in SpeedEntity speedEntity) =>
             //{
-            //    speedProperty.speed = speedCdfe[speedEntity.entityWithSpeed].speed;
-            //}).WithReadOnly(speedCdfe).ScheduleParallel();
+            //    speedProperty.speed = speedLookup[speedEntity.entityWithSpeed].speed;
+            //}).WithReadOnly(speedLookup).ScheduleParallel();
             //
-            //var isCdfe = state.GetComponentLookup<IntegratedSpeed>(true);
+            //var isLookup = state.GetComponentLookup<IntegratedSpeed>(true);
             //state.Entities.WithNone<IntegratedSpeed>().ForEach((Entity entity, ref IntegratedSpeedProperty integratedSpeedProperty, in SpeedEntity speedEntity) =>
             //{
-            //    integratedSpeedProperty.integratedSpeed = isCdfe[speedEntity.entityWithSpeed].integratedSpeed;
-            //}).WithReadOnly(isCdfe).ScheduleParallel();
+            //    integratedSpeedProperty.integratedSpeed = isLookup[speedEntity.entityWithSpeed].integratedSpeed;
+            //}).WithReadOnly(isLookup).ScheduleParallel();
         }
     }
 }

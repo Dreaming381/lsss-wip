@@ -7,33 +7,29 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Objects/Faction")]
-    public class FactionAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
+    public class FactionAuthoring : MonoBehaviour
     {
         public int                totalUnits         = 10;
         public int                maxUnitsAtOnce     = 10;
         public float              spawnWeightInverse = 1f;
         public SpaceshipAuthoring aiShipPrefab;
         public SpaceshipAuthoring playerShipPrefab;
+    }
 
-        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
+    public class FactionBaker : Baker<FactionAuthoring>
+    {
+        public override void Bake(FactionAuthoring authoring)
         {
-            referencedPrefabs.Add(aiShipPrefab.gameObject);
-            if (playerShipPrefab != null)
-                referencedPrefabs.Add(playerShipPrefab.gameObject);
-        }
-
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
-        {
-            dstManager.AddComponentData(entity, new Faction
+            AddComponent(new Faction
             {
-                name                    = name,
-                remainingReinforcements = totalUnits,
-                maxFieldUnits           = maxUnitsAtOnce,
-                spawnWeightInverse      = spawnWeightInverse,
-                aiPrefab                = conversionSystem.GetPrimaryEntity(aiShipPrefab),
-                playerPrefab            = conversionSystem.TryGetPrimaryEntity(playerShipPrefab)
+                name                    = authoring.name,
+                remainingReinforcements = authoring.totalUnits,
+                maxFieldUnits           = authoring.maxUnitsAtOnce,
+                spawnWeightInverse      = authoring.spawnWeightInverse,
+                aiPrefab                = GetEntity(authoring.aiShipPrefab),
+                playerPrefab            = GetEntity(authoring.playerShipPrefab)  // This method handles null correctly
             });
-            dstManager.AddComponent<FactionTag>(entity);
+            AddComponent<FactionTag>();
         }
     }
 }

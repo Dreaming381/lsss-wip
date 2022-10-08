@@ -41,7 +41,12 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            Entities.ForEach((TitleAndMenu titleAndMenu, in TitleAndMenuResources resources) =>
+            TitleAndMenu titleAndMenu                           = null;
+            Entities.ForEach((TitleAndMenu tam) => titleAndMenu = tam).WithoutBurst().Run();
+            if (titleAndMenu == null)
+                return;
+
+            Entities.ForEach((in TitleAndMenuResources resources) =>
             {
                 if (titleAndMenu.titlePanel.activeSelf)
                 {

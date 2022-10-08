@@ -1,74 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-7579995259774988516
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3653059816251603508}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  clip: {fileID: 0}
-  looping: 0
-  autoDestroyOnFinish: 0
-  volume: 1
-  innerRange: 75
-  outerRange: 400
-  rangeFadeMargin: 1
-  voices: 0
-  useCone: 0
-  innerAngle: 30
-  outerAngle: 60
-  outerAngleVolume: 0
---- !u!114 &4727493749027405194
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3653059816251603508}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  effectSettings:
-    waveType: 5
-    masterVolume: 1
-    attackTime: 0.34
-    sustainTime: 0.81
-    sustainPunch: 0.48999998
-    decayTime: 0.72999996
-    startFrequency: 0.16
-    minFrequency: 0
-    slide: 0
-    deltaSlide: 0
-    vibratoDepth: 0
-    vibratoSpeed: 0
-    changeAmount: -0.29
-    changeSpeed: 0.88
-    squareDuty: 0
-    dutySweep: 0
-    repeatSpeed: 0.34
-    phaserOffset: -0.01
-    phaserSweep: -0.01
-    lpFilterCutoff: 0.17999999
-    lpFilterCutoffSweep: 0
-    lpFilterResonance: 0
-    hpFilterCutoff: 0
-    hpFilterCutoffSweep: 0
-    changeRepeat: 0
-    changeAmount2: 0
-    changeSpeed2: 0
-    compressionAmount: 0
-    overtones: 0
-    overtoneFalloff: 0
-    bitCrush: 0
-    bitCrushSweep: 0
 --- !u!1 &2138047387879918223
 GameObject:
   m_ObjectHideFlags: 0
@@ -97,6 +28,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2063417876343258653}
   m_RootOrder: 0
@@ -120,6 +52,7 @@ MonoBehaviour:
   innerRange: 300
   outerRange: 2000
   rangeFadeMargin: 1
+  playFromBeginningAtSpawn: 0
   voices: 0
   useCone: 0
   innerAngle: 30
@@ -198,6 +131,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2063417876343258653}
   m_RootOrder: 1
@@ -221,6 +155,7 @@ MonoBehaviour:
   innerRange: 10
   outerRange: 50
   rangeFadeMargin: 1
+  playFromBeginningAtSpawn: 0
   voices: 0
   useCone: 0
   innerAngle: 30
@@ -276,8 +211,25 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
+    serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      propertyPath: m_RootOrder
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -291,6 +243,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
       propertyPath: m_LocalRotation.x
       value: 0
       objectReference: {fileID: 0}
@@ -300,14 +256,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
-      propertyPath: m_RootOrder
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
@@ -327,14 +275,99 @@ PrefabInstance:
       value: ExplosionWithSound
       objectReference: {fileID: 0}
     m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4824437340650087290}
+    - targetCorrespondingSourceObject: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2624666776647620046}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2944982074848645587, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -7579995259774988516}
+    - targetCorrespondingSourceObject: {fileID: 2944982074848645587, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4727493749027405194}
   m_SourcePrefab: {fileID: 100100000, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
---- !u!1 &3653059816251603508 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2944982074848645587, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
-  m_PrefabInstance: {fileID: 1904155215143185383}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2063417876343258653 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
   m_PrefabInstance: {fileID: 1904155215143185383}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &3653059816251603508 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2944982074848645587, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+  m_PrefabInstance: {fileID: 1904155215143185383}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &-7579995259774988516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3653059816251603508}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3ba3e5adc2b7534db9c106bfc26ac54, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  clip: {fileID: 0}
+  looping: 0
+  autoDestroyOnFinish: 0
+  volume: 1
+  innerRange: 75
+  outerRange: 400
+  rangeFadeMargin: 1
+  playFromBeginningAtSpawn: 0
+  voices: 0
+  useCone: 0
+  innerAngle: 30
+  outerAngle: 60
+  outerAngleVolume: 0
+--- !u!114 &4727493749027405194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3653059816251603508}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2dbc90e3e96b3c44a4d48ac1f3de330, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectSettings:
+    waveType: 5
+    masterVolume: 1
+    attackTime: 0.34
+    sustainTime: 0.81
+    sustainPunch: 0.48999998
+    decayTime: 0.72999996
+    startFrequency: 0.16
+    minFrequency: 0
+    slide: 0
+    deltaSlide: 0
+    vibratoDepth: 0
+    vibratoSpeed: 0
+    changeAmount: -0.29
+    changeSpeed: 0.88
+    squareDuty: 0
+    dutySweep: 0
+    repeatSpeed: 0.34
+    phaserOffset: -0.01
+    phaserSweep: -0.01
+    lpFilterCutoff: 0.17999999
+    lpFilterCutoffSweep: 0
+    lpFilterResonance: 0
+    hpFilterCutoff: 0
+    hpFilterCutoffSweep: 0
+    changeRepeat: 0
+    changeAmount2: 0
+    changeSpeed2: 0
+    compressionAmount: 0
+    overtones: 0
+    overtoneFalloff: 0
+    bitCrush: 0
+    bitCrushSweep: 0

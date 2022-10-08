@@ -37,7 +37,7 @@ namespace Latios.Psyshock
     public struct PhysicsComponentLookup<T> where T : unmanaged, IComponentData
     {
         [NativeDisableParallelForRestriction]
-        internal ComponentLookup<T> cdfe;
+        internal ComponentLookup<T> lookup;
 
         /// <summary>
         /// Reads or writes the component on the entity represented by safeEntity.
@@ -51,12 +51,12 @@ namespace Latios.Psyshock
             get
             {
                 ValidateSafeEntityIsSafe(safeEntity);
-                return cdfe[safeEntity.entity];
+                return lookup[safeEntity.entity];
             }
             set
             {
                 ValidateSafeEntityIsSafe(safeEntity);
-                cdfe[safeEntity.entity] = value;
+                lookup[safeEntity.entity] = value;
             }
         }
 
@@ -71,7 +71,7 @@ namespace Latios.Psyshock
         public bool TryGetComponent(SafeEntity safeEntity, out T componentData)
         {
             ValidateSafeEntityIsSafe(safeEntity);
-            return cdfe.TryGetComponent(safeEntity, out componentData);
+            return lookup.TryGetComponent(safeEntity, out componentData);
         }
 
         /// <summary>
@@ -79,17 +79,17 @@ namespace Latios.Psyshock
         /// This check is always valid regardless of whether such a component would be
         /// safe to access.
         /// </summary>
-        public bool HasComponent(SafeEntity safeEntity) => cdfe.HasComponent(safeEntity);
+        public bool HasComponent(SafeEntity safeEntity) => lookup.HasComponent(safeEntity);
 
         /// <summary>
         /// This is identical to ComponentDataFromEntity<typeparamref name="T"/>.DidChange().
         /// Note that neither method is deterministic and both can be prone to race conditions.
         /// </summary>
-        public bool DidChange(SafeEntity safeEntity, uint version) => cdfe.DidChange(safeEntity, version);
+        public bool DidChange(SafeEntity safeEntity, uint version) => lookup.DidChange(safeEntity, version);
 
         public static implicit operator PhysicsComponentLookup<T>(ComponentLookup<T> componentDataFromEntity)
         {
-            return new PhysicsComponentLookup<T> { cdfe = componentDataFromEntity };
+            return new PhysicsComponentLookup<T> { lookup = componentDataFromEntity };
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -113,7 +113,7 @@ namespace Latios.Psyshock
     public struct PhysicsBufferLookup<T> where T : unmanaged, IBufferElementData
     {
         [NativeDisableParallelForRestriction]
-        internal BufferLookup<T> bfe;
+        internal BufferLookup<T> lookup;
 
         /// <summary>
         /// Gets a reference to the buffer on the entity represented by safeEntity.
@@ -127,7 +127,7 @@ namespace Latios.Psyshock
             get
             {
                 ValidateSafeEntityIsSafe(safeEntity);
-                return bfe[safeEntity.entity];
+                return lookup[safeEntity.entity];
             }
         }
 
@@ -142,7 +142,7 @@ namespace Latios.Psyshock
         public bool TryGetComponent(SafeEntity safeEntity, out DynamicBuffer<T> bufferData)
         {
             ValidateSafeEntityIsSafe(safeEntity);
-            return bfe.TryGetBuffer(safeEntity, out bufferData);
+            return lookup.TryGetBuffer(safeEntity, out bufferData);
         }
 
         /// <summary>
@@ -150,17 +150,17 @@ namespace Latios.Psyshock
         /// This check is always valid regardless of whether such a buffer would be
         /// safe to access.
         /// </summary>
-        public bool HasComponent(SafeEntity safeEntity) => bfe.HasComponent(safeEntity.entity);
+        public bool HasBuffer(SafeEntity safeEntity) => lookup.HasBuffer(safeEntity.entity);
 
         /// <summary>
         /// This is identical to BufferFromEntity<typeparamref name="T"/>.DidChange().
         /// Note that neither method is deterministic and both can be prone to race conditions.
         /// </summary>
-        public bool DidChange(SafeEntity safeEntity, uint version) => bfe.DidChange(safeEntity, version);
+        public bool DidChange(SafeEntity safeEntity, uint version) => lookup.DidChange(safeEntity, version);
 
         public static implicit operator PhysicsBufferLookup<T>(BufferLookup<T> bufferFromEntity)
         {
-            return new PhysicsBufferLookup<T> { bfe = bufferFromEntity };
+            return new PhysicsBufferLookup<T> { lookup = bufferFromEntity };
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

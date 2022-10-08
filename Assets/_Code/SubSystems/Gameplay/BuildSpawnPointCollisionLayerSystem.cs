@@ -9,7 +9,6 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    [AlwaysUpdateSystem]
     public partial class BuildSpawnPointCollisionLayerSystem : SubSystem
     {
         private EntityQuery m_query;

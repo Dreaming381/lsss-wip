@@ -75,7 +75,7 @@ namespace Latios
             RunPrepInJob(linkedFEReadOnly, ref ran, ref entities);
             if (ran)
             {
-                entityManager.RemoveComponent<Disabled>(entities);
+                entityManager.RemoveComponent<Disabled>(entities.AsArray());
                 entities.Dispose();
             }
             else

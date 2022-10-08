@@ -33,12 +33,12 @@ namespace Lsss
 
             var processor = new SpawnPointIsNotSafeProcessor
             {
-                safeToSpawnCdfe = GetComponentLookup<SafeToSpawn>()
+                safeToSpawnLookup = GetComponentLookup<SafeToSpawn>()
             };
 
             var closeProcessor = new SpawnPointsAreTooCloseProcessor
             {
-                safeToSpawnCdfe = processor.safeToSpawnCdfe
+                safeToSpawnLookup = processor.safeToSpawnLookup
             };
 
             Profiler.BeginSample("Fetch");
@@ -100,23 +100,23 @@ namespace Lsss
         //Assumes A is SpawnPoint
         struct SpawnPointIsNotSafeProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnCdfe;
+            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnLookup;
 
             public void Execute(in FindPairsResult result)
             {
                 // No need to check narrow phase. AABB check is good enough
-                safeToSpawnCdfe[result.entityA] = new SafeToSpawn { safe = false };
+                safeToSpawnLookup[result.entityA] = new SafeToSpawn { safe = false };
             }
         }
 
         struct SpawnPointsAreTooCloseProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnCdfe;
+            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnLookup;
 
             public void Execute(in FindPairsResult result)
             {
-                safeToSpawnCdfe[result.entityA] = new SafeToSpawn { safe = false };
-                safeToSpawnCdfe[result.entityB]                          = new SafeToSpawn { safe = false };
+                safeToSpawnLookup[result.entityA] = new SafeToSpawn { safe = false };
+                safeToSpawnLookup[result.entityB]                          = new SafeToSpawn { safe = false };
             }
         }
     }

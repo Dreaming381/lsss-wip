@@ -6,6 +6,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [BurstCompile]
@@ -20,25 +22,23 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var ecb       = new EnableCommandBuffer(Allocator.TempJob);
-            var transCdfe = state.GetComponentLookup<Translation>(false);
-            var rotCdfe   = state.GetComponentLookup<Rotation>(false);
+            var ecb = new EnableCommandBuffer(Allocator.TempJob);
 
-            foreach ((var payload, var times, var entity) in SystemAPI.Query<RefRW<SpawnPayload>, RefRO<SpawnTimes> >().WithEntityAccess())
+            foreach ((var payload, var times, var entity) in Query<RefRW<SpawnPayload>, RefRO<SpawnTimes> >().WithEntityAccess())
             {
                 if (times.ValueRO.enableTime <= 0f && payload.ValueRO.disabledShip != Entity.Null)
                 {
                     var ship = payload.ValueRO.disabledShip;
                     ecb.Add(ship);
-                    var trans                    = transCdfe[entity];
-                    var rot                      = rotCdfe[entity];
-                    transCdfe[ship]              = trans;
-                    rotCdfe[ship]                = rot;
+                    var trans = GetComponent<Translation>(entity);
+                    var rot   = GetComponent<Rotation>(entity);
+                    SetComponent(ship, trans);
+                    SetComponent(ship, rot);
                     payload.ValueRW.disabledShip = Entity.Null;
                 }
             }
 
-            ecb.Playback(state.EntityManager, state.GetBufferLookup<LinkedEntityGroup>(true));
+            ecb.Playback(state.EntityManager, GetBufferLookup<LinkedEntityGroup>(true));
             ecb.Dispose();
         }
     }

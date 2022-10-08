@@ -31,8 +31,8 @@ namespace Lsss
 
             var processor = new DamageCollidingShipsProcessor
             {
-                shipHealthCdfe = GetComponentLookup<ShipHealth>(),
-                shipDamageCdfe = GetComponentLookup<Damage>()
+                shipHealthLookup = GetComponentLookup<ShipHealth>(),
+                shipDamageLookup = GetComponentLookup<Damage>()
             };
 
             foreach (var layer in m_layers)
@@ -51,8 +51,8 @@ namespace Lsss
 
         struct DamageCollidingShipsProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<ShipHealth> shipHealthCdfe;
-            [ReadOnly] public ComponentLookup<Damage> shipDamageCdfe;
+            public PhysicsComponentLookup<ShipHealth> shipHealthLookup;
+            [ReadOnly] public ComponentLookup<Damage> shipDamageLookup;
 
             public void Execute(in FindPairsResult result)
             {
@@ -63,16 +63,16 @@ namespace Lsss
                 //marker.Begin();
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
-                    var healthA = shipHealthCdfe[result.entityA];
-                    var healthB = shipHealthCdfe[result.entityB];
-                    var damageA = shipDamageCdfe[result.entityA];
-                    var damageB = shipDamageCdfe[result.entityB];
+                    var healthA = shipHealthLookup[result.entityA];
+                    var healthB = shipHealthLookup[result.entityB];
+                    var damageA = shipDamageLookup[result.entityA];
+                    var damageB = shipDamageLookup[result.entityB];
 
                     healthA.health -= damageB.damage;
                     healthB.health -= damageA.damage;
 
-                    shipHealthCdfe[result.entityA] = healthA;
-                    shipHealthCdfe[result.entityB] = healthB;
+                    shipHealthLookup[result.entityA] = healthA;
+                    shipHealthLookup[result.entityB] = healthB;
                 }
                 //marker.End();
             }

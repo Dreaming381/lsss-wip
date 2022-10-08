@@ -7,38 +7,11 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Spawning/Orbital Spawner")]
-    public class OrbitalSpawnPointAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
+    public class OrbitalSpawnPointAuthoring : MonoBehaviour
     {
         public float3                     center;
         public float                      orbitTime = 100f;
         public SpawnPointGraphicAuthoring spawnGraphicPrefab;
-
-        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
-        {
-            referencedPrefabs.Add(spawnGraphicPrefab.gameObject);
-        }
-
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
-        {
-            dstManager.AddComponentData(entity, new SpawnPoint
-            {
-                spawnGraphicPrefab = conversionSystem.GetPrimaryEntity(spawnGraphicPrefab),
-                maxTimeUntilSpawn  = spawnGraphicPrefab.spawnTime,
-                maxPauseTime       = spawnGraphicPrefab.lifeTime
-            });
-            dstManager.AddComponentData(entity, new SpawnPayload { disabledShip = Entity.Null });
-            float3 outwardVector                                                = (float3)transform.position - center;
-            dstManager.AddComponentData(entity, new SpawnPointOrbitalPath
-            {
-                center           = center,
-                radius           = math.distance(transform.position, center),
-                orbitSpeed       = 2 * math.PI / orbitTime,
-                orbitPlaneNormal = math.normalize(math.cross(outwardVector, math.cross(outwardVector, transform.up)))
-            });
-            dstManager.AddComponent<SafeToSpawn>(   entity);
-            dstManager.AddComponent<SpawnTimes>(    entity);
-            dstManager.AddComponent<SpawnPointTag>( entity);
-        }
 
         void DrawOrbit()
         {
@@ -63,6 +36,35 @@ namespace Lsss.Authoring
         private void OnDrawGizmos()
         {
             DrawOrbit();
+        }
+    }
+
+    public class OrbitalSpawnPointBaker : Baker<OrbitalSpawnPointAuthoring>
+    {
+        public override void Bake(OrbitalSpawnPointAuthoring authoring)
+        {
+            GetComponent<SpawnPointGraphicAuthoring>(authoring.spawnGraphicPrefab);
+
+            AddComponent(new SpawnPoint
+            {
+                spawnGraphicPrefab = GetEntity(authoring.spawnGraphicPrefab),
+                maxTimeUntilSpawn  = authoring.spawnGraphicPrefab.spawnTime,
+                maxPauseTime       = authoring.spawnGraphicPrefab.lifeTime
+            });
+            AddComponent(new SpawnPayload { disabledShip = Entity.Null });
+
+            var    transform     = GetComponent<Transform>();
+            float3 outwardVector = (float3)transform.position - authoring.center;
+            AddComponent(new SpawnPointOrbitalPath
+            {
+                center           = authoring.center,
+                radius           = math.distance(transform.position, authoring.center),
+                orbitSpeed       = 2 * math.PI / authoring.orbitTime,
+                orbitPlaneNormal = math.normalize(math.cross(outwardVector, math.cross(outwardVector, transform.up)))
+            });
+            AddComponent<SafeToSpawn>();
+            AddComponent<SpawnTimes>();
+            AddComponent<SpawnPointTag>();
         }
     }
 }

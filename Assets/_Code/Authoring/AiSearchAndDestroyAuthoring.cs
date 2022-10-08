@@ -6,25 +6,25 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/AI/Search and Destroy Module")]
-    public class AiSearchAndDestroyAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class AiSearchAndDestroyAuthoring : MonoBehaviour
     {
         public float2               targetLeadDistanceMinMax = new float2(0f, 5f);
         public AiShipRadarAuthoring shipRadar;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class AiSearchAndDestroyBaker : Baker<AiSearchAndDestroyAuthoring>
+    {
+        public override void Bake(AiSearchAndDestroyAuthoring authoring)
         {
-            if (!dstManager.HasComponent<AiShipRadarEntity>(entity))
-            {
-                dstManager.AddComponentData(entity, new AiShipRadarEntity { shipRadar = conversionSystem.GetPrimaryEntity(shipRadar) });
-            }
+            AddComponent(new AiShipRadarEntity { shipRadar = GetEntity(authoring.shipRadar) });
 
-            dstManager.AddComponentData(entity, new AiSearchAndDestroyPersonalityInitializerValues
+            AddComponent(new AiSearchAndDestroyPersonalityInitializerValues
             {
-                targetLeadDistanceMinMax = targetLeadDistanceMinMax
+                targetLeadDistanceMinMax = authoring.targetLeadDistanceMinMax
             });
 
-            dstManager.AddComponent<AiSearchAndDestroyPersonality>(entity);
-            dstManager.AddComponent<AiSearchAndDestroyOutput>(     entity);
+            AddComponent<AiSearchAndDestroyPersonality>();
+            AddComponent<AiSearchAndDestroyOutput>();
         }
     }
 }

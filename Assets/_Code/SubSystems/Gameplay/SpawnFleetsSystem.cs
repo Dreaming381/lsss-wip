@@ -1,5 +1,4 @@
-﻿using Debug = UnityEngine.Debug;
-using Latios;
+﻿using Latios;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -7,10 +6,13 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using Debug = UnityEngine.Debug;
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    [AlwaysUpdateSystem]
-    public partial class SpawnFleetsSystem : SubSystem
+    [BurstCompile]
+    public partial struct SpawnFleetsSystem : ISystem, ISystemShouldUpdate
     {
         private struct NewFleetTag : IComponentData { }
 
@@ -19,94 +21,104 @@ namespace Lsss
 
         NativeList<Entity> m_entityListCache;
 
-        protected override void OnCreate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            base.OnCreate();
             m_entityListCache = new NativeList<Entity>(Allocator.Persistent);
         }
 
-        protected override void OnDestroy()
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
         {
             m_entityListCache.Dispose();
         }
 
-        public override bool ShouldUpdateSystem()
+        public bool ShouldUpdateSystem(ref SystemState state)
         {
-            var currentScene = worldBlackboardEntity.GetComponentData<CurrentScene>();
+            var currentScene = state.GetWorldBlackboardEntity().GetComponentData<CurrentScene>();
             return currentScene.isFirstFrame;
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            Entities.WithStructuralChanges().WithAll<FactionTag>().ForEach((Entity entity, ref Faction faction) =>
+            m_playerQuery = QueryBuilder().WithAll<FactionMember, FleetSpawnSlotTag, FleetSpawnPlayerSlotTag, LocalToWorld>().Build();
+            m_aiQuery     = QueryBuilder().WithAll<FactionMember, FleetSpawnSlotTag, LocalToWorld>().WithNone<FleetSpawnPlayerSlotTag>().Build();
+
+            var ecb = new EntityCommandBuffer(Allocator.TempJob);
+            foreach ((var factionRef, var entity) in Query<RefRO<FleetSpawnSlotFactionReference> >().WithEntityAccess())
+                ecb.AddSharedComponent(entity, new FactionMember { factionEntity = factionRef.ValueRO.factionEntity });
+            ecb.Playback(state.EntityManager);
+            ecb.Dispose();
+
+            var factionEntities = QueryBuilder().WithAll<FactionTag>().WithAllRW<Faction>().Build().ToEntityArray(Allocator.Temp);
+
+            foreach (var entity in factionEntities)
             {
                 var factionMember = new FactionMember { factionEntity = entity };
                 m_aiQuery.SetSharedComponentFilter(factionMember);
                 m_playerQuery.SetSharedComponentFilter(factionMember);
+                var faction = GetComponent<Faction>(entity);
 
                 if (faction.playerPrefab != Entity.Null && !m_playerQuery.IsEmpty)
                 {
-                    var newPlayerShip = EntityManager.Instantiate(faction.playerPrefab);
-                    AddSharedComponentDataToLinkedGroup(newPlayerShip, factionMember);
-                    SpawnPlayer(newPlayerShip);
+                    var newPlayerShip = state.EntityManager.Instantiate(faction.playerPrefab);
+                    AddSharedComponentDataToLinkedGroup(newPlayerShip, factionMember, ref state);
+                    SpawnPlayer(newPlayerShip, ref state);
                     faction.remainingReinforcements--;
                 }
 
                 {
                     int spawnCount    = m_aiQuery.CalculateEntityCount();
-                    var newShipPrefab = EntityManager.Instantiate(faction.aiPrefab);
-                    EntityManager.AddComponent<NewFleetTag>(newShipPrefab);
-                    AddSharedComponentDataToLinkedGroup(newShipPrefab, factionMember);
-                    var newShips = EntityManager.Instantiate(newShipPrefab, spawnCount, Allocator.TempJob);
-                    EntityManager.DestroyEntity(newShipPrefab);
-                    SpawnAi(newShips);
+                    var newShipPrefab = state.EntityManager.Instantiate(faction.aiPrefab);
+                    state.EntityManager.AddComponent<NewFleetTag>(newShipPrefab);
+                    AddSharedComponentDataToLinkedGroup(newShipPrefab, factionMember, ref state);
+                    var newShips = state.EntityManager.Instantiate(newShipPrefab, spawnCount, Allocator.TempJob);
+                    state.EntityManager.DestroyEntity(newShipPrefab);
+                    SpawnAi(newShips, ref state);
                     newShips.Dispose();
                     faction.remainingReinforcements -= spawnCount;
                 }
 
+                SetComponent(entity, faction);
+
                 m_aiQuery.ResetFilter();
                 m_playerQuery.ResetFilter();
-            }).Run();
+            }
 
-            EntityManager.RemoveComponent<NewFleetTag>(m_aiQuery);
+            state.EntityManager.RemoveComponent<NewFleetTag>(m_aiQuery);
         }
 
-        void SpawnPlayer(Entity newPlayerShip)
+        void SpawnPlayer(Entity newPlayerShip, ref SystemState state)
         {
-            Entities.WithAll<FactionMember>().WithAll<FleetSpawnSlotTag, FleetSpawnPlayerSlotTag>().WithStoreEntityQueryInField(ref m_playerQuery)
-            .ForEach((int entityInQueryIndex, in LocalToWorld ltw) =>
-            {
-                if (entityInQueryIndex == 0)
-                {
-                    var rotation                                        = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
-                    SetComponent(newPlayerShip, new Rotation { Value    = rotation });
-                    SetComponent(newPlayerShip, new Translation { Value = ltw.Position });
-                }
-            }).Run();
+            var ltws                                            = m_playerQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
+            var ltw                                             = ltws[0];
+            var rotation                                        = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
+            SetComponent(newPlayerShip, new Rotation { Value    = rotation });
+            SetComponent(newPlayerShip, new Translation { Value = ltw.Position });
         }
 
-        void SpawnAi(NativeArray<Entity> newShips)
+        void SpawnAi(NativeArray<Entity> newShips, ref SystemState state)
         {
-            Entities.WithAll<FactionMember>().WithAll<FleetSpawnSlotTag>().WithNone<FleetSpawnPlayerSlotTag>().WithStoreEntityQueryInField(ref m_aiQuery)
-            .ForEach((int entityInQueryIndex, in LocalToWorld ltw) =>
+            var ltws = m_aiQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
+            int i    = 0;
+            foreach (var ltw in ltws)
             {
-                var ship                                   = newShips[entityInQueryIndex];
+                if (i >= newShips.Length)
+                    break;
+
+                var ship                                   = newShips[i];
                 var rotation                               = quaternion.LookRotationSafe(ltw.Forward, new float3(0f, 1f, 0f));
                 SetComponent(ship, new Rotation { Value    = rotation });
                 SetComponent(ship, new Translation { Value = ltw.Position });
-            }).Run();
+            }
         }
 
-        void AddSharedComponentDataToLinkedGroup<T>(Entity root, T sharedComponent) where T : struct, ISharedComponentData
+        void AddSharedComponentDataToLinkedGroup<T>(Entity root, T sharedComponent, ref SystemState state) where T : unmanaged, ISharedComponentData
         {
             m_entityListCache.Clear();
-            m_entityListCache.AddRange(EntityManager.GetBuffer<LinkedEntityGroup>(root).Reinterpret<Entity>().AsNativeArray());
-            foreach (var e in m_entityListCache)
-            {
-                EntityManager.AddSharedComponentManaged(e, sharedComponent);
-            }
-            if (!EntityManager.HasComponent<T>(root))
-                EntityManager.AddSharedComponentManaged(root, sharedComponent);
+            m_entityListCache.AddRange(GetBuffer<LinkedEntityGroup>(root).Reinterpret<Entity>().AsNativeArray());
+            state.EntityManager.AddSharedComponent(m_entityListCache.AsArray(), sharedComponent);
         }
     }
 }

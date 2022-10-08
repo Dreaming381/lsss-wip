@@ -17,8 +17,8 @@ namespace Lsss
 
             var processor = new DamageHitShipsProcessor
             {
-                explosionDamageCdfe = GetComponentLookup<Damage>(true),
-                shipHealthCdfe      = GetComponentLookup<ShipHealth>(),
+                explosionDamageLookup = GetComponentLookup<Damage>(true),
+                shipHealthLookup      = GetComponentLookup<ShipHealth>(),
             };
 
             var backup = Dependency;
@@ -36,19 +36,19 @@ namespace Lsss
         //Assumes A is explosion and B is ship.
         struct DamageHitShipsProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<ShipHealth> shipHealthCdfe;
-            [ReadOnly] public ComponentLookup<Damage> explosionDamageCdfe;
+            public PhysicsComponentLookup<ShipHealth> shipHealthLookup;
+            [ReadOnly] public ComponentLookup<Damage> explosionDamageLookup;
 
             public void Execute(in FindPairsResult result)
             {
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
-                    var damage = explosionDamageCdfe[result.entityA];
-                    var health = shipHealthCdfe[result.entityB];
+                    var damage = explosionDamageLookup[result.entityA];
+                    var health = shipHealthLookup[result.entityB];
 
                     health.health -= damage.damage;
 
-                    shipHealthCdfe[result.entityB] = health;
+                    shipHealthLookup[result.entityB] = health;
                 }
             }
         }

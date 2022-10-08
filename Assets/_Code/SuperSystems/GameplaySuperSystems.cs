@@ -12,7 +12,7 @@ namespace Lsss.SuperSystems
         {
             GetOrCreateAndAddUnmanagedSystem<DestroyUninitializedOrphanedEffectsSystem>();
             GetOrCreateAndAddManagedSystem<OrbitalSpawnersProcGenSystem>();
-            GetOrCreateAndAddManagedSystem<SpawnFleetsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnFleetsSystem>();
             GetOrCreateAndAddManagedSystem<SpawnShipsEnqueueSystem>();
             GetOrCreateAndAddUnmanagedSystem<SpawnShipsEnableSystem>();
         }

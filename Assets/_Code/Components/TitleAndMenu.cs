@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.Entities;
 using UnityEngine;
 
 namespace Lsss
@@ -100,6 +101,17 @@ namespace Lsss
         public void ScrollRight()
         {
             scrollRight = true;
+        }
+
+        private Entity entity = Entity.Null;
+        private void Update()
+        {
+            if (entity != Entity.Null)
+                return;
+
+            var em = World.DefaultGameObjectInjectionWorld.EntityManager;
+            entity = em.CreateEntity();
+            em.AddComponentObject(entity, this);
         }
     }
 }

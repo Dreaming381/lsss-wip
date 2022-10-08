@@ -7,7 +7,6 @@ namespace Latios.Systems
     internal struct LatiosSceneChangeDummyTag : IComponentData { }
 
     [DisableAutoCreation]
-    [AlwaysUpdateSystem]
     [UpdateInGroup(typeof(LatiosInitializationSystemGroup), OrderLast = true)]  //Doesn't matter, but good for visualization
     public partial class DestroyEntitiesOnSceneChangeSystem : SubSystem
     {

@@ -7,7 +7,7 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Objects/Spaceship")]
-    public class SpaceshipAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
+    public class SpaceshipAuthoring : MonoBehaviour
     {
         [Header("Speed")]
         public float topSpeed     = 1f;
@@ -40,65 +40,56 @@ namespace Lsss.Authoring
         public float           clipReloadTime = 3f;
         public BulletAuthoring bulletPrefab;
         public GameObject      fireEffectPrefab;
+    }
 
-        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
+    public class SpaceshipBaker : Baker<SpaceshipAuthoring>
+    {
+        public override void Bake(SpaceshipAuthoring authoring)
         {
-            if (explosionPrefab != null)
-                referencedPrefabs.Add(explosionPrefab.gameObject);
-            if (hitEffectPrefab != null)
-                referencedPrefabs.Add(hitEffectPrefab);
-            if (bulletPrefab != null)
-                referencedPrefabs.Add(bulletPrefab.gameObject);
-            if (fireEffectPrefab != null)
-                referencedPrefabs.Add(fireEffectPrefab);
-        }
-
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
-        {
-            dstManager.AddComponentData(entity, new ShipSpeedStats
+            AddComponent(new ShipSpeedStats
             {
-                topSpeed     = topSpeed,
-                boostSpeed   = boostSpeed,
-                reverseSpeed = reverseSpeed,
-                turnSpeed    = math.radians(turnSpeed),
+                topSpeed     = authoring.topSpeed,
+                boostSpeed   = authoring.boostSpeed,
+                reverseSpeed = authoring.reverseSpeed,
+                turnSpeed    = math.radians(authoring.turnSpeed),
 
-                acceleration      = acceleration,
-                deceleration      = deceleration,
-                boostAcceleration = boostAcceleration,
+                acceleration      = authoring.acceleration,
+                deceleration      = authoring.deceleration,
+                boostAcceleration = authoring.boostAcceleration,
 
-                boostCapacity     = boostCapacity,
-                boostDepleteRate  = boostDepletionRate,
-                boostRechargeRate = boostRechargeRate
+                boostCapacity     = authoring.boostCapacity,
+                boostDepleteRate  = authoring.boostDepletionRate,
+                boostRechargeRate = authoring.boostRechargeRate
             });
-            dstManager.AddComponentData(entity, new ShipBoostTank { boost = initialBoost });
-            dstManager.AddComponentData(entity, new Speed { speed         = 0f });
+            AddComponent(new ShipBoostTank { boost = authoring.initialBoost });
+            AddComponent(new Speed { speed         = 0f });
 
-            dstManager.AddComponentData(entity, new ShipHealth { health                   = health });
-            dstManager.AddComponentData(entity, new ShipBaseHealth { baseHealth           = health });
-            dstManager.AddComponentData(entity, new Damage { damage                       = collisionDamageToOther });
-            dstManager.AddComponentData(entity, new CameraMountPoint { mountPoint         = conversionSystem.TryGetPrimaryEntity(cameraMountPoint) });
-            dstManager.AddComponentData(entity, new ShipExplosionPrefab { explosionPrefab = conversionSystem.TryGetPrimaryEntity(explosionPrefab) });
-            dstManager.AddComponentData(entity, new ShipHitEffectPrefab { hitEffectPrefab = conversionSystem.TryGetPrimaryEntity(hitEffectPrefab) });
-            var gunBuffer                                                                 = dstManager.AddBuffer<ShipGunPoint>(entity);
-            foreach(var gunTip in gunTips)
+            AddComponent(new ShipHealth { health                   = authoring.health });
+            AddComponent(new ShipBaseHealth { baseHealth           = authoring.health });
+            AddComponent(new Damage { damage                       = authoring.collisionDamageToOther });
+            AddComponent(new CameraMountPoint { mountPoint         = GetEntity(authoring.cameraMountPoint) });
+            AddComponent(new ShipExplosionPrefab { explosionPrefab = GetEntity(authoring.explosionPrefab) });
+            AddComponent(new ShipHitEffectPrefab { hitEffectPrefab = GetEntity(authoring.hitEffectPrefab) });
+            var gunBuffer                                          = AddBuffer<ShipGunPoint>();
+            foreach (var gunTip in authoring.gunTips)
             {
-                gunBuffer.Add(new ShipGunPoint { gun = conversionSystem.GetPrimaryEntity(gunTip) });
+                gunBuffer.Add(new ShipGunPoint { gun = GetEntity(gunTip) });
             }
 
-            dstManager.AddComponentData(entity, new ShipReloadTime
+            AddComponent(new ShipReloadTime
             {
                 bulletReloadTime    = 0f,
-                maxBulletReloadTime = math.rcp(fireRate),
-                bulletsRemaining    = bulletsPerClip,
-                bulletsPerClip      = bulletsPerClip,
-                clipReloadTime      = clipReloadTime,
-                maxClipReloadTime   = clipReloadTime
+                maxBulletReloadTime = math.rcp(authoring.fireRate),
+                bulletsRemaining    = authoring.bulletsPerClip,
+                bulletsPerClip      = authoring.bulletsPerClip,
+                clipReloadTime      = authoring.clipReloadTime,
+                maxClipReloadTime   = authoring.clipReloadTime
             });
-            dstManager.AddComponentData(entity, new ShipBulletPrefab { bulletPrefab     = conversionSystem.TryGetPrimaryEntity(bulletPrefab) });
-            dstManager.AddComponentData(entity, new ShipFireEffectPrefab { effectPrefab = conversionSystem.TryGetPrimaryEntity(fireEffectPrefab) });
+            AddComponent(new ShipBulletPrefab { bulletPrefab     = GetEntity(authoring.bulletPrefab) });
+            AddComponent(new ShipFireEffectPrefab { effectPrefab = GetEntity(authoring.fireEffectPrefab) });
 
-            dstManager.AddComponent<ShipDesiredActions>(entity);
-            dstManager.AddComponent<ShipTag>(           entity);
+            AddComponent<ShipDesiredActions>();
+            AddComponent<ShipTag>();
         }
     }
 }

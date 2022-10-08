@@ -6,16 +6,19 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Behaviors/Camera Draw Distances")]
-    public class CameraDrawDistancesAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class CameraDrawDistancesAuthoring : MonoBehaviour
     {
         public float[] distances;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class CameraDrawDistancesBaker : Baker<CameraDrawDistancesAuthoring>
+    {
+        public override void Bake(CameraDrawDistancesAuthoring authoring)
         {
             DrawDistances drawDistances = default;
-            foreach (var d in distances)
+            foreach (var d in authoring.distances)
                 drawDistances.distances.Add(d);
-            dstManager.AddComponentData(entity, drawDistances);
+            AddComponent(drawDistances);
         }
     }
 }

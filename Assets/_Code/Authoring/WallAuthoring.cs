@@ -6,14 +6,17 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Objects/Obstacle")]
-    public class WallAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class WallAuthoring : MonoBehaviour
     {
         public float damage = 100f;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class WallBaker : Baker<WallAuthoring>
+    {
+        public override void Bake(WallAuthoring authoring)
         {
-            dstManager.AddComponentData(entity, new Damage { damage = damage });
-            dstManager.AddComponent<WallTag>(entity);
+            AddComponent(new Damage { damage = authoring.damage });
+            AddComponent<WallTag>();
         }
     }
 }

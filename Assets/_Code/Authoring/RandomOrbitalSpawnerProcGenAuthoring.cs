@@ -7,7 +7,7 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Spawning/Orbital Spawner Random Generator")]
-    public class RandomOrbitalSpawnerProcGenAuthoring : MonoBehaviour, IDeclareReferencedPrefabs, IConvertGameObjectToEntity
+    public class RandomOrbitalSpawnerProcGenAuthoring : MonoBehaviour
     {
         public int                        spawnerCount    = 0;
         public uint                       randomSeed      = 150;
@@ -15,24 +15,24 @@ namespace Lsss.Authoring
         public float                      colliderRadius  = 15f;
         public float2                     minMaxOrbitTime = new float2(5f, 100f);
         public SpawnPointGraphicAuthoring spawnGraphicPrefab;
+    }
 
-        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
+    public class RandomOrbitalSpawnerProcGenBaker : Baker<RandomOrbitalSpawnerProcGenAuthoring>
+    {
+        public override void Bake(RandomOrbitalSpawnerProcGenAuthoring authoring)
         {
-            referencedPrefabs.Add(spawnGraphicPrefab.gameObject);
-        }
+            GetComponent<SpawnPointGraphicAuthoring>(authoring.spawnGraphicPrefab);
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
-        {
-            dstManager.AddComponentData(entity, new OrbitalSpawnPointProcGen
+            AddComponent(new OrbitalSpawnPointProcGen
             {
-                spawnerCount       = spawnerCount,
-                randomSeed         = randomSeed,
-                minRadius          = minRadius,
-                minMaxOrbitSpeed   = 2 * math.PI / minMaxOrbitTime.yx,
-                colliderRadius     = colliderRadius,
-                spawnGraphicPrefab = conversionSystem.GetPrimaryEntity(spawnGraphicPrefab),
-                maxTimeUntilSpawn  = spawnGraphicPrefab.spawnTime,
-                maxPauseTime       = spawnGraphicPrefab.lifeTime
+                spawnerCount       = authoring.spawnerCount,
+                randomSeed         = authoring.randomSeed,
+                minRadius          = authoring.minRadius,
+                minMaxOrbitSpeed   = 2 * math.PI / authoring.minMaxOrbitTime.yx,
+                colliderRadius     = authoring.colliderRadius,
+                spawnGraphicPrefab = GetEntity(authoring.spawnGraphicPrefab),
+                maxTimeUntilSpawn  = authoring.spawnGraphicPrefab.spawnTime,
+                maxPauseTime       = authoring.spawnGraphicPrefab.lifeTime
             });
         }
     }

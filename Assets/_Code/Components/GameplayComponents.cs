@@ -294,6 +294,11 @@ namespace Lsss
 
     public struct FleetSpawnPlayerSlotTag : IComponentData { }
 
+    public struct FleetSpawnSlotFactionReference : IComponentData
+    {
+        public EntityWith<Faction> factionEntity;
+    }
+
     public struct OrbitalSpawnPointProcGen : IComponentData
     {
         public int    spawnerCount;

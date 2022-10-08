@@ -6,32 +6,32 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Objects/Explosion")]
-    public class ExplosionAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class ExplosionAuthoring : MonoBehaviour
     {
         public float damage             = 100f;
         public float radius             = 10f;
         public float expansionDuration  = 0.1f;
         public float fadeOutDuration    = 0.1f;
         public float totalExplosionTime = 3f;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class ExplosionBaker : Baker<ExplosionAuthoring>
+    {
+        public override void Bake(ExplosionAuthoring authoring)
         {
-            dstManager.AddComponentData(entity, new Damage { damage                      = damage });
-            dstManager.AddComponentData(entity, new TimeToLive { timeToLive              = totalExplosionTime });
-            dstManager.AddComponentData(entity, new TimeToLiveFadeStart { fadeTimeWindow = fadeOutDuration });
-            dstManager.AddComponentData(entity, new FadeProperty { fade                  = 1f });
-            dstManager.AddComponentData(entity, new ExplosionStats
+            AddComponent(new Damage { damage                      = authoring.damage });
+            AddComponent(new TimeToLive { timeToLive              = authoring.totalExplosionTime });
+            AddComponent(new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
+            AddComponent(new FadeProperty { fade                  = 1f });
+            AddComponent(new ExplosionStats
             {
-                radius        = radius,
-                expansionRate = 1f / expansionDuration
+                radius        = authoring.radius,
+                expansionRate = 1f / authoring.expansionDuration
             });
-            if (dstManager.HasComponent<NonUniformScale>(entity))
-                dstManager.RemoveComponent<NonUniformScale>(entity);
-            if (!dstManager.HasComponent<Scale>(entity))
-                dstManager.AddComponent<Scale>(entity);
-            dstManager.SetComponentData(entity, new Scale { Value = 0f });
 
-            dstManager.AddComponent<ExplosionTag>(entity);
+            AddComponent(new Scale { Value = 0f });
+
+            AddComponent<ExplosionTag>();
         }
     }
 }

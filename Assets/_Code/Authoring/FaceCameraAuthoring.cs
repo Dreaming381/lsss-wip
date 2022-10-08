@@ -6,11 +6,15 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Behaviors/Face Camera")]
-    public class FaceCameraAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class FaceCameraAuthoring : MonoBehaviour
     {
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    }
+
+    public class FaceCameraBaker : Baker<FaceCameraAuthoring>
+    {
+        public override void Bake(FaceCameraAuthoring authoring)
         {
-            dstManager.AddComponent<FaceCameraTag>(entity);
+            AddComponent<FaceCameraTag>();
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Lsss.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("LSSS/Spawning/Spawner Graphic")]
-    public class SpawnPointGraphicAuthoring : MonoBehaviour, IConvertGameObjectToEntity
+    public class SpawnPointGraphicAuthoring : MonoBehaviour
     {
         public float lifeTime   = 5f;
         public float growTime   = 1.5f;
@@ -16,23 +16,22 @@ namespace Lsss.Authoring
 
         public float growSpins   = 1f;
         public float shrinkSpins = 1f;
+    }
 
-        public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
+    public class SpawnPointGraphicBaker : Baker<SpawnPointGraphicAuthoring>
+    {
+        public override void Bake(SpawnPointGraphicAuthoring authoring)
         {
-            dstManager.AddComponentData(entity, new SpawnPointAnimationData
+            AddComponent(new SpawnPointAnimationData
             {
-                growStartTime   = lifeTime,
-                growEndTime     = lifeTime - growTime,
-                shrinkStartTime = shrinkTime,
-                growSpins       = growSpins * math.PI * 2,
-                shrinkSpins     = shrinkSpins * math.PI * 2
+                growStartTime   = authoring.lifeTime,
+                growEndTime     = authoring.lifeTime - authoring.growTime,
+                shrinkStartTime = authoring.shrinkTime,
+                growSpins       = authoring.growSpins * math.PI * 2,
+                shrinkSpins     = authoring.shrinkSpins * math.PI * 2
             });
-            dstManager.AddComponentData(entity, new TimeToLive { timeToLive = lifeTime });
-            if (dstManager.HasComponent<NonUniformScale>(entity))
-                dstManager.RemoveComponent<NonUniformScale>(entity);
-            if (!dstManager.HasComponent<Scale>(entity))
-                dstManager.AddComponent<Scale>(entity);
-            dstManager.SetComponentData(entity, new Scale { Value = 0f });
+            AddComponent(new TimeToLive { timeToLive = authoring.lifeTime });
+            AddComponent(new Scale { Value           = 0f });
         }
     }
 }

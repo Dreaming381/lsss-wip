@@ -33,13 +33,13 @@ namespace Lsss
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
-                bulletDamageCdfe        = GetComponentLookup<Damage>(true),
-                bulletFirerCdfe         = GetComponentLookup<BulletFirer>(),
-                shipHealthCdfe          = GetComponentLookup<ShipHealth>(),
-                shipHitEffectPrefabCdfe = GetComponentLookup<ShipHitEffectPrefab>(true),
-                dcb                     = dcb,
-                icb                     = icb,
-                frameId                 = frameId
+                bulletDamageLookup        = GetComponentLookup<Damage>(true),
+                bulletFirerLookup         = GetComponentLookup<BulletFirer>(),
+                shipHealthLookup          = GetComponentLookup<ShipHealth>(),
+                shipHitEffectPrefabLookup = GetComponentLookup<ShipHitEffectPrefab>(true),
+                dcb                       = dcb,
+                icb                       = icb,
+                frameId                   = frameId
             };
 
             var backup = Dependency;
@@ -60,10 +60,10 @@ namespace Lsss
         //Assumes A is bullet and B is ship.
         struct DamageHitShipsAndDestroyBulletProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<ShipHealth>              shipHealthCdfe;
-            public PhysicsComponentLookup<BulletFirer>             bulletFirerCdfe;
-            [ReadOnly] public ComponentLookup<Damage>              bulletDamageCdfe;
-            [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabCdfe;
+            public PhysicsComponentLookup<ShipHealth>              shipHealthLookup;
+            public PhysicsComponentLookup<BulletFirer>             bulletFirerLookup;
+            [ReadOnly] public ComponentLookup<Damage>              bulletDamageLookup;
+            [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabLookup;
             public int                                             frameId;
 
             public DestroyCommandBuffer.ParallelWriter                            dcb;
@@ -71,30 +71,30 @@ namespace Lsss
 
             public void Execute(in FindPairsResult result)
             {
-                var bulletFirer = bulletFirerCdfe[result.entityA];
+                var bulletFirer = bulletFirerLookup[result.entityA];
 
                 if (bulletFirer.entity == result.entityB)
                 {
                     if (((bulletFirer.lastImpactFrame + 2) - frameId) > 0)
                     {
-                        bulletFirer.lastImpactFrame     = frameId;
-                        bulletFirerCdfe[result.entityA] = bulletFirer;
+                        bulletFirer.lastImpactFrame       = frameId;
+                        bulletFirerLookup[result.entityA] = bulletFirer;
                         return;
                     }
                 }
 
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out var hitData))
                 {
-                    var damage = bulletDamageCdfe[result.entityA];
-                    var health = shipHealthCdfe[result.entityB];
+                    var damage = bulletDamageLookup[result.entityA];
+                    var health = shipHealthLookup[result.entityB];
 
                     health.health -= damage.damage;
 
-                    shipHealthCdfe[result.entityB] = health;
+                    shipHealthLookup[result.entityB] = health;
 
                     dcb.Add(result.entityA, result.jobIndex);
 
-                    var hitPrefab = shipHitEffectPrefabCdfe[result.entityB];
+                    var hitPrefab = shipHitEffectPrefabLookup[result.entityB];
                     if (hitPrefab.hitEffectPrefab != Entity.Null)
                     {
                         float3 upDir                                                         = math.select(math.up(), math.forward(), math.abs(hitData.normalB.y) == 1f);
