@@ -8,16 +8,16 @@ using UnityEngine;
 namespace Latios.Authoring
 {
     [TemporaryBakingType]
-    public interface ISmartBakerWorker<TAuthoring> : IComponentData where TAuthoring : Component
+    public interface ISmartBakeItem<TAuthoring> : IComponentData where TAuthoring : Component
     {
         public bool CaptureInputsAndFilter(TAuthoring authoring, IBaker baker);
         public void Process(EntityManager entityManager, Entity entity);
     }
 
     [BurstCompile]
-    public abstract partial class SmartBaker<TAuthoring, TSmartBakerWorker> : Baker<TAuthoring>,
-        ICreateSmartBakerSystem where TAuthoring : Component where TSmartBakerWorker : unmanaged,
-        ISmartBakerWorker<TAuthoring>
+    public abstract partial class SmartBaker<TAuthoring, TSmartBakeItem> : Baker<TAuthoring>,
+        ICreateSmartBakerSystem where TAuthoring : Component where TSmartBakeItem : unmanaged,
+        ISmartBakeItem<TAuthoring>
     {
         public virtual bool RunProcessInBurst()
         {
@@ -28,7 +28,7 @@ namespace Latios.Authoring
         {
             // Todo: May need to cache construction of this to avoid GC.
             // However, that might have been a "struct" limitation and not an "unmanaged" limitation.
-            var data = new TSmartBakerWorker();
+            var data = new TSmartBakeItem();
             if (data.CaptureInputsAndFilter(authoring, this))
             {
                 var smartBakerEntity = CreateAdditionalEntity(TransformUsageFlags.None, true);
@@ -39,7 +39,7 @@ namespace Latios.Authoring
 
         void ICreateSmartBakerSystem.Create(World world, ComponentSystemGroup addToThis)
         {
-            var system        = world.GetOrCreateSystemManaged<SmartBakerSystem<TAuthoring, TSmartBakerWorker> >();
+            var system        = world.GetOrCreateSystemManaged<SmartBakerSystem<TAuthoring, TSmartBakeItem> >();
             system.runInBurst = RunProcessInBurst();
             addToThis.AddSystemToUpdateList(system);
         }
@@ -51,7 +51,7 @@ namespace Latios.Authoring
         {
             public EntityManager                                           em;
             [ReadOnly] public NativeArray<SmartBakerTargetEntityReference> targetReferences;
-            public NativeArray<TSmartBakerWorker>                          smartDataArray;
+            public NativeArray<TSmartBakeItem>                             smartDataArray;
 
             public void Execute()
             {
@@ -67,9 +67,9 @@ namespace Latios.Authoring
         [BurstCompile]
         internal struct WriteBackBakedDataJob : IJobFor
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<TSmartBakerWorker> smartDataLookup;
-            [ReadOnly] public NativeArray<Entity>                                           entities;
-            [ReadOnly] public NativeArray<TSmartBakerWorker>                                smartDataArray;
+            [NativeDisableParallelForRestriction] public ComponentLookup<TSmartBakeItem> smartDataLookup;
+            [ReadOnly] public NativeArray<Entity>                                        entities;
+            [ReadOnly] public NativeArray<TSmartBakeItem>                                smartDataArray;
 
             public void Execute(int i)
             {
@@ -80,8 +80,8 @@ namespace Latios.Authoring
 
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
-    internal partial class SmartBakerSystem<TAuthoring, TSmartBakerWorker> : SystemBase where TAuthoring : Component where TSmartBakerWorker : unmanaged,
-        ISmartBakerWorker<TAuthoring>
+    internal partial class SmartBakerSystem<TAuthoring, TSmartBakeItem> : SystemBase where TAuthoring : Component where TSmartBakeItem : unmanaged,
+        ISmartBakeItem<TAuthoring>
     {
         public bool runInBurst;
 
@@ -90,7 +90,7 @@ namespace Latios.Authoring
         protected override void OnCreate()
         {
             m_query = new EntityQueryBuilder(Allocator.Temp)
-                      .WithAllRW<TSmartBakerWorker>()
+                      .WithAllRW<TSmartBakeItem>()
                       .WithAll<SmartBakerTargetEntityReference>()
                       .WithOptions(EntityQueryOptions.IncludePrefab)
                       .Build(this);
@@ -102,9 +102,9 @@ namespace Latios.Authoring
 
             var entities         = m_query.ToEntityArray(Allocator.TempJob);
             var targetReferences = m_query.ToComponentDataArray<SmartBakerTargetEntityReference>(Allocator.TempJob);
-            var smartDataArray   = m_query.ToComponentDataArray<TSmartBakerWorker>(Allocator.TempJob);
+            var smartDataArray   = m_query.ToComponentDataArray<TSmartBakeItem>(Allocator.TempJob);
 
-            var processJob = new SmartBaker<TAuthoring, TSmartBakerWorker>.ProcessSmartBakeDataBurstedJob
+            var processJob = new SmartBaker<TAuthoring, TSmartBakeItem>.ProcessSmartBakeDataBurstedJob
             {
                 em               = EntityManager,
                 targetReferences = targetReferences,
@@ -117,9 +117,9 @@ namespace Latios.Authoring
             //else
             processJob.Execute();
 
-            var writeBackJob = new SmartBaker<TAuthoring, TSmartBakerWorker>.WriteBackBakedDataJob
+            var writeBackJob = new SmartBaker<TAuthoring, TSmartBakeItem>.WriteBackBakedDataJob
             {
-                smartDataLookup = GetComponentLookup<TSmartBakerWorker>(),
+                smartDataLookup = GetComponentLookup<TSmartBakeItem>(),
                 entities        = entities,
                 smartDataArray  = smartDataArray
             };

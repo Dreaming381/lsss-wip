@@ -149,7 +149,7 @@ namespace Latios
             componentDataBlockList->Dispose();
             AllocatorManager.Free(allocator, prefabSortkeyBlockList, 1);
             AllocatorManager.Free(allocator, componentDataBlockList, 1);
-            AllocatorManager.Free(allocator, state, 1);
+            AllocatorManager.Free(allocator, state,                  1);
             //UnsafeUtility.Free(prefabSortkeyBlockList, allocator);
             //UnsafeUtility.Free(componentDataBlockList, allocator);
             //UnsafeUtility.Free(state,                  allocator);
@@ -316,10 +316,10 @@ namespace Latios
                     new ComponentTypeSet(m_state->tagsToAdd.GetComponentType(0), m_state->tagsToAdd.GetComponentType(1), m_state->tagsToAdd.GetComponentType(2), type); break;
                 case 4: m_state->tagsToAdd =
                     new ComponentTypeSet(m_state->tagsToAdd.GetComponentType(0),
-                                       m_state->tagsToAdd.GetComponentType(1),
-                                       m_state->tagsToAdd.GetComponentType(2),
-                                       m_state->tagsToAdd.GetComponentType(3),
-                                       type); break;
+                                         m_state->tagsToAdd.GetComponentType(1),
+                                         m_state->tagsToAdd.GetComponentType(2),
+                                         m_state->tagsToAdd.GetComponentType(3),
+                                         type); break;
                 case var n when n >= 5 && n < 15:
                 {
                     FixedList128Bytes <ComponentType> types = default;
@@ -661,9 +661,9 @@ namespace Latios
                 case 2: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]));
                 case 3: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]));
                 case 4: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
-                                                  ComponentType.ReadWrite(types[3]));
+                                                    ComponentType.ReadWrite(types[3]));
                 case 5: return new ComponentTypeSet(ComponentType.ReadWrite(types[0]), ComponentType.ReadWrite(types[1]), ComponentType.ReadWrite(types[2]),
-                                                  ComponentType.ReadWrite(types[3]), ComponentType.ReadWrite(types[4]));
+                                                    ComponentType.ReadWrite(types[3]), ComponentType.ReadWrite(types[4]));
                 default: return default;
             }
         }
@@ -696,7 +696,7 @@ namespace Latios
                 if (t.IsZeroSized)
                     throw new InvalidOperationException(
                         "InstantiateCommandBuffer cannot be created with zero-sized component types. You can instead add such types using AddTagComponent() after creation.");
-            }                
+            }
 #endif
         }
 
@@ -730,8 +730,8 @@ namespace Latios
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
         {
-            if (allocator.ToAllocator <= Allocator.None)
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (allocator.ToAllocator <= Allocator.None)
                 throw new System.InvalidOperationException("Allocator cannot be Invalid or None");
 #endif
         }
@@ -868,22 +868,4 @@ namespace Latios
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

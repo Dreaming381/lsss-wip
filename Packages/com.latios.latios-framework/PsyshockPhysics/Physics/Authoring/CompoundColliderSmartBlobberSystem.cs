@@ -52,7 +52,7 @@ namespace Latios.Psyshock.Authoring
                 if (unityCollider is UnityEngine.MeshCollider)
                     continue;
 
-                var  currentTransform = baker.GetComponent<UnityEngine.Transform>();
+                var  currentTransform = baker.GetComponent<UnityEngine.Transform>(unityCollider);
                 var  scale            = currentTransform.lossyScale / compoundScale;
                 bool nonUniformScale  = math.cmax(scale) - math.cmin(scale) > 1.0E-5f;
 

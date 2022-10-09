@@ -102,9 +102,9 @@ namespace Latios
         /// <returns></returns>
         public JobHandle Dispose(JobHandle inputDeps)
         {
-            var jobHandle = new DisposeJob 
-            { 
-                blockList = m_blockList, 
+            var jobHandle = new DisposeJob
+            {
+                blockList = m_blockList,
                 state     = m_state,
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = m_Safety
@@ -137,7 +137,7 @@ namespace Latios
             var allocator = state->allocator;
             blockList->Dispose();
             AllocatorManager.Free(allocator, blockList, 1);
-            AllocatorManager.Free(allocator, state, 1);
+            AllocatorManager.Free(allocator, state,     1);
         }
         #endregion
 
@@ -355,9 +355,9 @@ namespace Latios
         }
 
         private void GetLinkedEntitiesInternal(BufferLookup<LinkedEntityGroup> linkedLookup,
-                                               out NativeArray<Entity>             roots,
+                                               out NativeArray<Entity>         roots,
                                                Allocator rootsAllocator,
-                                               out NativeArray<Entity>             linkedEntities,
+                                               out NativeArray<Entity>         linkedEntities,
                                                Allocator linkedAllocator)
         {
             CheckReadAccess();
@@ -388,8 +388,8 @@ namespace Latios
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
         {
-            if (allocator.ToAllocator <= Allocator.None)
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (allocator.ToAllocator <= Allocator.None)
                 throw new System.InvalidOperationException("Allocator cannot be Invalid or None");
 #endif
         }
@@ -450,26 +450,4 @@ namespace Latios
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

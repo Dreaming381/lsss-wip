@@ -17,10 +17,12 @@ namespace Lsss.Authoring
     {
         public override void Bake(TitleAndMenuResourcesAuthoring authoring)
         {
+            DependsOn(authoring.selectSoundEffect);
+            DependsOn(authoring.navigateSoundEffect);
+
             var selectEntity   = GetEntity(  authoring.selectSoundEffect);
             var navigateEntity = GetEntity(authoring.navigateSoundEffect);
-            AddComponent<Latios.DontDestroyOnSceneChangeTag>(selectEntity);
-            AddComponent(                                    new TitleAndMenuResources
+            AddComponent( new TitleAndMenuResources
             {
                 selectSoundEffect   = selectEntity,
                 navigateSoundEffect = navigateEntity

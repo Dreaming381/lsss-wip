@@ -61,6 +61,7 @@ namespace Lsss
 
                 //var marker = new Unity.Profiling.ProfilerMarker("Process pair");
                 //marker.Begin();
+
                 if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
                 {
                     var healthA = shipHealthLookup[result.entityA];

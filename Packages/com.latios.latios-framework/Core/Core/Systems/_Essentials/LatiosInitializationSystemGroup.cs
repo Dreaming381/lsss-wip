@@ -48,7 +48,6 @@ namespace Latios.Systems
     [DisableAutoCreation]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(Unity.Scenes.SceneSystemGroup))]
-    [UpdateAfter(typeof(ConvertToEntitySystem))]
     public class LatiosWorldSyncGroup : ComponentSystemGroup
     {
         SystemSortingTracker m_tracker;

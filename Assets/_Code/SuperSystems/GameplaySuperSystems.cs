@@ -46,7 +46,8 @@ namespace Lsss.SuperSystems
             //GetOrCreateAndAddManagedSystem<BuildWormholesCollisionLayerSystem>();
             GetOrCreateAndAddManagedSystem<BuildSpawnPointCollisionLayerSystem>();
 
-            //GetOrCreateAndAddSystem<DebugDrawFactionShipsCollisionLayersSystem>();
+            //GetOrCreateAndAddManagedSystem<DebugDrawFactionShipsCollisionLayersSystem>();
+            //GetOrCreateAndAddManagedSystem<DebugDrawFactionShipsCollidersSystem>();
             //GetOrCreateAndAddSystem<DebugDrawBulletCollisionLayersSystem>();
             //GetOrCreateAndAddSystem<DebugDrawWormholeCollisionLayersSystem>();
             //GetOrCreateAndAddSystem<DebugDrawSpawnPointCollisionLayersSystem>();

@@ -47,7 +47,9 @@ namespace Lsss
 
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
             foreach ((var factionRef, var entity) in Query<RefRO<FleetSpawnSlotFactionReference> >().WithEntityAccess())
+            {
                 ecb.AddSharedComponent(entity, new FactionMember { factionEntity = factionRef.ValueRO.factionEntity });
+            }
             ecb.Playback(state.EntityManager);
             ecb.Dispose();
 

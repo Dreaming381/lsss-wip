@@ -4,6 +4,8 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Lsss
 {
@@ -56,6 +58,27 @@ namespace Lsss
                 CompleteDependency();
                 PhysicsDebug.DrawLayer(layer.layer).Run();
             }).WithoutBurst().Run();
+        }
+    }
+
+    public partial class DebugDrawFactionShipsCollidersSystem : SubSystem
+    {
+        protected override void OnUpdate()
+        {
+            Entities.WithAll<ShipTag>().ForEach((in Collider collider, in Translation translation, in Rotation rotation) =>
+            {
+                PhysicsDebug.DrawCollider(in collider, new RigidTransform(rotation.Value, translation.Value), UnityEngine.Color.green);
+                if (collider.type == ColliderType.Box)
+                    UnityEngine.Debug.Log("Box collider");
+                else if (collider.type == ColliderType.Compound)
+                {
+                    CompoundCollider compound = collider;
+                    if (compound.compoundColliderBlob.Value.colliders[0].type == ColliderType.Box)
+                    {
+                        UnityEngine.Debug.Log($"Compound with {compound.compoundColliderBlob.Value.colliders.Length} colliders and scale {compound.scale}");
+                    }
+                }
+            }).Schedule();
         }
     }
 }

@@ -79,7 +79,8 @@ namespace Lsss.Authoring
                 SfxrRenderer renderer = default;
                 renderer.param        = parameters.sfxrParams;
                 renderer.Reset(true);
-                samples.ResizeUninitialized(renderer.fullLength);
+                samples.Length = 0;
+                samples.Resize(renderer.fullLength, NativeArrayOptions.ClearMemory);
                 renderer.SynthWave(samples.Reinterpret<float>().AsNativeArray(), 0, (uint)renderer.fullLength);
             }
         }

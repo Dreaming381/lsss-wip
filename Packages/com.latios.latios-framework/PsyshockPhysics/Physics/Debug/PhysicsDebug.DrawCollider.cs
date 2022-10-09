@@ -227,8 +227,10 @@ namespace Latios.Psyshock
 
             for (int i = 0; i < blob.blobColliders.Length; i++)
             {
-                var c = Physics.ScaleCollider(blob.colliders[i], scale);
-                var t = math.mul(transform, blob.transforms[i]);
+                var c               = Physics.ScaleCollider(blob.colliders[i], scale);
+                var localTransform  = blob.transforms[i];
+                localTransform.pos *= compound.scale;
+                var t               = math.mul(transform, localTransform);
                 DrawCollider(c, t, color, segmentsPerPi);
             }
         }

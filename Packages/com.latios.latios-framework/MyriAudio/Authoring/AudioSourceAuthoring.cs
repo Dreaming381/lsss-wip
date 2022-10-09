@@ -42,7 +42,7 @@ namespace Latios.Myri.Authoring
         public float outerAngleVolume = 0f;
     }
 
-    public struct AudioSourceBakerWorker : ISmartBakerWorker<AudioSourceAuthoring>
+    public struct AudioSourceBakerWorker : ISmartBakeItem<AudioSourceAuthoring>
     {
         SmartBlobberHandle<AudioClipBlob> m_handle;
         bool                              m_looped;

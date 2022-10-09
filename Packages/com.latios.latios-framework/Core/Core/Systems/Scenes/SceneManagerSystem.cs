@@ -11,6 +11,7 @@ namespace Latios.Systems
     public partial class SceneManagerSystem : SubSystem
     {
         private EntityQuery m_rlsQuery;
+        private EntityQuery m_unitySubsceneLoadQuery;
         private bool        m_paused = false;
 
         protected override void OnCreate()
@@ -24,11 +25,13 @@ namespace Latios.Systems
             worldBlackboardEntity.AddComponentData(curr);
 
             latiosWorld.autoGenerateSceneBlackboardEntity = false;
+
+            m_unitySubsceneLoadQuery = Fluent.WithAll<Unity.Entities.RequestSceneLoaded>().Build();
         }
 
         protected override void OnUpdate()
         {
-            if (m_rlsQuery.CalculateChunkCount() > 0)
+            if (!m_rlsQuery.IsEmptyIgnoreFilter)
             {
                 FixedString128Bytes targetScene = new FixedString128Bytes();
                 bool                isInvalid   = false;
@@ -84,6 +87,24 @@ namespace Latios.Systems
                 currentScene.isSceneFirstFrame = false;
             }
             worldBlackboardEntity.SetComponentData(currentScene);
+
+            var subsceneRequests = m_unitySubsceneLoadQuery.ToComponentDataArray<RequestSceneLoaded>(Allocator.Temp);
+            var subsceneEntities = m_unitySubsceneLoadQuery.ToEntityArray(Allocator.Temp);
+            for (int i = 0; i < subsceneEntities.Length; i++)
+            {
+                var subsceneEntity = subsceneEntities[i];
+                var request        = subsceneRequests[i];
+                if ((request.LoadFlags & SceneLoadFlags.DisableAutoLoad) == 0)
+                {
+                    request.LoadFlags |= SceneLoadFlags.BlockOnStreamIn;
+                    EntityManager.SetComponentData(subsceneEntity, request);
+                    if (EntityManager.HasComponent<Unity.Scenes.ResolvedSectionEntity>(subsceneEntity))
+                    {
+                        foreach (var s in EntityManager.GetBuffer<Unity.Scenes.ResolvedSectionEntity>(subsceneEntity))
+                            EntityManager.AddComponentData(s.SectionEntity, request);
+                    }
+                }
+            }
         }
     }
 }

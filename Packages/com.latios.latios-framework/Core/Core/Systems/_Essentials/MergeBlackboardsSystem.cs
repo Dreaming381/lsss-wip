@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 
@@ -13,9 +14,24 @@ namespace Latios.Systems
         private EntityDataCopyKit m_copyKit;
         private EntityQuery       m_query;
 
+        private NativeList<ComponentType> m_sceneTypes;
+
         protected override void OnCreate()
         {
-            m_copyKit = new EntityDataCopyKit(EntityManager);
+            m_copyKit    = new EntityDataCopyKit(EntityManager);
+            m_sceneTypes = new NativeList<ComponentType>(Allocator.Persistent);
+
+            foreach (var type in TypeManager.AllTypes)
+            {
+                if (type.Type != null && type.Type.Namespace != null)
+                    if (type.Type.Namespace == "Unity.Entities")
+                        m_sceneTypes.Add(ComponentType.FromTypeIndex(type.TypeIndex));
+            }
+        }
+
+        protected override void OnDestroy()
+        {
+            m_sceneTypes.Dispose();
         }
 
         protected override void OnUpdate()
@@ -24,6 +40,7 @@ namespace Latios.Systems
             {
                 var types        = EntityManager.GetComponentTypes(entity, Unity.Collections.Allocator.TempJob);
                 var targetEntity = globalEntityData.blackboardScope == BlackboardScope.World ? worldBlackboardEntity : sceneBlackboardEntity;
+                var sceneTypes   = m_sceneTypes;
 
                 ComponentType errorType = default;
                 bool          error     = false;
@@ -31,6 +48,18 @@ namespace Latios.Systems
                 {
                     if (type.TypeIndex == ComponentType.ReadWrite<BlackboardEntityData>().TypeIndex)
                         continue;
+                    bool skip = false;
+                    for (int i = 0; i < sceneTypes.Length; i++)
+                    {
+                        if (sceneTypes[i].TypeIndex == type.TypeIndex)
+                        {
+                            skip = true;
+                            break;
+                        }
+                    }
+                    if (skip)
+                        continue;
+
                     if (globalEntityData.mergeMethod == MergeMethod.Overwrite || !targetEntity.HasComponent(type))
                         m_copyKit.CopyData(entity, targetEntity, type);
                     else if (globalEntityData.mergeMethod == MergeMethod.ErrorOnConflict)

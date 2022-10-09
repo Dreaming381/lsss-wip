@@ -34,7 +34,7 @@ EditorBuildSettings:
     guid: b750279bd0ae5c045a694f19c2840336
   - enabled: 1
     path: Assets/Scenes/v3/Mission1_v0_3.unity
-    guid: 610e54f7e1463f342b431cbad6f33156
+    guid: 4919264f51926a14dbce1a3a72fd07b0
   - enabled: 1
     path: Assets/Scenes/v3/Mission2_v0_3.unity
     guid: 90a25fde4d908a146b1b268b1a2a1748
