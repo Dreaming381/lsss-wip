@@ -46,6 +46,7 @@ namespace Lsss
             if (titleAndMenu == null)
                 return;
 
+            EntityCommandBuffer immediateECB = default;
             Entities.ForEach((in TitleAndMenuResources resources) =>
             {
                 if (titleAndMenu.titlePanel.activeSelf)
@@ -160,10 +161,12 @@ namespace Lsss
 
                 if (titleAndMenu.selectedScene.Length > 0)
                 {
-                    var ecb                                                                                              = latiosWorld.syncPoint.CreateEntityCommandBuffer();
-                    ecb.AddComponent(                             sceneBlackboardEntity, new RequestLoadScene { newScene = titleAndMenu.selectedScene });
-                    var sound                                                                                            = ecb.Instantiate(resources.selectSoundEffect);
-                    ecb.AddComponent<DontDestroyOnSceneChangeTag>(sound);
+                    // Audio updates before the sync point, so if we want to hear the final click,
+                    // we need to update immediately.
+                    immediateECB = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+                    var sound    = immediateECB.Instantiate(resources.selectSoundEffect);
+                    immediateECB.AddComponent<DontDestroyOnSceneChangeTag>(sound);
+                    immediateECB.AddComponent(                             sceneBlackboardEntity, new RequestLoadScene { newScene = titleAndMenu.selectedScene });
                 }
 
                 if (titleAndMenu.openSettings)
@@ -287,6 +290,9 @@ namespace Lsss
                 float a                             = 0.75f * (float)math.sin(SystemAPI.Time.ElapsedTime / titleAndMenu.pulsePeriod * 2d * math.PI_DBL) + 0.5f;
                 titleAndMenu.pressToStartText.color = new UnityEngine.Color(1f, 1f, 1f, a);
             }).WithoutBurst().Run();
+
+            if (immediateECB.IsCreated)
+                immediateECB.Playback(EntityManager);
         }
 
         protected override void OnDestroy()

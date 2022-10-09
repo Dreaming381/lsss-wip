@@ -12,6 +12,7 @@ namespace Latios.Systems
     {
         private EntityQuery m_rlsQuery;
         private EntityQuery m_unitySubsceneLoadQuery;
+        private EntityQuery m_dontDestroyOnSceneChangeQuery;
         private bool        m_paused = false;
 
         protected override void OnCreate()
@@ -26,7 +27,8 @@ namespace Latios.Systems
 
             latiosWorld.autoGenerateSceneBlackboardEntity = false;
 
-            m_unitySubsceneLoadQuery = Fluent.WithAll<Unity.Entities.RequestSceneLoaded>().Build();
+            m_unitySubsceneLoadQuery        = Fluent.WithAll<Unity.Entities.RequestSceneLoaded>().Build();
+            m_dontDestroyOnSceneChangeQuery = Fluent.WithAll<Unity.Entities.SceneTag>().WithAll<DontDestroyOnSceneChangeTag>().IncludeDisabled().IncludePrefabs().Build();
         }
 
         protected override void OnUpdate()
@@ -57,6 +59,7 @@ namespace Latios.Systems
                     {
                         var curr           = worldBlackboardEntity.GetComponentData<CurrentScene>();
                         curr.previousScene = curr.currentScene;
+                        EntityManager.RemoveComponent<Unity.Entities.SceneTag>(m_dontDestroyOnSceneChangeQuery);
                         UnityEngine.Debug.Log("Loading scene: " + targetScene);
                         SceneManager.LoadScene(targetScene.ToString());
                         latiosWorld.Pause();
