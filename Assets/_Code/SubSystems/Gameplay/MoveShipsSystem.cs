@@ -15,9 +15,12 @@ namespace Lsss
     [RequireMatchingQueriesForUpdate]
     public partial struct MoveShipsSystem : ISystem
     {
+        LatiosWorldUnmanaged latiosWorld;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
         [BurstCompile]
         public void OnDestroy(ref SystemState state)
@@ -27,7 +30,7 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var dt          = Time.DeltaTime;
-            var arenaRadius = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius;
+            var arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
 
             new Job { dt = dt, arenaRadius = arenaRadius }.ScheduleParallel();
         }

@@ -39,7 +39,7 @@ namespace Lsss
 
         public override void OnNewScene()
         {
-            sceneBlackboardEntity.AddCollectionComponent(new SpawnQueues
+            sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new SpawnQueues
             {
                 playerQueue               = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent),
                 aiQueue                   = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent),

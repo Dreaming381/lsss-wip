@@ -13,47 +13,27 @@ namespace Latios
     /// <summary>
     /// A specialized runtime World which contains Latios Framework core functionality.
     /// </summary>
-    public class LatiosWorld : World
+    public unsafe class LatiosWorld : World
     {
+        /// <summary>
+        /// The unmanaged state of the Latios World
+        /// </summary>
+        public LatiosWorldUnmanaged latiosWorldUnmanaged => m_unmanaged;
+
         /// <summary>
         /// The worldBlackboardEntity associated with this world
         /// </summary>
-        public BlackboardEntity worldBlackboardEntity { get; private set; }
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-        private BlackboardEntity m_sceneBlackboardEntity;
-        private bool m_sceneBlackboardSafetyOverride;
+        public BlackboardEntity worldBlackboardEntity => m_unmanaged.worldBlackboardEntity;
+
         /// <summary>
         /// The current sceneBlackboardEntity associated with this world
         /// </summary>
-        public BlackboardEntity sceneBlackboardEntity
-        {
-            get
-            {
-                if (m_sceneBlackboardEntity == Entity.Null && !m_sceneBlackboardSafetyOverride)
-                {
-                    throw new InvalidOperationException(
-                        "The sceneBlackboardEntity has not been initialized yet. If you are trying to access this entity in OnCreate(), please use OnNewScene() or another callback instead.");
-                }
-                return m_sceneBlackboardEntity;
-            }
-            private set => m_sceneBlackboardEntity = value;
-        }
-#else
-        public BlackboardEntity sceneBlackboardEntity { get; private set; }
-#endif
+        public BlackboardEntity sceneBlackboardEntity => m_unmanaged.sceneBlackboardEntity;
         /// <summary>
         /// The main syncPoint system from which to get command buffers.
         /// Command buffers retrieved from this property will have dependencies managed automatically
         /// </summary>
-        public SyncPointPlaybackSystem syncPoint
-        {
-            get
-            {
-                m_activeSystemAccessedSyncPoint = true;
-                return m_syncPointPlaybackSystem;
-            }
-            set => m_syncPointPlaybackSystem = value;
-        }
+        public ref SyncPointPlaybackSystem syncPoint => ref m_unmanaged.syncPoint;
         /// <summary>
         /// The InitializationSystemGroup of this world for convenience
         /// </summary>
@@ -73,24 +53,17 @@ namespace Latios
         /// </summary>
         public bool useExplicitSystemOrdering = false;
 
-        internal ManagedStructComponentStorage ManagedStructStorage { get { return m_componentStorage; } }
-        internal CollectionComponentStorage CollectionComponentStorage { get { return m_collectionsStorage; } }
+        public bool zeroToleranceForExceptions { get => m_unmanaged.zeroToleranceForExceptions; set => m_unmanaged.zeroToleranceForExceptions = value; }
+
+        private LatiosWorldUnmanaged m_unmanaged;
+
         internal UnmanagedExtraInterfacesDispatcher UnmanagedExtraInterfacesDispatcher { get { return m_interfacesDispatcher; } }
-
-        private List<CollectionDependency> m_collectionDependencies = new List<CollectionDependency>();
-
-        //Todo: Disposal of storages is currently done in ManagedStructStorageCleanupSystems.cs.
-        //This is because overriding World doesn't give us an opportunity to override the Dispose method.
-        //In the future it may be worth creating a DisposeTool system that Dispose events can be registered to.
-        private ManagedStructComponentStorage      m_componentStorage   = new ManagedStructComponentStorage();
-        private CollectionComponentStorage         m_collectionsStorage = new CollectionComponentStorage();
         private UnmanagedExtraInterfacesDispatcher m_interfacesDispatcher;
 
         private InitializationSystemGroup m_initializationSystemGroup;
         private SimulationSystemGroup     m_simulationSystemGroup;
         private PresentationSystemGroup   m_presentationSystemGroup;
-        private SyncPointPlaybackSystem   m_syncPointPlaybackSystem;
-        private SystemHandle              m_blackboardUnmanagedSystem;
+        private SystemHandle              m_latiosWorldUnmanagedSystem;
 
         private bool m_paused          = false;
         private bool m_resumeNextFrame = false;
@@ -108,22 +81,17 @@ namespace Latios
         /// <param name="name">The name of the world</param>
         /// <param name="flags">Specifies world flags</param>
         /// <param name="role">The role of the world. Leave at default unless this is a NetCode project.</param>
-        public LatiosWorld(string name, WorldFlags flags = WorldFlags.Simulation, WorldRole role = WorldRole.Default) : base(name, flags)
+        public unsafe LatiosWorld(string name, WorldFlags flags = WorldFlags.Simulation, WorldRole role = WorldRole.Default) : base(name, flags)
         {
             //BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentTag<>),               typeof(IManagedComponent));
-            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentSystemStateTag<>),    typeof(IManagedComponent));
+            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentCleanupTag<>),    typeof(IManagedStructComponent));
             //BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentTag<>),            typeof(ICollectionComponent));
-            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentSystemStateTag<>), typeof(ICollectionComponent));
+            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentCleanupTag<>), typeof(ICollectionComponent));
             m_interfacesDispatcher = new UnmanagedExtraInterfacesDispatcher();
 
-            m_blackboardUnmanagedSystem = this.GetOrCreateSystem<BlackboardUnmanagedSystem>();
+            m_latiosWorldUnmanagedSystem = this.GetOrCreateSystem<LatiosWorldUnmanagedSystem>();
 
-            worldBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
-            worldBlackboardEntity.AddComponentData(new WorldBlackboardTag());
-            EntityManager.SetName(worldBlackboardEntity, "World Blackboard Entity");
-            ref var bus               = ref Unmanaged.GetUnsafeSystemRef<BlackboardUnmanagedSystem>(m_blackboardUnmanagedSystem);
-            bus.worldBlackboardEntity = (Entity)worldBlackboardEntity;
-            bus.sceneBlackboardEntity = default;
+            m_unmanaged = Unmanaged.GetLatiosWorldUnmanaged();
 
             if (role == WorldRole.Default)
             {
@@ -146,8 +114,6 @@ namespace Latios
                 m_simulationSystemGroup     = GetOrCreateSystem<Compatibility.UnityNetCode.LatiosServerSimulationSystemGroup>();
 #endif
             }
-
-            m_syncPointPlaybackSystem = GetExistingSystemManaged<SyncPointPlaybackSystem>();
         }
 
         /// <summary>
@@ -183,12 +149,9 @@ namespace Latios
             }
         }
 
-        internal void CreateNewSceneBlackboardEntity(bool forceRecreate = false)
+        internal unsafe void CreateNewSceneBlackboardEntity(bool forceRecreate = false)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_sceneBlackboardSafetyOverride = true;
-#endif
-            bool existsAndIsValid = EntityManager.Exists(sceneBlackboardEntity) && sceneBlackboardEntity.HasComponent<SceneBlackboardTag>();
+            bool existsAndIsValid = m_unmanaged.isSceneBlackboardEntityCreated;
             if (forceRecreate && existsAndIsValid)
             {
                 EntityManager.DestroyEntity(sceneBlackboardEntity);
@@ -197,16 +160,27 @@ namespace Latios
 
             if (!existsAndIsValid)
             {
-                sceneBlackboardEntity = new BlackboardEntity(EntityManager.CreateEntity(), EntityManager);
-                sceneBlackboardEntity.AddComponentData(new SceneBlackboardTag());
-                Unmanaged.GetUnsafeSystemRef<BlackboardUnmanagedSystem>(m_blackboardUnmanagedSystem).sceneBlackboardEntity = (Entity)sceneBlackboardEntity;
-                EntityManager.SetName(sceneBlackboardEntity, "Scene Blackboard Entity");
+                m_unmanaged.CreateSceneBlackboardEntity();
 
                 foreach (var system in Systems)
                 {
                     if (system is ILatiosSystem latiosSystem)
                     {
-                        latiosSystem.OnNewScene();
+                        m_unmanaged.m_impl->BeginDependencyTracking(system.SystemHandle);
+                        bool hadError = false;
+                        try
+                        {
+                            latiosSystem.OnNewScene();
+                        }
+                        catch (Exception e)
+                        {
+                            hadError = true;
+                            Debug.LogException(e);
+                        }
+                        finally
+                        {
+                            m_unmanaged.m_impl->EndDependencyTracking(system.SystemHandle, hadError);
+                        }
                     }
                 }
 
@@ -217,155 +191,27 @@ namespace Latios
                     ref var systemState = ref unmanaged.ResolveSystemStateRef(unmanagedSystems[i]);
                     var     dispatcher  = m_interfacesDispatcher.GetDispatch(ref systemState);
                     if (dispatcher != null)
-                        dispatcher.OnNewScene(ref systemState);
+                    {
+                        m_unmanaged.m_impl->BeginDependencyTracking(systemState.SystemHandle);
+                        bool hadError = false;
+                        try
+                        {
+                            dispatcher.OnNewScene(ref systemState);
+                        }
+                        catch (Exception e)
+                        {
+                            hadError = true;
+                            Debug.LogException(e);
+                        }
+                        finally
+                        {
+                            m_unmanaged.m_impl->EndDependencyTracking(systemState.SystemHandle, hadError);
+                        }
+                    }
                 }
                 unmanagedSystems.Dispose();
             }
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            m_sceneBlackboardSafetyOverride = false;
-#endif
         }
-
-        #region AutoDependencies
-
-        private SubSystemBase m_activeSystem;
-        private bool          m_activeSystemAccessedSyncPoint;
-
-        internal void UpdateOrCompleteDependency(JobHandle readHandle, JobHandle writeHandle)
-        {
-            if (m_activeSystem != null)
-            {
-                var jh                              = m_activeSystem.SystemBaseDependency;
-                jh                                  = JobHandle.CombineDependencies(readHandle, writeHandle, jh);
-                m_activeSystem.SystemBaseDependency = jh;
-            }
-            else
-            {
-                JobHandle.CombineDependencies(readHandle, writeHandle).Complete();
-            }
-        }
-
-        internal void UpdateOrCompleteDependency(JobHandle jobHandle)
-        {
-            if (m_activeSystem != null)
-            {
-                var jh                              = m_activeSystem.SystemBaseDependency;
-                jh                                  = JobHandle.CombineDependencies(jobHandle, jh);
-                m_activeSystem.SystemBaseDependency = jh;
-            }
-            else
-            {
-                jobHandle.Complete();
-            }
-        }
-
-        internal void MarkCollectionDirty<T>(Entity entity, bool isReadOnly) where T : struct, ICollectionComponent
-        {
-            m_collectionDependencies.Add(new CollectionDependency(entity, typeof(T), isReadOnly));
-        }
-
-        internal void MarkCollectionClean<T>(Entity entity, bool isReadOnly) where T : struct, ICollectionComponent
-        {
-            if (isReadOnly)
-            {
-                RemoveAllMatchingCollectionDependenciesReadOnly(entity, typeof(T));
-            }
-            else
-            {
-                RemoveAllMatchingCollectionDependencies(entity, typeof(T));
-            }
-        }
-
-        internal void BeginDependencyTracking(SubSystemBase sys)
-        {
-            if (m_activeSystem != null)
-            {
-                throw new InvalidOperationException(
-                    $"{sys.GetType().Name} has detected that the previously updated {m_activeSystem.GetType().Name} did not finish its update procedure properly. This is likely due to an exception thrown from within OnUpdate(), but please note that calling Update() on a SubSystem from within another SubSystem is not supported.");
-            }
-            m_activeSystem                  = sys;
-            m_activeSystemAccessedSyncPoint = false;
-        }
-
-        internal void EndDependencyTracking(JobHandle outputDeps)
-        {
-            m_activeSystem = null;
-            if (outputDeps.IsCompleted)
-            {
-                //Todo: Is this necessary? And what are the performance impacts? Is there a better way to figure out that all jobs were using .Run()?
-                outputDeps.Complete();
-            }
-            else
-            {
-                UpdateCollectionDependencies(outputDeps);
-                if (m_activeSystemAccessedSyncPoint)
-                {
-                    m_syncPointPlaybackSystem.AddJobHandleForProducer(outputDeps);
-                }
-            }
-        }
-
-        internal void CheckMissingDependenciesForCollections(SubSystemBase sys)
-        {
-            if (m_collectionDependencies.Count > 0)
-                Debug.LogWarning(
-                    $"{sys} finished its update but there are ICollectionComponent instances, one of which was of type {m_collectionDependencies[0].type}, that were accessed but did not have their dependencies updated.");
-        }
-
-        private struct CollectionDependency
-        {
-            public Entity entity;
-            public Type   type;
-            public bool   readOnly;
-
-            public CollectionDependency(Entity entity, Type type, bool readOnly)
-            {
-                this.entity   = entity;
-                this.type     = type;
-                this.readOnly = readOnly;
-            }
-        }
-
-        private void UpdateCollectionDependencies(JobHandle outputDeps)
-        {
-            foreach (var dep in m_collectionDependencies)
-            {
-                if (dep.readOnly)
-                {
-                    m_collectionsStorage.UpdateReadHandle(dep.entity, dep.type, outputDeps);
-                }
-                else
-                {
-                    m_collectionsStorage.UpdateWriteHandle(dep.entity, dep.type, outputDeps);
-                }
-            }
-            m_collectionDependencies.Clear();
-        }
-
-        private void RemoveAllMatchingCollectionDependencies(Entity entity, Type type)
-        {
-            for (int i = 0; i < m_collectionDependencies.Count; i++)
-            {
-                if (m_collectionDependencies[i].entity == entity && m_collectionDependencies[i].type == type)
-                {
-                    m_collectionDependencies.RemoveAtSwapBack(i);
-                    i--;
-                }
-            }
-        }
-
-        private void RemoveAllMatchingCollectionDependenciesReadOnly(Entity entity, Type type)
-        {
-            for (int i = 0; i < m_collectionDependencies.Count; i++)
-            {
-                if (m_collectionDependencies[i].entity == entity && m_collectionDependencies[i].type == type && m_collectionDependencies[i].readOnly == true)
-                {
-                    m_collectionDependencies.RemoveAtSwapBack(i);
-                    i--;
-                }
-            }
-        }
-        #endregion
     }
 
 namespace Systems

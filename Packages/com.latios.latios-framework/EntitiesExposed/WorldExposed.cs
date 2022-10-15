@@ -19,6 +19,11 @@ namespace Unity.Entities.Exposed
             return world.Unmanaged.GetTypeOfSystem(world.Unmanaged.ExecutingSystem);
         }
 
+        public static SystemHandle GetCurrentlyExecutingSystem(this ref WorldUnmanaged world)
+        {
+            return world.ExecutingSystem;
+        }
+
         public static unsafe ComponentSystemBase AsManagedSystem(this World world, SystemHandle system)
         {
             return world.Unmanaged.ResolveSystemState(system)->ManagedSystem;

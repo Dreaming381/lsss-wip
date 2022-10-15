@@ -17,14 +17,17 @@ namespace Lsss
             public Rng rng;
         }
 
+        LatiosWorldUnmanaged latiosWorld;
+
         public void OnNewScene(ref SystemState state)
         {
-            state.GetSceneBlackboardEntity().AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
+            latiosWorld.sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
         }
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
         [BurstCompile]
         public void OnDestroy(ref SystemState state)
@@ -33,11 +36,11 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var rng                                                           = state.GetSceneBlackboardEntity().GetComponentData<AiRng>().rng.Shuffle();
-            state.GetSceneBlackboardEntity().SetComponentData(new AiRng { rng = rng });
+            var rng                                                            = latiosWorld.sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
+            latiosWorld.sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
             new Job
             {
-                arenaRadius = state.GetSceneBlackboardEntity().GetComponentData<ArenaRadius>().radius,
+                arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius,
                 rng         = rng
             }.ScheduleParallel();
         }

@@ -7,7 +7,7 @@ namespace Latios.Systems
 {
     [DisableAutoCreation]
     [UpdateInGroup(typeof(LatiosInitializationSystemGroup), OrderFirst = true)]
-    [UpdateAfter(typeof(SyncPointPlaybackSystem))]
+    [UpdateAfter(typeof(SyncPointPlaybackSystemDispatch))]
     public partial class SceneManagerSystem : SubSystem
     {
         private EntityQuery m_rlsQuery;
@@ -77,9 +77,9 @@ namespace Latios.Systems
             var currentScene = worldBlackboardEntity.GetComponentData<CurrentScene>();
             if (currentScene.currentScene.Length == 0)
             {
-                latiosWorld.CreateNewSceneBlackboardEntity();
                 currentScene.currentScene      = SceneManager.GetActiveScene().name;
                 currentScene.isSceneFirstFrame = true;
+                latiosWorld.CreateNewSceneBlackboardEntity();
             }
             else if (m_paused)
             {

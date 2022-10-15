@@ -13,10 +13,16 @@ using UnityEngine.Rendering;
 
 namespace Lsss.Tools
 {
+    public struct ProfilingDataManaged : IManagedStructComponent
+    {
+        public Stopwatch frameStopwatch;
+        public Stopwatch gpuStopwatch;
+
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<ProfilingDataTag>();
+    }
+
     public struct ProfilingData : ICollectionComponent
     {
-        public Stopwatch            frameStopwatch;
-        public Stopwatch            gpuStopwatch;
         public NativeArray<float>   cpuShort;
         public NativeArray<float>   cpuMin;
         public NativeArray<float>   cpuAverage;
@@ -28,9 +34,9 @@ namespace Lsss.Tools
         public NativeArray<Color32> image;
         public NativeArray<float>   barValues;
 
-        public Type AssociatedComponentType => typeof(ProfilingDataTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite < ProfilingDataTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps)
+        public JobHandle TryDispose(JobHandle inputDeps)
         {
             var handles = new NativeArray<JobHandle>(10, Allocator.Temp);
             handles[0]  = cpuShort.Dispose(inputDeps);
@@ -59,22 +65,26 @@ namespace Lsss.Tools
 
         protected override void OnCreate()
         {
-            var profilingData = new ProfilingData
+            var profilingDataManaged = new ProfilingDataManaged
             {
                 frameStopwatch = new Stopwatch(),
                 gpuStopwatch   = new Stopwatch(),
-                cpuShort       = new NativeArray<float>(256, Allocator.Persistent),
-                cpuMin         = new NativeArray<float>(256, Allocator.Persistent),
-                cpuAverage     = new NativeArray<float>(256, Allocator.Persistent),
-                cpuMax         = new NativeArray<float>(256, Allocator.Persistent),
-                gpuShort       = new NativeArray<float>(256, Allocator.Persistent),
-                gpuMin         = new NativeArray<float>(256, Allocator.Persistent),
-                gpuAverage     = new NativeArray<float>(256, Allocator.Persistent),
-                gpuMax         = new NativeArray<float>(256, Allocator.Persistent),
-                image          = new NativeArray<Color32>(256 * 256, Allocator.Persistent),
-                barValues      = new NativeArray<float>(kBarsPerGraph * 2, Allocator.Persistent)
             };
-            worldBlackboardEntity.AddCollectionComponent(profilingData);
+            var profilingData = new ProfilingData
+            {
+                cpuShort   = new NativeArray<float>(256, Allocator.Persistent),
+                cpuMin     = new NativeArray<float>(256, Allocator.Persistent),
+                cpuAverage = new NativeArray<float>(256, Allocator.Persistent),
+                cpuMax     = new NativeArray<float>(256, Allocator.Persistent),
+                gpuShort   = new NativeArray<float>(256, Allocator.Persistent),
+                gpuMin     = new NativeArray<float>(256, Allocator.Persistent),
+                gpuAverage = new NativeArray<float>(256, Allocator.Persistent),
+                gpuMax     = new NativeArray<float>(256, Allocator.Persistent),
+                image      = new NativeArray<Color32>(256 * 256, Allocator.Persistent),
+                barValues  = new NativeArray<float>(kBarsPerGraph * 2, Allocator.Persistent)
+            };
+            worldBlackboardEntity.AddManagedStructComponent(profilingDataManaged);
+            worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(profilingData);
         }
 
         bool m_firstFrame = true;
@@ -89,28 +99,29 @@ namespace Lsss.Tools
             }
             m_sampleCounter++;
 
-            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
+            var profilingData        = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
+            var profilingDataManaged = worldBlackboardEntity.GetManagedStructComponent<ProfilingDataManaged>();
             CompleteDependency();
             if (m_firstFrame)
             {
                 m_firstFrame = false;
-                profilingData.frameStopwatch.Start();
+                profilingDataManaged.frameStopwatch.Start();
                 return;
             }
 
-            profilingData.frameStopwatch.Stop();
+            profilingDataManaged.frameStopwatch.Stop();
 #if UNITY_EDITOR
             if (!m_firstFrame)
-                profilingData.gpuStopwatch.Stop();
+                profilingDataManaged.gpuStopwatch.Stop();
 #endif
 
-            var frameTime = profilingData.frameStopwatch.Elapsed;
-            profilingData.frameStopwatch.Reset();
-            profilingData.frameStopwatch.Start();
+            var frameTime = profilingDataManaged.frameStopwatch.Elapsed;
+            profilingDataManaged.frameStopwatch.Reset();
+            profilingDataManaged.frameStopwatch.Start();
 
             float frameDuration = (float)((double)frameTime.Ticks / TimeSpan.TicksPerMillisecond);
 
-            var   gpuTime     = profilingData.gpuStopwatch.Elapsed;
+            var   gpuTime     = profilingDataManaged.gpuStopwatch.Elapsed;
             float gpuDuration = (float)((double)gpuTime.Ticks / TimeSpan.TicksPerMillisecond);
 
             var jh = new AppendStatAndShiftJob
@@ -435,11 +446,10 @@ namespace Lsss.Tools
     {
         protected override void OnUpdate()
         {
-            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
-            CompleteDependency();
+            var profilingDataManaged = worldBlackboardEntity.GetManagedStructComponent<ProfilingDataManaged>();
 
-            profilingData.gpuStopwatch.Reset();
-            profilingData.gpuStopwatch.Start();
+            profilingDataManaged.gpuStopwatch.Reset();
+            profilingDataManaged.gpuStopwatch.Start();
         }
     }
 
@@ -465,10 +475,9 @@ namespace Lsss.Tools
 
         protected override void OnUpdate()
         {
-            var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
-            CompleteDependency();
+            var profilingDataManaged = worldBlackboardEntity.GetManagedStructComponent<ProfilingDataManaged>();
 
-            profilingData.gpuStopwatch.Stop();
+            profilingDataManaged.gpuStopwatch.Stop();
         }
     }
 }

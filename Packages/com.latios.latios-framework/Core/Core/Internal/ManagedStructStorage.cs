@@ -1,310 +1,223 @@
 ﻿using System;
 using System.Collections.Generic;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine.Assertions;
 
 namespace Latios
 {
-    internal class ManagedStructComponentStorage
+#if UNITY_EDITOR
+    internal static class InjectGenericComponentTypes
     {
-        private Dictionary<Type, TypedManagedStructStorageBase> m_typeMap      = new Dictionary<Type, TypedManagedStructStorageBase>();
-        private Dictionary<Type, ComponentType>                 m_associateMap = new Dictionary<Type, ComponentType>();
-
-        public ComponentType GetAssociatedType<T>() where T : struct, IManagedComponent
+        [UnityEditor.InitializeOnLoadMethod]
+        public static void DoInjection()
         {
-            if (!m_associateMap.TryGetValue(typeof(T), out var result))
-            {
-                result = new T().AssociatedComponentType;
-                m_associateMap.Add(typeof(T), result);
-            }
-            return result;
-        }
-
-        public void AddComponent<T>(Entity entity, T value) where T : struct, IManagedComponent
-        {
-            var tmss = GetTypedManagedStructStorage<T>();
-
-            Assert.IsFalse(HasComponent<T>(entity));
-            tmss.storage.Add(entity, value);
-        }
-
-        public T GetComponent<T>(Entity entity) where T : struct, IManagedComponent
-        {
-            var tmss = GetTypedManagedStructStorage<T>();
-
-            if (tmss.storage.TryGetValue(entity, out T component))
-            {
-                return component;
-            }
-            else
-            {
-                throw new InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T)}");
-            }
-        }
-
-        public bool HasComponent<T>(Entity entity) where T : struct, IManagedComponent
-        {
-            var tmss = GetTypedManagedStructStorage<T>();
-            return tmss.storage.ContainsKey(entity);
-        }
-
-        public void RemoveComponent<T>(Entity entity) where T : struct, IManagedComponent
-        {
-            var tmss = GetTypedManagedStructStorage<T>();
-
-            Assert.IsTrue(HasComponent<T>(entity));
-            tmss.storage.Remove(entity);
-        }
-
-        public void SetComponent<T>(Entity entity, T value) where T : struct, IManagedComponent
-        {
-            var tmss = GetTypedManagedStructStorage<T>();
-
-            Assert.IsTrue(HasComponent<T>(entity));
-            tmss.storage[entity] = value;
-        }
-
-        public void CopyComponent(Entity src, Entity dst, Type type)
-        {
-            bool success = m_typeMap.TryGetValue(type, out TypedManagedStructStorageBase baseStorage);
-            if (success)
-            {
-                baseStorage.CopyComponent(src, dst);
-            }
-        }
-
-        private TypedManagedStructStorage<T> GetTypedManagedStructStorage<T>() where T : struct, IManagedComponent
-        {
-            var ttype = typeof(T);
-            if (!m_typeMap.ContainsKey(ttype))
-            {
-                m_typeMap.Add(ttype, new TypedManagedStructStorage<T>());
-            }
-            return m_typeMap[ttype] as TypedManagedStructStorage<T>;
-        }
-
-        private abstract class TypedManagedStructStorageBase
-        {
-            public abstract void CopyComponent(Entity src, Entity dst);
-        }
-
-        private class TypedManagedStructStorage<T> : TypedManagedStructStorageBase where T : struct, IManagedComponent
-        {
-            public Dictionary<Entity, T> storage = new Dictionary<Entity, T>();
-
-            public override void CopyComponent(Entity src, Entity dst)
-            {
-                bool success = storage.TryGetValue(src, out T srcVal);
-                if (success)
-                    storage[dst] = srcVal;
-            }
+            TypeManager.Initialize();
+            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentCleanupTag<>),    typeof(IManagedStructComponent));
+            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentCleanupTag<>), typeof(ICollectionComponent));
         }
     }
+#endif
 
-    //Todo: Combine Read and Write handles into single struct with single dictionary.
-    //Todo: Explore idea of using NativeHashmap for JobHandles.
-    internal class CollectionComponentStorage : IDisposable
+    internal class ManagedStructComponentStorage : IDisposable
     {
-        private Dictionary<Type, TypedCollectionStorageBase> m_typeMap      = new Dictionary<Type, TypedCollectionStorageBase>();
-        private Dictionary<Type, ComponentType>              m_associateMap = new Dictionary<Type, ComponentType>();
-
-        public ComponentType GetAssociatedType<T>() where T : struct, ICollectionComponent
+        struct Key : IEquatable<Key>
         {
-            if (!m_associateMap.TryGetValue(typeof(T), out var result))
+            public long   typeHash;
+            public Entity entity;
+
+            public bool Equals(Key other)
             {
-                result = new T().AssociatedComponentType;
-                m_associateMap.Add(typeof(T), result);
+                return typeHash.Equals(other.typeHash) && entity.Equals(other.entity);
             }
-            return result;
-        }
 
-        public void AddCollectionComponent<T>(Entity entity, T value, bool isNotInitialized = false) where T : struct, ICollectionComponent
-        {
-            var tcs = GetTypedCollectionStorage<T>();
-
-            Assert.IsFalse(HasCollectionComponent<T>(entity));
-            tcs.storage.Add(entity, value);
-            tcs.writeHandles.Add(entity, new JobHandle());
-            tcs.readHandles.Add(entity, new JobHandle());
-            tcs.isNotInitialized.Add(entity, isNotInitialized);
-        }
-
-        public T GetCollectionComponent<T>(Entity entity, bool readOnly, out JobHandle handle) where T : struct, ICollectionComponent
-        {
-            var tcs = GetTypedCollectionStorage<T>();
-
-            if (readOnly)
+            public override unsafe int GetHashCode()
             {
-                if (tcs.storage.TryGetValue(entity, out T component))
+                fixed (void* ptr = &this)
                 {
-                    handle = tcs.writeHandles[entity];
-                    return component;
-                }
-                else
-                {
-                    throw new InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T)}");
-                }
-            }
-            else
-            {
-                if (tcs.storage.TryGetValue(entity, out T component))
-                {
-                    var rHandle = tcs.readHandles[entity];
-                    var wHandle = tcs.writeHandles[entity];
-                    handle      = JobHandle.CombineDependencies(rHandle, wHandle);
-                    return component;
-                }
-                else
-                {
-                    throw new InvalidOperationException("Entity " + entity + " does not have a component of type: " + typeof(T));
+                    return ((Hash128*)ptr)->GetHashCode();
                 }
             }
         }
 
-        public bool HasCollectionComponent<T>(Entity entity) where T : struct, ICollectionComponent
+        struct RegisteredType
         {
-            var tcs = GetTypedCollectionStorage<T>();
-            return tcs.storage.ContainsKey(entity);
+            public ComponentType associatedType;
+            public int           typedStorageIndex;
         }
 
-        //Returns true if the component can be safely disposed.
-        public bool RemoveCollectionComponent<T>(Entity entity, out JobHandle oldReadHandle, out JobHandle oldWriteHandle, out T component) where T : struct, ICollectionComponent
+        NativeHashMap<Key, int2>            m_twoLevelLookup;
+        NativeHashMap<long, RegisteredType> m_registeredTypeLookup;
+        List<TypedManagedStructStorageBase> m_typedStorages;
+
+        public ManagedStructComponentStorage()
         {
-            var tcs = GetTypedCollectionStorage<T>();
-
-            if (!tcs.storage.TryGetValue(entity, out component))
-            {
-                throw new InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T)}");
-            }
-
-            oldReadHandle      = tcs.readHandles[entity];
-            oldWriteHandle     = tcs.writeHandles[entity];
-            bool canBeDisposed = !tcs.isNotInitialized[entity];
-            tcs.storage.Remove(entity);
-            tcs.readHandles.Remove(entity);
-            tcs.writeHandles.Remove(entity);
-            tcs.isNotInitialized.Remove(entity);
-            return canBeDisposed;
-        }
-
-        //Returns true if the old component can be safely disposed.
-        public bool SetCollectionComponent<T>(Entity entity, T value, out JobHandle oldReadHandle, out JobHandle oldWriteHandle, out T oldComponent) where T : struct,
-        ICollectionComponent
-        {
-            var tcs = GetTypedCollectionStorage<T>();
-
-            if (!tcs.storage.TryGetValue(entity, out oldComponent))
-            {
-                throw new InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T)}");
-            }
-
-            oldReadHandle                = tcs.readHandles[entity];
-            oldWriteHandle               = tcs.writeHandles[entity];
-            bool canBeDisposed           = !tcs.isNotInitialized[entity];
-            tcs.storage[entity]          = value;
-            tcs.writeHandles[entity]     = new JobHandle();
-            tcs.readHandles[entity]      = new JobHandle();
-            tcs.isNotInitialized[entity] = false;
-            return canBeDisposed;
-        }
-
-        public void UpdateReadHandle(Entity entity, Type type, JobHandle readHandle)
-        {
-            var t                 = m_typeMap[type];
-            t.readHandles[entity] = JobHandle.CombineDependencies(readHandle, t.readHandles[entity]);
-        }
-
-        public void UpdateWriteHandle(Entity entity, Type type, JobHandle writeHandle)
-        {
-            var t                  = m_typeMap[type];
-            var jh                 = JobHandle.CombineDependencies(writeHandle, t.readHandles[entity], t.writeHandles[entity]);
-            t.readHandles[entity]  = jh;
-            t.writeHandles[entity] = jh;
-        }
-
-        public void CopyComponent(Entity src, Entity dst, Type type)
-        {
-            bool success = m_typeMap.TryGetValue(type, out TypedCollectionStorageBase baseStorage);
-            if (success)
-            {
-                baseStorage.CopyComponent(src, dst);
-            }
-        }
-
-        private TypedCollectionStorage<T> GetTypedCollectionStorage<T>() where T : struct, ICollectionComponent
-        {
-            Type ttype = typeof(T);
-            if (!m_typeMap.ContainsKey(ttype))
-            {
-                m_typeMap.Add(ttype, new TypedCollectionStorage<T>());
-            }
-            return m_typeMap[ttype] as TypedCollectionStorage<T>;
+            m_twoLevelLookup       = new NativeHashMap<Key, int2>(128, Allocator.Persistent);
+            m_registeredTypeLookup = new NativeHashMap<long, RegisteredType>(32, Allocator.Persistent);
+            m_typedStorages        = new List<TypedManagedStructStorageBase>(32);
         }
 
         public void Dispose()
         {
-            foreach (var storage in m_typeMap.Values)
-            {
-                storage.Dispose();
-            }
+            m_twoLevelLookup.Dispose();
+            m_registeredTypeLookup.Dispose();
         }
 
-        private abstract class TypedCollectionStorageBase : IDisposable
+        public ComponentType GetAssociatedType<T>() where T : struct, IManagedStructComponent
         {
-            public Dictionary<Entity, JobHandle> readHandles      = new Dictionary<Entity, JobHandle>();
-            public Dictionary<Entity, JobHandle> writeHandles     = new Dictionary<Entity, JobHandle>();
-            public Dictionary<Entity, bool>      isNotInitialized = new Dictionary<Entity, bool>();
+            var typeHash = BurstRuntime.GetHashCode64<T>();
+            if (!m_registeredTypeLookup.TryGetValue(typeHash, out var element))
+            {
+                element = new RegisteredType
+                {
+                    associatedType    = new T().AssociatedComponentType,
+                    typedStorageIndex = m_typedStorages.Count
+                };
 
-            public abstract void Dispose();
-            public abstract void CopyComponent(Entity src, Entity dst);
+                m_typedStorages.Add(new TypedManagedStructStorage<T>() {
+                    typeIndex = element.typedStorageIndex
+                });
+                m_registeredTypeLookup.Add(typeHash, element);
+            }
+            return element.associatedType;
         }
 
-        private class TypedCollectionStorage<T> : TypedCollectionStorageBase where T : struct, ICollectionComponent
+        public bool AddComponent<T>(Entity entity, T value) where T : struct, IManagedStructComponent
         {
-            public Dictionary<Entity, T> storage = new Dictionary<Entity, T>();
-
-            public override void CopyComponent(Entity src, Entity dst)
+            var tmss = GetTypedManagedStructStorage<T>(entity, out int index);
+            if (index >= 0)
             {
-                bool success = storage.TryGetValue(src, out T srcVal);
-                if (success)
-                {
-                    storage[dst]          = srcVal;
-                    readHandles[dst]      = readHandles[src];
-                    writeHandles[dst]     = writeHandles[src];
-                    isNotInitialized[dst] = isNotInitialized[src];
-                }
+                tmss.storage[index] = value;
+                return false;
             }
 
-            public override void Dispose()
+            if (!tmss.freeStack.TryPop(out index))
             {
-                var jhs = new NativeArray<JobHandle>(readHandles.Values.Count + writeHandles.Values.Count, Allocator.TempJob);
-                int i   = 0;
-                foreach (var h in readHandles.Values)
-                {
-                    jhs[i] = h;
-                    i++;
-                }
-                foreach (var h in writeHandles.Values)
-                {
-                    jhs[i] = h;
-                    i++;
-                }
-                JobHandle.CompleteAll(jhs);
-                jhs.Dispose();
+                index = tmss.storage.Count;
+                tmss.storage.Add(value);
+            }
+            else
+            {
+                tmss.storage[index] = value;
+            }
 
-                var djhs = new NativeList<JobHandle>(isNotInitialized.Count, Allocator.TempJob);
+            m_twoLevelLookup.Add(new Key { entity = entity, typeHash = BurstRuntime.GetHashCode64<T>() }, new int2(tmss.typeIndex, index));
+            return true;
+        }
 
-                foreach (var pair in isNotInitialized)
+        public T GetComponent<T>(Entity entity) where T : struct, IManagedStructComponent
+        {
+            var tmss = GetTypedManagedStructStorage<T>(entity, out int index);
+            if (index < 0)
+            {
+                throw new InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
+            }
+
+            return tmss.storage[index];
+        }
+
+        public T GetOrAddDefaultComponent<T>(Entity entity) where T : struct, IManagedStructComponent
+        {
+            var tmss = GetTypedManagedStructStorage<T>(entity, out int index);
+            if (index < 0)
+            {
+                if (!tmss.freeStack.TryPop(out index))
                 {
-                    if (!pair.Value)
-                    {
-                        djhs.AddNoResize(storage[pair.Key].Dispose(default));
-                    }
+                    index = tmss.storage.Count;
+                    tmss.storage.Add(default);
                 }
-                JobHandle.CompleteAll(djhs.AsArray());
-                djhs.Dispose();
+                else
+                {
+                    tmss.storage[index] = default;
+                }
+
+                m_twoLevelLookup.Add(new Key { entity = entity, typeHash = BurstRuntime.GetHashCode64<T>() }, new int2(tmss.typeIndex, index));
+            }
+            return tmss.storage[index];
+        }
+
+        public bool HasComponent<T>(Entity entity) where T : struct, IManagedStructComponent
+        {
+            GetTypedManagedStructStorage<T>(entity, out int index);
+            return index >= 0;
+        }
+
+        public bool RemoveComponent<T>(Entity entity) where T : struct, IManagedStructComponent
+        {
+            var tmss = GetTypedManagedStructStorage<T>(entity, out int index);
+
+            if (index < 0)
+                return false;
+            tmss.freeStack.Push(index);
+            var key = new Key { typeHash = BurstRuntime.GetHashCode64<T>(), entity = entity };
+            m_twoLevelLookup.Remove(key);
+            return true;
+        }
+
+        public void SetComponent<T>(Entity entity, T value) where T : struct, IManagedStructComponent
+        {
+            var tmss = GetTypedManagedStructStorage<T>(entity, out int index);
+            if (index < 0)
+            {
+                throw new InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
+            }
+            tmss.storage[index] = value;
+        }
+
+        public void CopyComponent(Entity src, Entity dst, Type type)
+        {
+            if (!m_registeredTypeLookup.TryGetValue(BurstRuntime.GetHashCode64(type), out var registeredType))
+            {
+                throw new InvalidOperationException($"Source Entity {src} does not have a component of type: {type.Name}");
+            }
+            m_typedStorages[registeredType.typedStorageIndex].CopyComponent(this, src, dst);
+        }
+
+        private TypedManagedStructStorage<T> GetTypedManagedStructStorage<T>(Entity entity, out int indexInTypedStorage) where T : struct, IManagedStructComponent
+        {
+            var key = new Key { typeHash = BurstRuntime.GetHashCode64<T>(), entity = entity };
+            if (m_twoLevelLookup.TryGetValue(key, out var indices))
+            {
+                indexInTypedStorage = indices.y;
+                return m_typedStorages[indices.x] as TypedManagedStructStorage<T>;
+            }
+
+            if (!m_registeredTypeLookup.TryGetValue(key.typeHash, out var element))
+            {
+                element = new RegisteredType
+                {
+                    associatedType    = new T().AssociatedComponentType,
+                    typedStorageIndex = m_typedStorages.Count
+                };
+
+                m_typedStorages.Add(new TypedManagedStructStorage<T>() {
+                    typeIndex = element.typedStorageIndex
+                });
+                m_registeredTypeLookup.Add(key.typeHash, element);
+            }
+
+            indexInTypedStorage = -1;
+            return m_typedStorages[element.typedStorageIndex] as TypedManagedStructStorage<T>;
+        }
+
+        private abstract class TypedManagedStructStorageBase
+        {
+            public abstract void CopyComponent(ManagedStructComponentStorage mscs, Entity src, Entity dst);
+        }
+
+        private class TypedManagedStructStorage<T> : TypedManagedStructStorageBase where T : struct, IManagedStructComponent
+        {
+            public List<T>    storage   = new List<T>();
+            public Stack<int> freeStack = new Stack<int>();
+            public int        typeIndex;
+
+            public override void CopyComponent(ManagedStructComponentStorage mscs, Entity src, Entity dst)
+            {
+                var srcValue = mscs.GetComponent<T>(src);
+                mscs.AddComponent(dst, srcValue);
             }
         }
     }

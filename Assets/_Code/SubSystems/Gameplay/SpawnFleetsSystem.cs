@@ -21,10 +21,14 @@ namespace Lsss
 
         NativeList<Entity> m_entityListCache;
 
+        LatiosWorldUnmanaged latiosWorld;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             m_entityListCache = new NativeList<Entity>(Allocator.Persistent);
+
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
         [BurstCompile]
@@ -35,7 +39,7 @@ namespace Lsss
 
         public bool ShouldUpdateSystem(ref SystemState state)
         {
-            var currentScene = state.GetWorldBlackboardEntity().GetComponentData<CurrentScene>();
+            var currentScene = latiosWorld.worldBlackboardEntity.GetComponentData<CurrentScene>();
             return currentScene.isFirstFrame;
         }
 

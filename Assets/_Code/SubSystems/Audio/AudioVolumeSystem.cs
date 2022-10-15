@@ -12,17 +12,21 @@ namespace Lsss
     [BurstCompile]
     public partial struct AudioVolumeSystem : ISystem
     {
+        LatiosWorldUnmanaged latiosWorld;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            state.GetWorldBlackboardEntity().AddComponent<AudioMasterVolumes>();
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+
+            latiosWorld.worldBlackboardEntity.AddComponent<AudioMasterVolumes>();
         }
         [BurstCompile] public void OnDestroy(ref SystemState state) {
         }
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var volumes = state.GetWorldBlackboardEntity().GetComponentData<AudioMasterVolumes>();
+            var volumes = latiosWorld.worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
 
             foreach (var listener in SystemAPI.Query<RefRW<AudioListener> >())
                 listener.ValueRW.volume = volumes.sfxVolume;

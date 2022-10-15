@@ -24,6 +24,7 @@ public class LatiosBootstrap : ICustomBootstrap
         var world                             = new LatiosWorld(defaultWorldName);
         World.DefaultGameObjectInjectionWorld = world;
         world.useExplicitSystemOrdering       = true;
+        world.zeroToleranceForExceptions      = true;
 
         var systems = new List<Type>(DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.Default));
 

@@ -18,7 +18,7 @@ namespace Lsss
             m_query = Fluent.WithAll<WormholeTag>(true).WithAll<LocalToWorld>(true).WithChangeFilter<LocalToWorld>().PatchQueryForBuildingCollisionLayer().Build();
         }
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new WormholeCollisionLayer(), false);
+        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new WormholeCollisionLayer());
 
         public override bool ShouldUpdateSystem()
         {

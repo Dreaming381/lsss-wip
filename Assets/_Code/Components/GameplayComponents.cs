@@ -37,9 +37,9 @@ namespace Lsss
     {
         public CollisionLayer layer;
 
-        public Type AssociatedComponentType => typeof(FactionTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<FactionTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps) => layer.Dispose(inputDeps);
+        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
 
     public struct FactionMember : ISharedComponentData
@@ -154,11 +154,11 @@ namespace Lsss
     {
         public CollisionLayer layer;
 
-        public Type AssociatedComponentType => typeof(BulletCollisionLayerTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite < BulletCollisionLayerTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps)
+        public JobHandle TryDispose(JobHandle inputDeps)
         {
-            return layer.Dispose(inputDeps);
+            return layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
         }
     }
 
@@ -176,9 +176,9 @@ namespace Lsss
     {
         public CollisionLayer layer;
 
-        public Type AssociatedComponentType => typeof(ExplosionCollisionLayerTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<ExplosionCollisionLayerTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps) => layer.Dispose(inputDeps);
+        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
 
     public struct ExplosionCollisionLayerTag : IComponentData { }
@@ -194,9 +194,9 @@ namespace Lsss
     {
         public CollisionLayer layer;
 
-        public Type AssociatedComponentType => typeof(WormholeCollisionLayerTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<WormholeCollisionLayerTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps) => layer.Dispose(inputDeps);
+        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
 
     public struct WormholeCollisionLayerTag : IComponentData { }
@@ -207,9 +207,9 @@ namespace Lsss
     {
         public CollisionLayer layer;
 
-        public Type AssociatedComponentType => typeof(WallCollisionLayerTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<WallCollisionLayerTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps) => layer.Dispose(inputDeps);
+        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
 
     public struct WallCollisionLayerTag : IComponentData { }
@@ -251,9 +251,9 @@ namespace Lsss
     {
         public CollisionLayer layer;
 
-        public Type AssociatedComponentType => typeof(SpawnPointCollisionLayerTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<SpawnPointCollisionLayerTag>();
 
-        public JobHandle Dispose(JobHandle inputDeps) => layer.Dispose(inputDeps);
+        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
 
     public struct SpawnPointCollisionLayerTag : IComponentData { }
@@ -272,10 +272,13 @@ namespace Lsss
         public NativeList<EntityWith<Disabled> >  newAiEntitiesToPrioritize;
         public NativeList<FactionRanges>          factionRanges;
 
-        public Type AssociatedComponentType => typeof(SpawnQueuesTag);
+        public ComponentType AssociatedComponentType => ComponentType.ReadWrite < SpawnQueuesTag>();
 
-        public unsafe JobHandle Dispose(JobHandle inputDeps)
+        public unsafe JobHandle TryDispose(JobHandle inputDeps)
         {
+            if (!playerQueue.IsCreated)
+                return inputDeps;
+
             var jh = stackalloc[] {
                 playerQueue.Dispose(inputDeps),
                 aiQueue.Dispose(inputDeps),

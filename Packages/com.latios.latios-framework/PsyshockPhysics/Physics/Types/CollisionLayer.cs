@@ -103,6 +103,7 @@ namespace Latios.Psyshock
         /// </summary>
         public void Dispose()
         {
+            worldSubdivisionsPerAxis = 0;
             bucketStartsAndCounts.Dispose();
             xmins.Dispose();
             xmaxs.Dispose();
@@ -118,7 +119,8 @@ namespace Latios.Psyshock
         /// <returns>The final jobHandle of the disposed layers</returns>
         public unsafe JobHandle Dispose(JobHandle inputDeps)
         {
-            JobHandle* deps = stackalloc JobHandle[6]
+            worldSubdivisionsPerAxis = 0;
+            JobHandle* deps          = stackalloc JobHandle[6]
             {
                 bucketStartsAndCounts.Dispose(inputDeps),
                 xmins.Dispose(inputDeps),
@@ -141,7 +143,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// True if the CollisionLayer has been created
         /// </summary>
-        public bool IsCreated => bucketStartsAndCounts.IsCreated;
+        public bool IsCreated => worldSubdivisionsPerAxis.x > 0;
 
         internal BucketSlices GetBucketSlices(int bucketIndex)
         {

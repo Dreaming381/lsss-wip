@@ -27,8 +27,7 @@ namespace Latios
         /// <param name="src">The source entity</param>
         /// <param name="dst">The destination entity</param>
         /// <param name="componentType">The type of data to be copied</param>
-        /// <param name="copyCollections">Should collection components be shallow copied (true) or ignored (false)?</param>
-        public void CopyData(Entity src, Entity dst, ComponentType componentType, bool copyCollections = false)
+        public void CopyData(Entity src, Entity dst, ComponentType componentType)
         {
             //Check to ensure dst has componentType
             if (!m_em.HasComponent(dst, componentType))
@@ -39,34 +38,7 @@ namespace Latios
                 CopyBuffer(src, dst, componentType);
             else
             {
-                if (copyCollections)
-                {
-                    var type = componentType.GetManagedType();
-                    if (type.IsConstructedGenericType)
-                    {
-                        var genType = type.GetGenericTypeDefinition();
-                        if (genType == typeof(ManagedComponentSystemStateTag<>))
-                        {
-                            if (!m_typeTagsToTypesCache.TryGetValue(type, out Type managedType))
-                            {
-                                managedType                  = type.GenericTypeArguments[0];
-                                m_typeTagsToTypesCache[type] = managedType;
-                            }
-                            LatiosWorld lw = m_em.World as LatiosWorld;
-                            lw.ManagedStructStorage.CopyComponent(src, dst, managedType);
-                        }
-                        else if (genType == typeof(CollectionComponentSystemStateTag<>))
-                        {
-                            if (!m_typeTagsToTypesCache.TryGetValue(type, out Type managedType))
-                            {
-                                managedType                  = type.GenericTypeArguments[0];
-                                m_typeTagsToTypesCache[type] = managedType;
-                            }
-                            LatiosWorld lw = m_em.World as LatiosWorld;
-                            lw.CollectionComponentStorage.CopyComponent(src, dst, managedType);
-                        }
-                    }
-                }
+                // Todo: Support copying managed struct components
                 CopyIcd(src, dst, componentType);
             }
         }

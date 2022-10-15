@@ -6,20 +6,21 @@ namespace Latios
     /// <summary>
     /// An entity and its associated EntityManager, which provides shorthands for manipulating the entity's components
     /// </summary>
-    public struct BlackboardEntity
+    public unsafe struct BlackboardEntity
     {
-        private Entity        entity;
-        private EntityManager em;
+        private Entity               entity;
+        private LatiosWorldUnmanaged latiosWorld;
+        private EntityManager em => latiosWorld.m_impl->m_worldUnmanaged.EntityManager;
 
         /// <summary>
         /// Create a blackboard entity
         /// </summary>
         /// <param name="entity">The existing entity to use</param>
         /// <param name="entityManager">The entity's associated EntityManager</param>
-        public BlackboardEntity(Entity entity, EntityManager entityManager)
+        public BlackboardEntity(Entity entity, LatiosWorldUnmanaged latiosWorld)
         {
-            this.entity = entity;
-            em          = entityManager;
+            this.entity      = entity;
+            this.latiosWorld = latiosWorld;
         }
 
         /// <summary>
@@ -93,39 +94,85 @@ namespace Latios
             return em.GetBuffer<T>(entity, readOnly);
         }
 
-        public void AddCollectionComponent<T>(T value, bool isInitialized = true) where T : struct, ICollectionComponent
+        /// <summary>
+        /// Adds a managed struct component to the entity. This implicitly adds the managed struct component's AssociatedComponentType as well.
+        /// If the entity already contains the managed struct component, the managed struct component will be overwritten with the new value.
+        /// </summary>
+        /// <typeparam name="T">The struct type implementing IManagedComponent</typeparam>
+        /// <param name="component">The data for the managed struct component</param>
+        /// <returns>False if the component was already present, true otherwise</returns>
+        public bool AddManagedStructComponent<T>(T component) where T : struct, IManagedStructComponent
         {
-            em.AddCollectionComponent(entity, value, isInitialized);
+            return latiosWorld.AddManagedStructComponent(entity, component);
         }
 
-        public T GetCollectionComponent<T>(bool readOnly, out JobHandle handle) where T : struct, ICollectionComponent
+        /// <summary>
+        /// Removes a managed struct component from the entity. This implicitly removes the managed struct component's AssociatedComponentType as well.
+        /// </summary>
+        /// <typeparam name="T">The struct type implementing IManagedComponent</typeparam>
+        /// <returns>Returns true if the entity had the managed struct component, false otherwise</returns>
+        public bool RemoveManagedStructComponent<T>() where T : struct, IManagedStructComponent
         {
-            return em.GetCollectionComponent<T>(entity, readOnly, out handle);
+            return latiosWorld.RemoveManagedStructComponent<T>(entity);
         }
 
-        public T GetCollectionComponent<T>(bool readOnly = false) where T : struct, ICollectionComponent
+        /// <summary>
+        /// Gets the managed struct component instance from the entity
+        /// </summary>
+        /// <typeparam name="T">The struct type implementing IManagedComponent</typeparam>
+        public T GetManagedStructComponent<T>() where T : struct, IManagedStructComponent
         {
-            return em.GetCollectionComponent<T>(entity, readOnly);
+            return latiosWorld.GetManagedStructComponent<T>(entity);
         }
 
-        public bool HasCollectionComponent<T>() where T : struct, ICollectionComponent
+        /// <summary>
+        /// Sets the managed struct component instance for the entity.
+        /// Throws if the entity does not have the managed struct component
+        /// </summary>
+        /// <typeparam name="T">The struct type implementing IManagedComponent</typeparam>
+        /// <param name="component">The new managed struct component value</param>
+        public void SetManagedStructComponent<T>(T component) where T : struct, IManagedStructComponent
         {
-            return em.HasCollectionComponent<T>(entity);
+            latiosWorld.SetManagedStructComponent(entity, component);
         }
 
-        public void RemoveCollectionComponentAndDispose<T>() where T : struct, ICollectionComponent
+        /// <summary>
+        /// Returns true if the entity has the managed struct component. False otherwise.
+        /// </summary>
+        /// <typeparam name="T">The struct type implementing IManagedComponent</typeparam>
+        public bool HasManagedStructComponent<T>() where T : struct, IManagedStructComponent
         {
-            em.RemoveCollectionComponentAndDispose<T>(entity);
+            return latiosWorld.HasManagedStructComponent<T>(entity);
         }
 
-        public void SetCollectionComponentAndDisposeOld<T>(T value) where T : struct, ICollectionComponent
+        public void AddOrSetCollectionComponentAndDisposeOld<T>(T value) where T : unmanaged, ICollectionComponent
         {
-            em.SetCollectionComponentAndDisposeOld(entity, value);
+            latiosWorld.AddOrSetCollectionComponentAndDisposeOld(entity, value);
         }
 
-        public void UpdateJobDependency<T>(JobHandle handle, bool wasReadOnly) where T : struct, ICollectionComponent
+        public T GetCollectionComponent<T>(bool readOnly = false) where T : unmanaged, ICollectionComponent
         {
-            em.UpdateCollectionComponentDependency<T>(entity, handle, wasReadOnly);
+            return latiosWorld.GetCollectionComponent<T>(entity, readOnly);
+        }
+
+        public bool HasCollectionComponent<T>() where T : unmanaged, ICollectionComponent
+        {
+            return latiosWorld.HasCollectionComponent<T>(entity);
+        }
+
+        public void RemoveCollectionComponentAndDispose<T>() where T : unmanaged, ICollectionComponent
+        {
+            latiosWorld.RemoveCollectionComponentAndDispose<T>(entity);
+        }
+
+        public void SetCollectionComponentAndDisposeOld<T>(T value) where T : unmanaged, ICollectionComponent
+        {
+            latiosWorld.SetCollectionComponentAndDisposeOld(entity, value);
+        }
+
+        public void UpdateJobDependency<T>(JobHandle handle, bool wasReadOnly) where T : unmanaged, ICollectionComponent
+        {
+            latiosWorld.UpdateCollectionComponentDependency<T>(entity, handle, wasReadOnly);
         }
     }
 }

@@ -13,9 +13,14 @@ namespace Latios
     public abstract partial class SubSystemBase : SystemBase, ILatiosSystem
     {
         /// <summary>
-        /// The latiosWorld of this system
+        /// The latiosWorld this system belongs to, not valid in editor worlds
         /// </summary>
         public LatiosWorld latiosWorld { get; private set; }
+
+        /// <summary>
+        /// The unmanaged aspects of a latiosWorld this system belongs to, which is also valid in editor worlds
+        /// </summary>
+        public LatiosWorldUnmanaged latiosWorldUnmanaged { get; private set; }
 
         /// <summary>
         /// The scene blackboard entity for the LatiosWorld of this system
@@ -44,22 +49,19 @@ namespace Latios
         {
             if (World is LatiosWorld lWorld)
             {
-                latiosWorld = lWorld;
+                latiosWorld          = lWorld;
+                latiosWorldUnmanaged = latiosWorld.latiosWorldUnmanaged;
             }
             else
             {
-                UnityEngine.Debug.LogError($"Potentially missing DisableAutoCreationAttribute for {GetType()}");
-                throw new InvalidOperationException(
-                    "The current world is not of type LatiosWorld required for Latios framework functionality. Did you forget to create a Bootstrap?");
+                latiosWorldUnmanaged = World.Unmanaged.GetLatiosWorldUnmanaged();
             }
             OnCreateInternal();
         }
 
         protected sealed override void OnUpdate()
         {
-            latiosWorld.BeginDependencyTracking(this);
             OnUpdateInternal();
-            latiosWorld.EndDependencyTracking(Dependency);
         }
 
         protected sealed override void OnDestroy()

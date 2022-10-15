@@ -8,9 +8,9 @@ namespace Latios
     /// A pseudo-component that can be attached to entities.
     /// It does not allocate GC but can store managed references.
     /// </summary>
-    public interface IManagedComponent
+    public interface IManagedStructComponent
     {
-        Type AssociatedComponentType { get; }
+        ComponentType AssociatedComponentType { get; }
     }
 
     /// <summary>
@@ -19,16 +19,16 @@ namespace Latios
     /// </summary>
     public interface ICollectionComponent
     {
-        JobHandle Dispose(JobHandle inputDeps);
-        Type AssociatedComponentType { get; }
+        JobHandle TryDispose(JobHandle inputDeps);
+        ComponentType AssociatedComponentType { get; }
     }
 
     //public struct ManagedComponentTag<T> : IComponentData where T : struct, IManagedComponent { }
 
-    internal struct ManagedComponentSystemStateTag<T> : ICleanupComponentData where T : struct, IManagedComponent { }
+    internal struct ManagedComponentCleanupTag<T> : ICleanupComponentData where T : struct, IManagedStructComponent { }
 
     //public struct CollectionComponentTag<T> : IComponentData where T : struct, ICollectionComponent { }
 
-    internal struct CollectionComponentSystemStateTag<T> : ICleanupComponentData where T : struct, ICollectionComponent { }
+    internal struct CollectionComponentCleanupTag<T> : ICleanupComponentData where T : struct, ICollectionComponent { }
 }
 

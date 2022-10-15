@@ -2,19 +2,49 @@
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine.Profiling;
 
 namespace Latios.Systems
 {
     [DisableAutoCreation]
     [UpdateInGroup(typeof(InitializationSystemGroup), OrderFirst = true)]
     [UpdateBefore(typeof(BeginInitializationEntityCommandBufferSystem))]
-    public partial class SyncPointPlaybackSystem : SubSystem
+    public class SyncPointPlaybackSystemDispatch : SuperSystem
+    {
+        SystemHandle m_syncPointPlaybackSystem;
+
+        protected override void CreateSystems()
+        {
+            m_syncPointPlaybackSystem = World.GetOrCreateSystem<SyncPointPlaybackSystem>();
+        }
+
+        protected override void OnUpdate()
+        {
+            ref var playbackSystemRef = ref World.Unmanaged.GetUnsafeSystemRef<SyncPointPlaybackSystem>(m_syncPointPlaybackSystem);
+            var     unmanaged         = World.Unmanaged.GetLatiosWorldUnmanaged();
+            do
+            {
+                try
+                {
+                    UpdateSystem(unmanaged, m_syncPointPlaybackSystem);
+                }
+                catch (Exception e)
+                {
+                    UnityEngine.Debug.LogException(e);
+                }
+            }
+            while (playbackSystemRef.needsAnotherRun);
+        }
+    }
+
+    [DisableAutoCreation]
+    [BurstCompile]
+    public unsafe partial struct SyncPointPlaybackSystem : ISystem
     {
         enum PlaybackType
         {
@@ -29,126 +59,180 @@ namespace Latios.Systems
         struct PlaybackInstance
         {
             public PlaybackType type;
-            public Type         requestingSystemType;
+            public SystemHandle requestingSystem;
         }
 
-        List<PlaybackInstance>                m_playbackInstances                    = new List<PlaybackInstance>();
-        List<EntityCommandBuffer>             m_entityCommandBuffers                 = new List<EntityCommandBuffer>();
-        List<EnableCommandBuffer>             m_enableCommandBuffers                 = new List<EnableCommandBuffer>();
-        List<DisableCommandBuffer>            m_disableCommandBuffers                = new List<DisableCommandBuffer>();
-        List<DestroyCommandBuffer>            m_destroyCommandBuffers                = new List<DestroyCommandBuffer>();
-        List<InstantiateCommandBuffer>        m_instantiateCommandBuffersWithoutData = new List<InstantiateCommandBuffer>();
-        List<InstantiateCommandBufferUntyped> m_instantiateCommandBuffersUntyped     = new List<InstantiateCommandBufferUntyped>();
+        NativeList<EntityCommandBuffer>             m_entityCommandBuffers;
+        NativeList<EnableCommandBuffer>             m_enableCommandBuffers;
+        NativeList<DisableCommandBuffer>            m_disableCommandBuffers;
+        NativeList<DestroyCommandBuffer>            m_destroyCommandBuffers;
+        NativeList<InstantiateCommandBuffer>        m_instantiateCommandBuffersWithoutData;
+        NativeList<InstantiateCommandBufferUntyped> m_instantiateCommandBuffersUntyped;
 
-        NativeList<JobHandle> m_jobHandles;
+        NativeList<JobHandle>                m_jobHandles;
+        NativeList<PlaybackInstance>         m_playbackInstances;
+        AllocatorHelper<RewindableAllocator> m_commandBufferAllocator;
 
-        protected override void OnCreate()
+        LatiosWorldUnmanaged m_world;
+        bool                 m_hasPendingJobHandlesToAcquire;
+        internal bool hasPendingJobHandlesToAquire => m_hasPendingJobHandlesToAcquire;
+
+        int  m_nextPlaybackIndex;
+        bool m_needsAnotherRun;
+        internal bool needsAnotherRun => m_needsAnotherRun;
+
+        int m_entityIndex;
+        int m_enableIndex;
+        int m_disableIndex;
+        int m_destroyIndex;
+        int m_instantiateNoDataIndex;
+        int m_instantiateUntypedIndex;
+
+        internal NativeText.ReadOnly m_requestSystemNameForCurrentBuffer;
+        internal FixedString64Bytes  m_currentBufferTypeName;
+
+        Unity.Profiling.ProfilerMarker m_currentMarker;
+        bool                           m_needsMarkerResolve;
+        NativeText                     m_externalSourceText;
+
+        // Custom allocator is not Burst-Compatible during initialization
+        //[BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
+            m_world                                   = state.GetLatiosWorldUnmanaged();
+            fixed(SyncPointPlaybackSystem* ptr        = &this)
+            m_world.m_impl->m_syncPointPlaybackSystem = ptr;
+
+            m_commandBufferAllocator = new AllocatorHelper<RewindableAllocator>(Allocator.Persistent);
+            m_commandBufferAllocator.Allocator.Initialize(16 * 1024);
+
+            m_playbackInstances                    = new NativeList<PlaybackInstance>(Allocator.Persistent);
+            m_entityCommandBuffers                 = new NativeList<EntityCommandBuffer>(Allocator.Persistent);
+            m_enableCommandBuffers                 = new NativeList<EnableCommandBuffer>(Allocator.Persistent);
+            m_disableCommandBuffers                = new NativeList<DisableCommandBuffer>(Allocator.Persistent);
+            m_destroyCommandBuffers                = new NativeList<DestroyCommandBuffer>(Allocator.Persistent);
+            m_instantiateCommandBuffersWithoutData = new NativeList<InstantiateCommandBuffer>(Allocator.Persistent);
+            m_instantiateCommandBuffersUntyped     = new NativeList<InstantiateCommandBufferUntyped>(Allocator.Persistent);
+
             m_jobHandles = new NativeList<JobHandle>(Allocator.Persistent);
+
+            m_externalSourceText = new NativeText("OtherWorldlySource", Allocator.Persistent);
         }
 
-        protected override void OnDestroy()
+        // Custom allocator is not Burst-Compatible during disposal
+        //[BurstCompile]
+        public void OnDestroy(ref SystemState state)
         {
             m_playbackInstances.Clear();
             JobHandle.CompleteAll(m_jobHandles.AsArray());
             m_jobHandles.Dispose();
-            foreach (var ecb in m_entityCommandBuffers)
-                ecb.Dispose();
-            foreach (var ecb in m_enableCommandBuffers)
-                ecb.Dispose();
-            foreach (var dcb in m_disableCommandBuffers)
-                dcb.Dispose();
-            foreach (var dcb in m_destroyCommandBuffers)
-                dcb.Dispose();
-            foreach (var icb in m_instantiateCommandBuffersWithoutData)
-                icb.Dispose();
-            foreach (var icb in m_instantiateCommandBuffersUntyped)
-                icb.Dispose();
+            m_commandBufferAllocator.Allocator.Rewind();
+            m_commandBufferAllocator.Allocator.Dispose();
+            m_commandBufferAllocator.Dispose();
+
+            m_externalSourceText.Dispose();
         }
 
-        public override bool ShouldUpdateSystem()
+        public bool ShouldUpdateSystem()
         {
-            return m_playbackInstances.Count > 0;
+            return !m_playbackInstances.IsEmpty;
         }
 
-        protected override void OnUpdate()
+        public void OnUpdate(ref SystemState state)
         {
             JobHandle.CompleteAll(m_jobHandles.AsArray());
             m_jobHandles.Clear();
-            CompleteDependency();
+            state.CompleteDependency();
+            m_needsAnotherRun = true;
 
-            int entityIndex             = 0;
-            int enableIndex             = 0;
-            int disableIndex            = 0;
-            int destroyIndex            = 0;
-            int instantiateNoDataIndex  = 0;
-            int instantiateUntypedIndex = 0;
-            foreach (var instance in m_playbackInstances)
+            while (m_nextPlaybackIndex < m_playbackInstances.Length)
             {
+                var instance = m_playbackInstances[m_nextPlaybackIndex];
+                m_nextPlaybackIndex++;
                 //Todo: We don't fail as gracefully as EntityCommandBufferSystem, but I'm not sure what is exactly required to meet that. There's way too much magic there.
                 //var systemName = instance.requestingSystemType != null? TypeManager.GetSystemName(instance.requestingSystemType) : "Unknown";
                 //Profiler.BeginSample(systemName);
+                // Todo: Support fetching profile marker for systems associated with other worlds.
+
+                m_currentBufferTypeName = default;
+                switch (instance.type)
+                {
+                    case PlaybackType.Entity: m_currentBufferTypeName             = "EntityCommandBuffer"; break;
+                    case PlaybackType.Enable: m_currentBufferTypeName             = "EnableCommandBuffer"; break;
+                    case PlaybackType.Disable: m_currentBufferTypeName            = "DisableCommandBuffer"; break;
+                    case PlaybackType.Destroy: m_currentBufferTypeName            = "DestroyCommandBuffer"; break;
+                    case PlaybackType.InstantiateNoData: m_currentBufferTypeName  = "InstantiateCommandBuffer"; break;
+                    case PlaybackType.InstantiateUntyped: m_currentBufferTypeName = "InstantiateCommandBuffer"; break;
+                }
+                if (state.WorldUnmanaged.IsSystemValid(instance.requestingSystem))
+                    m_requestSystemNameForCurrentBuffer = state.WorldUnmanaged.ResolveSystemStateRef(instance.requestingSystem).DebugName;
+                else
+                    m_requestSystemNameForCurrentBuffer = m_externalSourceText.AsReadOnly();
+#if ENABLE_PROFILER
+                m_currentMarker = new Unity.Profiling.ProfilerMarker($"{m_currentBufferTypeName}::{m_requestSystemNameForCurrentBuffer}");
+                m_currentMarker.Begin();
+                m_needsMarkerResolve = true;
+#endif
+
                 switch (instance.type)
                 {
                     case PlaybackType.Entity:
                     {
-                        var ecb = m_entityCommandBuffers[entityIndex];
-                        ecb.Playback(EntityManager);
-                        //ecb.Dispose();
-                        entityIndex++;
+                        var ecb = m_entityCommandBuffers[m_entityIndex];
+                        m_entityIndex++;
+                        ecb.Playback(state.EntityManager);
                         break;
                     }
                     case PlaybackType.Enable:
                     {
-                        var ecb = m_enableCommandBuffers[enableIndex];
-                        ecb.Playback(EntityManager, GetBufferLookup<LinkedEntityGroup>(true));
-                        //ecb.Dispose();
-                        enableIndex++;
+                        var ecb = m_enableCommandBuffers[m_enableIndex];
+                        m_enableIndex++;
+                        ecb.Playback(state.EntityManager, SystemAPI.GetBufferLookup<LinkedEntityGroup>(true));
                         break;
                     }
                     case PlaybackType.Disable:
                     {
-                        var dcb = m_disableCommandBuffers[disableIndex];
-                        dcb.Playback(EntityManager, GetBufferLookup<LinkedEntityGroup>(true));
-                        //dcb.Dispose();
-                        disableIndex++;
+                        var dcb = m_disableCommandBuffers[m_disableIndex];
+                        m_disableIndex++;
+                        dcb.Playback(state.EntityManager, SystemAPI.GetBufferLookup<LinkedEntityGroup>(true));
                         break;
                     }
                     case PlaybackType.Destroy:
                     {
-                        var dcb = m_destroyCommandBuffers[destroyIndex];
-                        dcb.Playback(EntityManager);
-                        //dcb.Dispose();
-                        destroyIndex++;
+                        var dcb = m_destroyCommandBuffers[m_destroyIndex];
+                        m_destroyIndex++;
+                        dcb.Playback(state.EntityManager);
                         break;
                     }
                     case PlaybackType.InstantiateNoData:
                     {
-                        var icb = m_instantiateCommandBuffersWithoutData[instantiateNoDataIndex];
-                        icb.Playback(EntityManager);
-                        //icb.Dispose();
-                        instantiateNoDataIndex++;
+                        var icb = m_instantiateCommandBuffersWithoutData[m_instantiateNoDataIndex];
+                        m_instantiateNoDataIndex++;
+                        icb.Playback(state.EntityManager);
                         break;
                     }
                     case PlaybackType.InstantiateUntyped:
                     {
-                        var icb = m_instantiateCommandBuffersUntyped[instantiateUntypedIndex];
-                        try
-                        {
-                            icb.Playback(EntityManager);
-                        }
-                        catch (Exception e)
-                        {
-                            UnityEngine.Debug.LogError(e.Message + e.StackTrace);
-                            throw e;
-                        }
-                        //icb.Dispose();
-                        instantiateUntypedIndex++;
+                        var icb = m_instantiateCommandBuffersUntyped[m_instantiateUntypedIndex];
+                        m_instantiateUntypedIndex++;
+                        icb.Playback(state.EntityManager);
                         break;
                     }
                 }
-                //Profiler.EndSample();
+#if ENABLE_PROFILER
+                m_currentMarker.End();
+                m_needsMarkerResolve = false;
+#endif
             }
+#if ENABLE_PROFILER
+            if (m_needsMarkerResolve)
+            {
+                m_currentMarker.End();
+                m_needsMarkerResolve = false;
+            }
+#endif
+            m_needsAnotherRun   = false;
+            m_nextPlaybackIndex = 0;
             m_playbackInstances.Clear();
             m_entityCommandBuffers.Clear();
             m_enableCommandBuffers.Clear();
@@ -156,15 +240,23 @@ namespace Latios.Systems
             m_destroyCommandBuffers.Clear();
             m_instantiateCommandBuffersWithoutData.Clear();
             m_instantiateCommandBuffersUntyped.Clear();
+
+            m_entityIndex             = 0;
+            m_enableIndex             = 0;
+            m_disableIndex            = 0;
+            m_destroyIndex            = 0;
+            m_instantiateNoDataIndex  = 0;
+            m_instantiateUntypedIndex = 0;
         }
 
         public EntityCommandBuffer CreateEntityCommandBuffer()
         {
-            var ecb      = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.SinglePlayback);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var ecb                         = new EntityCommandBuffer(m_commandBufferAllocator.Allocator.Handle.ToAllocator, PlaybackPolicy.SinglePlayback);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.Entity,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.Entity,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_entityCommandBuffers.Add(ecb);
@@ -173,12 +265,12 @@ namespace Latios.Systems
 
         public EnableCommandBuffer CreateEnableCommandBuffer()
         {
-            //Todo: We use Persistent allocator here because of the NativeReference. This recreates the DisposeSentinal stuff except with the slower allocator.
-            var ecb      = new EnableCommandBuffer(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var ecb                         = new EnableCommandBuffer(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.Enable,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.Enable,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_enableCommandBuffers.Add(ecb);
@@ -187,12 +279,12 @@ namespace Latios.Systems
 
         public DisableCommandBuffer CreateDisableCommandBuffer()
         {
-            //Todo: We use Persistent allocator here because of the NativeReference. This recreates the DisposeSentinal stuff except with the slower allocator.
-            var dcb      = new DisableCommandBuffer(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var dcb                         = new DisableCommandBuffer(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.Disable,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.Disable,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_disableCommandBuffers.Add(dcb);
@@ -201,12 +293,12 @@ namespace Latios.Systems
 
         public DestroyCommandBuffer CreateDestroyCommandBuffer()
         {
-            //Todo: We use Persistent allocator here because of the NativeReference. This recreates the DisposeSentinal stuff except with the slower allocator.
-            var dcb      = new DestroyCommandBuffer(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var dcb                         = new DestroyCommandBuffer(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.Destroy,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.Destroy,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_destroyCommandBuffers.Add(dcb);
@@ -215,12 +307,12 @@ namespace Latios.Systems
 
         public InstantiateCommandBuffer CreateInstantiateCommandBuffer()
         {
-            //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var icb                         = new InstantiateCommandBuffer(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.InstantiateNoData,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.InstantiateNoData,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersWithoutData.Add(icb);
@@ -229,12 +321,12 @@ namespace Latios.Systems
 
         public InstantiateCommandBuffer<T0> CreateInstantiateCommandBuffer<T0>() where T0 : unmanaged, IComponentData
         {
-            //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0>(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var icb                         = new InstantiateCommandBuffer<T0>(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.InstantiateUntyped,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -243,12 +335,12 @@ namespace Latios.Systems
 
         public InstantiateCommandBuffer<T0, T1> CreateInstantiateCommandBuffer<T0, T1>() where T0 : unmanaged, IComponentData where T1 : unmanaged, IComponentData
         {
-            //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1>(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var icb                         = new InstantiateCommandBuffer<T0, T1>(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.InstantiateUntyped,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -258,12 +350,12 @@ namespace Latios.Systems
         public InstantiateCommandBuffer<T0, T1, T2> CreateInstantiateCommandBuffer<T0, T1, T2>() where T0 : unmanaged, IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData
         {
-            //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1, T2>(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var icb                         = new InstantiateCommandBuffer<T0, T1, T2>(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.InstantiateUntyped,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -273,12 +365,12 @@ namespace Latios.Systems
         public InstantiateCommandBuffer<T0, T1, T2, T3> CreateInstantiateCommandBuffer<T0, T1, T2, T3>() where T0 : unmanaged, IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData
         {
-            //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1, T2, T3>(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var icb                         = new InstantiateCommandBuffer<T0, T1, T2, T3>(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.InstantiateUntyped,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -288,12 +380,12 @@ namespace Latios.Systems
         public InstantiateCommandBuffer<T0, T1, T2, T3, T4> CreateInstantiateCommandBuffer<T0, T1, T2, T3, T4>() where T0 : unmanaged, IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData where T4 : unmanaged, IComponentData
         {
-            //Todo: We use Persistent allocator here for consistency, though I suspect it might be possible to improve this.
-            var icb      = new InstantiateCommandBuffer<T0, T1, T2, T3, T4>(World.UpdateAllocator.ToAllocator);
-            var instance = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire = true;
+            var icb                         = new InstantiateCommandBuffer<T0, T1, T2, T3, T4>(m_commandBufferAllocator.Allocator.Handle.ToAllocator);
+            var instance                    = new PlaybackInstance
             {
-                type                 = PlaybackType.InstantiateUntyped,
-                requestingSystemType = World.ExecutingSystemType(),
+                type             = PlaybackType.InstantiateUntyped,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
             };
             m_playbackInstances.Add(instance);
             m_instantiateCommandBuffersUntyped.Add(icb.m_instantiateCommandBufferUntyped);
@@ -302,9 +394,13 @@ namespace Latios.Systems
 
         public void AddJobHandleForProducer(JobHandle handle)
         {
-            //Todo, maybe we could reason about this better and get better job scheduling, but this seems fine for now.
-            //We will always need this if a request comes from a MonoBehaviour or something.
             m_jobHandles.Add(handle);
+            m_hasPendingJobHandlesToAcquire = false;
+        }
+
+        public void AddMainThreadCompletionForProducer()
+        {
+            m_hasPendingJobHandlesToAcquire = false;
         }
     }
 }

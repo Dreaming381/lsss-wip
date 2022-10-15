@@ -10,7 +10,7 @@ namespace Latios.Systems
     [DisableAutoCreation, NoGroupInjection]
     public class LatiosInitializationSystemGroup : InitializationSystemGroup
     {
-        private SyncPointPlaybackSystem              m_syncPlayback;
+        private SyncPointPlaybackSystemDispatch      m_syncPlayback;
         private MergeBlackboardsSystem               m_mergeGlobals;
         private ManagedComponentsReactiveSystemGroup m_cleanupGroup;
         private LatiosWorldSyncGroup                 m_syncGroup;
@@ -19,7 +19,7 @@ namespace Latios.Systems
         protected override void OnCreate()
         {
             base.OnCreate();
-            m_syncPlayback = World.CreateSystemManaged<SyncPointPlaybackSystem>();
+            m_syncPlayback = World.CreateSystemManaged<SyncPointPlaybackSystemDispatch>();
             m_mergeGlobals = World.CreateSystemManaged<MergeBlackboardsSystem>();
             m_cleanupGroup = World.CreateSystemManaged<ManagedComponentsReactiveSystemGroup>();
             m_syncGroup    = World.GetOrCreateSystemManaged<LatiosWorldSyncGroup>();

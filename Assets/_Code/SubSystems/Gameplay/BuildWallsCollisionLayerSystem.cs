@@ -18,7 +18,7 @@ namespace Lsss
             m_query = Fluent.WithAll<WallTag>(true).WithAll<LocalToWorld>(true).WithChangeFilter<LocalToWorld>().PatchQueryForBuildingCollisionLayer().Build();
         }
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new WallCollisionLayer(), false);
+        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new WallCollisionLayer());
 
         public override bool ShouldUpdateSystem()
         {

@@ -424,9 +424,16 @@ namespace Latios
         private delegate void TmAddTypeInfoToTables(Type type, TypeManager.TypeInfo typeInfo, string name, int descendentCount);
         private delegate TypeManager.TypeInfo TmBuildComponentType(Type type, Dictionary<Type, ulong> hashCache, HashSet<Type> nestedContainerCache);
 
+        //public static bool s_initialized = false;
+
         //Todo: Replace with codegen
         public static void PopulateTypeManagerWithGenerics(Type genericWrapperIcdType, Type interfaceType)
         {
+            //if (s_initialized)
+            //    return;
+            //
+            //s_initialized = true;
+
             if (!genericWrapperIcdType.IsValueType || !typeof(IComponentData).IsAssignableFrom(genericWrapperIcdType))
                 throw new ArgumentException($"{genericWrapperIcdType} is not a valid struct IComponentData");
 

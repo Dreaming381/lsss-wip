@@ -18,7 +18,7 @@ namespace Lsss
             m_query = Fluent.WithAll<SpawnPointTag>(true).PatchQueryForBuildingCollisionLayer().Build();
         }
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new SpawnPointCollisionLayer(), false);
+        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new SpawnPointCollisionLayer());
 
         protected override void OnUpdate()
         {

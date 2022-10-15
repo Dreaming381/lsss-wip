@@ -13,7 +13,7 @@ namespace Lsss
     {
         private EntityQuery m_query;
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddCollectionComponent(new BulletCollisionLayer(), false);
+        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new BulletCollisionLayer());
 
         protected override void OnUpdate()
         {

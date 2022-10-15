@@ -49,6 +49,11 @@ namespace Latios
         public LatiosWorld latiosWorld { get; private set; }
 
         /// <summary>
+        /// The unmanaged aspects of a latiosWorld this system belongs to, which is also valid in editor worlds
+        /// </summary>
+        public LatiosWorldUnmanaged latiosWorldUnmanaged { get; private set; }
+
+        /// <summary>
         /// The scene blackboard entity for the LatiosWorld of this system
         /// </summary>
         public BlackboardEntity sceneBlackboardEntity => latiosWorld.sceneBlackboardEntity;
@@ -78,11 +83,12 @@ namespace Latios
             base.OnCreate();
             if (World is LatiosWorld lWorld)
             {
-                latiosWorld = lWorld;
+                latiosWorld          = lWorld;
+                latiosWorldUnmanaged = latiosWorld.latiosWorldUnmanaged;
             }
             else
             {
-                throw new InvalidOperationException("The current world is not of type LatiosWorld required for Latios framework functionality.");
+                latiosWorldUnmanaged = World.Unmanaged.GetLatiosWorldUnmanaged();
             }
             CreateSystems();
 
@@ -184,42 +190,71 @@ namespace Latios
         /// </summary>
         /// <param name="world">The world containing the system</param>
         /// <param name="system">The system's handle</param>
-        public static unsafe void UpdateSystem(ref WorldUnmanaged world, SystemHandle system)
+        public static unsafe void UpdateSystem(LatiosWorldUnmanaged world, SystemHandle system)
         {
-            var managed = world.AsManagedSystem(system);
+            var managed = world.m_impl->m_worldUnmanaged.AsManagedSystem(system);
             if (managed != null)
             {
-                UpdateManagedSystem(managed);
+                UpdateManagedSystem(world.m_impl, managed);
             }
             else
             {
-                var     wu    = world;
-                ref var state = ref wu.ResolveSystemStateRef(system);
-                if(state.World is LatiosWorld lw)
-                {
-                    var dispatcher = lw.UnmanagedExtraInterfacesDispatcher.GetDispatch(ref state);
-                    if (dispatcher != null)
-                    {
-                        if (!dispatcher.ShouldUpdateSystem(ref state))
-                        {
-                            state.Enabled = false;
-                            return;
-                        }
-                        else
-                            state.Enabled = true;
-                    }
-                }
-
-                system.Update(wu);
+                UpdateUnmanagedSystem(world.m_impl, system);
             }
         }
 
         #endregion API
 
-        internal static void UpdateManagedSystem(ComponentSystemBase system, bool propagateError = false)
+        internal static unsafe void UpdateUnmanagedSystem(LatiosWorldUnmanagedImpl* impl, SystemHandle system)
         {
+            if (!impl->isAllowedToRun)
+                return;
             try
             {
+                impl->BeginDependencyTracking(system);
+                var     wu    = impl->m_worldUnmanaged;
+                ref var state = ref wu.ResolveSystemStateRef(system);
+                if (state.World is LatiosWorld lw)
+                {
+                    var dispatcher = lw.UnmanagedExtraInterfacesDispatcher.GetDispatch(ref state);
+                    if (dispatcher != null)
+                    {
+                        if (dispatcher.ShouldUpdateSystem(ref state))
+                        {
+                            state.Enabled = true;
+                            system.Update(wu);
+                        }
+                        else if (state.Enabled)
+                        {
+                            state.Enabled = false;
+                            system.Update(wu);
+                        }
+                        else
+                        {
+                            state.Enabled = false;
+                        }
+                    }
+                    else
+                        system.Update(wu);
+                }
+                else
+                    system.Update(wu);
+            }
+            catch
+            {
+                impl->EndDependencyTracking(system, true);
+                throw;
+            }
+            impl->EndDependencyTracking(system, false);
+        }
+
+        internal static unsafe void UpdateManagedSystem(LatiosWorldUnmanagedImpl* impl, ComponentSystemBase system)
+        {
+            if (!impl->isAllowedToRun)
+                return;
+            try
+            {
+                impl->BeginDependencyTracking(system.SystemHandle);
                 if (system is ILatiosSystem latiosSys)
                 {
                     if (latiosSys.ShouldUpdateSystem())
@@ -243,25 +278,24 @@ namespace Latios
                     system.Update();
                 }
             }
-            catch (Exception e)
+            catch
             {
-                if (propagateError)
-                    throw;
-
-                UnityEngine.Debug.LogException(e);
+                impl->EndDependencyTracking(system.SystemHandle, true);
+                throw;
             }
+            impl->EndDependencyTracking(system.SystemHandle, false);
         }
 
         SystemSortingTracker m_systemSortingTracker;
 
-        internal static void UpdateAllSystems(ComponentSystemGroup group, ref SystemSortingTracker tracker)
+        internal static unsafe void UpdateAllSystems(ComponentSystemGroup group, ref SystemSortingTracker tracker)
         {
             tracker.CheckAndSortSystems(group);
 
             LatiosWorld lw = group.World as LatiosWorld;
 
             // Update all unmanaged and managed systems together, in the correct sort order.
-            var world      = group.World.Unmanaged;
+            var world      = group.World.Unmanaged.GetLatiosWorldUnmanaged();
             var enumerator = group.GetSystemEnumerator();
             while (enumerator.MoveNext())
             {
@@ -274,12 +308,12 @@ namespace Latios
                     {
                         // Update unmanaged (burstable) code.
                         var handle = enumerator.current;
-                        UpdateSystem(ref world, handle);
+                        UpdateUnmanagedSystem(world.m_impl, handle);
                     }
                     else
                     {
                         // Update managed code.
-                        UpdateManagedSystem(enumerator.currentManaged, true);
+                        UpdateManagedSystem(world.m_impl, enumerator.currentManaged);
                     }
                 }
                 catch (Exception e)
