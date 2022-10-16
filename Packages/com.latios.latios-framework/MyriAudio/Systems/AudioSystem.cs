@@ -8,11 +8,14 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Latios.Myri.Systems
 {
     [DisableAutoCreation]
     [UpdateInGroup(typeof(Latios.Systems.PreSyncPointGroup))]
-    public partial class AudioSystem : SubSystem
+    [BurstCompile]
+    public partial struct AudioSystem : ISystem
     {
         private DSPGraph             m_graph;
         private LatiosDSPGraphDriver m_driver;
@@ -35,7 +38,7 @@ namespace Latios.Myri.Systems
         private NativeReference<int>                        m_lastPlayedAudioFrame;
         private NativeReference<int>                        m_lastReadBufferId;
         private int                                         m_currentBufferId;
-        private List<ManagedIldBuffer>                      m_buffersInFlight;
+        private NativeList<OwnedIldBuffer>                  m_buffersInFlight;
         private NativeQueue<AudioFrameBufferHistoryElement> m_audioFrameHistory;
 
         private JobHandle   m_lastUpdateJobHandle;
@@ -45,8 +48,22 @@ namespace Latios.Myri.Systems
         private EntityQuery m_oneshotsQuery;
         private EntityQuery m_loopedQuery;
 
-        protected override void OnCreate()
+        EntityTypeHandle                            m_entityHandle;
+        ComponentTypeHandle<AudioListener>          m_listenerHandle;
+        ComponentTypeHandle<AudioSourceOneShot>     m_oneshotHandle;
+        ComponentTypeHandle<AudioSourceLooped>      m_loopedHandle;
+        ComponentTypeHandle<AudioSourceEmitterCone> m_coneHandle;
+        ComponentTypeHandle<Translation>            m_translationHandle;
+        ComponentTypeHandle<Rotation>               m_rotationHandle;
+        ComponentTypeHandle<LocalToWorld>           m_ltwHandle;
+        ComponentTypeHandle<Parent>                 m_parentHandle;
+
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+
             //Initialize containers first
             m_mixNodePortFreelist        = new NativeList<int>(Allocator.Persistent);
             m_mixNodePortCount           = new NativeReference<int>(Allocator.Persistent);
@@ -55,10 +72,10 @@ namespace Latios.Myri.Systems
             m_audioFrame                 = new NativeReference<int>(Allocator.Persistent);
             m_lastPlayedAudioFrame       = new NativeReference<int>(Allocator.Persistent);
             m_lastReadBufferId           = new NativeReference<int>(Allocator.Persistent);
-            m_buffersInFlight            = new List<ManagedIldBuffer>();
+            m_buffersInFlight            = new NativeList<OwnedIldBuffer>(Allocator.Persistent);
             m_audioFrameHistory          = new NativeQueue<AudioFrameBufferHistoryElement>(Allocator.Persistent);
 
-            worldBlackboardEntity.AddComponentDataIfMissing(new AudioSettings
+            latiosWorld.worldBlackboardEntity.AddComponentDataIfMissing(new AudioSettings
             {
                 safetyAudioFrames             = 2,
                 audioFramesPerUpdate          = 1,
@@ -93,11 +110,11 @@ namespace Latios.Myri.Systems
             commandBlock.Complete();
 
             //Create queries
-            m_aliveListenersQuery                = Fluent.WithAll<AudioListener>(true).Build();
-            m_deadListenersQuery                 = Fluent.Without<AudioListener>().WithAll<ListenerGraphState>().Build();
-            m_oneshotsToDestroyWhenFinishedQuery = Fluent.WithAll<AudioSourceOneShot>().WithAll<AudioSourceDestroyOneShotWhenFinished>(true).Build();
-            m_oneshotsQuery                      = Fluent.WithAll<AudioSourceOneShot>().Build();
-            m_loopedQuery                        = Fluent.WithAll<AudioSourceLooped>().Build();
+            m_aliveListenersQuery                = state.Fluent().WithAll<AudioListener>(true).Build();
+            m_deadListenersQuery                 = state.Fluent().Without<AudioListener>().WithAll<ListenerGraphState>().Build();
+            m_oneshotsToDestroyWhenFinishedQuery = state.Fluent().WithAll<AudioSourceOneShot>().WithAll<AudioSourceDestroyOneShotWhenFinished>(true).Build();
+            m_oneshotsQuery                      = state.Fluent().WithAll<AudioSourceOneShot>().Build();
+            m_loopedQuery                        = state.Fluent().WithAll<AudioSourceLooped>().Build();
 
             //Force initialization of Burst
             commandBlock  = m_graph.CreateCommandBlock();
@@ -112,26 +129,37 @@ namespace Latios.Myri.Systems
             },
                                                                                                                                                             m_ildNode);
             commandBlock.Cancel();
+
+            m_entityHandle      = state.GetEntityTypeHandle();
+            m_listenerHandle    = state.GetComponentTypeHandle<AudioListener>(true);
+            m_oneshotHandle     = state.GetComponentTypeHandle<AudioSourceOneShot>(false);
+            m_loopedHandle      = state.GetComponentTypeHandle<AudioSourceLooped>(false);
+            m_coneHandle        = state.GetComponentTypeHandle<AudioSourceEmitterCone>(true);
+            m_translationHandle = state.GetComponentTypeHandle<Translation>(true);
+            m_rotationHandle    = state.GetComponentTypeHandle<Rotation>(true);
+            m_ltwHandle         = state.GetComponentTypeHandle<LocalToWorld>(true);
+            m_parentHandle      = state.GetComponentTypeHandle<Parent>(true);
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var ecsJH = Dependency;
+            var ecsJH = state.Dependency;
 
             //Query arrays
             var aliveListenerEntities = m_aliveListenersQuery.ToEntityArray(Allocator.TempJob);
             var deadListenerEntities  = m_deadListenersQuery.ToEntityArray(Allocator.TempJob);
 
             //Type handles
-            var entityHandle      = GetEntityTypeHandle();
-            var listenerHandle    = GetComponentTypeHandle<AudioListener>(true);
-            var oneshotHandle     = GetComponentTypeHandle<AudioSourceOneShot>(false);
-            var loopedHandle      = GetComponentTypeHandle<AudioSourceLooped>(false);
-            var coneHandle        = GetComponentTypeHandle<AudioSourceEmitterCone>(true);
-            var translationHandle = GetComponentTypeHandle<Translation>(true);
-            var rotationHandle    = GetComponentTypeHandle<Rotation>(true);
-            var ltwHandle         = GetComponentTypeHandle<LocalToWorld>(true);
-            var parentHandle      = GetComponentTypeHandle<Parent>(true);
+            m_entityHandle.Update(ref state);
+            m_listenerHandle.Update(ref state);
+            m_oneshotHandle.Update(ref state);
+            m_loopedHandle.Update(ref state);
+            m_coneHandle.Update(ref state);
+            m_translationHandle.Update(ref state);
+            m_rotationHandle.Update(ref state);
+            m_ltwHandle.Update(ref state);
+            m_parentHandle.Update(ref state);
 
             var audioSettingsLookup          = GetComponentLookup<AudioSettings>(true);
             var listenerLookup               = GetComponentLookup<AudioListener>(true);
@@ -140,7 +168,7 @@ namespace Latios.Myri.Systems
 
             //Buffer
             m_currentBufferId++;
-            var ildBuffer = new ManagedIldBuffer
+            var ildBuffer = new OwnedIldBuffer
             {
                 buffer   = new NativeList<float>(Allocator.Persistent),
                 channels = new NativeList<IldBufferChannel>(Allocator.Persistent),
@@ -180,10 +208,10 @@ namespace Latios.Myri.Systems
 
             var captureListenersJH = new InitUpdateDestroy.UpdateListenersJob
             {
-                listenerHandle          = listenerHandle,
-                translationHandle       = translationHandle,
-                rotationHandle          = rotationHandle,
-                ltwHandle               = ltwHandle,
+                listenerHandle          = m_listenerHandle,
+                translationHandle       = m_translationHandle,
+                rotationHandle          = m_rotationHandle,
+                ltwHandle               = m_ltwHandle,
                 listenersWithTransforms = listenersWithTransforms
             }.Schedule(m_aliveListenersQuery, ecsJH);
 
@@ -195,7 +223,7 @@ namespace Latios.Myri.Systems
                 lastReadBufferId           = m_lastReadBufferId,
                 audioFrameHistory          = m_audioFrameHistory,
                 audioSettingsLookup        = audioSettingsLookup,
-                worldBlackboardEntity      = worldBlackboardEntity
+                worldBlackboardEntity      = latiosWorld.worldBlackboardEntity
             }.Schedule();
 
             var ecsCaptureFrameJH = JobHandle.CombineDependencies(ecsJH, captureFrameJH);
@@ -209,7 +237,7 @@ namespace Latios.Myri.Systems
                 listenerOutputGraphStateLookup      = entityOutputGraphStateLookup,
                 ecb                                 = entityCommandBuffer,
                 audioSettingsLookup                 = audioSettingsLookup,
-                worldBlackboardEntity               = worldBlackboardEntity,
+                worldBlackboardEntity               = latiosWorld.worldBlackboardEntity,
                 audioFrame                          = m_audioFrame,
                 audioFrameHistory                   = m_audioFrameHistory,
                 systemMixNodePortFreelist           = m_mixNodePortFreelist,
@@ -229,26 +257,26 @@ namespace Latios.Myri.Systems
             var destroyOneshotsJH = new InitUpdateDestroy.DestroyOneshotsWhenFinishedJob
             {
                 dcb                   = destroyCommandBuffer,
-                entityHandle          = entityHandle,
-                oneshotHandle         = oneshotHandle,
+                entityHandle          = m_entityHandle,
+                oneshotHandle         = m_oneshotHandle,
                 audioFrame            = m_audioFrame,
                 lastPlayedAudioFrame  = m_lastPlayedAudioFrame,
                 sampleRate            = m_sampleRate,
                 settingsLookup        = audioSettingsLookup,
                 samplesPerFrame       = m_samplesPerFrame,
-                worldBlackboardEntity = worldBlackboardEntity
+                worldBlackboardEntity = latiosWorld.worldBlackboardEntity
             }.ScheduleParallel(m_oneshotsToDestroyWhenFinishedQuery, ecsCaptureFrameJH);
 
             var firstEntityInChunkIndices = m_oneshotsQuery.CalculateBaseEntityIndexArrayAsync(Allocator.TempJob, destroyOneshotsJH, out var updateOneshotsJH);
 
             updateOneshotsJH = new InitUpdateDestroy.UpdateOneshotsJob
             {
-                oneshotHandle             = oneshotHandle,
-                ltwHandle                 = ltwHandle,
-                translationHandle         = translationHandle,
-                rotationHandle            = rotationHandle,
-                parentHandle              = parentHandle,
-                coneHandle                = coneHandle,
+                oneshotHandle             = m_oneshotHandle,
+                ltwHandle                 = m_ltwHandle,
+                translationHandle         = m_translationHandle,
+                rotationHandle            = m_rotationHandle,
+                parentHandle              = m_parentHandle,
+                coneHandle                = m_coneHandle,
                 audioFrame                = m_audioFrame,
                 lastPlayedAudioFrame      = m_lastPlayedAudioFrame,
                 lastConsumedBufferId      = m_lastReadBufferId,
@@ -261,12 +289,12 @@ namespace Latios.Myri.Systems
 
             updateLoopedJH = new InitUpdateDestroy.UpdateLoopedJob
             {
-                loopedHandle              = loopedHandle,
-                ltwHandle                 = ltwHandle,
-                translationHandle         = translationHandle,
-                rotationHandle            = rotationHandle,
-                parentHandle              = parentHandle,
-                coneHandle                = coneHandle,
+                loopedHandle              = m_loopedHandle,
+                ltwHandle                 = m_ltwHandle,
+                translationHandle         = m_translationHandle,
+                rotationHandle            = m_rotationHandle,
+                parentHandle              = m_parentHandle,
+                coneHandle                = m_coneHandle,
                 audioFrame                = m_audioFrame,
                 lastConsumedBufferId      = m_lastReadBufferId,
                 bufferId                  = m_currentBufferId,
@@ -344,10 +372,10 @@ namespace Latios.Myri.Systems
                 commandBlock = dspCommandBlock
             }.Schedule(loopedSamplingJH);
 
-            Dependency = JobHandle.CombineDependencies(updateListenersGraphJH,  //handles captureListener and captureFrame
-                                                       updateOneshotsJH,  //handles destroyOneshots
-                                                       updateLoopedJH
-                                                       );
+            state.Dependency = JobHandle.CombineDependencies(updateListenersGraphJH,  //handles captureListener and captureFrame
+                                                             updateOneshotsJH,  //handles destroyOneshots
+                                                             updateLoopedJH
+                                                             );
 
             var disposeJobHandles = new NativeList<JobHandle>(Allocator.TempJob);
             disposeJobHandles.Add(aliveListenerEntities.Dispose(updateListenersGraphJH));
@@ -369,7 +397,7 @@ namespace Latios.Myri.Systems
             disposeJobHandles.Add(loopedTargetListenerIndices.Dispose(loopedSamplingJH));
             disposeJobHandles.Add(shipItJH);
 
-            for (int i = 0; i < m_buffersInFlight.Count; i++)
+            for (int i = 0; i < m_buffersInFlight.Length; i++)
             {
                 var buffer = m_buffersInFlight[i];
                 if (buffer.bufferId - lastReadIldBufferFromMainThread < 0)
@@ -387,7 +415,7 @@ namespace Latios.Myri.Systems
             m_buffersInFlight.Add(ildBuffer);
         }
 
-        protected override void OnDestroy()
+        public void OnDestroy(ref SystemState state)
         {
             //UnityEngine.Debug.Log("AudioSystem.OnDestroy");
             var commandBlock = m_graph.CreateCommandBlock();
@@ -415,9 +443,10 @@ namespace Latios.Myri.Systems
                 buffer.buffer.Dispose();
                 buffer.channels.Dispose();
             }
+            m_buffersInFlight.Dispose();
         }
 
-        private struct ManagedIldBuffer
+        private struct OwnedIldBuffer
         {
             public NativeList<float>            buffer;
             public NativeList<IldBufferChannel> channels;
