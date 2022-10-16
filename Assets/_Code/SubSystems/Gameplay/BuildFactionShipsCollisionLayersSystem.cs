@@ -7,43 +7,51 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
-    public partial class BuildFactionShipsCollisionLayersSystem : SubSystem
+    [BurstCompile]
+    public partial struct BuildFactionShipsCollisionLayersSystem : ISystem
     {
         private EntityQuery                    m_query;
         private BuildCollisionLayerTypeHandles m_typeHandles;
 
-        protected override void OnCreate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
-            m_query       = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
-            m_typeHandles = new BuildCollisionLayerTypeHandles(this);
+            m_query       = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
+            m_typeHandles = new BuildCollisionLayerTypeHandles(ref state);
+
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            m_typeHandles.Update(this);
+            m_typeHandles.Update(ref state);
 
-            var settings                                                                 = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
-            sceneBlackboardEntity.SetComponentData(new ArenaCollisionSettings { settings = settings });
+            var settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
 
-            var backup = Dependency;
-            Dependency = default;
-
-            Entities.WithAll<FactionTag, Faction>().ForEach((Entity factionEntity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var factionEntity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
-
                 var factionMemberFilter = new FactionMember { factionEntity = factionEntity };
                 m_query.SetSharedComponentFilter(factionMemberFilter);
-                Dependency =
-                    Physics.BuildCollisionLayer(m_query, in m_typeHandles).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
+                state.Dependency =
+                    Physics.BuildCollisionLayer(m_query, in m_typeHandles).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent,
+                                                                                                                   state.Dependency);
 
-                EntityManager.SetCollectionComponentAndDisposeOld(factionEntity, new FactionShipsCollisionLayer { layer = layer });
+                latiosWorld.SetCollectionComponentAndDisposeOld(factionEntity, new FactionShipsCollisionLayer { layer = layer });
                 m_query.ResetFilter();
-            }).WithoutBurst().Run();
+            }
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
         }
     }
 

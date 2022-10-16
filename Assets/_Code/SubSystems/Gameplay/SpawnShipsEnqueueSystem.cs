@@ -6,9 +6,12 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class SpawnShipsEnqueueSystem : SubSystem
+    [BurstCompile]
+    public partial struct SpawnShipsEnqueueSystem : ISystem, ISystemNewScene
     {
         private struct NewShipTag : IComponentData { }
 
@@ -20,26 +23,31 @@ namespace Lsss
         NativeList<Entity> m_entityListCache;
         NativeList<Entity> m_playersWithoutReinforcements;
 
-        protected override void OnCreate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
-            m_oldPlayerShipQuery = Fluent.WithAll<ShipTag>(true).WithAll<PlayerTag>().WithAll<FactionMember>().IncludeDisabled().Build();
-            m_newPlayerShipQuery = Fluent.WithAll<PlayerTag>(true).WithAll<NewShipTag>(true).IncludeDisabled().Build();
-            m_oldShipQuery       = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
-            m_newAiShipQuery     = Fluent.WithAll<NewShipTag>(true).Without<PlayerTag>().IncludeDisabled().Build();
+            m_oldPlayerShipQuery = state.Fluent().WithAll<ShipTag>(true).WithAll<PlayerTag>().WithAll<FactionMember>().IncludeDisabled().Build();
+            m_newPlayerShipQuery = state.Fluent().WithAll<PlayerTag>(true).WithAll<NewShipTag>(true).IncludeDisabled().Build();
+            m_oldShipQuery       = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
+            m_newAiShipQuery     = state.Fluent().WithAll<NewShipTag>(true).Without<PlayerTag>().IncludeDisabled().Build();
 
             m_entityListCache              = new NativeList<Entity>(Allocator.Persistent);
             m_playersWithoutReinforcements = new NativeList<Entity>(Allocator.Persistent);
+
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        protected override void OnDestroy()
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
         {
             m_entityListCache.Dispose();
             m_playersWithoutReinforcements.Dispose();
         }
 
-        public override void OnNewScene()
+        public void OnNewScene(ref SystemState state)
         {
-            sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new SpawnQueues
+            latiosWorld.sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new SpawnQueues
             {
                 playerQueue               = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent),
                 aiQueue                   = new NativeQueue<EntityWith<Disabled> >(Allocator.Persistent),
@@ -48,13 +56,18 @@ namespace Lsss
             });
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
             bool needPlayer  = m_oldPlayerShipQuery.IsEmptyIgnoreFilter;
-            var  spawnQueues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
+            var  spawnQueues = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
 
-            Entities.WithStructuralChanges().WithAll<FactionTag>().ForEach((Entity entity, ref Faction faction) =>
+            var factionQuery    = QueryBuilder().WithAllRW<Faction>().WithAll<FactionTag>().Build();
+            var factionEntities = factionQuery.ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
+                var faction = GetComponent<Faction>(entity);
+
                 var factionFilter = new FactionMember { factionEntity = entity };
                 m_oldShipQuery.SetSharedComponentFilter(factionFilter);
                 int unitsToSpawn = faction.maxFieldUnits - m_oldShipQuery.CalculateEntityCount();
@@ -62,16 +75,16 @@ namespace Lsss
 
                 if (needPlayer && faction.playerPrefab != Entity.Null)
                 {
-                    var newPlayerShip = EntityManager.Instantiate(faction.playerPrefab);
-                    EntityManager.AddComponent<NewShipTag>(newPlayerShip);
-                    AddSharedComponentDataToLinkedGroup(newPlayerShip, factionFilter);
+                    var newPlayerShip = state.EntityManager.Instantiate(faction.playerPrefab);
+                    state.EntityManager.AddComponent<NewShipTag>(newPlayerShip);
+                    AddSharedComponentDataToLinkedGroup(ref state, newPlayerShip, factionFilter);
                     if (faction.remainingReinforcements <= 0)
                     {
                         m_playersWithoutReinforcements.Add(newPlayerShip);
                     }
                     else
                     {
-                        EntityManager.SetEnabled(newPlayerShip, false);
+                        state.EntityManager.SetEnabled(newPlayerShip, false);
                         unitsToSpawn--;
                         faction.remainingReinforcements--;
                         spawnQueues.playerQueue.Enqueue(newPlayerShip);
@@ -80,11 +93,11 @@ namespace Lsss
 
                 if (unitsToSpawn > 0)
                 {
-                    var newShipPrefab = EntityManager.Instantiate(faction.aiPrefab);
-                    EntityManager.AddComponent<NewShipTag>(newShipPrefab);
-                    AddSharedComponentDataToLinkedGroup(newShipPrefab, factionFilter);
-                    EntityManager.SetEnabled(newShipPrefab, false);
-                    var newEntities = EntityManager.Instantiate(newShipPrefab, unitsToSpawn, Allocator.TempJob);
+                    var newShipPrefab = state.EntityManager.Instantiate(faction.aiPrefab);
+                    state.EntityManager.AddComponent<NewShipTag>(newShipPrefab);
+                    AddSharedComponentDataToLinkedGroup(ref state, newShipPrefab, factionFilter);
+                    state.EntityManager.SetEnabled(newShipPrefab, false);
+                    var newEntities = state.EntityManager.Instantiate(newShipPrefab, unitsToSpawn, Allocator.TempJob);
                     int start       = spawnQueues.newAiEntitiesToPrioritize.Length;
                     spawnQueues.newAiEntitiesToPrioritize.AddRange(newEntities.Reinterpret<EntityWith<Disabled> >());
                     spawnQueues.factionRanges.Add(new SpawnQueues.FactionRanges
@@ -94,108 +107,110 @@ namespace Lsss
                         weight = faction.spawnWeightInverse / newEntities.Length
                     });
                     newEntities.Dispose();
-                    EntityManager.DestroyEntity(newShipPrefab);
+                    state.EntityManager.DestroyEntity(newShipPrefab);
                     faction.remainingReinforcements -= unitsToSpawn;
                 }
 
                 m_oldShipQuery.ResetFilter();
-            }).Run();
 
-            EntityManager.RemoveComponent<NewShipTag>(m_newAiShipQuery);
-            EntityManager.RemoveComponent<NewShipTag>(m_newPlayerShipQuery);
+                SetComponent(entity, faction);
+            }
+
+            state.EntityManager.RemoveComponent<NewShipTag>(m_newAiShipQuery);
+            state.EntityManager.RemoveComponent<NewShipTag>(m_newPlayerShipQuery);
 
             foreach (var player in m_playersWithoutReinforcements)
             {
-                if (!FindAndStealAiShip(player, spawnQueues))
-                    EntityManager.DestroyEntity(player);
+                if (!FindAndStealAiShip(ref state, player, spawnQueues))
+                    state.EntityManager.DestroyEntity(player);
             }
             m_playersWithoutReinforcements.Clear();
         }
 
-        bool FindAndStealAiShip(Entity player, SpawnQueues spawnQueues)
+        bool FindAndStealAiShip(ref SystemState state, Entity player, SpawnQueues spawnQueues)
         {
-            var factionMember        = EntityManager.GetSharedComponentManaged<FactionMember>(player);
-            var disabledShipsHashSet = new NativeParallelHashSet<Entity>(1024, Allocator.TempJob);
-            Entities.WithAll<ShipTag,
-                             Disabled>().WithNone<PlayerTag>().WithSharedComponentFilter(factionMember).ForEach((Entity entity) => { disabledShipsHashSet.Add(entity); }).Run();
-            if (!disabledShipsHashSet.IsEmpty)
+            var factionMember = state.EntityManager.GetSharedComponent<FactionMember>(player);
+
+            var disabledShipQuery = QueryBuilder().WithAll<ShipTag, Disabled, FactionMember>().WithNone<PlayerTag>().Build();
+            disabledShipQuery.SetSharedComponentFilter(factionMember);
+            var disabledShipEntities = disabledShipQuery.ToEntityArray(Allocator.Temp);
+            if (disabledShipEntities.Length > 0)
             {
+                var disabledShipsHashSet = new NativeHashSet<Entity>(1024, Allocator.Temp);
+                foreach (var entity in disabledShipEntities)
+                {
+                    disabledShipsHashSet.Add(entity);
+                }
                 Entity foundShip = Entity.Null;
 
-                Job.WithCode(() =>
+                var queueArray = spawnQueues.aiQueue.ToArray(Allocator.Temp);
+                for (int i = 0; i < queueArray.Length; i++)
                 {
-                    var queueArray = spawnQueues.aiQueue.ToArray(Allocator.Temp);
-                    for (int i = 0; i < queueArray.Length; i++)
+                    if (disabledShipsHashSet.Contains(queueArray[i]))
                     {
-                        if (disabledShipsHashSet.Contains(queueArray[i]))
+                        foundShip = queueArray[i];
+                        //Todo: Is there a cleaner way to remove a random element from the queue?
+                        spawnQueues.aiQueue.Clear();
+                        for (int j = 0; j < queueArray.Length; j++)
                         {
-                            foundShip = queueArray[i];
-                            //Todo: Is there a cleaner way to remove a random element from the queue?
-                            spawnQueues.aiQueue.Clear();
-                            for (int j = 0; j < queueArray.Length; j++)
-                            {
-                                if (j != i)
-                                    spawnQueues.aiQueue.Enqueue(queueArray[j]);
-                            }
-                            spawnQueues.playerQueue.Enqueue(player);
-                            return;
+                            if (j != i)
+                                spawnQueues.aiQueue.Enqueue(queueArray[j]);
                         }
+                        spawnQueues.playerQueue.Enqueue(player);
+                        break;
                     }
-                }).Run();
+                }
                 if (foundShip == Entity.Null)
                 {
                     //A spawner might have it.
-                    Entities.WithAll<SpawnPointTag>().ForEach((ref SpawnPayload payload) =>
+                    foreach(var payload in Query<RefRW<SpawnPayload> >().WithAll<SpawnPointTag>())
                     {
-                        if (foundShip == Entity.Null && disabledShipsHashSet.Contains(payload.disabledShip))
+                        if (foundShip == Entity.Null && disabledShipsHashSet.Contains(payload.ValueRW.disabledShip))
                         {
-                            foundShip            = payload.disabledShip;
-                            payload.disabledShip = player;
+                            foundShip                    = payload.ValueRW.disabledShip;
+                            payload.ValueRW.disabledShip = player;
                         }
-                    }).Run();
+                    }
                 }
                 if (foundShip != Entity.Null)
                 {
-                    EntityManager.SetEnabled(player, false);
-                    EntityManager.DestroyEntity(foundShip);
+                    state.EntityManager.SetEnabled(player, false);
+                    state.EntityManager.DestroyEntity(foundShip);
                     disabledShipsHashSet.Dispose();
                     return true;
                 }
             }
-            disabledShipsHashSet.Dispose();
 
             //Todo: Is there a more robust way to do this?
             float  bestHealth = 0f;
             Entity bestEntity = Entity.Null;
-            Entities.WithAll<ShipTag, AiTag>().WithSharedComponentFilter(factionMember).ForEach((Entity entity, in ShipHealth health) =>
+            foreach ((var health, var entity) in Query<RefRO<ShipHealth> >().WithEntityAccess().WithSharedComponentFilter(factionMember).WithAll<ShipTag, AiTag>())
             {
-                if (health.health > bestHealth)
+                if (health.ValueRO.health > bestHealth)
                 {
-                    bestHealth = health.health;
+                    bestHealth = health.ValueRO.health;
                     bestEntity = entity;
                 }
-            }).Run();
+            }
 
             if (bestEntity != Entity.Null)
             {
-                EntityManager.RemoveComponent<AiTag>(bestEntity);
-                EntityManager.AddComponent<PlayerTag>(bestEntity);
+                state.EntityManager.RemoveComponent<AiTag>(bestEntity);
+                state.EntityManager.AddComponent<PlayerTag>(bestEntity);
                 return false;
             }
 
             return false;
         }
 
-        void AddSharedComponentDataToLinkedGroup<T>(Entity root, T sharedComponent) where T : struct, ISharedComponentData
+        void AddSharedComponentDataToLinkedGroup<T>(ref SystemState state, Entity root, T sharedComponent) where T : unmanaged, ISharedComponentData
         {
             m_entityListCache.Clear();
-            m_entityListCache.AddRange(EntityManager.GetBuffer<LinkedEntityGroup>(root).Reinterpret<Entity>().AsNativeArray());
-            foreach (var e in m_entityListCache)
-            {
-                EntityManager.AddSharedComponentManaged(e, sharedComponent);
-            }
-            if (!EntityManager.HasComponent<T>(root))
-                EntityManager.AddSharedComponentManaged(root, sharedComponent);
+            m_entityListCache.AddRange(state.EntityManager.GetBuffer<LinkedEntityGroup>(root).Reinterpret<Entity>().AsNativeArray());
+            state.EntityManager.AddSharedComponent(m_entityListCache.AsArray(), sharedComponent);
+
+            if (!state.EntityManager.HasComponent<T>(root))
+                state.EntityManager.AddSharedComponent(root, sharedComponent);
         }
     }
 }

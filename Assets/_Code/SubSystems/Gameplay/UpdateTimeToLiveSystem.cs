@@ -6,21 +6,47 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class UpdateTimeToLiveSystem : SubSystem
+    [BurstCompile]
+    public partial struct UpdateTimeToLiveSystem : ISystem
     {
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
             var   dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
-            float dt  = SystemAPI.Time.DeltaTime;
+            float dt  = Time.DeltaTime;
 
-            Entities.ForEach((Entity entity, int entityInQueryIndex, ref TimeToLive timeToLive) =>
+            new Job { dcb = dcb, dt = dt }.ScheduleParallel();
+        }
+
+        [BurstCompile]
+        partial struct Job : IJobEntity
+        {
+            public DestroyCommandBuffer.ParallelWriter dcb;
+            public float                               dt;
+
+            public void Execute(Entity entity, [ChunkIndexInQuery] int chunkIndexInQuery, ref TimeToLive timeToLive)
             {
                 timeToLive.timeToLive -= dt;
                 if (timeToLive.timeToLive < 0f)
-                    dcb.Add(entity, entityInQueryIndex);
-            }).ScheduleParallel();
+                    dcb.Add(entity, chunkIndexInQuery);
+            }
         }
     }
 }

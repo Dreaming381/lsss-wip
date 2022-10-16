@@ -8,26 +8,41 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class ShipVsShipDamageSystem : SubSystem
+    [BurstCompile]
+    public partial struct ShipVsShipDamageSystem : ISystem
     {
-        private List<CollisionLayer> m_layers = new List<CollisionLayer>();
+        private NativeList<CollisionLayer> m_layers;
 
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            var backup = Dependency;
-            Dependency = default;
+            m_layers = new NativeList<CollisionLayer>(Allocator.Persistent);
 
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+            m_layers.Dispose();
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
             m_layers.Clear();
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
-
-                var layer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true);
+                var layer = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true);
                 m_layers.Add(layer.layer);
-            }).WithoutBurst().Run();
+            }
 
             var processor = new DamageCollidingShipsProcessor
             {
@@ -37,14 +52,14 @@ namespace Lsss
 
             foreach (var layer in m_layers)
             {
-                Dependency = Physics.FindPairs(layer, processor).ScheduleParallel(Dependency);
+                state.Dependency = Physics.FindPairs(layer, processor).ScheduleParallel(state.Dependency);
             }
 
-            for (int i = 0; i < m_layers.Count - 1; i++)
+            for (int i = 0; i < m_layers.Length - 1; i++)
             {
-                for (int j = i + 1; j < m_layers.Count; j++)
+                for (int j = i + 1; j < m_layers.Length; j++)
                 {
-                    Dependency = Physics.FindPairs(m_layers[i], m_layers[j], processor).ScheduleParallel(Dependency);
+                    state.Dependency = Physics.FindPairs(m_layers[i], m_layers[j], processor).ScheduleParallel(state.Dependency);
                 }
             }
         }

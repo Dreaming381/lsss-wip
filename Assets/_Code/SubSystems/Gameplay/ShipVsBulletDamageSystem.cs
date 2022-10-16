@@ -7,29 +7,37 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class ShipVsBulletDamageSystem : SubSystem
+    [BurstCompile]
+    public partial struct ShipVsBulletDamageSystem : ISystem
     {
-        int m_frameId = 0;
+        int m_frameId;
 
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation>().AsParallelWriter();
 
-            int frameId = m_frameId;
-
-            Entities.ForEach((ref BulletFirer firer) =>
-            {
-                if (!firer.initialized)
-                {
-                    firer.lastImpactFrame = frameId;
-                    firer.initialized     = true;
-                }
-            }).ScheduleParallel();
+            new BulletFirerJob { frameId = m_frameId }.ScheduleParallel();
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
@@ -39,22 +47,32 @@ namespace Lsss
                 shipHitEffectPrefabLookup = GetComponentLookup<ShipHitEffectPrefab>(true),
                 dcb                       = dcb,
                 icb                       = icb,
-                frameId                   = frameId
+                frameId                   = m_frameId
             };
 
-            var backup = Dependency;
-            Dependency = default;
-
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
-
-                var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                Dependency    = Physics.FindPairs(bulletLayer, shipLayer, processor).ScheduleParallel(Dependency);
-            }).WithoutBurst().Run();
+                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
+                state.Dependency = Physics.FindPairs(bulletLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
+            }
 
             m_frameId++;
+        }
+
+        [BurstCompile]
+        partial struct BulletFirerJob : IJobEntity
+        {
+            public int frameId;
+
+            public void Execute(ref BulletFirer firer)
+            {
+                if (!firer.initialized)
+                {
+                    firer.lastImpactFrame = frameId;
+                    firer.initialized     = true;
+                }
+            }
         }
 
         //Assumes A is bullet and B is ship.

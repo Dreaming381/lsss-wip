@@ -9,18 +9,32 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class BuildWallsCollisionLayerSystem : SubSystem
+    [BurstCompile]
+    public partial struct BuildWallsCollisionLayerSystem : ISystem, ISystemNewScene, ISystemShouldUpdate
     {
         EntityQuery m_query;
 
-        protected override void OnCreate()
+        BuildCollisionLayerTypeHandles m_handles;
+
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<WallTag>(true).WithAll<LocalToWorld>(true).WithChangeFilter<LocalToWorld>().PatchQueryForBuildingCollisionLayer().Build();
+            m_query = state.Fluent().WithAll<WallTag>(true).WithAll<LocalToWorld>(true).PatchQueryForBuildingCollisionLayer().Build();
+
+            m_handles = new BuildCollisionLayerTypeHandles(ref state);
+
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new WallCollisionLayer());
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
 
-        public override bool ShouldUpdateSystem()
+        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new WallCollisionLayer());
+
+        public bool ShouldUpdateSystem(ref SystemState state)
         {
             //Todo: Use different dirtying mechanism instead of change filter.
             //Change filter forces a sync point on transform system which is surprisingly expensive.
@@ -30,18 +44,22 @@ namespace Lsss
             //return m_query.CalculateChunkCount() > 0;
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
+            m_handles.Update(ref state);
+
             CollisionLayerSettings settings;
-            if (sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
-                settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
-            m_query.ResetFilter();
-            Dependency = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
-            var wcl    = new WallCollisionLayer { layer = layer };
-            sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
-            m_query.AddChangedVersionFilter(typeof(LocalToWorld));
+
+            state.Dependency = Physics.BuildCollisionLayer(m_query, m_handles).WithSettings(settings).ScheduleParallel(out CollisionLayer layer,
+                                                                                                                       Allocator.Persistent,
+                                                                                                                       state.Dependency);
+            var wcl = new WallCollisionLayer { layer = layer };
+            latiosWorld.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
         }
     }
 }

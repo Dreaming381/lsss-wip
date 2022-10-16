@@ -7,31 +7,62 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class BuildBulletsCollisionLayerSystem : SubSystem
+    [BurstCompile]
+    public partial struct BuildBulletsCollisionLayerSystem : ISystem, ISystemNewScene
     {
-        private EntityQuery m_query;
+        LatiosWorldUnmanaged latiosWorld;
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new BulletCollisionLayer());
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new BulletCollisionLayer());
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
             CollisionLayerSettings settings;
-            if (sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
-                settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var bodies =
-                CollectionHelper.CreateNativeArray<ColliderBody>(m_query.CalculateEntityCount(), World.UpdateAllocator.ToAllocator, NativeArrayOptions.UninitializedMemory);
+            var query = QueryBuilder().WithAll<Translation, Rotation, Collider, BulletPreviousPosition, BulletTag>().Build();
 
-            Entities.WithAll<BulletTag>().ForEach((Entity entity,
-                                                   int entityInQueryIndex,
-                                                   in Translation translation,
-                                                   in Rotation rotation,
-                                                   in Collider collider,
-                                                   in BulletPreviousPosition previousPosition) =>
+            var bodies =
+                CollectionHelper.CreateNativeArray<ColliderBody>(query.CalculateEntityCount(),
+                                                                 state.WorldUnmanaged.UpdateAllocator.ToAllocator,
+                                                                 NativeArrayOptions.UninitializedMemory);
+
+            new Job { bodies = bodies }.ScheduleParallel(query);
+
+            state.Dependency = Physics.BuildCollisionLayer(bodies).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
+            var bcl          = new BulletCollisionLayer { layer = layer };
+            latiosWorld.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
+        }
+
+        [BurstCompile]
+        partial struct Job : IJobEntity
+        {
+            public NativeArray<ColliderBody> bodies;
+
+            public void Execute(Entity entity,
+                                [EntityInQueryIndex] int entityInQueryIndex,
+                                in Translation translation,
+                                in Rotation rotation,
+                                in Collider collider,
+                                in BulletPreviousPosition previousPosition)
             {
                 CapsuleCollider capsule     = collider;
                 float           tailLength  = math.distance(translation.Value, previousPosition.previousPosition);
@@ -44,11 +75,7 @@ namespace Lsss
                     entity    = entity,
                     transform = new RigidTransform(rotation.Value, translation.Value)
                 };
-            }).WithStoreEntityQueryInField(ref m_query).ScheduleParallel();
-
-            Dependency = Physics.BuildCollisionLayer(bodies).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
-            var bcl    = new BulletCollisionLayer { layer = layer };
-            sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
+            }
         }
     }
 

@@ -9,13 +9,36 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class SpawnShipsPrioritizeSystem : SubSystem
+    [BurstCompile]
+    public partial struct SpawnShipsPrioritizeSystem : ISystem
     {
-        protected override void OnUpdate()
-        {
-            var spawnQueues = sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>(false);
+        LatiosWorldUnmanaged latiosWorld;
 
-            Job.WithCode(() =>
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var spawnQueues = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>(false);
+
+            state.Dependency = new Job { spawnQueues = spawnQueues }.Schedule();
+        }
+
+        [BurstCompile]
+        struct Job : IJob
+        {
+            public SpawnQueues spawnQueues;
+
+            public void Execute()
             {
                 var runningWeights = new NativeArray<float>(spawnQueues.factionRanges.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
                 for (int i = 0; i < runningWeights.Length; i++)
@@ -43,7 +66,7 @@ namespace Lsss
 
                 spawnQueues.newAiEntitiesToPrioritize.Clear();
                 spawnQueues.factionRanges.Clear();
-            }).Schedule();
+            }
         }
     }
 }

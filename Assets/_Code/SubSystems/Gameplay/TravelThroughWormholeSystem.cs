@@ -7,14 +7,31 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class TravelThroughWormholeSystem : SubSystem
+    [BurstCompile]
+    public partial struct TravelThroughWormholeSystem : ISystem
     {
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            var wormholeLayer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
-            var bulletLayer   = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var wormholeLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            var bulletLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var processor = new TeleportWormholeTravelersProcessor
             {
@@ -26,19 +43,14 @@ namespace Lsss
                 prevPosCDFE = GetComponentLookup<BulletPreviousPosition>()
             };
 
-            var backup = Dependency;
-            Dependency = default;
-
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
+                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
+                state.Dependency = Physics.FindPairs(wormholeLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
+            }
 
-                var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                Dependency    = Physics.FindPairs(wormholeLayer, shipLayer, processor).ScheduleParallel(Dependency);
-            }).WithoutBurst().Run();
-
-            Dependency = Physics.FindPairs(wormholeLayer, bulletLayer, processor).ScheduleParallel(Dependency);
+            state.Dependency = Physics.FindPairs(wormholeLayer, bulletLayer, processor).ScheduleParallel(state.Dependency);
         }
 
         //Assumes B is traveler

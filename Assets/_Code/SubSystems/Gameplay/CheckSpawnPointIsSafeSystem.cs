@@ -8,6 +8,8 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine.Profiling;
 
+using static Unity.Entities.SystemAPI;
+
 //The IFindPairsProcessors only force safeToSpawn from true to false.
 //Because of this, it is safe to use the Unsafe parallel schedulers.
 //However, if the logic is ever modified, this decision needs to be re-evaluated.
@@ -15,21 +17,26 @@ using UnityEngine.Profiling;
 namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
-    public partial class CheckSpawnPointIsSafeSystem : SubSystem
+    [BurstCompile]
+    public partial struct CheckSpawnPointIsSafeSystem : ISystem
     {
-        int frameCount = 0;
+        LatiosWorldUnmanaged latiosWorld;
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            frameCount++;
-            Profiler.BeginSample("CheckSpawnPointIsSafe_OnUpdate");
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
 
-            Profiler.BeginSample("Clear safe");
-            Entities.WithAll<SpawnPoint>().ForEach((ref SafeToSpawn safeToSpawn) =>
-            {
-                safeToSpawn.safe = true;
-            }).ScheduleParallel();
-            Profiler.EndSample();
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            new SpawnPointResetFlagsJob().ScheduleParallel();
 
             var processor = new SpawnPointIsNotSafeProcessor
             {
@@ -41,60 +48,33 @@ namespace Lsss
                 safeToSpawnLookup = processor.safeToSpawnLookup
             };
 
-            Profiler.BeginSample("Fetch");
-            var spawnLayer = sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
-            Profiler.EndSample();
-            Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallelUnsafe(Dependency);
-            Profiler.EndSample();
+            var spawnLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
+            state.Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallelUnsafe(state.Dependency);
 
-            //Profiler.BeginSample("Fetch");
-            //var wallLayer = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
-            //Profiler.EndSample();
-            //Profiler.BeginSample("Schedule");
-            //Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(Dependency);
-            //Profiler.EndSample();
+            var wallLayer    = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            state.Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            Profiler.BeginSample("Fetch");
-            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
-            Profiler.EndSample();
-            Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, bulletLayer, processor).ScheduleParallelUnsafe(Dependency);
-            Profiler.EndSample();
+            var bulletLayer  = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            state.Dependency = Physics.FindPairs(spawnLayer, bulletLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            Profiler.BeginSample("Fetch");
-            var explosionLayer = sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
-            Profiler.EndSample();
-            Profiler.BeginSample("Schedule");
-            Dependency = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallelUnsafe(Dependency);
-            Profiler.EndSample();
+            var explosionLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            state.Dependency   = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            //Profiler.BeginSample("Fetch");
-            //var wormholeLayer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
-            //Profiler.EndSample();
-            //Profiler.BeginSample("Schedule");
-            //Dependency = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(Dependency);
-            //Profiler.EndSample();
+            var wormholeLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            state.Dependency  = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            //Todo: Remove hack
-            //This hack exists because the .Run forces Dependency to complete first. But we don't want that.
-            var backupDependency = Dependency;
-            Dependency           = default;
-
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backupDependency;
+                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
+                state.Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallelUnsafe(state.Dependency);
+            }
+        }
 
-                Profiler.BeginSample("Fetch2");
-                var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                Profiler.EndSample();
-                Profiler.BeginSample("Schedule2");
-                Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallelUnsafe(Dependency);
-                Profiler.EndSample();
-            }).WithoutBurst().Run();
-
-            Profiler.EndSample();
+        [BurstCompile]
+        partial struct SpawnPointResetFlagsJob : IJobEntity
+        {
+            public void Execute(ref SafeToSpawn safeToSpawn) => safeToSpawn.safe = true;
         }
 
         //Assumes A is SpawnPoint

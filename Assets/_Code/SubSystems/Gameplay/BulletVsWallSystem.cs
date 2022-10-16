@@ -7,20 +7,37 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class BulletVsWallSystem : SubSystem
+    [BurstCompile]
+    public partial struct BulletVsWallSystem : ISystem
     {
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
-            var bulletLayer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
-            var wallLayer   = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var wallLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var processor = new DestroyBulletsThatHitWallsProcessor { dcb = dcb };
 
-            Dependency = Physics.FindPairs(bulletLayer, wallLayer, processor).ScheduleParallel(Dependency);
+            state.Dependency = Physics.FindPairs(bulletLayer, wallLayer, processor).ScheduleParallel(state.Dependency);
         }
 
         struct DestroyBulletsThatHitWallsProcessor : IFindPairsProcessor

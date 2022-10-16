@@ -7,10 +7,13 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
-    public partial class EvaluateMissionSystem : SubSystem
+    [BurstCompile]
+    public partial struct EvaluateMissionSystem : ISystem
     {
         struct MissionStatus
         {
@@ -26,27 +29,41 @@ namespace Lsss
 
         EntityQuery m_query;
 
-        protected override void OnCreate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+
+            m_query = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
             MissionStatus status = new MissionStatus { status = MissionStatus.Options.Complete };
 
-            Entities.WithAll<FactionTag, LastAliveObjectiveTag>().ForEach((Entity entity) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                status = GetDestroyAllMissionStatus(entity);
+                status = GetDestroyAllMissionStatus(entity, factionEntities);
 
                 m_query.SetSharedComponentFilter(new FactionMember { factionEntity = entity });
                 bool alive                                                         = !m_query.IsEmpty;
                 if (!alive)
                     status.status = MissionStatus.Options.Failed;
-            }).WithoutBurst().Run();
+            }
 
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, in DynamicBuffer<DestroyFactionObjective> dfo) =>
+            var factionEntitiesWithTarget = QueryBuilder().WithAll<Faction, FactionTag, DestroyFactionObjective>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntitiesWithTarget)
             {
+                var dfo = GetBuffer<DestroyFactionObjective>(entity);
+
                 for (int i = 0; i < dfo.Length; i++)
                 {
                     m_query.SetSharedComponentFilter(new FactionMember { factionEntity = dfo[i].factionToDestroy });
@@ -60,30 +77,30 @@ namespace Lsss
                     if (!alive)
                         status.status = MissionStatus.Options.Failed;
                 }
-            }).WithoutBurst().Run();
+            }
 
             if (status.status == MissionStatus.Options.Failed)
             {
-                latiosWorld.syncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Mission Failed" });
+                latiosWorld.syncPoint.CreateEntityCommandBuffer().AddComponent(latiosWorld.sceneBlackboardEntity, new RequestLoadScene { newScene = "Mission Failed" });
             }
             else if (status.status == MissionStatus.Options.Complete)
             {
-                latiosWorld.syncPoint.CreateEntityCommandBuffer().AddComponent(sceneBlackboardEntity, new RequestLoadScene { newScene = "Mission Complete" });
+                latiosWorld.syncPoint.CreateEntityCommandBuffer().AddComponent(latiosWorld.sceneBlackboardEntity, new RequestLoadScene { newScene = "Mission Complete" });
             }
         }
 
-        MissionStatus GetDestroyAllMissionStatus(Entity missionFaction)
+        MissionStatus GetDestroyAllMissionStatus(Entity missionFaction, NativeArray<Entity> factionEntities)
         {
             MissionStatus status = new MissionStatus { status = MissionStatus.Options.Complete };
-            Entities.WithAll<FactionTag>().ForEach((Entity entity) =>
+            foreach (var entity in factionEntities)
             {
                 if (entity == missionFaction)
-                    return;
+                    continue;
                 m_query.SetSharedComponentFilter(new FactionMember { factionEntity = entity });
                 bool alive                                                         = !m_query.IsEmpty;
                 if (alive)
                     status.status = MissionStatus.Options.InProgress;
-            }).WithoutBurst().Run();
+            }
             return status;
         }
     }

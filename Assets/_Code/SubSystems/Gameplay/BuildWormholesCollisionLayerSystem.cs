@@ -9,18 +9,32 @@ using Unity.Transforms;
 
 namespace Lsss
 {
-    public partial class BuildWormholesCollisionLayerSystem : SubSystem
+    [BurstCompile]
+    public partial struct BuildWormholesCollisionLayerSystem : ISystem, ISystemNewScene, ISystemShouldUpdate
     {
         EntityQuery m_query;
 
-        protected override void OnCreate()
+        BuildCollisionLayerTypeHandles m_handles;
+
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
-            m_query = Fluent.WithAll<WormholeTag>(true).WithAll<LocalToWorld>(true).WithChangeFilter<LocalToWorld>().PatchQueryForBuildingCollisionLayer().Build();
+            m_query = state.Fluent().WithAll<WormholeTag>(true).WithAll<LocalToWorld>(true).PatchQueryForBuildingCollisionLayer().Build();
+
+            m_handles = new BuildCollisionLayerTypeHandles(ref state);
+
+            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        public override void OnNewScene() => sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new WormholeCollisionLayer());
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
 
-        public override bool ShouldUpdateSystem()
+        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new WormholeCollisionLayer());
+
+        public bool ShouldUpdateSystem(ref SystemState state)
         {
             //Todo: Use different dirtying mechanism instead of change filter.
             //Change filter forces a sync point on transform system which is surprisingly expensive.
@@ -30,14 +44,22 @@ namespace Lsss
             //return m_query.CalculateChunkCount() > 0;
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
-            m_query.ResetFilter();
-            Dependency = Physics.BuildCollisionLayer(m_query, this).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, Dependency);
-            var wcl    = new WormholeCollisionLayer { layer = layer };
-            sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
-            m_query.AddChangedVersionFilter(typeof(LocalToWorld));
+            m_handles.Update(ref state);
+
+            CollisionLayerSettings settings;
+            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            else
+                settings = BuildCollisionLayerConfig.defaultSettings;
+
+            state.Dependency = Physics.BuildCollisionLayer(m_query, ref state).WithSettings(settings).ScheduleParallel(out CollisionLayer layer,
+                                                                                                                       Allocator.Persistent,
+                                                                                                                       state.Dependency);
+            var wcl = new WormholeCollisionLayer { layer = layer };
+            latiosWorld.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(wcl);
         }
     }
 

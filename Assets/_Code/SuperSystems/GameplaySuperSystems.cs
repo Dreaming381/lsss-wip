@@ -11,9 +11,9 @@ namespace Lsss.SuperSystems
         protected override void CreateSystems()
         {
             GetOrCreateAndAddUnmanagedSystem<DestroyUninitializedOrphanedEffectsSystem>();
-            GetOrCreateAndAddManagedSystem<OrbitalSpawnersProcGenSystem>();
+            GetOrCreateAndAddUnmanagedSystem<OrbitalSpawnersProcGenSystem>();
             GetOrCreateAndAddUnmanagedSystem<SpawnFleetsSystem>();
-            GetOrCreateAndAddManagedSystem<SpawnShipsEnqueueSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnShipsEnqueueSystem>();
             GetOrCreateAndAddUnmanagedSystem<SpawnShipsEnableSystem>();
         }
     }
@@ -39,12 +39,12 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddManagedSystem<BuildFactionShipsCollisionLayersSystem>();
-            GetOrCreateAndAddManagedSystem<BuildBulletsCollisionLayerSystem>();
-            GetOrCreateAndAddManagedSystem<BuildExplosionsCollisionLayerSystem>();
-            GetOrCreateAndAddManagedSystem<BuildWallsCollisionLayerSystem>();
-            //GetOrCreateAndAddManagedSystem<BuildWormholesCollisionLayerSystem>();
-            GetOrCreateAndAddManagedSystem<BuildSpawnPointCollisionLayerSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildFactionShipsCollisionLayersSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildBulletsCollisionLayerSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildExplosionsCollisionLayerSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildWallsCollisionLayerSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildWormholesCollisionLayerSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildSpawnPointCollisionLayerSystem>();
 
             //GetOrCreateAndAddManagedSystem<DebugDrawFactionShipsCollisionLayersSystem>();
             //GetOrCreateAndAddManagedSystem<DebugDrawFactionShipsCollidersSystem>();
@@ -61,19 +61,19 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddManagedSystem<ShipVsBulletDamageSystem>();
-            GetOrCreateAndAddManagedSystem<ShipVsShipDamageSystem>();
-            GetOrCreateAndAddManagedSystem<ShipVsExplosionDamageSystem>();
-            //GetOrCreateAndAddManagedSystem<ShipVsWallDamageSystem>();
-            //GetOrCreateAndAddSystem<BulletVsWallSystem>();
-            GetOrCreateAndAddManagedSystem<CheckSpawnPointIsSafeSystem>();
-            //GetOrCreateAndAddSystem<TravelThroughWormholeSystem>();
-            GetOrCreateAndAddManagedSystem<UpdateTimeToLiveSystem>();
-            GetOrCreateAndAddManagedSystem<DestroyShipsWithNoHealthSystem>();
-            GetOrCreateAndAddManagedSystem<SpawnShipsPrioritizeSystem>();
-            GetOrCreateAndAddManagedSystem<SpawnShipsDequeueSystem>();
-            GetOrCreateAndAddManagedSystem<EvaluateMissionSystem>();
-            GetOrCreateAndAddManagedSystem<FireGunsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ShipVsBulletDamageSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ShipVsShipDamageSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ShipVsExplosionDamageSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ShipVsWallDamageSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BulletVsWallSystem>();
+            GetOrCreateAndAddUnmanagedSystem<CheckSpawnPointIsSafeSystem>();
+            GetOrCreateAndAddUnmanagedSystem<TravelThroughWormholeSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UpdateTimeToLiveSystem>();
+            GetOrCreateAndAddUnmanagedSystem<DestroyShipsWithNoHealthSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnShipsPrioritizeSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnShipsDequeueSystem>();
+            GetOrCreateAndAddUnmanagedSystem<EvaluateMissionSystem>();
+            GetOrCreateAndAddUnmanagedSystem<FireGunsSystem>();
         }
     }
 }

@@ -11,45 +11,65 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine.Profiling;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class AiShipRadarScanSystem : SubSystem
+    [BurstCompile]
+    public partial struct AiShipRadarScanSystem : ISystem
     {
-        private List<FactionShipsCollisionLayer>           m_factionsCache             = new List<FactionShipsCollisionLayer>();
-        private List<NativeArray<AiShipRadarScanResults> > m_scanResultsArrayListCache = new List<NativeArray<AiShipRadarScanResults> >();
+        private NativeList<FactionShipsCollisionLayer>           m_factionsCache;
+        private NativeList<NativeArray<AiShipRadarScanResults> > m_scanResultsArrayListCache;
 
-        private EntityQuery m_factionsQuery;
         private EntityQuery m_radarsQuery;
 
-        protected override void OnUpdate()
+        private ComponentTypeHandle<AiShipRadarScanResults> m_scanResultsHandle;
+
+        private LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+
+            m_factionsCache             = new NativeList<FactionShipsCollisionLayer>(Allocator.Persistent);
+            m_scanResultsArrayListCache = new NativeList<NativeArray<AiShipRadarScanResults> >(Allocator.Persistent);
+
+            m_scanResultsHandle = state.GetComponentTypeHandle<AiShipRadarScanResults>(false);
+
+            m_radarsQuery = QueryBuilder().WithAllRW<AiShipRadarScanResults>().WithAll<AiRadarTag, AiShipRadar, LocalToWorld, FactionMember>().Build();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+            m_factionsCache.Dispose();
+            m_scanResultsArrayListCache.Dispose();
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            m_scanResultsHandle.Update(ref state);
+
             CollisionLayerSettings settings;
-            if (sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
-                settings = sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             else
                 settings               = BuildCollisionLayerConfig.defaultSettings;
             var collisionLayerSettings = settings;
-            var wallLayer              = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var wallLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
-            var allocator = World.UpdateAllocator.ToAllocator;
+            var allocator = state.WorldUnmanaged.UpdateAllocator.ToAllocator;
 
             m_factionsCache.Clear();
-            var backup = Dependency;
-            Dependency = default;
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+
+            var factionEntities = new NativeList<Entity>(allocator);
+            foreach ((var unused, var entity) in Query<RefRO<Faction> >().WithEntityAccess().WithAll<FactionTag>())
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
-
-                m_factionsCache.Add(EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true));
-            }).WithStoreEntityQueryInField(ref m_factionsQuery).WithoutBurst().Run();
-            var factionEntities = m_factionsQuery.ToEntityArray(allocator);
-
-            //Todo: IJobChunk with MemClear?
-            //Entities.WithAll<AiRadarTag>().ForEach((ref AiShipRadarScanResults results) =>
-            //{
-            //    results = default;
-            //}).WithName("ScanClear").ScheduleParallel();
+                m_factionsCache.Add(latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true));
+                factionEntities.Add(entity);
+            }
 
             var scanFriendsProcessor = new ScanFriendsProcessor
             {
@@ -63,7 +83,7 @@ namespace Lsss
                 wallLayer   = wallLayer
             };
 
-            var rootDependency = Dependency;
+            var rootDependency = state.Dependency;
 
             var jhs = new NativeArray<JobHandle>(factionEntities.Length, Allocator.Temp);
 
@@ -72,7 +92,8 @@ namespace Lsss
             for (int i = 0; i < factionEntities.Length; i++)
             {
                 var factionA = new FactionMember { factionEntity = factionEntities[i] };
-                var jh                                           = BuildRadarLayer(factionA,
+                var jh                                           = BuildRadarLayer(ref state,
+                                                                                   factionA,
                                                                                    collisionLayerSettings,
                                                                                    allocator,
                                                                                    out var radarLayer,
@@ -86,14 +107,7 @@ namespace Lsss
                 scanFriendsProcessor.remapArray       = remapArray;
                 scanEnemiesProcessor.remapArray       = remapArray;
 
-                unsafe
-                {
-                    jh = Job.WithCode(() =>
-                    {
-                        var ptr = scanResultsArray.GetUnsafePtr();
-                        UnsafeUtility.MemClear(ptr, scanResultsArray.Length * UnsafeUtility.SizeOf<AiShipRadarScanResults>());
-                    }).Schedule(jh);
-                }
+                jh = new ClearArrayJob { scanResultsArray = scanResultsArray }.Schedule(jh);
 
                 var shipLayerA = m_factionsCache[i].layer;
 
@@ -112,9 +126,7 @@ namespace Lsss
                 jhs[i] = jh;
             }
 
-            Dependency = JobHandle.CombineDependencies(jhs);
-
-            var scanResultsHandle = GetComponentTypeHandle<AiShipRadarScanResults>(false);
+            state.Dependency = JobHandle.CombineDependencies(jhs);
 
             for (int i = 0; i < factionEntities.Length; i++)
             {
@@ -122,16 +134,28 @@ namespace Lsss
                 var faction = new FactionMember { factionEntity = factionEntities[i] };
 
                 m_radarsQuery.SetSharedComponentFilter(faction);
-                var indices = m_radarsQuery.CalculateBaseEntityIndexArrayAsync(allocator, Dependency, out var jh);
-                Dependency  = new CopyBackJob
+                var indices      = m_radarsQuery.CalculateBaseEntityIndexArrayAsync(allocator, state.Dependency, out var jh);
+                state.Dependency = new CopyBackJob
                 {
                     array                         = array,
-                    scanResultsHandle             = scanResultsHandle,
+                    scanResultsHandle             = m_scanResultsHandle,
                     indicesOfFirstEntitiesInChunk = indices
                 }.ScheduleParallel(m_radarsQuery, jh);
             }
 
             m_radarsQuery.ResetFilter();
+        }
+
+        [BurstCompile]
+        public struct ClearArrayJob : IJob
+        {
+            public NativeArray<AiShipRadarScanResults> scanResultsArray;
+
+            public unsafe void Execute()
+            {
+                var ptr = scanResultsArray.GetUnsafePtr();
+                UnsafeUtility.MemClear(ptr, scanResultsArray.Length * UnsafeUtility.SizeOf<AiShipRadarScanResults>());
+            }
         }
 
         [BurstCompile]
@@ -149,7 +173,8 @@ namespace Lsss
             }
         }
 
-        private JobHandle BuildRadarLayer(FactionMember factionMember,
+        private JobHandle BuildRadarLayer(ref SystemState state,
+                                          FactionMember factionMember,
                                           CollisionLayerSettings settings,
                                           Allocator allocator,
                                           out CollisionLayer layer,
@@ -158,10 +183,20 @@ namespace Lsss
         {
             m_radarsQuery.SetSharedComponentFilter(factionMember);
             int count  = m_radarsQuery.CalculateEntityCount();
-            var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator);
-            var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, allocator);
-            var jh     = Entities.WithAll<AiRadarTag>().WithSharedComponentFilter(factionMember).WithStoreEntityQueryInField(ref m_radarsQuery)
-                         .ForEach((Entity e, int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw) =>
+            var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator, NativeArrayOptions.UninitializedMemory);
+            var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, allocator, NativeArrayOptions.UninitializedMemory);
+            var jh     = new BuildRadarBodiesJob { bodies = bodies, aabbs = aabbs }.ScheduleParallel(m_radarsQuery, inputDeps);
+            jh         = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).WithRemapArray(out remapArray, allocator).ScheduleParallel(out layer, allocator, jh);
+            return jh;
+        }
+
+        [BurstCompile]
+        partial struct BuildRadarBodiesJob : IJobEntity
+        {
+            public NativeArray<ColliderBody> bodies;
+            public NativeArray<Aabb>         aabbs;
+
+            public void Execute(Entity e, [EntityInQueryIndex] int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw)
             {
                 var transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position);
                 var sphere    = new SphereCollider(0f, radar.distance);
@@ -200,9 +235,7 @@ namespace Lsss
                     entity    = e,
                     transform = transform
                 };
-            }).ScheduleParallel(inputDeps);
-            jh = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).WithRemapArray(out remapArray, allocator).ScheduleParallel(out layer, allocator, jh);
-            return jh;
+            }
         }
 
         // Assumes A is radar, and B is friendly ship

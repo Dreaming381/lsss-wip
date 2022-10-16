@@ -31,7 +31,7 @@ namespace Lsss
             var dcb = new DestroyCommandBuffer(Allocator.TempJob);
             // LocalToWorld is what Parent System uses to reactively remove Child buffers.
             // Testing for entity existence here doesn't work since the entity may be getting cleaned up.
-            foreach((var parent, var entity) in Query<RefRO<Parent> >().WithEntityAccess())
+            foreach((var parent, var entity) in Query<RefRO<Parent> >().WithEntityAccess().WithNone<PreviousParent>())
             {
                 if (!HasComponent<LocalToWorld>(parent.ValueRO.Value))
                 {

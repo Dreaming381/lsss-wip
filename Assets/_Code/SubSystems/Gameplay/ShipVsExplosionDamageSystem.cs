@@ -7,13 +7,30 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class ShipVsExplosionDamageSystem : SubSystem
+    [BurstCompile]
+    public partial struct ShipVsExplosionDamageSystem : ISystem
     {
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            var explosionLayer = sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var explosionLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
 
             var processor = new DamageHitShipsProcessor
             {
@@ -21,16 +38,12 @@ namespace Lsss
                 shipHealthLookup      = GetComponentLookup<ShipHealth>(),
             };
 
-            var backup = Dependency;
-            Dependency = default;
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
-
-                var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                Dependency    = Physics.FindPairs(explosionLayer, shipLayer, processor).ScheduleParallel(Dependency);
-            }).WithoutBurst().Run();
+                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
+                state.Dependency = Physics.FindPairs(explosionLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
+            }
         }
 
         //Assumes A is explosion and B is ship.

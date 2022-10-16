@@ -7,65 +7,82 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
-    public partial class OrbitalSpawnersProcGenSystem : SubSystem
+    [BurstCompile]
+    public partial struct OrbitalSpawnersProcGenSystem : ISystem
     {
         struct NewSpawnerTag : IComponentData { }
 
-        EntityQuery m_populatorQuery;
-        EntityQuery m_newSpawnerQuery;
+        LatiosWorldUnmanaged latiosWorld;
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            float arenaRadius = sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
 
-            Entities.WithStoreEntityQueryInField(ref m_populatorQuery).ForEach((ref OrbitalSpawnPointProcGen populator) =>
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            float arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+
+            var populatorQuery  = QueryBuilder().WithAll<OrbitalSpawnPointProcGen>().Build();
+            var populators      = populatorQuery.ToComponentDataArray<OrbitalSpawnPointProcGen>(Allocator.Temp);
+            var newSpawnerQuery = QueryBuilder().WithAllRW<Translation, Rotation>().WithAllRW<SpawnPointOrbitalPath>().WithAll<NewSpawnerTag>().Build();
+            foreach (var populator in populators)
             {
                 Collider collider = new SphereCollider(0f, populator.colliderRadius);
 
-                var entity = EntityManager.CreateEntity();
-                EntityManager.AddComponent<Translation>( entity);
-                EntityManager.AddComponent<Rotation>(    entity);
-                EntityManager.AddComponent<LocalToWorld>(entity);
-                EntityManager.AddComponentData(entity, collider);
-                EntityManager.AddComponentData(entity, new SpawnPoint
+                var entity = state.EntityManager.CreateEntity();
+                state.EntityManager.AddComponent<Translation>( entity);
+                state.EntityManager.AddComponent<Rotation>(    entity);
+                state.EntityManager.AddComponent<LocalToWorld>(entity);
+                state.EntityManager.AddComponentData(entity, collider);
+                state.EntityManager.AddComponentData(entity, new SpawnPoint
                 {
                     spawnGraphicPrefab = populator.spawnGraphicPrefab,
                     maxTimeUntilSpawn  = populator.maxTimeUntilSpawn,
                     maxPauseTime       = populator.maxPauseTime
                 });
-                EntityManager.AddComponentData(entity, new SpawnPayload { disabledShip = Entity.Null });
-                EntityManager.AddComponent<SpawnPointOrbitalPath>(entity);
-                EntityManager.AddComponent<SafeToSpawn>(          entity);
-                EntityManager.AddComponent<SpawnTimes>(           entity);
-                EntityManager.AddComponent<SpawnPointTag>(        entity);
-                EntityManager.AddComponent<NewSpawnerTag>(        entity);
+                state.EntityManager.AddComponentData(entity, new SpawnPayload { disabledShip = Entity.Null });
+                state.EntityManager.AddComponent<SpawnPointOrbitalPath>(entity);
+                state.EntityManager.AddComponent<SafeToSpawn>(          entity);
+                state.EntityManager.AddComponent<SpawnTimes>(           entity);
+                state.EntityManager.AddComponent<SpawnPointTag>(        entity);
+                state.EntityManager.AddComponent<NewSpawnerTag>(        entity);
 
-                EntityManager.Instantiate(entity, populator.spawnerCount - 1, Allocator.Temp);
-                Randomize(populator, arenaRadius);
-                EntityManager.RemoveComponent<NewSpawnerTag>(m_newSpawnerQuery);
-            }).WithStructuralChanges().Run();
-            EntityManager.DestroyEntity(m_populatorQuery);
+                state.EntityManager.Instantiate(entity, populator.spawnerCount - 1, Allocator.Temp);
+                Randomize(ref state, populator, arenaRadius);
+                state.EntityManager.RemoveComponent<NewSpawnerTag>(newSpawnerQuery);
+            }
+            state.EntityManager.DestroyEntity(populatorQuery);
         }
 
-        void Randomize(OrbitalSpawnPointProcGen populator, float radius)
+        void Randomize(ref SystemState state, OrbitalSpawnPointProcGen populator, float radius)
         {
             Random random = new Random(populator.randomSeed);
 
-            Entities.WithAll<NewSpawnerTag>().ForEach((ref Translation trans, ref Rotation rot, ref SpawnPointOrbitalPath path) =>
+            foreach((var trans, var rot, var path) in Query<RefRW<Translation>, RefRW<Rotation>, RefRW<SpawnPointOrbitalPath> >().WithAll<NewSpawnerTag>())
             {
-                float orbitalRadius   = random.NextFloat(0f, 1f);
-                path.radius           = orbitalRadius * orbitalRadius * (radius - populator.colliderRadius);
-                path.center           = random.NextFloat3Direction() * random.NextFloat(0f, radius - path.radius);
-                path.orbitPlaneNormal = random.NextFloat3Direction();
-                path.orbitSpeed       = random.NextFloat(populator.minMaxOrbitSpeed.x, populator.minMaxOrbitSpeed.y);
+                float orbitalRadius           = random.NextFloat(0f, 1f);
+                path.ValueRW.radius           = orbitalRadius * orbitalRadius * (radius - populator.colliderRadius);
+                path.ValueRW.center           = random.NextFloat3Direction() * random.NextFloat(0f, radius - path.ValueRW.radius);
+                path.ValueRW.orbitPlaneNormal = random.NextFloat3Direction();
+                path.ValueRW.orbitSpeed       = random.NextFloat(populator.minMaxOrbitSpeed.x, populator.minMaxOrbitSpeed.y);
 
-                rot.Value = quaternion.identity;
+                rot.ValueRW.Value = quaternion.identity;
 
-                trans.Value = math.forward(quaternion.AxisAngle(path.orbitPlaneNormal, random.NextFloat(-math.PI, math.PI))) * path.radius;
-            }).WithStoreEntityQueryInField(ref m_newSpawnerQuery).Run();
+                trans.ValueRW.Value = math.forward(quaternion.AxisAngle(path.ValueRW.orbitPlaneNormal, random.NextFloat(-math.PI, math.PI))) * path.ValueRW.radius;
+            }
         }
     }
 }

@@ -71,17 +71,17 @@ namespace Latios
 
         public bool AddSharedComponentData<T>(T data) where T : unmanaged, ISharedComponentData
         {
-            return em.AddSharedComponentManaged(entity, data);
+            return em.AddSharedComponent(entity, data);
         }
 
         public void SetSharedComponentData<T>(T data) where T : unmanaged, ISharedComponentData
         {
-            em.SetSharedComponentManaged(entity, data);
+            em.SetSharedComponent(entity, data);
         }
 
         public T GetSharedComponentData<T>() where T : unmanaged, ISharedComponentData
         {
-            return em.GetSharedComponentManaged<T>(entity);
+            return em.GetSharedComponent<T>(entity);
         }
 
         public DynamicBuffer<T> AddBuffer<T>() where T : unmanaged, IBufferElementData

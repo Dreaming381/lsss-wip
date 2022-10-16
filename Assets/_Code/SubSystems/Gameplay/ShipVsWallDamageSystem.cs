@@ -7,13 +7,30 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
-    public partial class ShipVsWallDamageSystem : SubSystem
+    [BurstCompile]
+    public partial struct ShipVsWallDamageSystem : ISystem
     {
-        protected override void OnUpdate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
         {
-            var wallLayer = sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+        }
+
+        [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+        }
+
+        //[BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var wallLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var processor = new DamageHitShipsProcessor
             {
@@ -21,17 +38,12 @@ namespace Lsss
                 shipHealthLookup = GetComponentLookup<ShipHealth>(),
             };
 
-            var backup = Dependency;
-            Dependency = default;
-
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, int entityInQueryIndex) =>
+            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntities)
             {
-                if (entityInQueryIndex == 0)
-                    Dependency = backup;
-
-                var shipLayer = EntityManager.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                Dependency    = Physics.FindPairs(wallLayer, shipLayer, processor).ScheduleParallel(Dependency);
-            }).WithoutBurst().Run();
+                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
+                state.Dependency = Physics.FindPairs(wallLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
+            }
         }
 
         //Assumes A is wall and B is ship.
