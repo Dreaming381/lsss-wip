@@ -1,4 +1,5 @@
-﻿using Latios.Psyshock.Authoring.Systems;
+﻿using Latios.Authoring;
+using Latios.Psyshock.Authoring.Systems;
 using Unity.Entities;
 
 namespace Latios.Psyshock.Authoring
@@ -6,21 +7,22 @@ namespace Latios.Psyshock.Authoring
     /// <summary>
     /// Static class containing installers for optional authoring time features in the Psyshock module
     /// </summary>
-    public static class PsyshockConversionBootstrap
+    public static class PsyshockBakingBootstrap
     {
         /// <summary>
-        /// Enables conversion of Unity's legacy collider components into Psyshock colliders
-        /// by installing the appropriate conversion systems into the conversion world
+        /// Enables baking of Unity's legacy collider components into Psyshock colliders
+        /// by installing the appropriate bakers into the baking world.
+        /// Smart Blobber Baking Systems and bakers for Psyshock authoring components are always installed.
         /// </summary>
-        /// <param name="world">The conversion world in which to install the legacy conversion systems</param>
-        //public static void InstallLegacyColliderConversion(World world)
-        //{
-        //    if (!world.Flags.HasFlag(WorldFlags.Ba))
-        //        throw new System.InvalidOperationException("Psyshock Legacy Collider Conversion must be installed in a conversion world.");
-        //
-        //    BootstrapTools.InjectSystem(typeof(LegacyConvexColliderPreConversionSystem), world);
-        //    BootstrapTools.InjectSystem(typeof(LegacyColliderConversionSystem),          world);
-        //}
+        /// <param name="context">The custom context passed into ICustomBakingBootstrap</param>
+        public static void InstallLegacyColliderBakers(ref CustomBakingBootstrapContext context)
+        {
+            context.filteredBakerTypes.Add(typeof(LegacySphereColliderBaker));
+            context.filteredBakerTypes.Add(typeof(LegacyCapsuleColliderBaker));
+            context.filteredBakerTypes.Add(typeof(LegacyBoxColliderBaker));
+            context.filteredBakerTypes.Add(typeof(LegacyConvexColliderBaker));
+            context.filteredBakerTypes.Add(typeof(LegacyCompoundColliderBaker));
+        }
     }
 }
 

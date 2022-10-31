@@ -6,6 +6,7 @@ using Unity.Mathematics;
 
 namespace Latios.Psyshock.Authoring.Systems
 {
+    [DisableAutoCreation]
     public class LegacySphereColliderBaker : Baker<UnityEngine.SphereCollider>
     {
         ColliderBakerHelper m_helper;
@@ -37,6 +38,7 @@ namespace Latios.Psyshock.Authoring.Systems
         }
     }
 
+    [DisableAutoCreation]
     public class LegacyCapsuleColliderBaker : Baker<UnityEngine.CapsuleCollider>
     {
         ColliderBakerHelper m_helper;
@@ -82,6 +84,7 @@ namespace Latios.Psyshock.Authoring.Systems
         }
     }
 
+    [DisableAutoCreation]
     public class LegacyBoxColliderBaker : Baker<UnityEngine.BoxCollider>
     {
         ColliderBakerHelper m_helper;
@@ -136,6 +139,7 @@ namespace Latios.Psyshock.Authoring.Systems
         }
     }
 
+    [DisableAutoCreation]
     public class LegacyConvexColliderBaker : SmartBaker<UnityEngine.MeshCollider, LegacyConvexColliderBakerWorker>
     {
         internal ColliderBakerHelper m_helper;
@@ -220,6 +224,7 @@ namespace Latios.Psyshock.Authoring.Systems
     }
 
     [BakeDerivedTypes]
+    [DisableAutoCreation]
     public class LegacyCompoundColliderBaker : SmartBaker<UnityEngine.Collider, LegacyCompoundColliderBakerWorker>
     {
         internal List<UnityEngine.Collider> m_colliderCache = new List<UnityEngine.Collider>();

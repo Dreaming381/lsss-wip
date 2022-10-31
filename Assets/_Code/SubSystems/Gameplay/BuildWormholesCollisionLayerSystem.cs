@@ -55,7 +55,7 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            state.Dependency = Physics.BuildCollisionLayer(m_query, ref state).WithSettings(settings).ScheduleParallel(out CollisionLayer layer,
+            state.Dependency = Physics.BuildCollisionLayer(m_query, m_handles).WithSettings(settings).ScheduleParallel(out CollisionLayer layer,
                                                                                                                        Allocator.Persistent,
                                                                                                                        state.Dependency);
             var wcl = new WormholeCollisionLayer { layer = layer };

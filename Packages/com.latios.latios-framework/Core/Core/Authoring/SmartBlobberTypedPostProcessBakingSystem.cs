@@ -29,7 +29,7 @@ namespace Latios.Authoring.Systems
                       .WithAll<SmartBlobberResult>()
                       .WithAll<SmartBlobberTrackingData>()
                       .WithAll<SmartBlobberBlobTypeHash>()
-                      .WithOptions(EntityQueryOptions.IncludePrefab)
+                      .WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)
                       .Build(this);
             m_query.SetSharedComponentFilter(new SmartBlobberBlobTypeHash { hash = BurstRuntime.GetHashCode64<TBlobType>() });
             m_bakingSystemReference                                              = World.GetExistingSystemManaged<BakingSystem>();

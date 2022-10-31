@@ -312,6 +312,37 @@ namespace Latios
             return collectionRef.collectionRef;
         }
 
+        // Note: Always ReadWrite. This method is not recommended unless you know what you are doing.
+        public T GetCollectionComponent<T>(Entity entity, out JobHandle combinedReadWriteHandle) where T : unmanaged, ICollectionComponent
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!LatiosWorldUnmanagedTracking.CheckHandle(m_index, m_version))
+                throw new System.InvalidOperationException("LatiosWorldUnmanaged is uninitialized. You must fetch a valid instance from SystemState.");
+
+            var type = m_impl->m_collectionComponentStorage.GetAssociatedType<T>();
+            if (!m_impl->m_worldUnmanaged.EntityManager.HasComponent(entity, type))
+                throw new System.InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
+#endif
+            var collectionRef = m_impl->m_collectionComponentStorage.GetOrAddDefaultCollectionComponent<T>(entity);
+
+            {
+                var handleArray = new NativeArray<JobHandle>(collectionRef.readHandles.Length + 1, Allocator.Temp);
+                handleArray[0]  = collectionRef.writeHandle;
+                for (int i = 0; i < collectionRef.readHandles.Length; i++)
+                    handleArray[i + 1]  = collectionRef.readHandles[i];
+                combinedReadWriteHandle = JobHandle.CombineDependencies(handleArray);
+            }
+
+            m_impl->m_collectionDependencies.Add(new LatiosWorldUnmanagedImpl.CollectionDependency
+            {
+                handle                    = collectionRef.collectionHandle,
+                extraDisposeDependency    = default,
+                hasExtraDisposeDependency = false,
+                wasReadOnly               = false
+            });
+            return collectionRef.collectionRef;
+        }
+
         /// <summary>
         /// Replaces the collection component's content with the new value, disposing the old instance.
         /// If the currently executing system is tracked by a Latios ComponentSystemGroup, then the collection component's dependency

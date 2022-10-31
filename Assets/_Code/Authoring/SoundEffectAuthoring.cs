@@ -70,7 +70,7 @@ namespace Lsss.Authoring
             new Job().ScheduleParallel();
         }
 
-        [WithEntityQueryOptions(EntityQueryOptions.IncludePrefab)]
+        [WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)]
         [BurstCompile]
         partial struct Job : IJobEntity
         {
@@ -813,7 +813,9 @@ namespace Lsss.Authoring
         {
             // Todo: Make this work in IJobEntity
             state.CompleteDependency();
-            foreach ((var source, var blob) in SystemAPI.Query<RefRW<AudioSourceOneShot>, RefRO<SoundEffectBlob> >().WithEntityQueryOptions(EntityQueryOptions.IncludePrefab))
+            foreach ((var source, var blob) in SystemAPI.Query<RefRW<AudioSourceOneShot>,
+                                                               RefRO<SoundEffectBlob> >().WithEntityQueryOptions(EntityQueryOptions.IncludePrefab |
+                                                                                                                 EntityQueryOptions.IncludeDisabledEntities))
             {
                 source.ValueRW.clip = blob.ValueRO.blobHandle.Resolve(state.EntityManager);
             }

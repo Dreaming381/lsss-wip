@@ -62,7 +62,7 @@ namespace Latios.Psyshock
             scale.Update(system);
             parent.Update(system);
             localToWorld.Update(system);
-            entity = system.GetEntityTypeHandle();
+            entity.Update(system);
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace Latios.Psyshock
             scale.Update(ref system);
             parent.Update(ref system);
             localToWorld.Update(ref system);
-            entity = system.GetEntityTypeHandle();
+            entity.Update(ref system);
         }
     }
 

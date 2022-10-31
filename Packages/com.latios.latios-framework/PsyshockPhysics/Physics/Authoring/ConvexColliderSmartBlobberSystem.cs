@@ -76,7 +76,7 @@ namespace Latios.Psyshock.Authoring.Systems
             var hashmap   = new NativeParallelHashMap<int, UniqueItem>(count * 2, Allocator.TempJob);
             var mapWriter = hashmap.AsParallelWriter();
 
-            Entities.WithEntityQueryOptions(EntityQueryOptions.IncludePrefab).ForEach((in ConvexColliderBlobBakeData data) =>
+            Entities.WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).ForEach((in ConvexColliderBlobBakeData data) =>
             {
                 mapWriter.TryAdd(data.mesh.GetInstanceID(), new UniqueItem { bakeData = data });
             }).WithStoreEntityQueryInField(ref m_query).ScheduleParallel();

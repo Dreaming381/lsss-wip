@@ -42,7 +42,7 @@ namespace Latios.Myri.Authoring
                 return false;
             if (clip.channels > 2)
             {
-                Debug.LogError($"Myri failed to baked clip {clip.name}. Only mono and stereo clips are supported.");
+                Debug.LogError($"Myri failed to bake clip {clip.name}. Only mono and stereo clips are supported.");
                 return false;
             }
             baker.AddComponent(blobBakingEntity, new AudioClipBlobBakeData { clip = clip, numVoices = numVoices });
@@ -85,7 +85,7 @@ namespace Latios.Myri.Authoring.Systems
             var hashmap   = new NativeParallelHashMap<int, UniqueItem>(count * 2, Allocator.TempJob);
             var mapWriter = hashmap.AsParallelWriter();
 
-            Entities.WithEntityQueryOptions(EntityQueryOptions.IncludePrefab).ForEach((in AudioClipBlobBakeData data) =>
+            Entities.WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).ForEach((in AudioClipBlobBakeData data) =>
             {
                 mapWriter.TryAdd(data.clip.GetInstanceID(), new UniqueItem { bakeData = data });
             }).WithStoreEntityQueryInField(ref m_query).ScheduleParallel();
@@ -141,7 +141,7 @@ namespace Latios.Myri.Authoring.Systems
             Entities.ForEach((ref SmartBlobberResult result, in AudioClipBlobBakeData data) =>
             {
                 result.blob = UnsafeUntypedBlobAssetReference.Create(hashmap[data.clip.GetInstanceID()].blob);
-            }).WithReadOnly(hashmap).WithEntityQueryOptions(EntityQueryOptions.IncludePrefab).ScheduleParallel();
+            }).WithReadOnly(hashmap).WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).ScheduleParallel();
 
             Dependency = hashmap.Dispose(Dependency);
             Dependency = clips.Dispose(Dependency);

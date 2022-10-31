@@ -281,8 +281,8 @@ namespace Latios.Systems
                 return;
 
             state.CompleteDependency();
-            var childEntities   = m_RemovedParentsQuery.ToEntityArray(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
-            var previousParents = m_RemovedParentsQuery.ToComponentDataArray<PreviousParent>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var childEntities   = m_RemovedParentsQuery.ToEntityArray(state.WorldUpdateAllocator);
+            var previousParents = m_RemovedParentsQuery.ToComponentDataArray<PreviousParent>(state.WorldUpdateAllocator);
 
             for (int i = 0; i < childEntities.Length; i++)
             {
@@ -311,9 +311,9 @@ namespace Latios.Systems
             // 2. Get (Parent,Child) to add
             // 3. Get unique Parent change list
             // 4. Set PreviousParent to new Parent
-            var parentChildrenToAdd    = new NativeMultiHashMap<Entity, Entity>(count, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
-            var parentChildrenToRemove = new NativeMultiHashMap<Entity, Entity>(count, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
-            var uniqueParents          = new NativeParallelHashMap<Entity, int>(count, state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var parentChildrenToAdd    = new NativeMultiHashMap<Entity, Entity>(count, state.WorldUpdateAllocator);
+            var parentChildrenToRemove = new NativeMultiHashMap<Entity, Entity>(count, state.WorldUpdateAllocator);
+            var uniqueParents          = new NativeParallelHashMap<Entity, int>(count, state.WorldUpdateAllocator);
 
             ParentTypeHandleRO.Update(ref state);
             PreviousParentTypeHandleRW.Update(ref state);
@@ -334,7 +334,7 @@ namespace Latios.Systems
             gatherChangedParentsJobHandle.Complete();
 
             // 5. (Structural change) Add any missing Child to Parents
-            var parentsMissingChild = new NativeList<Entity>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var parentsMissingChild = new NativeList<Entity>(state.WorldUpdateAllocator);
             _childLookupRo.Update(ref state);
             var findMissingChildJob = new FindMissingChild
             {
@@ -398,8 +398,8 @@ namespace Latios.Systems
 
             state.CompleteDependency();
 
-            var previousParents = m_DeletedParentsQuery.ToEntityArray(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
-            var childEntities   = new NativeList<Entity>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var previousParents = m_DeletedParentsQuery.ToEntityArray(state.WorldUpdateAllocator);
+            var childEntities   = new NativeList<Entity>(state.WorldUpdateAllocator);
 
             _childLookupRo.Update(ref state);
             ParentFromEntityRO.Update(ref state);

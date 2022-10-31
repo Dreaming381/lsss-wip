@@ -13,10 +13,11 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
 {
     public void InitializeBakingForAllWorlds(ref CustomBakingBootstrapContext context)
     {
-        //throw new NotImplementedException();
+        Latios.Psyshock.Authoring.PsyshockBakingBootstrap.InstallLegacyColliderBakers(ref context);
     }
 }
 
+[UnityEngine.Scripting.Preserve]
 public class LatiosBootstrap : ICustomBootstrap
 {
     public bool Initialize(string defaultWorldName)
@@ -58,6 +59,7 @@ public class LatiosBootstrap : ICustomBootstrap
 #endif
 
         PlayerLoop.SetPlayerLoop(loop);
+        //world.EntityManager.AddComponent<Latios.DontDestroyOnSceneChangeTag>(world.EntityManager.UniversalQuery);
         return true;
     }
 }

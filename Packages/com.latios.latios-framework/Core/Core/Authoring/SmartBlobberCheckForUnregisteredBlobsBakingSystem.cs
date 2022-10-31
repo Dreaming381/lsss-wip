@@ -20,7 +20,8 @@ namespace Latios.Authoring.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_query = new EntityQueryBuilder(Allocator.Temp).WithAllRW<SmartBlobberResult>().WithOptions(EntityQueryOptions.IncludePrefab).Build(ref state);
+            m_query = new EntityQueryBuilder(Allocator.Temp).WithAllRW<SmartBlobberResult>().WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
             state.RequireForUpdate(m_query);
 
             m_trackingDataHandle = state.GetComponentTypeHandle<SmartBlobberTrackingData>(true);

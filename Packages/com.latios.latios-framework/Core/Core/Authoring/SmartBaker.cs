@@ -92,7 +92,7 @@ namespace Latios.Authoring
             m_query = new EntityQueryBuilder(Allocator.Temp)
                       .WithAllRW<TSmartBakeItem>()
                       .WithAll<SmartBakerTargetEntityReference>()
-                      .WithOptions(EntityQueryOptions.IncludePrefab)
+                      .WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)
                       .Build(this);
         }
 
