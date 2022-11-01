@@ -100,41 +100,55 @@ namespace Latios.Authoring
     }
 
     [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
-    [UpdateInGroup(typeof(Systems.SmartBlobberCleanupBakingGroup))]
-    [CreateAfter(typeof(Systems.SmartBakerBakingGroup))]
-    [BurstCompile]
-    internal partial struct BakingBootstrapSystem : ISystem
+    [UpdateInGroup(typeof(PreBakingSystemGroup))]
+    internal partial class BakingBootstrapSystem : SystemBase, IRateManager
     {
         static BakingOverride s_bakingOverride;
 
-        public void OnCreate(ref SystemState state)
+        public float Timestep { get; set; }
+
+        protected override void OnCreate()
         {
             if (s_bakingOverride == null)
             {
                 s_bakingOverride = new BakingOverride();
             }
 
-            var world                  = state.World;
-            var smartBakingSystemGroup = world.GetOrCreateSystemManaged<Systems.SmartBakerBakingGroup>();
-            foreach (var creator in s_bakingOverride.m_smartBakerSystemCreators)
-                creator.Create(world, smartBakingSystemGroup);
+            World.GetExistingSystemManaged<PreBakingSystemGroup>().RateManager = this;
+        }
 
-            foreach (var disableType in s_bakingOverride.m_systemTypesToDisable)
+        bool m_initialized = false;
+        bool m_ranOnce     = false;
+        protected override void OnUpdate()
+        {
+            m_ranOnce = true;
+        }
+
+        public bool ShouldGroupUpdate(ComponentSystemGroup group)
+        {
+            if (!m_initialized)
             {
-                var handle = world.GetExistingSystem(disableType);
-                if (handle != SystemHandle.Null)
+                var smartBakingSystemGroup = World.GetOrCreateSystemManaged<Systems.SmartBakerBakingGroup>();
+                foreach (var creator in s_bakingOverride.m_smartBakerSystemCreators)
+                    creator.Create(World, smartBakingSystemGroup);
+
+                foreach (var disableType in s_bakingOverride.m_systemTypesToDisable)
                 {
-                    state.WorldUnmanaged.ResolveSystemStateRef(handle).Enabled = false;
+                    var handle = World.GetExistingSystem(disableType);
+                    if (handle != SystemHandle.Null)
+                    {
+                        World.Unmanaged.ResolveSystemStateRef(handle).Enabled = false;
+                    }
                 }
+
+                BootstrapTools.InjectSystems(s_bakingOverride.m_systemTypesToInject, World, World.GetExistingSystemManaged<BakingSystemGroup>());
+
+                m_initialized = true;
             }
 
-            BootstrapTools.InjectSystems(s_bakingOverride.m_systemTypesToInject, world, world.GetExistingSystemManaged<BakingSystemGroup>());
-        }
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state) {
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state) {
+            var result = !m_ranOnce;
+            m_ranOnce  = false;
+            return result;
         }
     }
 }

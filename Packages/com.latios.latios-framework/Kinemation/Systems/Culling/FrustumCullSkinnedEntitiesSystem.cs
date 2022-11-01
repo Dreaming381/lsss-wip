@@ -118,7 +118,7 @@ namespace Latios.Kinemation.Systems
                     var mask = masks[i];
                     if ((mask.lower.Value | mask.upper.Value) != 0)
                     {
-                        chunksCache[i] = headers[i].ArchetypeChunk;
+                        chunksCache[chunksCount] = headers[i].ArchetypeChunk;
                         chunksCount++;
                     }
                 }
@@ -156,13 +156,13 @@ namespace Latios.Kinemation.Systems
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn               = IsSkeletonVisible(rootRefs[i].root);
-                    cameraMask.lower.Value &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.lower.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
                 inMask = cameraMask.upper.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn               = IsSkeletonVisible(rootRefs[i + 64].root);
-                    cameraMask.upper.Value &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.upper.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
             }
 
@@ -210,14 +210,14 @@ namespace Latios.Kinemation.Systems
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn                       = IsSkeletonVisible(rootRefs[i].root, out var splits);
-                    cameraMask.lower.Value         &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.lower.Value         &= ~(math.select(1ul, 0ul, isIn) << i);
                     cameraSplitsMask.splitMasks[i]  = splits;
                 }
                 inMask = cameraMask.upper.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn                            = IsSkeletonVisible(rootRefs[i + 64].root, out var splits);
-                    cameraMask.upper.Value              &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.upper.Value              &= ~(math.select(1ul, 0ul, isIn) << i);
                     cameraSplitsMask.splitMasks[i + 64]  = splits;
                 }
             }

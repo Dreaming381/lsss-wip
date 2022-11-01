@@ -417,9 +417,15 @@ namespace Latios.Systems
             //gatherChildEntitiesJobHandle.Complete();
             gatherChildEntitiesJob.Execute();
 
+            //var typesToRemove = new ComponentTypeSet(ComponentType.ReadWrite<Parent>(), ComponentType.ReadWrite<PreviousParent>(), ComponentType.ReadWrite<LocalToParent>(),
+            //                                         ComponentType.ReadWrite<Depth>(), ComponentType.ChunkComponent<ChunkDepthMask>());
+            //state.EntityManager.RemoveComponent( childEntities.AsArray(), typesToRemove);
+            // Todo: Unity asserts when removing a chunk component on an array of entities, but only if done in batch. Fix this once Unity fixes this.
             var typesToRemove = new ComponentTypeSet(ComponentType.ReadWrite<Parent>(), ComponentType.ReadWrite<PreviousParent>(), ComponentType.ReadWrite<LocalToParent>(),
-                                                     ComponentType.ReadWrite<Depth>(), ComponentType.ChunkComponent<ChunkDepthMask>());
+                                                     ComponentType.ReadWrite<Depth>());
             state.EntityManager.RemoveComponent( childEntities.AsArray(), typesToRemove);
+            foreach (var e in childEntities)
+                state.EntityManager.RemoveComponent<ChunkDepthMask>(e);
             state.EntityManager.RemoveComponent( m_DeletedParentsQuery,   ComponentType.FromTypeIndex(TypeManager.GetTypeIndex<Child>()));
         }
 

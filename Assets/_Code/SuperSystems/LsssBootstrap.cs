@@ -13,7 +13,15 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
 {
     public void InitializeBakingForAllWorlds(ref CustomBakingBootstrapContext context)
     {
+        var systems = DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.BakingSystem);
+        foreach (var system in systems)
+        {
+            if (system == typeof(Lsss.FireGunsSystem))
+                UnityEngine.Debug.Log("Why? How? TypeManager corruption?");
+        }
+
         Latios.Psyshock.Authoring.PsyshockBakingBootstrap.InstallLegacyColliderBakers(ref context);
+        Latios.Kinemation.Authoring.KinemationBakingBootstrap.InstallKinemationBakersAndSystems(ref context);
     }
 }
 
@@ -38,7 +46,7 @@ public class LatiosBootstrap : ICustomBootstrap
         CoreBootstrap.InstallExtremeTransforms(world);
         //CoreBootstrap.InstallImprovedTransforms(world);
         Latios.Myri.MyriBootstrap.InstallMyri(world);
-        //Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
+        Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
 
         world.initializationSystemGroup.SortSystems();
         world.simulationSystemGroup.SortSystems();

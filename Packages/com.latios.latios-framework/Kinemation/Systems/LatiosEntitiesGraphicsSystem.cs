@@ -552,9 +552,12 @@ namespace Latios.Kinemation.Systems
                 includeExcludeListFilter             = includeExcludeListFilter,
 #endif
             });
+            worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(  default, false);
+            worldBlackboardEntity.UpdateJobDependency<PackedCullingSplits>(default, false);
 
             SuperSystem.UpdateSystem(latiosWorldUnmanaged, m_cullingSuperSystem.SystemHandle);
             latiosWorldUnmanaged.GetCollectionComponent<BrgCullingContext>(worldBlackboardEntity, out var finalHandle);
+            worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(finalHandle, false);
             m_cullingCallbackFinalJobHandles.Add(finalHandle);
             m_cullPassIndexThisFrame++;
 
@@ -994,6 +997,7 @@ namespace Latios.Kinemation.Systems
             // Integer division with round up
             var maxBatchLongCount = (maxBatchCount + kNumBitsPerLong - 1) / kNumBitsPerLong;
 
+            m_burstCompatibleTypeArray.Update(ref CheckedStateRef);
             var entitiesGraphicsChunkUpdater = new EntitiesGraphicsChunkUpdater
             {
                 ComponentTypes                 = m_burstCompatibleTypeArray,

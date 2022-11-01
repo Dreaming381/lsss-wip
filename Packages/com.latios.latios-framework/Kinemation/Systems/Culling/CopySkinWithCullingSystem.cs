@@ -152,7 +152,7 @@ namespace Latios.Kinemation.Systems
                     var mask = masks[i];
                     if ((mask.lower.Value | mask.upper.Value) != 0)
                     {
-                        chunksCache[i] = headers[i].ArchetypeChunk;
+                        chunksCache[chunksCount] = headers[i].ArchetypeChunk;
                         chunksCount++;
                     }
                 }
@@ -211,7 +211,7 @@ namespace Latios.Kinemation.Systems
                                                    invertedFrameMasks.lower.IsSet(i),
                                                    i,
                                                    ref context);
-                    cameraMask.lower.Value &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.lower.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
                 inMask = cameraMask.upper.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
@@ -220,7 +220,7 @@ namespace Latios.Kinemation.Systems
                                                    invertedFrameMasks.upper.IsSet(i),
                                                    i + 64,
                                                    ref context);
-                    cameraMask.upper.Value &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.upper.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
 
                 if (context.linearBlendDirty || context.computeDeformDirty)
@@ -312,7 +312,7 @@ namespace Latios.Kinemation.Systems
                                                    i,
                                                    ref context,
                                                    out var splits);
-                    cameraMask.lower.Value         &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.lower.Value         &= ~(math.select(1ul, 0ul, isIn) << i);
                     cameraSplitsMask.splitMasks[i]  = splits;
                 }
                 inMask = cameraMask.upper.Value;
@@ -323,7 +323,7 @@ namespace Latios.Kinemation.Systems
                                                    i + 64,
                                                    ref context,
                                                    out var splits);
-                    cameraMask.upper.Value              &= math.select(0ul, 1ul, isIn) << i;
+                    cameraMask.upper.Value              &= ~(math.select(1ul, 0ul, isIn) << i);
                     cameraSplitsMask.splitMasks[i + 64]  = splits;
                 }
 

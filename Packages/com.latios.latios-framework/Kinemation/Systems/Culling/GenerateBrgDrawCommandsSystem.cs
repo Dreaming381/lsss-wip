@@ -34,7 +34,8 @@ namespace Latios.Kinemation.Systems
             m_findJob = new FindChunksWithVisibleJob
             {
                 perCameraCullingMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                chunkHeaderHandle          = state.GetComponentTypeHandle<ChunkHeader>(true)
+                chunkHeaderHandle          = state.GetComponentTypeHandle<ChunkHeader>(true),
+                perFrameCullingMaskHandle  = state.GetComponentTypeHandle<ChunkPerFrameCullingMask>(false)
             };
 
             m_emitDrawCommandsJob = new EmitDrawCommandsJob
@@ -55,7 +56,7 @@ namespace Latios.Kinemation.Systems
             };
         }
 
-        [BurstCompile]
+        //[BurstCompile]
         public unsafe void OnUpdate(ref SystemState state)
         {
             var brgCullingContext = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>();
@@ -66,6 +67,7 @@ namespace Latios.Kinemation.Systems
             m_findJob.chunkHeaderHandle.Update(ref state);
             m_findJob.chunksToProcess = chunkList.AsParallelWriter();
             m_findJob.perCameraCullingMaskHandle.Update(ref state);
+            m_findJob.perFrameCullingMaskHandle.Update(ref state);
             state.Dependency = m_findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
 
             // TODO: Dynamically estimate this based on past frames
@@ -211,7 +213,7 @@ namespace Latios.Kinemation.Systems
                     var mask = masks[i];
                     if ((mask.lower.Value | mask.upper.Value) != 0)
                     {
-                        chunksCache[i] = headers[i].ArchetypeChunk;
+                        chunksCache[chunksCount] = headers[i].ArchetypeChunk;
                         chunksCount++;
                     }
 

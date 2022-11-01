@@ -339,13 +339,13 @@ namespace Latios.Kinemation.Systems
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn         = IsBitSet(cullingIndices[i].cullingIndex);
-                    mask.lower.Value &= math.select(0ul, 1ul, isIn) << i;
+                    mask.lower.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
                 inMask = mask.upper.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn         = IsBitSet(cullingIndices[i + 64].cullingIndex);
-                    mask.upper.Value &= math.select(0ul, 1ul, isIn) << i;
+                    mask.upper.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
             }
 
@@ -378,14 +378,14 @@ namespace Latios.Kinemation.Systems
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn                 = IsBitSet(cullingIndices[i].cullingIndex, out byte splits);
-                    mask.lower.Value         &= math.select(0ul, 1ul, isIn) << i;
+                    mask.lower.Value         &= ~(math.select(1ul, 0ul, isIn) << i);
                     splitMasks.splitMasks[i]  = splits;
                 }
                 inMask = mask.upper.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn                      = IsBitSet(cullingIndices[i + 64].cullingIndex, out byte splits);
-                    mask.upper.Value              &= math.select(0ul, 1ul, isIn) << i;
+                    mask.upper.Value              &= ~(math.select(1ul, 0ul, isIn) << i);
                     splitMasks.splitMasks[i + 64]  = splits;
                 }
             }

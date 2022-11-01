@@ -25,7 +25,8 @@ namespace Latios.Kinemation.Systems
 
         private long m_persistentInstanceDataSize;
 
-        const int kGPUUploaderChunkSize = 4 * 1024 * 1024;
+        const int  kGPUUploaderChunkSize = 4 * 1024 * 1024;
+        const long kGPUBufferSizeInitial = 32 * 1024 * 1024;
 
         internal ComponentTypeCache.BurstCompatibleTypeArray m_burstCompatibleTypeArray;
 
@@ -36,6 +37,8 @@ namespace Latios.Kinemation.Systems
         protected override void OnCreate()
         {
             m_metaQuery = Fluent.WithAll<EntitiesGraphicsChunkInfo>(false).WithAll<ChunkHeader>(true).Build();
+
+            m_persistentInstanceDataSize = kGPUBufferSizeInitial;
 
             m_GPUPersistentInstanceData = new UnityEngine.GraphicsBuffer(
                 UnityEngine.GraphicsBuffer.Target.Raw,
@@ -90,6 +93,7 @@ namespace Latios.Kinemation.Systems
                 Allocator.TempJob,
                 NativeArrayOptions.ClearMemory);
 
+            m_burstCompatibleTypeArray.Update(ref CheckedStateRef);
             Dependency = new ComputeOperationsJob
             {
                 ChunkHeader                     = GetComponentTypeHandle<ChunkHeader>(true),

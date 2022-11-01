@@ -112,7 +112,7 @@ namespace Latios.Kinemation.Systems
                     var mask = masks[i];
                     if ((mask.lower.Value | mask.upper.Value) != 0)
                     {
-                        chunksCache[i] = headers[i].ArchetypeChunk;
+                        chunksCache[chunksCount] = headers[i].ArchetypeChunk;
                         chunksCount++;
                     }
                 }
@@ -170,13 +170,13 @@ namespace Latios.Kinemation.Systems
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn         = FrustumPlanes.Intersect2NoPartial(cullingPlanes, worldBounds[i].Value) != FrustumPlanes.IntersectResult.Out;
-                    mask.lower.Value &= math.select(0ul, 1ul, isIn) << i;
+                    mask.lower.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
                 inMask = mask.upper.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
                 {
                     bool isIn         = FrustumPlanes.Intersect2NoPartial(cullingPlanes, worldBounds[i + 64].Value) != FrustumPlanes.IntersectResult.Out;
-                    mask.upper.Value &= math.select(0ul, 1ul, isIn) << i;
+                    mask.upper.Value &= ~(math.select(1ul, 0ul, isIn) << i);
                 }
             }
         }
