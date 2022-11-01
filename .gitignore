@@ -11,6 +11,11 @@
 /[Mm]emoryCaptures/
 /[Uu]serSettings/
 
+/.vsconfig
+/UserSettings/EditorUserSettings.asset
+/UserSettings/HDRPUserSettings.asset
+/UserSettings/Layouts/default-2021.dwlt
+
 # Never ignore Asset meta data
 !/[Aa]ssets/**/*.meta
 
