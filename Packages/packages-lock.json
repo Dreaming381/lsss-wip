@@ -52,7 +52,7 @@
     },
     "com.unity.collections": {
       "version": "2.1.0-exp.4",
-      "depth": 3,
+      "depth": 2,
       "source": "registry",
       "dependencies": {
         "com.unity.burst": "1.7.3",
@@ -62,8 +62,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.entities": {
-      "version": "1.0.0-exp.8",
-      "depth": 2,
+      "version": "1.0.0-exp.12",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.burst": "1.7.3",
@@ -83,11 +83,11 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.entities.graphics": {
-      "version": "1.0.0-exp.8",
-      "depth": 1,
+      "version": "1.0.0-exp.14",
+      "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.entities": "1.0.0-exp.8",
+        "com.unity.entities": "1.0.0-exp.12",
         "com.unity.render-pipelines.core": "14.0.3"
       },
       "url": "https://packages.unity.com"
@@ -135,7 +135,7 @@
     },
     "com.unity.jobs": {
       "version": "0.70.0-preview.7",
-      "depth": 3,
+      "depth": 2,
       "source": "registry",
       "dependencies": {
         "com.unity.collections": "1.4.0"
@@ -176,7 +176,7 @@
     },
     "com.unity.platforms": {
       "version": "1.0.0-exp.6",
-      "depth": 3,
+      "depth": 2,
       "source": "registry",
       "dependencies": {
         "com.unity.modules.uielements": "1.0.0",
