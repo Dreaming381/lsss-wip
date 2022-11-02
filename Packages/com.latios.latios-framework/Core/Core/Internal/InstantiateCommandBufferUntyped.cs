@@ -280,13 +280,13 @@ namespace Latios
                 chunkJob.t4 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite(m_state->typesWithData[4]));
             //The remaining types apparently need to be initialized. So set them to the dummy types.
             if (m_state->typesWithData.Length <= 1)
-                chunkJob.t1 = entityManager.GetDynamicComponentTypeHandle(typeof(DummyTypeT1));
+                chunkJob.t1 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite<DummyTypeT1>());
             if (m_state->typesWithData.Length <= 2)
-                chunkJob.t2 = entityManager.GetDynamicComponentTypeHandle(typeof(DummyTypeT2));
+                chunkJob.t2 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite<DummyTypeT2>());
             if (m_state->typesWithData.Length <= 3)
-                chunkJob.t3 = entityManager.GetDynamicComponentTypeHandle(typeof(DummyTypeT3));
+                chunkJob.t3 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite<DummyTypeT3>());
             if (m_state->typesWithData.Length <= 4)
-                chunkJob.t4 = entityManager.GetDynamicComponentTypeHandle(typeof(DummyTypeT4));
+                chunkJob.t4 = entityManager.GetDynamicComponentTypeHandle(ComponentType.ReadWrite<DummyTypeT4>());
             //chunkJob.ScheduleParallel(chunks.Length, 1, default).Complete();
             chunkJob.RunOrExecute(chunks.Length);
             m_state->playedBack = true;

@@ -26,6 +26,28 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
 }
 
 [UnityEngine.Scripting.Preserve]
+public class LatiosEditorBootstrap : ICustomEditorBootstrap
+{
+    public World InitializeOrModify(World defaultEditorWorld)
+    {
+        var world = new LatiosWorld(defaultEditorWorld.Name);
+
+        var systems = new List<Type>(DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.Default, true));
+
+        BootstrapTools.InjectSystems(systems, world, world.simulationSystemGroup);
+
+        CoreBootstrap.InstallExtremeTransforms(world);
+        Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
+
+        world.initializationSystemGroup.SortSystems();
+        world.simulationSystemGroup.SortSystems();
+        world.presentationSystemGroup.SortSystems();
+
+        return world;
+    }
+}
+
+[UnityEngine.Scripting.Preserve]
 public class LatiosBootstrap : ICustomBootstrap
 {
     public bool Initialize(string defaultWorldName)

@@ -138,6 +138,7 @@ namespace Latios.Systems
             return !m_playbackInstances.IsEmpty;
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             JobHandle.CompleteAll(m_jobHandles.AsArray());

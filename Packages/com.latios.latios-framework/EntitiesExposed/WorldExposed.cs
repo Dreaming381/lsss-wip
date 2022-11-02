@@ -39,17 +39,17 @@ namespace Unity.Entities.Exposed
             return SystemBaseRegistry.GetSystemTypeMetaIndex(BurstRuntime.GetHashCode64(t));
         }
 
-        //public static event Action<World> OnWorldCreated
-        //{
-        //    add
-        //    {
-        //        World.WorldCreated += value;
-        //    }
-        //    remove
-        //    {
-        //        World.WorldCreated -= value;
-        //    }
-        //}
+        public static event Action<World> DefaultWorldInitialized
+        {
+            add
+            {
+                DefaultWorldInitialization.DefaultWorldInitialized += value;
+            }
+            remove
+            {
+                DefaultWorldInitialization.DefaultWorldInitialized -= value;
+            }
+        }
 
         public static event Action<World, ComponentSystemBase> OnSystemCreated
         {

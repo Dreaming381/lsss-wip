@@ -56,7 +56,7 @@ namespace Latios.Kinemation.Systems
             };
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         public unsafe void OnUpdate(ref SystemState state)
         {
             var brgCullingContext = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>();

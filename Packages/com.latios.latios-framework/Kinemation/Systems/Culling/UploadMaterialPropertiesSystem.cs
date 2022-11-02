@@ -13,6 +13,7 @@ using UnityEngine.Rendering;
 
 namespace Latios.Kinemation.Systems
 {
+    [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     public partial class UploadMaterialPropertiesSystem : SubSystem
     {

@@ -13,6 +13,7 @@ using UnityEngine.Profiling;
 
 namespace Latios.Kinemation.Systems
 {
+    [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     public partial class SkinningDispatchSystem : SubSystem
     {
