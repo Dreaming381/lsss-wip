@@ -15,6 +15,11 @@ namespace Latios.Myri.Authoring
 {
     public static class AudioClipBlobberAPIExtensions
     {
+        /// <summary>
+        /// Requests the creation of a AudioClipBlob Blob Asset
+        /// </summary>
+        /// <param name="clip">The audio clip to bake</param>
+        /// <param name="numVoices">The number of voices to use (only applies to Looping clips)</param>
         public static SmartBlobberHandle<AudioClipBlob> RequestCreateBlobAsset(this IBaker baker, AudioClip clip, int numVoices = 0)
         {
             return baker.RequestCreateBlobAsset<AudioClipBlob, AudioClipBakeData>(new AudioClipBakeData { clip = clip, numVoices = numVoices });

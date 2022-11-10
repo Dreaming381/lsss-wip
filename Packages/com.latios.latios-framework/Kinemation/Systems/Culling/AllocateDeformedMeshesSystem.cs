@@ -29,7 +29,7 @@ namespace Latios.Kinemation.Systems
 
             m_query = state.Fluent().WithAll<ComputeDeformShaderIndex>().WithAll<MeshSkinningBlobReference>(true)
                       .WithAll<ChunkComputeDeformMemoryMetadata>(false, true).Build();
-            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkComputeDeformMemoryMetadata>().Build();
+            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkComputeDeformMemoryMetadata>().Without<ChunkCopySkinShaderData>().Build();
 
             latiosWorld.worldBlackboardEntity.AddComponent<MaxRequiredDeformVertices>();
 

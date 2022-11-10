@@ -5,7 +5,7 @@ new features and improvements in Latios Framework up to version 0.4 and still
 serves as an example project and compatibility validation. A version of the
 framework is included as an embedded package.
 
-The Unity version is currently 2020.3.30f1
+The Unity version is currently 2022.2.0b10
 
 Feel free to clone, play with, and customize this game however you like! There
 are many features exposed in the project but not used in the release version of
@@ -41,7 +41,12 @@ integrated smoothly. No programming skills are required to help.
 Please note that I primarily developed this game to help facilitate development
 of new Latios Framework features. As the Latios Framework feature set has
 matured beyond what this game required, I have very little motivation to develop
-new gameplay features.
+new gameplay features. But if you want to add new features, by all means go for
+it! I still keep the project up to date, and it serves as an excellent tool for
+detecting regressions.
+
+If you have questions or would like to be involved in this or other open
+projects, [join the Discord](https://discord.gg/FrqYeUv2dJ).
 
 ### Design Work
 

@@ -107,7 +107,7 @@ namespace Latios.Kinemation.Systems
             public unsafe void Execute(in ArchetypeChunk metaChunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 var ptr = metaChunk.GetComponentDataPtrRW(ref maskHandle);
-                UnsafeUtility.MemClear(ptr, sizeof(ChunkPerFrameCullingMask) * metaChunk.ChunkEntityCount);
+                UnsafeUtility.MemClear(ptr, sizeof(ChunkPerCameraCullingMask) * metaChunk.ChunkEntityCount);
 
                 var chunkPerCameraMasks = (ChunkPerCameraCullingMask*)ptr;
 

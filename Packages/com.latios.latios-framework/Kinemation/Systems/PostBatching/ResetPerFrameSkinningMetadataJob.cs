@@ -39,6 +39,9 @@ namespace Latios.Kinemation.Systems
         //[BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            latiosWorld.worldBlackboardEntity.SetComponentData(new MaxRequiredDeformVertices { verticesCount      = 0 });
+            latiosWorld.worldBlackboardEntity.SetComponentData(new MaxRequiredLinearBlendMatrices { matricesCount = 0 });
+            m_handle.Update(ref state);
             state.Dependency = new ResetPerFrameMetadataJob
             {
                 handle            = m_handle,

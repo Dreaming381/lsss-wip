@@ -17,6 +17,10 @@ namespace Latios.Kinemation.Authoring
 {
     public static class MeshSkinningBlobberAPIExtensions
     {
+        /// <summary>
+        /// Requests the creation of a MeshSkinningBlob Blob Asset
+        /// </summary>
+        /// <param name="mesh">The mesh containing the skin weights to be baked into a blob</param>
         public static SmartBlobberHandle<MeshSkinningBlob> RequestCreateBlobAsset(this IBaker baker, Mesh mesh)
         {
             return baker.RequestCreateBlobAsset<MeshSkinningBlob, MeshSkinningBakeData>(new MeshSkinningBakeData
@@ -91,13 +95,14 @@ namespace Latios.Kinemation.Authoring.Systems
 
             m_meshCache.Clear();
             int count   = m_query.CalculateEntityCountWithoutFiltering();
-            var hashmap = new NativeHashMap<MeshReference, BlobAssetReference<MeshSkinningBlob> >(count, Allocator.TempJob);
+            var hashmap = new NativeParallelHashMap<MeshReference, BlobAssetReference<MeshSkinningBlob> >(count, Allocator.TempJob);
             Entities.WithStoreEntityQueryInField(ref m_query).ForEach((in MeshReference meshRef) =>
             {
+                //Debug.Log($"Adding MeshRef key: {meshRef.GetHashCode()}");
                 hashmap.TryAdd(meshRef, default);
             }).WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Run();
 
-            var builders = new NativeArray<MeshSkinningBuilder>(hashmap.Count, Allocator.TempJob);
+            var builders = new NativeArray<MeshSkinningBuilder>(hashmap.Count(), Allocator.TempJob);
             int index    = 0;
             foreach (var pair in hashmap)
             {
@@ -145,6 +150,7 @@ namespace Latios.Kinemation.Authoring.Systems
             {
                 foreach (var builder in builders)
                 {
+                    //Debug.Log($"Setting MeshRef blob: {builder.reference.GetHashCode()}");
                     hashmap[builder.reference] = builder.resultBlob;
                 }
             }).Schedule();
@@ -152,7 +158,7 @@ namespace Latios.Kinemation.Authoring.Systems
             Entities.ForEach((ref SmartBlobberResult result, in MeshReference reference) =>
             {
                 result.blob = UnsafeUntypedBlobAssetReference.Create(hashmap[reference]);
-            }).WithReadOnly(hashmap).ScheduleParallel();
+            }).WithReadOnly(hashmap).WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).ScheduleParallel();
 
             Dependency = builders.Dispose(Dependency);
             Dependency = hashmap.Dispose(Dependency);

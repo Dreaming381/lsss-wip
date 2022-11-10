@@ -37,6 +37,7 @@ namespace Latios.Kinemation.Authoring.Systems
 
             state.CompleteDependency();
             ecb.Playback(state.EntityManager);
+            ecb.Dispose();
         }
 
         [WithEntityQueryOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)]

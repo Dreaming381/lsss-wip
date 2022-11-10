@@ -25,11 +25,12 @@ namespace Latios.Kinemation.Systems
         ComponentTypeHandle<BoneWorldBounds>      m_boneWorldBoundsHandleRW;
         ComponentTypeHandle<ChunkBoneWorldBounds> m_chunkBoneWorldBoundsHandle;
 
-        BufferTypeHandle<OptimizedBoneBounds>         m_optimizedBoneBoundsHandle;
-        BufferTypeHandle<OptimizedBoneToRoot>         m_optimizedBoneToRootHandle;
-        ComponentTypeHandle<SkeletonWorldBounds>      m_skeletonWorldBoundsHandleRO;
-        ComponentTypeHandle<SkeletonWorldBounds>      m_skeletonWorldBoundsHandleRW;
-        ComponentTypeHandle<ChunkSkeletonWorldBounds> m_chunkSkeletonWorldBoundsHandle;
+        BufferTypeHandle<OptimizedBoneBounds>           m_optimizedBoneBoundsHandle;
+        BufferTypeHandle<OptimizedBoneToRoot>           m_optimizedBoneToRootHandle;
+        ComponentTypeHandle<SkeletonWorldBounds>        m_skeletonWorldBoundsHandleRO;
+        ComponentTypeHandle<SkeletonWorldBounds>        m_skeletonWorldBoundsHandleRW;
+        ComponentTypeHandle<ChunkSkeletonWorldBounds>   m_chunkSkeletonWorldBoundsHandle;
+        ComponentTypeHandle<SkeletonShaderBoundsOffset> m_skeletonShaderBoundsOffsetHandle;
 
         public void OnCreate(ref SystemState state)
         {
@@ -46,11 +47,12 @@ namespace Latios.Kinemation.Systems
             m_boneWorldBoundsHandleRW    = state.GetComponentTypeHandle<BoneWorldBounds>(     false);
             m_chunkBoneWorldBoundsHandle = state.GetComponentTypeHandle<ChunkBoneWorldBounds>(false);
 
-            m_optimizedBoneBoundsHandle      = state.GetBufferTypeHandle<OptimizedBoneBounds>(true);
-            m_optimizedBoneToRootHandle      = state.GetBufferTypeHandle<OptimizedBoneToRoot>(true);
-            m_skeletonWorldBoundsHandleRO    = state.GetComponentTypeHandle<SkeletonWorldBounds>(     true);
-            m_skeletonWorldBoundsHandleRW    = state.GetComponentTypeHandle<SkeletonWorldBounds>(     false);
-            m_chunkSkeletonWorldBoundsHandle = state.GetComponentTypeHandle<ChunkSkeletonWorldBounds>(false);
+            m_optimizedBoneBoundsHandle        = state.GetBufferTypeHandle<OptimizedBoneBounds>(true);
+            m_optimizedBoneToRootHandle        = state.GetBufferTypeHandle<OptimizedBoneToRoot>(true);
+            m_skeletonWorldBoundsHandleRO      = state.GetComponentTypeHandle<SkeletonWorldBounds>(     true);
+            m_skeletonWorldBoundsHandleRW      = state.GetComponentTypeHandle<SkeletonWorldBounds>(     false);
+            m_chunkSkeletonWorldBoundsHandle   = state.GetComponentTypeHandle<ChunkSkeletonWorldBounds>(false);
+            m_skeletonShaderBoundsOffsetHandle = state.GetComponentTypeHandle<SkeletonShaderBoundsOffset>(true);
         }
 
         [BurstCompile]
@@ -68,6 +70,7 @@ namespace Latios.Kinemation.Systems
             m_skeletonWorldBoundsHandleRO.Update(ref state);
             m_skeletonWorldBoundsHandleRW.Update(ref state);
             m_chunkSkeletonWorldBoundsHandle.Update(ref state);
+            m_skeletonShaderBoundsOffsetHandle.Update(ref state);
 
             var lastSystemVersion = state.LastSystemVersion;
 
@@ -90,6 +93,7 @@ namespace Latios.Kinemation.Systems
                 skeletonWorldBoundsReadOnlyHandle = m_skeletonWorldBoundsHandleRO,
                 skeletonWorldBoundsHandle         = m_skeletonWorldBoundsHandleRW,
                 chunkSkeletonWorldBoundsHandle    = m_chunkSkeletonWorldBoundsHandle,
+                shaderBoundsHandle                = m_skeletonShaderBoundsOffsetHandle,
                 lastSystemVersion                 = lastSystemVersion
             }.ScheduleParallel(m_optimizedSkeletonsQuery, state.Dependency);
         }

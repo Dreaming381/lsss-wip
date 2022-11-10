@@ -22,6 +22,10 @@ namespace Latios.Kinemation.Authoring
 
     public static class OptimizedSkeletonHierarchyBlobberAPIExtensions
     {
+        /// <summary>
+        /// Requests the creation of an OptimizedSkeletonHierarchyBlob Blob Asset
+        /// </summary>
+        /// <param name="animator">An animator that was imported with "Optimize Game Objects" enabled</param>
         public static SmartBlobberHandle<OptimizedSkeletonHierarchyBlob> RequestCreateBlobAsset(this IBaker baker, UnityEngine.Animator animator)
         {
             return baker.RequestCreateBlobAsset<OptimizedSkeletonHierarchyBlob, OptimizedSkeletonHierarchyFromOptimizedAnimatorBakeData>(new OptimizedSkeletonHierarchyFromOptimizedAnimatorBakeData

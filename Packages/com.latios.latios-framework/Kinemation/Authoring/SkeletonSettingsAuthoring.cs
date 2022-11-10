@@ -6,10 +6,16 @@ using UnityEngine;
 
 namespace Latios.Kinemation.Authoring
 {
+    /// <summary>
+    /// Specifies additional customizations to be made for baking a skeleton.
+    /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("Latios/Kinemation/Skeleton Settings (Animated Hierarchy)")]
     public class SkeletonSettingsAuthoring : MonoBehaviour
     {
+        /// <summary>
+        /// Specifies how entities are gathered into a skeleton
+        /// </summary>
         public BindingMode bindingMode = BindingMode.BakeTime;
 
         //public List<Transform> customIncludeBones;
@@ -17,7 +23,13 @@ namespace Latios.Kinemation.Authoring
 
         public enum BindingMode
         {
+            /// <summary>
+            /// Skips generation of the skeleton entirely. Useful if the Animator was used to animate something else.
+            /// </summary>
             DoNotGenerate,
+            /// <summary>
+            /// Generates the skeleton based on the GameObject hierarchy and Animator Avatar at bake time.
+            /// </summary>
             BakeTime,
             //BakeTimeForceOptimized
             //CustomWhitelistPlusAncestors

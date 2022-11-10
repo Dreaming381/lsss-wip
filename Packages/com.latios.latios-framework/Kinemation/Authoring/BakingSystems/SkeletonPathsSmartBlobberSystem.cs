@@ -23,6 +23,11 @@ namespace Latios.Kinemation.Authoring
 
     public static class SkeletonBindingPathsBlobberAPIExtensions
     {
+        /// <summary>
+        /// Requests the creation of a SkeletonBindingPathsBlob Blob Asset
+        /// </summary>
+        /// <param name="boneNamesInHierarchy">An array containing each bone's name as well as its parent index in the same array.
+        /// This array can be temp-allocated.</param>
         public static SmartBlobberHandle<SkeletonBindingPathsBlob> RequestCreateBlobAsset(this IBaker baker, NativeArray<SkeletonBoneNameInHierarchy> boneNamesInHierarchy)
         {
             return baker.RequestCreateBlobAsset<SkeletonBindingPathsBlob, SkeletonBindingPathsBakeData>(new SkeletonBindingPathsBakeData {
@@ -30,11 +35,18 @@ namespace Latios.Kinemation.Authoring
             });
         }
 
+        /// <summary>
+        /// Requests the creation of a SkeletonBindingPathsBlob Blob Asset
+        /// </summary>
+        /// <param name="animator">An animator that was imported with "Optimize Game Objects" enabled</param>
+        /// <param name="rootName">The name to use for the root bone in the hiearchy</param>
+        /// <returns></returns>
         public static SmartBlobberHandle<SkeletonBindingPathsBlob> RequestCreateBlobAsset(this IBaker baker, UnityEngine.Animator animator, FixedString64Bytes rootName)
         {
             return baker.RequestCreateBlobAsset<SkeletonBindingPathsBlob, SkeletonBindingPathsFromOptimizedAnimatorBakeData>(new SkeletonBindingPathsFromOptimizedAnimatorBakeData
             {
-                animator = animator
+                animator = animator,
+                rootName = rootName
             });
         }
     }

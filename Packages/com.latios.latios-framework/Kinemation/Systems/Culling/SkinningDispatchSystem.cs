@@ -231,7 +231,6 @@ namespace Latios.Kinemation.Systems
                     m_batchSkinningShader.Dispatch(0, dispatchCount, 1, 1);
                     offset              += dispatchCount;
                     dispatchesRemaining -= dispatchCount;
-                    //UnityEngine.Debug.Log($"Dispatching skinning dispatchCount: {dispatchCount}");
                 }
             }
             UnityEngine.Shader.SetGlobalBuffer(_DeformedMeshData, deformBuffer);

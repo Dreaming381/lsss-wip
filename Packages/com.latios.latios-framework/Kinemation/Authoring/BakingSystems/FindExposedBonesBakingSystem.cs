@@ -29,17 +29,19 @@ namespace Latios.Kinemation.Authoring.Systems
 
             new ClearJob().ScheduleParallel();
 
-            var ecbAdd                  = new EntityCommandBuffer(Allocator.TempJob);
-            var cullingIndexLookup      = GetComponentLookup<BoneCullingIndex>(true);
-            var skeletonReferenceLookup = GetComponentLookup<BoneOwningSkeletonReference>(false);
-            var boneIndexLookup         = GetComponentLookup<BoneIndex>(false);
+            var ecbAdd                   = new EntityCommandBuffer(Allocator.TempJob);
+            var transformAuthoringLookup = GetComponentLookup<TransformAuthoring>(true);
+            var cullingIndexLookup       = GetComponentLookup<BoneCullingIndex>(true);
+            var skeletonReferenceLookup  = GetComponentLookup<BoneOwningSkeletonReference>(false);
+            var boneIndexLookup          = GetComponentLookup<BoneIndex>(false);
             new ApplySkeletonsToBonesJob
             {
-                componentTypesToAdd     = exposedBoneTypes,
-                ecb                     = ecbAdd.AsParallelWriter(),
-                cullingIndexLookup      = cullingIndexLookup,
-                skeletonReferenceLookup = skeletonReferenceLookup,
-                boneIndexLookup         = boneIndexLookup
+                componentTypesToAdd      = exposedBoneTypes,
+                ecb                      = ecbAdd.AsParallelWriter(),
+                transformAuthoringLookup = transformAuthoringLookup,
+                cullingIndexLookup       = cullingIndexLookup,
+                skeletonReferenceLookup  = skeletonReferenceLookup,
+                boneIndexLookup          = boneIndexLookup
             }.ScheduleParallel();
 
             var ecbRemove                        = new EntityCommandBuffer(Allocator.TempJob);
@@ -49,6 +51,9 @@ namespace Latios.Kinemation.Authoring.Systems
 
             ecbAdd.Playback(state.EntityManager);
             ecbRemove.Playback(state.EntityManager);
+
+            ecbAdd.Dispose();
+            ecbRemove.Dispose();
         }
 
         [WithEntityQueryOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)]
@@ -67,6 +72,7 @@ namespace Latios.Kinemation.Authoring.Systems
         partial struct ApplySkeletonsToBonesJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<BoneCullingIndex>                                       cullingIndexLookup;
+            [ReadOnly] public ComponentLookup<TransformAuthoring>                                     transformAuthoringLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<BoneOwningSkeletonReference> skeletonReferenceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<BoneIndex>                   boneIndexLookup;
             public EntityCommandBuffer.ParallelWriter                                                 ecb;
@@ -84,8 +90,8 @@ namespace Latios.Kinemation.Authoring.Systems
                     }
                     else
                     {
-                        ecb.AddComponent(                 chunkIndexInQuery, bone.bone, componentTypesToAdd);
-                        ecb.AddComponent<NonUniformScale>(chunkIndexInQuery, bone.bone);
+                        ecb.AddComponent( chunkIndexInQuery, bone.bone, componentTypesToAdd);
+                        ecb.AddComponent( chunkIndexInQuery, bone.bone, new NonUniformScale { Value                   = transformAuthoringLookup[bone.bone].LocalScale });
                         ecb.SetComponent(chunkIndexInQuery, bone.bone, new BoneOwningSkeletonReference { skeletonRoot = entity });
                         ecb.SetComponent(chunkIndexInQuery, bone.bone, new BoneIndex { index                          = (short)i });
                     }

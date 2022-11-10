@@ -13,7 +13,7 @@ namespace Latios.Kinemation
     /// This is a chunk component and also a WriteGroup target.
     /// To iterate these, you must include ChunkHeader in your query.
     /// Every mesh entity has one of these as a chunk component,
-    /// with a max of 128 mesh instances per chunk (all of the same RenderMesh).
+    /// with a max of 128 mesh instances per chunk.
     /// A true value for a bit will cause the mesh at that index to be rendered
     /// by the current camera. This must happen inside the KinemationCullingSuperSystem.
     /// </summary>
@@ -25,6 +25,10 @@ namespace Latios.Kinemation
         public ulong GetUlongFromIndex(int index) => index == 0 ? lower.Value : upper.Value;
     }
 
+    /// <summary>
+    /// Contains shadow split mask for the current light culling pass.
+    /// Usage: Read or Write
+    /// </summary>
     [StructLayout(LayoutKind.Explicit)]
     public unsafe struct ChunkPerCameraCullingSplitsMask : IComponentData
     {
@@ -56,6 +60,11 @@ namespace Latios.Kinemation
         public UnityEngine.Plane plane;
     }
 
+    /// <summary>
+    /// The culling splits of the shadow-casting light for the current culling pass
+    /// Usage: Read Only (No exceptions!)
+    /// This lives on the worldBlackboardEntity and is set on the main thread for each camera.
+    /// </summary>
     [InternalBufferCapacity(0)]
     public struct CullingSplitElement : IBufferElementData
     {

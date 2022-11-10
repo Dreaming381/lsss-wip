@@ -15,6 +15,11 @@ namespace Latios.Kinemation.Authoring
 {
     public static class MeshBindingPathsBlobberAPIExtensions
     {
+        /// <summary>
+        /// Requests the creation of a MeshBindingPathsBlob Blob Asset
+        /// </summary>
+        /// <param name="packedPaths">A flattened string of all the paths. Can be temp-allocated.</param>
+        /// <param name="pathStartingByteOffsets">An array containing the starting byte index of each path in <paramref name="packedPaths"/>. Can be temp-allocated.</param>
         public static SmartBlobberHandle<MeshBindingPathsBlob> RequestCreateBlobAsset(this IBaker baker, NativeText packedPaths, NativeArray<int> pathStartingByteOffsets)
         {
             return baker.RequestCreateBlobAsset<MeshBindingPathsBlob, MeshBindingPathsBakeData>(new MeshBindingPathsBakeData
@@ -24,6 +29,10 @@ namespace Latios.Kinemation.Authoring
             });
         }
 
+        /// <summary>
+        /// Requests the creation of a MeshBindingPathsBlob Blob Asset
+        /// </summary>
+        /// <param name="paths">The list of paths</param>
         public static SmartBlobberHandle<MeshBindingPathsBlob> RequestCreateBlobAsset(this IBaker baker, List<string> paths)
         {
             if (paths == null || paths.Count == 0)
@@ -48,6 +57,7 @@ namespace Latios.Kinemation.Authoring
 
                 pathStartingByteOffsets[index] = packedPaths.Length;
                 packedPaths.Append(path);
+                index++;
             }
 
             return baker.RequestCreateBlobAsset<MeshBindingPathsBlob, MeshBindingPathsBakeData>(new MeshBindingPathsBakeData
@@ -57,6 +67,11 @@ namespace Latios.Kinemation.Authoring
             });
         }
 
+        /// <summary>
+        /// Requests the creation of a MeshBindingPathsBlob Blob Asset
+        /// </summary>
+        /// <param name="animator">An Animator that was imported with "Optimize Game Objects" enabled and that the SkinnedMeshRenderer was imported to use.</param>
+        /// <param name="skinnedMeshRenderer">The SkinnedMeshRenderer whose bones array is empty because the transform hierarchy is optimized.</param>
         public static SmartBlobberHandle<MeshBindingPathsBlob> RequestCreateBlobAsset(this IBaker baker,
                                                                                       UnityEngine.Animator animator,
                                                                                       UnityEngine.SkinnedMeshRenderer skinnedMeshRenderer)

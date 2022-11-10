@@ -48,8 +48,9 @@ namespace Lsss
         {
             MissionStatus status = new MissionStatus { status = MissionStatus.Options.Complete };
 
-            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
-            foreach (var entity in factionEntities)
+            var factionEntities              = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            var factionEntitiesWithLastAlive = QueryBuilder().WithAll<Faction, FactionTag>().WithAll<LastAliveObjectiveTag>().Build().ToEntityArray(Allocator.Temp);
+            foreach (var entity in factionEntitiesWithLastAlive)
             {
                 status = GetDestroyAllMissionStatus(entity, factionEntities);
 

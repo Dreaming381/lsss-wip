@@ -149,8 +149,14 @@ namespace Latios.Kinemation.Systems
 
             void Execute(in ArchetypeChunk chunk)
             {
-                var     rootRefs   = chunk.GetNativeArray(dependentHandle);
                 ref var cameraMask = ref chunk.GetChunkComponentRefRW(in chunkPerCameraMaskHandle);
+                if (!chunk.Has(dependentHandle))
+                {
+                    cameraMask = default;
+                    return;
+                }
+
+                var rootRefs = chunk.GetNativeArray(dependentHandle);
 
                 var inMask = cameraMask.lower.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
@@ -201,10 +207,16 @@ namespace Latios.Kinemation.Systems
 
             void Execute(in ArchetypeChunk chunk)
             {
-                var     rootRefs         = chunk.GetNativeArray(dependentHandle);
                 ref var cameraMask       = ref chunk.GetChunkComponentRefRW(in chunkPerCameraMaskHandle);
                 ref var cameraSplitsMask = ref chunk.GetChunkComponentRefRW(in chunkPerCameraSplitsMaskHandle);
                 cameraSplitsMask         = default;
+
+                var rootRefs = chunk.GetNativeArray(dependentHandle);
+                if (!chunk.Has(dependentHandle))
+                {
+                    cameraMask = default;
+                    return;
+                }
 
                 var inMask = cameraMask.lower.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))

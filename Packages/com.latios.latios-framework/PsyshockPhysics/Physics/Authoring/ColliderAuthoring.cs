@@ -36,7 +36,7 @@ namespace Latios.Psyshock.Authoring
         SmartBlobberHandle<CompoundColliderBlob> m_handle;
         float                                    m_scale;
 
-        public bool CaptureInputsAndFilter(ColliderAuthoring authoring, IBaker baker)
+        public bool Bake(ColliderAuthoring authoring, IBaker baker)
         {
             if (!authoring.enabled)
                 return false;
@@ -75,7 +75,7 @@ namespace Latios.Psyshock.Authoring
             return true;
         }
 
-        public void Process(EntityManager entityManager, Entity entity)
+        public void PostProcessBlobRequests(EntityManager entityManager, Entity entity)
         {
             Collider collider = new CompoundCollider
             {

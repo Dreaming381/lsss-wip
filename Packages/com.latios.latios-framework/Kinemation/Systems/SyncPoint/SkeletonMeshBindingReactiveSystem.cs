@@ -275,6 +275,7 @@ namespace Latios.Kinemation.Systems
                 jhs[1]              = jhDead;
                 jhs[2]              = jhDead2;
                 jhs[3]              = state.Dependency;
+                state.Dependency    = JobHandle.CombineDependencies(jhs);
                 cullingJH           = new ProcessNewAndDeadExposedSkeletonsJob
                 {
                     newExposedSkeletons   = newSkeletonsList.AsDeferredJobArray(),
@@ -284,7 +285,7 @@ namespace Latios.Kinemation.Systems
                     operations            = cullingOps,
                     indicesToClear        = cullingIndicesToClear,
                     allocator             = allocator
-                }.Schedule(JobHandle.CombineDependencies(jhs));
+                }.Schedule(state.Dependency);
             }
 
             JobHandle                           meshBindingsJH            = default;
@@ -403,6 +404,7 @@ namespace Latios.Kinemation.Systems
                     failedBindingEntity = m_failedBindingEntity,
                     ops                 = meshBindingsStatesToWrite.AsDeferredJobArray(),
                     parentLookup        = GetComponentLookup<Parent>(false),
+                    localToParentLookup = GetComponentLookup<LocalToParent>(false),
                     stateLookup         = GetComponentLookup<SkeletonDependent>(false)
                 }.Schedule(meshBindingsStatesToWrite, 16, state.Dependency);
             }
@@ -437,6 +439,7 @@ namespace Latios.Kinemation.Systems
                     }.Schedule(state.Dependency);
                 }
 
+                m_boneReferenceIsDirtyFlagHandleRW.Update(ref state);
                 state.Dependency = new FindExposedSkeletonsToUpdateJob
                 {
                     dirtyFlagHandle   = m_boneReferenceIsDirtyFlagHandleRW,
@@ -450,6 +453,7 @@ namespace Latios.Kinemation.Systems
 
             if ((haveSyncableExposedSkeletons | haveNewExposedSkeletons | haveDeadExposedSkeletons | haveDeadExposedSkeletons2) && haveCullableExposedBones)
             {
+                m_boneCullingIndexHandleRW.Update(ref state);
                 state.Dependency = new ResetExposedBonesJob
                 {
                     indexHandle    = m_boneCullingIndexHandleRW,
@@ -944,6 +948,7 @@ namespace Latios.Kinemation.Systems
                 bool madeMeshGaps       = false;
                 bool madeBoneOffsetGaps = false;
 
+                var deadBoneEntryIndicesToClean = new NativeHashSet<int>(128, Allocator.Temp);
                 for (int i = 0; i < removeCount; i++)
                 {
                     var op = removeOps[i];
@@ -954,9 +959,9 @@ namespace Latios.Kinemation.Systems
                         if (entry.referenceCount == 0)
                         {
                             var blob      = entry.blob;
-                            int vertices  = blob.Value.verticesToSkin.Length;
-                            int weights   = blob.Value.boneWeights.Length;
-                            int bindPoses = blob.Value.bindPoses.Length;
+                            int vertices  = entry.verticesCount;
+                            int weights   = entry.weightsCount;
+                            int bindPoses = entry.bindPosesCount;
                             meshManager.verticesGaps.Add(new int2(entry.verticesStart, vertices));
                             meshManager.weightsGaps.Add(new int2(entry.weightsStart, weights));
                             meshManager.bindPosesGaps.Add(new int2(entry.bindPosesStart, bindPoses));
@@ -989,15 +994,7 @@ namespace Latios.Kinemation.Systems
                     {
                         ref var entry = ref boneManager.entries.ElementAt(op.oldState.boneOffsetEntryIndex);
                         if (op.oldState.meshBindingBlob != BlobAssetReference<MeshBindingPathsBlob>.Null)
-                        {
                             entry.pathsReferences--;
-                            if (entry.pathsReferences == 0)
-                            {
-                                boneManager.pathPairToEntryMap.Remove(new PathMappingPair {
-                                    meshPaths = op.oldState.meshBindingBlob, skeletonPaths = op.oldState.skeletonBindingBlob
-                                });
-                            }
-                        }
                         else
                             entry.overridesReferences--;
 
@@ -1009,6 +1006,20 @@ namespace Latios.Kinemation.Systems
 
                             entry              = default;
                             madeBoneOffsetGaps = true;
+                            deadBoneEntryIndicesToClean.Add(op.oldState.boneOffsetEntryIndex);
+                        }
+                    }
+                }
+
+                if (!deadBoneEntryIndicesToClean.IsEmpty)
+                {
+                    // Remove all path references from the pair map
+                    var pairs = boneManager.pathPairToEntryMap.GetKeyValueArrays(Allocator.Temp);
+                    for (int i = 0; i < pairs.Length; i++)
+                    {
+                        if (deadBoneEntryIndicesToClean.Contains(pairs.Values[i]))
+                        {
+                            boneManager.pathPairToEntryMap.Remove(pairs.Keys[i]);
                         }
                     }
                 }
@@ -1022,6 +1033,10 @@ namespace Latios.Kinemation.Systems
                 }
                 if (madeBoneOffsetGaps)
                 {
+                    if (!boneManager.gaps.IsCreated)
+                        UnityEngine.Debug.LogError("boneManager.gaps is not created currently. This is an internal bug.");
+                    if (boneManager.gaps.Length < 0)
+                        UnityEngine.Debug.LogError($"boneManager.gaps.Length is {boneManager.gaps.Length}. This is an internal bug.");
                     boneManager.offsets.Length = CoellesceGaps(boneManager.gaps, boneManager.offsets.Length);
                 }
 
@@ -1092,6 +1107,7 @@ namespace Latios.Kinemation.Systems
                                 {
                                     entryIndex = boneManager.indexFreeList[0];
                                     boneManager.indexFreeList.RemoveAtSwapBack(0);
+                                    boneManager.entries[entryIndex] = boneOffsetsEntry;
                                 }
 
                                 boneManager.hashToEntryMap.Add(hash, entryIndex);
@@ -1174,6 +1190,7 @@ namespace Latios.Kinemation.Systems
                                     {
                                         entryIndex = boneManager.indexFreeList[0];
                                         boneManager.indexFreeList.RemoveAtSwapBack(0);
+                                        boneManager.entries[entryIndex] = boneOffsetsEntry;
                                     }
 
                                     boneManager.hashToEntryMap.Add(hash, entryIndex);
@@ -1182,9 +1199,9 @@ namespace Latios.Kinemation.Systems
 
                                 boneManager.pathPairToEntryMap.Add(new PathMappingPair { meshPaths = op.meshBindingPathsBlob, skeletonPaths = op.skeletonBindingPathsBlob },
                                                                    entryIndex);
-                                resultState.skeletonBindingBlob = op.skeletonBindingPathsBlob;
-                                resultState.meshBindingBlob     = op.meshBindingPathsBlob;
                             }
+                            resultState.skeletonBindingBlob  = op.skeletonBindingPathsBlob;
+                            resultState.meshBindingBlob      = op.meshBindingPathsBlob;
                             resultState.boneOffsetEntryIndex = entryIndex;
                         }
                     }
@@ -1249,6 +1266,9 @@ namespace Latios.Kinemation.Systems
                         meshEntry.weightsStart   = weightsGpuStart;
                         meshEntry.bindPosesStart = bindPosesGpuStart;
                         meshEntry.blob           = blob;
+                        meshEntry.verticesCount  = verticesNeeded;
+                        meshEntry.weightsCount   = weightsNeeded;
+                        meshEntry.bindPosesCount = bindPosesNeeded;
 
                         requiredGpuSizes->requiredVertexUploadSize   += blob.Value.verticesToSkin.Length;
                         requiredGpuSizes->requiredWeightUploadSize   += blob.Value.boneWeights.Length;
@@ -1281,12 +1301,13 @@ namespace Latios.Kinemation.Systems
                     var prev   = array[dst - 1];
                     if (prev.x + prev.y == array[j].x)
                     {
-                        prev.y         += array[j].x;
+                        prev.y         += array[j].y;
                         array[dst - 1]  = prev;
                     }
                     else
                         dst++;
                 }
+
                 gaps.Length = dst;
 
                 if (!gaps.IsEmpty)
@@ -1294,7 +1315,7 @@ namespace Latios.Kinemation.Systems
                     var backItem = gaps[gaps.Length - 1];
                     if (backItem.x + backItem.y == oldSize)
                     {
-                        boneManager.gaps.Length--;
+                        gaps.Length--;
                         return backItem.x;
                     }
                 }
@@ -1350,6 +1371,7 @@ namespace Latios.Kinemation.Systems
         {
             [NativeDisableParallelForRestriction] public ComponentLookup<SkeletonDependent> stateLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<Parent>            parentLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<LocalToParent>     localToParentLookup;
 
             [ReadOnly] public NativeArray<MeshWriteStateOperation> ops;
             public Entity                                          failedBindingEntity;
@@ -1357,11 +1379,12 @@ namespace Latios.Kinemation.Systems
             public void Execute(int index)
             {
                 var op                     = ops[index];
-                op.meshEntity[stateLookup] = op.state;
+                stateLookup[op.meshEntity] = op.state;
                 if (op.state.root == Entity.Null)
                     parentLookup[op.meshEntity] = new Parent { Value = failedBindingEntity };
                 else
                     parentLookup[op.meshEntity] = new Parent { Value = op.state.root };
+                localToParentLookup[op.meshEntity]                   = new LocalToParent { Value = float4x4.identity };
             }
         }
 
@@ -1411,65 +1434,56 @@ namespace Latios.Kinemation.Systems
                 int addStart = i;
                 for (; i < opsArray.Length && opsArray[i].opType == BindUnbindOperation.OpType.Bind; i++)
                 {
-                    var meshState        = meshStateLookup[opsArray[i].meshEntity];
-                    var meshEntry        = meshGpuManager.entries[meshState.meshEntryIndex];
-                    var boneOffsetsEntry = boneOffsetsGpuManager.entries[meshState.boneOffsetEntryIndex];
-                    depsBuffer.Add(new DependentSkinnedMesh
+                    var meshState = meshStateLookup[opsArray[i].meshEntity];
+                    if (meshState.root != Entity.Null)
                     {
-                        skinnedMesh        = opsArray[i].meshEntity,
-                        meshVerticesStart  = meshEntry.verticesStart,
-                        meshVerticesCount  = meshEntry.blob.Value.verticesToSkin.Length,
-                        meshWeightsStart   = meshEntry.weightsStart,
-                        meshBindPosesStart = meshEntry.bindPosesStart,
-                        meshBindPosesCount = meshEntry.blob.Value.bindPoses.Length,
-                        boneOffsetsStart   = boneOffsetsEntry.start,
-                    });
-                    needsAddBoundsUpdate = true;
+                        var meshEntry        = meshGpuManager.entries[meshState.meshEntryIndex];
+                        var boneOffsetsEntry = boneOffsetsGpuManager.entries[meshState.boneOffsetEntryIndex];
+                        depsBuffer.Add(new DependentSkinnedMesh
+                        {
+                            skinnedMesh        = opsArray[i].meshEntity,
+                            meshVerticesStart  = meshEntry.verticesStart,
+                            meshVerticesCount  = meshEntry.blob.Value.verticesToSkin.Length,
+                            meshWeightsStart   = meshEntry.weightsStart,
+                            meshBindPosesStart = meshEntry.bindPosesStart,
+                            meshBindPosesCount = meshEntry.blob.Value.bindPoses.Length,
+                            boneOffsetsStart   = boneOffsetsEntry.start,
+                        });
+                        needsAddBoundsUpdate = true;
+                    }
                 }
 
-                int changeStart = i;
                 if (needsFullBoundsUpdate)
                 {
-                    ApplyMeshBounds(skeletonEntity, opsArray, 0, opsArray.Length, true);
+                    RebindAllMeshBounds(skeletonEntity, depsBuffer);
                 }
                 else if (needsAddBoundsUpdate)
                 {
-                    ApplyMeshBounds(skeletonEntity, opsArray, addStart, opsArray.Length - addStart, false);
-                }
-                else if (needsAddBoundsUpdate)
-                {
-                    ApplyMeshBounds(skeletonEntity, opsArray, addStart, changeStart - addStart, false);
+                    AppendMeshBounds(skeletonEntity, opsArray, addStart, opsArray.Length - addStart);
                 }
             }
 
-            void ApplyMeshBounds(Entity skeletonEntity, NativeArray<BindUnbindOperation> ops, int start, int count, bool reset)
+            void AppendMeshBounds(Entity skeletonEntity, NativeArray<BindUnbindOperation> ops, int start, int count)
             {
                 if (boneToRootsLookup.HasBuffer(skeletonEntity))
                 {
                     // Optimized skeleton path
-                    bool needsCollapse = reset;
-                    var  boundsBuffer  = optimizedBoundsLookup[skeletonEntity];
+                    var boundsBuffer = optimizedBoundsLookup[skeletonEntity];
                     if (boundsBuffer.IsEmpty)
                     {
-                        needsCollapse = true;
-                        boundsBuffer.ResizeUninitialized(boneToRootsLookup[skeletonEntity].Length);
+                        boundsBuffer.Resize(boneToRootsLookup[skeletonEntity].Length, NativeArrayOptions.ClearMemory);
                     }
                     var boundsArray = boundsBuffer.Reinterpret<float>().AsNativeArray();
-                    if (needsCollapse)
-                    {
-                        var arr = boundsBuffer.Reinterpret<float>().AsNativeArray();
-                        for (int i = 0; i < arr.Length; i++)
-                            arr[i] = 0f;
-                    }
 
                     float shaderBounds = 0f;
                     for (int i = start; i < start + count; i++)
                     {
-                        var meshState        = meshStateLookup[ops[i].meshEntity];
+                        var meshState = meshStateLookup[ops[i].meshEntity];
+                        if (meshState.root == Entity.Null)
+                            continue;
                         var boneOffsetsEntry = boneOffsetsGpuManager.entries[meshState.boneOffsetEntryIndex];
                         var boneOffsets      = boneOffsetsGpuManager.offsets.AsArray().GetSubArray(boneOffsetsEntry.start, boneOffsetsEntry.count);
 
-                        needsCollapse      = false;
                         ref var blobBounds = ref meshState.skinningBlob.Value.maxRadialOffsetsInBoneSpaceByBone;
                         short   k          = 0;
                         foreach (var j in boneOffsets)
@@ -1490,12 +1504,6 @@ namespace Latios.Kinemation.Systems
                             radialBoundsInWorldSpace = math.max(shaderBounds, optimizedShaderBoundsLookup[skeletonEntity].radialBoundsInWorldSpace)
                         };
                     }
-
-                    if (needsCollapse)
-                    {
-                        // Nothing valid is bound anymore. Shrink the buffer.
-                        boundsBuffer.Clear();
-                    }
                 }
                 else
                 {
@@ -1512,7 +1520,9 @@ namespace Latios.Kinemation.Systems
                     float shaderBounds = 0f;
                     for (int i = start; i < start + count; i++)
                     {
-                        var meshState        = meshStateLookup[ops[i].meshEntity];
+                        var meshState = meshStateLookup[ops[i].meshEntity];
+                        if (meshState.root == Entity.Null)
+                            continue;
                         var boneOffsetsEntry = boneOffsetsGpuManager.entries[meshState.boneOffsetEntryIndex];
                         var boneOffsets      = boneOffsetsGpuManager.offsets.AsArray().GetSubArray(boneOffsetsEntry.start, boneOffsetsEntry.count);
 
@@ -1530,26 +1540,107 @@ namespace Latios.Kinemation.Systems
                         shaderBounds = math.max(shaderBounds, meshState.shaderEffectRadialBounds);
                     }
 
-                    if (reset)
+                    // Merge with new values
+                    for (int i = 0; i < boundsArray.Length; i++)
                     {
-                        // Overwrite the bounds
-                        for (int i = 0; i < boundsArray.Length; i++)
+                        var storedBounds              = boneBoundsLookup[boneRefs[i]];
+                        boneBoundsLookup[boneRefs[i]] = new BoneBounds
                         {
-                            boneBoundsLookup[boneRefs[i]] = new BoneBounds { radialOffsetInBoneSpace = boundsArray[i], radialOffsetInWorldSpace = shaderBounds };
-                        }
+                            radialOffsetInBoneSpace  = math.max(boundsArray[i], storedBounds.radialOffsetInBoneSpace),
+                            radialOffsetInWorldSpace = math.max(shaderBounds, storedBounds.radialOffsetInWorldSpace)
+                        };
                     }
-                    else
+                }
+            }
+
+            void RebindAllMeshBounds(Entity skeletonEntity, DynamicBuffer<DependentSkinnedMesh> depsBuffer)
+            {
+                if (boneToRootsLookup.HasBuffer(skeletonEntity))
+                {
+                    // Optimized skeleton path
+                    var boundsBuffer = optimizedBoundsLookup[skeletonEntity];
+                    if (boundsBuffer.IsEmpty)
                     {
-                        // Merge with new values
-                        for (int i = 0; i < boundsArray.Length; i++)
+                        boundsBuffer.Resize(boneToRootsLookup[skeletonEntity].Length, NativeArrayOptions.ClearMemory);
+                    }
+                    var boundsArray = boundsBuffer.Reinterpret<float>().AsNativeArray();
+
+                    bool  needsCollapse = true;
+                    float shaderBounds  = 0f;
+                    for (int i = 0; i < depsBuffer.Length; i++)
+                    {
+                        var meshState = meshStateLookup[depsBuffer[i].skinnedMesh];
+                        if (meshState.root == Entity.Null)
+                            continue;
+                        needsCollapse        = false;
+                        var boneOffsetsEntry = boneOffsetsGpuManager.entries[meshState.boneOffsetEntryIndex];
+                        var boneOffsets      = boneOffsetsGpuManager.offsets.AsArray().GetSubArray(boneOffsetsEntry.start, boneOffsetsEntry.count);
+
+                        ref var blobBounds = ref meshState.skinningBlob.Value.maxRadialOffsetsInBoneSpaceByBone;
+                        short   k          = 0;
+                        foreach (var j in boneOffsets)
                         {
-                            var storedBounds              = boneBoundsLookup[boneRefs[i]];
-                            boneBoundsLookup[boneRefs[i]] = new BoneBounds
-                            {
-                                radialOffsetInBoneSpace  = math.max(boundsArray[i], storedBounds.radialOffsetInBoneSpace),
-                                radialOffsetInWorldSpace = math.max(shaderBounds, storedBounds.radialOffsetInWorldSpace)
-                            };
+                            if (j >= boundsArray.Length)
+                                UnityEngine.Debug.LogError(
+                                    $"Skinned Mesh Entity {depsBuffer[i].skinnedMesh} specifies a boneSkinningIndex of {j} but OptimizedBoneToRoot buffer on Entity {skeletonEntity} only has {boundsArray.Length} elements.");
+                            else
+                                boundsArray[j] = math.max(boundsArray[j], blobBounds[k]);
+                            k++;
                         }
+                        shaderBounds = math.max(shaderBounds, meshState.shaderEffectRadialBounds);
+                    }
+                    if (shaderBounds > 0f)
+                    {
+                        optimizedShaderBoundsLookup[skeletonEntity] = new SkeletonShaderBoundsOffset
+                        {
+                            radialBoundsInWorldSpace = math.max(shaderBounds, optimizedShaderBoundsLookup[skeletonEntity].radialBoundsInWorldSpace)
+                        };
+                    }
+
+                    if (needsCollapse)
+                    {
+                        boundsBuffer.Clear();
+                    }
+                }
+                else
+                {
+                    // Exposed skeleton path
+                    if (!boundsCache.IsCreated)
+                    {
+                        boundsCache = new NativeList<float>(Allocator.Temp);
+                    }
+                    var boneRefs = boneRefsLookup[skeletonEntity].Reinterpret<Entity>().AsNativeArray();
+                    boundsCache.Clear();
+                    boundsCache.Resize(boneRefs.Length, NativeArrayOptions.ClearMemory);
+                    var boundsArray = boundsCache.AsArray();
+
+                    float shaderBounds = 0f;
+                    for (int i = 0; i < depsBuffer.Length; i++)
+                    {
+                        var meshState = meshStateLookup[depsBuffer[i].skinnedMesh];
+                        if (meshState.root == Entity.Null)
+                            continue;
+                        var boneOffsetsEntry = boneOffsetsGpuManager.entries[meshState.boneOffsetEntryIndex];
+                        var boneOffsets      = boneOffsetsGpuManager.offsets.AsArray().GetSubArray(boneOffsetsEntry.start, boneOffsetsEntry.count);
+
+                        ref var blobBounds = ref meshState.skinningBlob.Value.maxRadialOffsetsInBoneSpaceByBone;
+                        short   k          = 0;
+                        foreach (var j in boneOffsets)
+                        {
+                            if (j >= boundsArray.Length)
+                                UnityEngine.Debug.LogError(
+                                    $"Skinned Mesh Entity {depsBuffer[i].skinnedMesh} specifies a boneSkinningIndex of {j} but BoneReference buffer on Entity {skeletonEntity} only has {boundsArray.Length} elements.");
+                            else
+                                boundsArray[j] = math.max(boundsArray[j], blobBounds[k]);
+                            k++;
+                        }
+                        shaderBounds = math.max(shaderBounds, meshState.shaderEffectRadialBounds);
+                    }
+
+                    // Overwrite the bounds
+                    for (int i = 0; i < boundsArray.Length; i++)
+                    {
+                        boneBoundsLookup[boneRefs[i]] = new BoneBounds { radialOffsetInBoneSpace = boundsArray[i], radialOffsetInWorldSpace = shaderBounds };
                     }
                 }
             }

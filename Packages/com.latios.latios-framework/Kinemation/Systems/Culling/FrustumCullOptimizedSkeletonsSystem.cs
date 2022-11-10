@@ -89,6 +89,7 @@ namespace Latios.Kinemation.Systems
             {
                 ref var mask        = ref chunk.GetChunkComponentRefRW(in perCameraCullingMaskHandle);
                 var     chunkBounds = chunk.GetChunkComponentRefRO(in chunkWorldRenderBoundsHandle);
+                mask                = default;
 
                 // Note: Unlike Entities Graphics, we always assume per-instance culling.
                 // The only way disabling per-instance culling happens is via custom code
@@ -101,7 +102,9 @@ namespace Latios.Kinemation.Systems
 
                 if (chunkIn == FrustumPlanes.IntersectResult.In)
                 {
-                    // Unlike Entities Graphics, we initialize as visible and clear bits that are hidden.
+                    mask.lower.SetBits(0, true, math.min(64, chunk.ChunkEntityCount));
+                    if (chunk.ChunkEntityCount > 64)
+                        mask.upper.SetBits(0, true, chunk.ChunkEntityCount - 64);
                     return;
                 }
                 if (chunkIn == FrustumPlanes.IntersectResult.Out)
@@ -111,17 +114,15 @@ namespace Latios.Kinemation.Systems
                 }
 
                 var worldBounds = chunk.GetNativeArray(worldRenderBoundsHandle);
-                var inMask      = mask.lower.Value;
-                for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
+                for (int i = 0; i < math.min(chunk.ChunkEntityCount, 64); i++)
                 {
                     bool isIn         = FrustumPlanes.Intersect2NoPartial(cullingPlanes, worldBounds[i].bounds) != FrustumPlanes.IntersectResult.Out;
-                    mask.lower.Value &= ~(math.select(1ul, 0ul, isIn) << i);
+                    mask.lower.Value |= math.select(0ul, 1ul, isIn) << i;
                 }
-                inMask = mask.upper.Value;
-                for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
+                for (int i = 0; i < chunk.ChunkEntityCount - 64; i++)
                 {
                     bool isIn         = FrustumPlanes.Intersect2NoPartial(cullingPlanes, worldBounds[i + 64].bounds) != FrustumPlanes.IntersectResult.Out;
-                    mask.upper.Value &= ~(math.select(1ul, 0ul, isIn) << i);
+                    mask.upper.Value |= math.select(0ul, 1ul, isIn) << i;
                 }
             }
         }
@@ -140,6 +141,7 @@ namespace Latios.Kinemation.Systems
             {
                 ref var mask        = ref chunk.GetChunkComponentRefRW(in perCameraCullingMaskHandle);
                 var     chunkBounds = chunk.GetChunkComponentRefRO(in chunkWorldRenderBoundsHandle);
+                mask                = default;
 
                 // Note: Unlike Entities Graphics, we always assume per-instance culling.
                 // The only way disabling per-instance culling happens is via custom code
@@ -228,8 +230,8 @@ namespace Latios.Kinemation.Systems
                     ulong upper  = 0;
                     for (int i = 0; i < 64; i++)
                         upper        |= math.select(0ul, 1ul, splitMasks.splitMasks[i + 64] != 0) << i;
-                    mask.lower.Value &= lower;
-                    mask.upper.Value &= upper;
+                    mask.lower.Value  = lower;
+                    mask.upper.Value  = upper;
                 }
 
                 // If anything survived the culling, perform sphere testing for each split

@@ -29,7 +29,7 @@ namespace Latios.Kinemation.Systems
 
             m_query = state.Fluent().WithAll<LinearBlendSkinningShaderIndex>().WithAll<MeshSkinningBlobReference>(true)
                       .WithAll<ChunkLinearBlendSkinningMemoryMetadata>(false, true).Build();
-            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkLinearBlendSkinningMemoryMetadata>().Build();
+            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkLinearBlendSkinningMemoryMetadata>().Without<ChunkCopySkinShaderData>().Build();
 
             latiosWorld.worldBlackboardEntity.AddComponent<MaxRequiredLinearBlendMatrices>();
 
@@ -57,6 +57,7 @@ namespace Latios.Kinemation.Systems
                 perCameraMaskHandle = m_metaJob.perCameraMaskHandle,
                 perFrameMaskHandle  = m_metaJob.perFrameMaskHandle,
                 metaHandle          = m_metaJob.metaHandle,
+                meshHandle          = m_gatherJob.meshHandle,
                 indicesHandle       = state.GetComponentTypeHandle<LinearBlendSkinningShaderIndex>()
             };
         }
@@ -92,6 +93,7 @@ namespace Latios.Kinemation.Systems
             m_assignJob.perCameraMaskHandle.Update(ref state);
             m_assignJob.perFrameMaskHandle.Update(ref state);
             m_assignJob.metaHandle.Update(ref state);
+            m_assignJob.meshHandle.Update(ref state);
             m_assignJob.indicesHandle.Update(ref state);
 
             m_assignJob.changedChunks = m_metaJob.changedChunkList.AsDeferredJobArray();

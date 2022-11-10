@@ -42,6 +42,9 @@ namespace Latios.Kinemation.Authoring.Systems
 
             ecbAdd.Playback(state.EntityManager);
             ecbRemove.Playback(state.EntityManager);
+
+            ecbAdd.Dispose();
+            ecbRemove.Dispose();
         }
 
         [WithEntityQueryOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)]

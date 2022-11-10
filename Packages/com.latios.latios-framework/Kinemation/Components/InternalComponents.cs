@@ -179,6 +179,11 @@ namespace Latios.Kinemation
         public int                                  verticesStart;
         public int                                  weightsStart;
         public int                                  bindPosesStart;
+        // Blob Assets can disappear before cleanup (thanks subscenes).
+        // So we cache the sizes here since that's all we need for cleanup.
+        public int verticesCount;
+        public int weightsCount;
+        public int bindPosesCount;
     }
 
     internal struct MeshGpuRequiredSizes

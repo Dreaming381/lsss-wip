@@ -5,6 +5,10 @@ using UnityEngine;
 
 namespace Latios.Kinemation.Authoring
 {
+    /// <summary>
+    /// This baker provides the default baking implementation for converting Animator to a Skeleton.
+    /// See Kinemation's documentation for details.
+    /// </summary>
     [DisableAutoCreation]
     public class SkeletonBaker : Baker<Animator>
     {
@@ -103,8 +107,7 @@ namespace Latios.Kinemation.Authoring
                     boneGoBuffer.Add(new ExportedBoneGameObjectRef { authoringGameObjectForBone = child });
                     boneEntityBuffer.Add(new OptimizedSkeletonExportedBone { boneEntity         = GetEntity(child, TransformUsageFlags.ManualOverride) });
                 }
-                AddBuffer<OptimizedBoneToRoot>();
-                this.RequestPopulateOptimizedBoneToRootForAnimator(GetEntity(), authoring);
+                this.RequestAddAndPopulateOptimizedBoneToRootForAnimator(GetEntity(), authoring);
             }
 
             m_breadthQueue.Clear();
@@ -114,7 +117,7 @@ namespace Latios.Kinemation.Authoring
 
     public static class SkeletonBakerExtensions
     {
-        public static void RequestPopulateOptimizedBoneToRootForAnimator(this IBaker baker, Entity target, Animator animator)
+        public static void RequestAddAndPopulateOptimizedBoneToRootForAnimator(this IBaker baker, Entity target, Animator animator)
         {
             if (animator == null)
                 return;

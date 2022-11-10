@@ -101,7 +101,7 @@ namespace Latios.Kinemation.Systems
                 m_singleJob2.perCameraCullingMaskHandle.Update(ref state);
                 m_singleJob2.cullingIndexHandle.Update(ref state);
                 m_singleJob2.bitArray = bitArray.AsDeferredJobArray();
-                state.Dependency      = m_multiJob2.ScheduleParallelByRef(m_query, state.Dependency);
+                state.Dependency      = m_singleJob2.ScheduleParallelByRef(m_query, state.Dependency);
             }
         }
 
@@ -171,7 +171,7 @@ namespace Latios.Kinemation.Systems
                     return;
                 }
 
-                for (int i = 0; i < 32; i++)
+                for (int i = 0; i < count; i++)
                 {
                     bool bit = FrustumPlanes.Intersect2NoPartial(cullingPlanes, aabbs[startIndex + i]) != FrustumPlanes.IntersectResult.Out;
                     mask.SetBits(i, bit);
@@ -199,7 +199,7 @@ namespace Latios.Kinemation.Systems
 
             public void Execute(int startIndex, int count)
             {
-                Hint.Assume(count > 32 && count <= 32);
+                Hint.Assume(count > 0 && count <= 32);
 
                 BitField32 mask = default;
 
@@ -210,7 +210,7 @@ namespace Latios.Kinemation.Systems
                     if (FrustumPlanes.Intersect2NoPartial(splits.ReceiverPlanePackets.AsNativeArray(), batchBounds) ==
                         FrustumPlanes.IntersectResult.Out)
                     {
-                        mask = default;
+                        bitArray[startIndex >> 5] = mask;
                         return;
                     }
                 }
@@ -285,6 +285,8 @@ namespace Latios.Kinemation.Systems
                     for (int i = 0; i < count; i++)
                         mask.SetBits(i, splitMasks[i] != 0);
                 }
+
+                bitArray[startIndex >> 5] = mask;
             }
 
             private enum SphereTestResult
@@ -333,19 +335,18 @@ namespace Latios.Kinemation.Systems
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 ref var mask = ref chunk.GetChunkComponentRefRW(in perCameraCullingMaskHandle);
+                mask         = default;
 
                 var cullingIndices = chunk.GetNativeArray(cullingIndexHandle);
-                var inMask         = mask.lower.Value;
-                for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
+                for (int i = 0; i < math.min(chunk.ChunkEntityCount, 64); i++)
                 {
                     bool isIn         = IsBitSet(cullingIndices[i].cullingIndex);
-                    mask.lower.Value &= ~(math.select(1ul, 0ul, isIn) << i);
+                    mask.lower.Value |= math.select(0ul, 1ul, isIn) << i;
                 }
-                inMask = mask.upper.Value;
-                for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
+                for (int i = 0; i < chunk.ChunkEntityCount - 64; i++)
                 {
                     bool isIn         = IsBitSet(cullingIndices[i + 64].cullingIndex);
-                    mask.upper.Value &= ~(math.select(1ul, 0ul, isIn) << i);
+                    mask.upper.Value |= math.select(0ul, 1ul, isIn) << i;
                 }
             }
 
@@ -371,21 +372,20 @@ namespace Latios.Kinemation.Systems
             {
                 ref var mask       = ref chunk.GetChunkComponentRefRW(in perCameraCullingMaskHandle);
                 ref var splitMasks = ref chunk.GetChunkComponentRefRW(in perCameraCullingSplitsMaskHandle);
+                mask               = default;
                 splitMasks         = default;
 
                 var cullingIndices = chunk.GetNativeArray(cullingIndexHandle);
-                var inMask         = mask.lower.Value;
-                for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
+                for (int i = 0; i < math.min(chunk.ChunkEntityCount, 64); i++)
                 {
                     bool isIn                 = IsBitSet(cullingIndices[i].cullingIndex, out byte splits);
-                    mask.lower.Value         &= ~(math.select(1ul, 0ul, isIn) << i);
+                    mask.lower.Value         |= math.select(0ul, 1ul, isIn) << i;
                     splitMasks.splitMasks[i]  = splits;
                 }
-                inMask = mask.upper.Value;
-                for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
+                for (int i = 0; i < chunk.ChunkEntityCount - 64; i++)
                 {
                     bool isIn                      = IsBitSet(cullingIndices[i + 64].cullingIndex, out byte splits);
-                    mask.upper.Value              &= ~(math.select(1ul, 0ul, isIn) << i);
+                    mask.upper.Value              |= math.select(0ul, 1ul, isIn) << i;
                     splitMasks.splitMasks[i + 64]  = splits;
                 }
             }

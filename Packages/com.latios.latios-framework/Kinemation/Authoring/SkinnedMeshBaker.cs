@@ -8,6 +8,10 @@ using UnityEngine;
 
 namespace Latios.Kinemation.Authoring
 {
+    /// <summary>
+    /// This baker provides the default baking implementation for converting a SkinnedMeshRenderer into something Kinemation can render.
+    /// See Kinemation's documentation for details.
+    /// </summary>
     [DisableAutoCreation]
     public class SkinnedMeshBaker : Baker<SkinnedMeshRenderer>
     {
@@ -60,13 +64,13 @@ namespace Latios.Kinemation.Authoring
             if (settings == null || settings.bindingMode == SkinnedMeshSettingsAuthoring.BindingMode.BakeTime)
             {
                 var bones = authoring.bones;
-                if (bones == null)
+                if (bones == null || bones.Length == 0)
                 {
                     var animator = GetComponentInParent<Animator>();
                     if (animator == null)
                     {
                         Debug.LogWarning(
-                            $"Skinned Mesh Renderer {authoring.gameObject.name} is in an optimized hierachy (bones array is null) which does not have an animator. No binding paths will be generated.");
+                            $"Skinned Mesh Renderer {authoring.gameObject.name} is in an optimized hierachy (bones array is empty) which does not have an animator. No binding paths will be generated.");
                     }
                     else
                     {
@@ -80,6 +84,7 @@ namespace Latios.Kinemation.Authoring
                 else
                 {
                     bool skipBecauseOfWarning = false;
+
                     foreach (var bone in bones)
                     {
                         if (bone == null)
@@ -109,6 +114,7 @@ namespace Latios.Kinemation.Authoring
                                 go     = parent;
                                 parent = GetParent(parent);
                             }
+                            index++;
                         }
 
                         AddComponent(new PendingMeshBindingPathsBlob
@@ -140,7 +146,7 @@ namespace Latios.Kinemation.Authoring
             {
                 blobHandle = this.RequestCreateBlobAsset(authoring.sharedMesh)
             });
-            AddComponent<MeshBindingPathsBlobReference>();
+            AddComponent<MeshSkinningBlobReference>();
 
             var additionalEntities = new NativeList<Entity>(Allocator.Temp);
             SkinnedMeshRendererBakingUtility.Convert(this, authoring, authoring.sharedMesh, m_materialsCache, additionalEntities, knownValidMaterialIndex);
@@ -221,6 +227,8 @@ namespace Latios.Kinemation.Authoring
             var componentTypes = RenderMeshUtility.s_EntitiesGraphicsComponentTypes.GetComponentTypes(flags);
             baker.AddComponent(entity, componentTypes);
 
+            //if (renderMesh.mesh == null || renderMesh.material == null)
+            //Debug.Log($"Baked Mesh {renderMesh.mesh.name}, Material {renderMesh.material.name}");
             baker.SetSharedComponentManaged(entity, renderMesh);
             baker.SetSharedComponentManaged(entity, renderMeshDescription.FilterSettings);
         }
@@ -294,6 +302,30 @@ namespace Latios.Kinemation.Authoring
             }
 
             baker.ConfigureEditorRenderData(entity, renderer.gameObject, true);
+
+            var  material     = renderMesh.material;
+            bool needsWarning = true;
+            if (material.HasProperty(s_SkinMatrixIndexProperty))
+            {
+                var linearBlendComponents = new ComponentTypeSet(ComponentType.ReadWrite<LinearBlendSkinningShaderIndex>(),
+                                                                 ComponentType.ChunkComponent<ChunkLinearBlendSkinningMemoryMetadata>());
+
+                baker.AddComponent(entity, linearBlendComponents);
+                needsWarning = false;
+            }
+            if (material.HasProperty(s_ComputeMeshIndexProperty))
+            {
+                var computeDeformComponents = new ComponentTypeSet(ComponentType.ReadWrite<ComputeDeformShaderIndex>(),
+                                                                   ComponentType.ChunkComponent<ChunkComputeDeformMemoryMetadata>());
+                baker.AddComponent(entity, computeDeformComponents);
+                needsWarning = false;
+            }
+
+            if (needsWarning)
+            {
+                Debug.LogWarning(
+                    $"Singular mesh for Skinned Mesh Renderer {renderer.gameObject.name} uses shader {material.shader.name} which does not support skinning. Please see documentation for Linear Blend Skinning Node and Compute Deformation Node in Shader Graph.");
+            }
         }
 
         internal static void ConvertToMultipleEntities<T>(
@@ -377,17 +409,17 @@ namespace Latios.Kinemation.Authoring
 
                 baker.ConfigureEditorRenderData(meshEntity, renderer.gameObject, true);
 
-                bool needsWarning = true;
+                bool needsWarning = m != firstValidMaterialIndex;
                 if (m != firstValidMaterialIndex && material.HasProperty(s_SkinMatrixIndexProperty))
                 {
                     referenceNeedsLinearBlend = true;
-                    baker.AddComponent(meshEntity, linearBlendComponents);
+                    baker.AddComponent<LinearBlendSkinningShaderIndex>(meshEntity);
                     needsWarning = false;
                 }
                 if (m != firstValidMaterialIndex && material.HasProperty(s_ComputeMeshIndexProperty))
                 {
                     referenceNeedsComputeDeform = true;
-                    baker.AddComponent(meshEntity, computeDeformComponents);
+                    baker.AddComponent<ComputeDeformShaderIndex>(meshEntity);
                     needsWarning = false;
                 }
 

@@ -33,6 +33,8 @@ namespace Latios.Kinemation.Authoring.Systems
                                                        ComponentType.ReadWrite<LocalToWorld>(),
                                                        ComponentType.ReadWrite<CopyLocalToParentFromBone>(),
                                                        ComponentType.ReadWrite<BoneOwningSkeletonReference>());
+            var componentsToRemove = new ComponentTypeSet(ComponentType.ReadWrite<CopyLocalToParentFromBone>(),
+                                                          ComponentType.ReadWrite<BoneOwningSkeletonReference>());
 
             new ClearJob().ScheduleParallel();
 
@@ -40,6 +42,7 @@ namespace Latios.Kinemation.Authoring.Systems
             var skeletonReferenceLookup         = GetComponentLookup<BoneOwningSkeletonReference>(false);
             var copyLocalToParentFromBoneLookup = GetComponentLookup<CopyLocalToParentFromBone>(false);
             var localToParentLookup             = GetComponentLookup<LocalToParent>(false);
+            var parentLookup                    = GetComponentLookup<Parent>(false);
             new ApplySkeletonsToBonesJob
             {
                 componentTypesToAdd             = componentsToAdd,
@@ -47,16 +50,20 @@ namespace Latios.Kinemation.Authoring.Systems
                 ecb                             = ecbAdd.AsParallelWriter(),
                 skeletonReferenceLookup         = skeletonReferenceLookup,
                 copyLocalToParentFromBoneLookup = copyLocalToParentFromBoneLookup,
-                localToParentLookup             = localToParentLookup
+                localToParentLookup             = localToParentLookup,
+                parentLookup                    = parentLookup
             }.ScheduleParallel();
 
             var ecbRemove                        = new EntityCommandBuffer(Allocator.TempJob);
-            new RemoveDisconnectedBonesJob { ecb = ecbRemove.AsParallelWriter(), componentTypesToRemove = componentsToAdd }.ScheduleParallel();
+            new RemoveDisconnectedBonesJob { ecb = ecbRemove.AsParallelWriter(), componentTypesToRemove = componentsToRemove }.ScheduleParallel();
 
             state.CompleteDependency();
 
             ecbAdd.Playback(state.EntityManager);
             ecbRemove.Playback(state.EntityManager);
+
+            ecbAdd.Dispose();
+            ecbRemove.Dispose();
         }
 
         [WithEntityQueryOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)]
@@ -77,6 +84,7 @@ namespace Latios.Kinemation.Authoring.Systems
             [NativeDisableParallelForRestriction] public ComponentLookup<CopyLocalToParentFromBone>   copyLocalToParentFromBoneLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<BoneOwningSkeletonReference> skeletonReferenceLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<LocalToParent>               localToParentLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<Parent>                      parentLookup;
             public EntityCommandBuffer.ParallelWriter                                                 ecb;
             public ComponentTypeSet                                                                   componentTypesToAdd;
             public ComponentTypeSet                                                                   componentTypesToRemove;
@@ -95,6 +103,7 @@ namespace Latios.Kinemation.Authoring.Systems
                         localToParentLookup[bone.boneEntity] = new LocalToParent {
                             Value                            = boneToRoots[bone.boneIndex].boneToRoot
                         };
+                        parentLookup[bone.boneEntity] = new Parent { Value = entity };
                     }
                     else
                     {
@@ -103,6 +112,7 @@ namespace Latios.Kinemation.Authoring.Systems
                         ecb.SetComponent(chunkIndexInQuery, bone.boneEntity, new BoneOwningSkeletonReference { skeletonRoot = entity });
                         ecb.SetComponent(chunkIndexInQuery, bone.boneEntity, new CopyLocalToParentFromBone { boneIndex      = (short)bone.boneIndex });
                         ecb.SetComponent(chunkIndexInQuery, bone.boneEntity, new LocalToParent { Value                      = boneToRoots[bone.boneIndex].boneToRoot });
+                        ecb.SetComponent(chunkIndexInQuery, bone.boneEntity, new Parent { Value                             = entity });
                     }
                 }
             }

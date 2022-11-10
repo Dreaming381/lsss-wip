@@ -92,6 +92,14 @@ namespace Latios.Kinemation.Authoring
 
     public static class SkeletonClipSetBlobberAPIExtensions
     {
+        /// <summary>
+        /// Requests the creation of a SkeletonClipSetBlob Blob Asset
+        /// </summary>
+        /// <param name="animator">An animator on which to sample the animations (a clone will be temporarily created).
+        /// If the animator is not structurally identical to the one used to generate a skeleton
+        /// that will play this clip at runtime, results are undefined.</param>
+        /// <param name="clips">An array of clips along with their events and compression settings which should be compressed into the blob asset.
+        /// This array can be temp-allocated.</param>
         public static SmartBlobberHandle<SkeletonClipSetBlob> RequestCreateBlobAsset(this IBaker baker, Animator animator, NativeArray<SkeletonClipConfig> clips)
         {
             return baker.RequestCreateBlobAsset<SkeletonClipSetBlob, SkeletonClipSetBakeData>(new SkeletonClipSetBakeData
@@ -108,7 +116,6 @@ namespace Latios.Kinemation.Authoring
     {
         /// <summary>
         /// The UnityEngine.Animator that should sample this clip.
-        /// The animator's GameObject must be a target for conversion.
         /// The converted clip will only work correctly with that GameObject's converted skeleton entity
         /// or another skeleton entity with an identical hierarchy.
         /// </summary>
@@ -322,6 +329,7 @@ namespace Latios.Kinemation.Authoring.Systems
         [BurstCompile]
         partial struct CaptureBoneSamplesJob : IJobParallelForTransform
         {
+            [NativeDisableParallelForRestriction]  // Why is this necessary when we are using RunReadOnly()?
             public NativeArray<BoneTransform> boneTransforms;
             public int                        samplesPerBone;
             public int                        currentSample;
@@ -338,10 +346,10 @@ namespace Latios.Kinemation.Authoring.Systems
         partial struct CompressClipsAndBuildBlobJob : IJobEntity
         {
             public unsafe void Execute(ref SmartBlobberResult result,
+                                       ref DynamicBuffer<ClipEventToBake>               clipEventsBuffer,  // Ref so it can be sorted
                                        in DynamicBuffer<SkeletonClipToBake>             clipsBuffer,
                                        in DynamicBuffer<SkeletonClipSetBoneParentIndex> parentsBuffer,
-                                       in DynamicBuffer<SampledBoneTransform>           boneSamplesBuffer,
-                                       in DynamicBuffer<ClipEventToBake>                clipEventsBuffer)
+                                       in DynamicBuffer<SampledBoneTransform>           boneSamplesBuffer)
             {
                 var parents = parentsBuffer.Reinterpret<int>().AsNativeArray();
 

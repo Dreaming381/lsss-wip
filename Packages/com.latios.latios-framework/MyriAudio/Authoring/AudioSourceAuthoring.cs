@@ -47,7 +47,7 @@ namespace Latios.Myri.Authoring
         SmartBlobberHandle<AudioClipBlob> m_handle;
         bool                              m_looped;
 
-        public bool CaptureInputsAndFilter(AudioSourceAuthoring authoring, IBaker baker)
+        public bool Bake(AudioSourceAuthoring authoring, IBaker baker)
         {
             m_looped = authoring.looping;
             if (!authoring.looping)
@@ -89,7 +89,7 @@ namespace Latios.Myri.Authoring
             return m_handle.IsValid;
         }
 
-        public void Process(EntityManager entityManager, Entity entity)
+        public void PostProcessBlobRequests(EntityManager entityManager, Entity entity)
         {
             if (m_looped)
             {

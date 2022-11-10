@@ -9,6 +9,9 @@ using UnityEngine;
 
 namespace Latios.Myri.Authoring
 {
+    /// <summary>
+    /// Implement this interface to define a custom audio listener profile
+    /// </summary>
     public interface IListenerProfileBuilder
     {
         void BuildProfile(ref ListenerProfileBuildContext context);

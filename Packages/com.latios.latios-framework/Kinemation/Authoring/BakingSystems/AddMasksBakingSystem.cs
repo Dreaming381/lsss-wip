@@ -43,5 +43,23 @@ namespace Latios.Kinemation.Authoring.Systems
             state.EntityManager.RemoveComponent(m_removeQuery, typeset);
         }
     }
+
+    [RequireMatchingQueriesForUpdate]
+    [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
+    [UpdateAfter(typeof(RenderMeshPostProcessSystem))]
+    [DisableAutoCreation]
+    public partial class ValidateRenderMeshArraySystem : SystemBase
+    {
+        protected override void OnUpdate()
+        {
+            Entities.ForEach((Entity entity, in RenderMeshArray renderMeshArray, in RenderMesh renderMesh) =>
+            {
+                if (renderMeshArray.Meshes == null)
+                {
+                    UnityEngine.Debug.Log($"RenderMeshArray was null: {entity}, {renderMesh.mesh.name}, {renderMesh.material.name}");
+                }
+            }).WithoutBurst().Run();
+        }
+    }
 }
 

@@ -11,7 +11,7 @@ namespace Latios.Kinemation.Authoring
     public static class KinemationBakingBootstrap
     {
         /// <summary>
-        /// Adds Kinemation conversion systems into conversion world and disables the Hybrid Renderer's SkinnedMeshRenderer conversion
+        /// Adds Kinemation bakers and baking systems into baking world and disables the Entities.Graphics's SkinnedMeshRenderer bakers
         /// </summary>
         /// <param name="world">The conversion world in which to install the Kinemation conversion systems</param>
         public static void InstallKinemationBakersAndSystems(ref CustomBakingBootstrapContext context)

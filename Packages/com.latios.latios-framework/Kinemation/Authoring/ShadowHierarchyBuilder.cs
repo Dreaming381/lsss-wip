@@ -14,7 +14,16 @@ namespace Latios.Kinemation.Authoring
             shadow.transform.localScale    = Vector3.one;
 
             if (!sourceIsOptimized)
+            {
+                s_immediateChildrenToDestroy.Clear();
                 RecurseExposedChildren(source.transform, shadow.transform);
+                foreach (var toDestroy in s_immediateChildrenToDestroy)
+                {
+                    if (toDestroy != null)
+                        UnityEngine.Object.DestroyImmediate(toDestroy.gameObject);
+                }
+                s_immediateChildrenToDestroy.Clear();
+            }
             else
             {
                 TagAndPruneOptimizedChildren(source.transform, shadow.transform);
@@ -36,6 +45,8 @@ namespace Latios.Kinemation.Authoring
             }
         }
 
+        static List<Transform> s_immediateChildrenToDestroy = new List<Transform>();
+
         static void RecurseExposedChildren(Transform source, Transform shadow)
         {
             var tracker    = shadow.gameObject.AddComponent<HideThis.ShadowCloneTracker>();
@@ -53,15 +64,13 @@ namespace Latios.Kinemation.Authoring
                 // If the child has an Animator or SkinnedMeshRenderer, it shouldn't be animated, so delete it.
                 if (shadowChild.GetComponent<SkinnedMeshRenderer>() != null || shadowChild.GetComponent<Animator>() != null)
                 {
-                    UnityEngine.Object.DestroyImmediate(shadowChild);
+                    s_immediateChildrenToDestroy.Add(shadowChild);
                     continue;
                 }
 
                 RecurseExposedChildren(sourceChild, shadowChild);
             }
         }
-
-        static List<Transform> s_immediateChildrenToDestroy = new List<Transform>();
 
         static void TagAndPruneOptimizedChildren(Transform sourceRoot, Transform shadowRoot)
         {
@@ -83,7 +92,7 @@ namespace Latios.Kinemation.Authoring
                 // If the child has an Animator or SkinnedMeshRenderer, it shouldn't be animated, so delete it.
                 if (shadowChild.GetComponent<SkinnedMeshRenderer>() != null || shadowChild.GetComponent<Animator>() != null)
                 {
-                    s_immediateChildrenToDestroy.Add(shadowChild);
+                    RecurseTagSkinnedOrDelete(sourceChild, shadowChild);
                     continue;
                 }
 
@@ -104,13 +113,14 @@ namespace Latios.Kinemation.Authoring
 
             foreach (var toDestroy in s_immediateChildrenToDestroy)
             {
-                UnityEngine.Object.DestroyImmediate(toDestroy.gameObject);
+                if (toDestroy != null)
+                    UnityEngine.Object.DestroyImmediate(toDestroy.gameObject);
             }
             s_immediateChildrenToDestroy.Clear();
 
             static void RecurseTagSkinnedOrDelete(Transform source, Transform shadow)
             {
-                if (shadow.GetComponentInChildren<SkinnedMeshRenderer>(true))
+                if (shadow.GetComponentInChildren<SkinnedMeshRenderer>(true) != null)
                 {
                     var tracker    = shadow.gameObject.AddComponent<HideThis.ShadowCloneSkinnedMeshTracker>();
                     tracker.source = source.gameObject;

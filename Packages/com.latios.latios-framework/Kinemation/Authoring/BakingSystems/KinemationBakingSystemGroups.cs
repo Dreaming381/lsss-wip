@@ -21,10 +21,14 @@ namespace Latios.Kinemation.Authoring.Systems
         {
             base.OnCreate();
 
+            EnableSystemSorting = false;
+
             GetOrCreateAndAddManagedSystem<CreateShadowHierarchiesSystem>();  // sync
-            GetOrCreateAndAddManagedSystem<GatherBindingPathsFromShadowHierarchySystem>();  // sync
+            GetOrCreateAndAddManagedSystem<GatherMeshBindingPathsFromShadowHierarchySystem>();  // sync
             GetOrCreateAndAddManagedSystem<PruneShadowHierarchiesSystem>();  // sync
-            GetOrCreateAndAddManagedSystem<BuildOptimizedBoneToRootSystem>();  // sync
+            //GetOrCreateAndAddManagedSystem<BuildOptimizedBoneToRootSystem2>();  // sync
+            GetOrCreateAndAddManagedSystem<BuildOptimizedBoneToRootBufferSystem>();  // sync
+            GetOrCreateAndAddManagedSystem<GatherSkeletonBindingPathsFromShadowHierarchySystem>();
             GetOrCreateAndAddManagedSystem<AssignExportedBoneIndicesSystem>();  // sync
             GetOrCreateAndAddManagedSystem<GatherOptimizedHierarchyFromShadowHierarchySystem>();  // sync -> async
 
@@ -59,6 +63,8 @@ namespace Latios.Kinemation.Authoring.Systems
         protected override void OnCreate()
         {
             base.OnCreate();
+
+            EnableSystemSorting = false;
 
             GetOrCreateAndAddSystem<ResolveSkeletonAndSkinnedMeshBlobsSystem>();  // async
         }

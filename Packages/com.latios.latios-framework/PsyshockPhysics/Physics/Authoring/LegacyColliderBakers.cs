@@ -115,7 +115,7 @@ namespace Latios.Psyshock.Authoring.Systems
         SmartBlobberHandle<ConvexColliderBlob> m_handle;
         float3                                 m_lossyScale;
 
-        public bool CaptureInputsAndFilter(UnityEngine.MeshCollider authoring, IBaker baker)
+        public bool Bake(UnityEngine.MeshCollider authoring, IBaker baker)
         {
             if (!authoring.convex)
                 return false;
@@ -128,7 +128,7 @@ namespace Latios.Psyshock.Authoring.Systems
             return m_handle.IsValid;
         }
 
-        public void Process(EntityManager entityManager, Entity entity)
+        public void PostProcessBlobRequests(EntityManager entityManager, Entity entity)
         {
             Collider collider = new ConvexCollider
             {
@@ -155,7 +155,7 @@ namespace Latios.Psyshock.Authoring.Systems
         SmartBlobberHandle<CompoundColliderBlob> m_handle;
         float                                    m_scale;
 
-        public bool CaptureInputsAndFilter(UnityEngine.Collider authoring, IBaker baker)
+        public bool Bake(UnityEngine.Collider authoring, IBaker baker)
         {
             var smartBaker = baker as LegacyCompoundColliderBaker;
             smartBaker.m_colliderCache.Clear();
@@ -212,7 +212,7 @@ namespace Latios.Psyshock.Authoring.Systems
             return true;
         }
 
-        public void Process(EntityManager entityManager, Entity entity)
+        public void PostProcessBlobRequests(EntityManager entityManager, Entity entity)
         {
             Collider collider = new CompoundCollider
             {
