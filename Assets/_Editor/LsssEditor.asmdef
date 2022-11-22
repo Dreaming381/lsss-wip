@@ -1,7 +1,9 @@
 {
     "name": "LsssEditor",
+    "rootNamespace": "",
     "references": [
-        "Lsss"
+        "Lsss",
+        "Latios.Kinemation"
     ],
     "includePlatforms": [
         "Editor"

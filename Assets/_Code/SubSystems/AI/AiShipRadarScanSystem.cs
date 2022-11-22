@@ -111,6 +111,8 @@ namespace Lsss
 
                 var shipLayerA = m_factionsCache[i].layer;
 
+                var marker = new Unity.Profiling.ProfilerMarker("Dispatch FindPairs");
+                marker.Begin();
                 jh = Physics.FindPairs(radarLayer, shipLayerA, scanFriendsProcessor).WithCrossCache().ScheduleParallel(jh);
 
                 for (int j = 0; j < factionEntities.Length; j++)
@@ -122,6 +124,7 @@ namespace Lsss
 
                     jh = Physics.FindPairs(radarLayer, shipLayerB, scanEnemiesProcessor).WithCrossCache().ScheduleParallel(jh);
                 }
+                marker.End();
 
                 jhs[i] = jh;
             }
@@ -182,13 +185,16 @@ namespace Lsss
                                           JobHandle inputDeps)
         {
             m_radarsQuery.SetSharedComponentFilter(factionMember);
-            int count  = m_radarsQuery.CalculateEntityCount();
+            int count  = CalculateEntityCountBurst(ref m_radarsQuery);
             var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var jh     = new BuildRadarBodiesJob { bodies = bodies, aabbs = aabbs }.ScheduleParallel(m_radarsQuery, inputDeps);
             jh         = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).WithRemapArray(out remapArray, allocator).ScheduleParallel(out layer, allocator, jh);
             return jh;
         }
+
+        [BurstCompile]
+        static int CalculateEntityCountBurst(ref EntityQuery query) => query.CalculateEntityCount();
 
         [BurstCompile]
         partial struct BuildRadarBodiesJob : IJobEntity
