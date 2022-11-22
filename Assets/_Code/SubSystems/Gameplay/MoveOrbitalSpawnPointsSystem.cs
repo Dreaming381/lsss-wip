@@ -41,7 +41,7 @@ namespace Lsss
                 var    rotation             = quaternion.AxisAngle(path.orbitPlaneNormal, path.orbitSpeed * dt);
                 float3 currentOutwardVector = translation.Value - path.center;
                 float3 newOutwardVector     = math.rotate(rotation, currentOutwardVector);
-                newOutwardVector            = math.normalize(newOutwardVector) * path.radius;
+                newOutwardVector            = math.normalizesafe(newOutwardVector) * path.radius;
                 translation.Value           = math.select(translation.Value, path.center + newOutwardVector, pauseTime.pauseTime <= 0f);
             }
         }
