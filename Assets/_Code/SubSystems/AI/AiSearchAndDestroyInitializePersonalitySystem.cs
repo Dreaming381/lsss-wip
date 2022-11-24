@@ -42,7 +42,7 @@ namespace Lsss
 
             new Job { rng = rng }.ScheduleParallel(m_query);
 
-            ecb.RemoveComponentForEntityQuery<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
+            ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
         }
 
         [BurstCompile]
@@ -55,7 +55,7 @@ namespace Lsss
         {
             public Rng rng;
 
-            public void Execute([EntityInQueryIndex] int entityInQueryIndex, ref AiSearchAndDestroyPersonality personality,
+            public void Execute([EntityIndexInQuery] int entityInQueryIndex, ref AiSearchAndDestroyPersonality personality,
                                 in AiSearchAndDestroyPersonalityInitializerValues initalizer)
             {
                 var random                     = rng.GetSequence(entityInQueryIndex);

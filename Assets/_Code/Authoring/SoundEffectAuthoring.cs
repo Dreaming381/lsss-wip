@@ -15,17 +15,9 @@ namespace Lsss.Authoring
     [DisallowMultipleComponent]
     [RequireComponent(typeof(AudioSourceAuthoring))]
     [AddComponentMenu("LSSS/Behaviors/Sound Effect")]
-    public class SoundEffectAuthoring : MonoBehaviour, IDeclareReferencedPrefabs
+    public class SoundEffectAuthoring : MonoBehaviour
     {
         public SfxrParams effectSettings;
-
-        public void DeclareReferencedPrefabs(List<GameObject> referencedPrefabs)
-        {
-            var audioSource       = GetComponent<AudioSourceAuthoring>();
-            audioSource.clip      = SfxrPlayer.GetClip(effectSettings);
-            audioSource.clip.name = gameObject.name;
-            //DestroyImmediate(this, );
-        }
     }
 
     [TemporaryBakingType]
@@ -70,7 +62,7 @@ namespace Lsss.Authoring
             new Job().ScheduleParallel();
         }
 
-        [WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)]
+        [WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)]
         [BurstCompile]
         partial struct Job : IJobEntity
         {
@@ -814,8 +806,8 @@ namespace Lsss.Authoring
             // Todo: Make this work in IJobEntity
             state.CompleteDependency();
             foreach ((var source, var blob) in SystemAPI.Query<RefRW<AudioSourceOneShot>,
-                                                               RefRO<SoundEffectBlob> >().WithEntityQueryOptions(EntityQueryOptions.IncludePrefab |
-                                                                                                                 EntityQueryOptions.IncludeDisabledEntities))
+                                                               RefRO<SoundEffectBlob> >().WithOptions(EntityQueryOptions.IncludePrefab |
+                                                                                                      EntityQueryOptions.IncludeDisabledEntities))
             {
                 source.ValueRW.clip = blob.ValueRO.blobHandle.Resolve(state.EntityManager);
             }

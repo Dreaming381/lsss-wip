@@ -202,7 +202,7 @@ namespace Lsss
             public NativeArray<ColliderBody> bodies;
             public NativeArray<Aabb>         aabbs;
 
-            public void Execute(Entity e, [EntityInQueryIndex] int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw)
+            public void Execute(Entity e, [EntityIndexInQuery] int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw)
             {
                 var transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position);
                 var sphere    = new SphereCollider(0f, radar.distance);

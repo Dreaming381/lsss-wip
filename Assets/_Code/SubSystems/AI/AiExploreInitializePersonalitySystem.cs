@@ -42,7 +42,7 @@ namespace Lsss
             float arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             new Job { rng     = rng, arenaRadius = arenaRadius }.ScheduleParallel(m_query);
 
-            ecb.RemoveComponentForEntityQuery<AiExplorePersonalityInitializerValues>(m_query);
+            ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query);
         }
 
         [BurstCompile]
@@ -56,7 +56,7 @@ namespace Lsss
             public Rng   rng;
             public float arenaRadius;
 
-            public void Execute([EntityInQueryIndex] int entityInQueryIndex,
+            public void Execute([EntityIndexInQuery] int entityInQueryIndex,
                                 ref AiExplorePersonality personality,
                                 ref AiExploreState state,
                                 in AiExplorePersonalityInitializerValues initalizer,

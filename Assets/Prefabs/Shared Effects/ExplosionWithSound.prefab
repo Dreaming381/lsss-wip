@@ -274,7 +274,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: ExplosionWithSound
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 2409522577463622265, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 490418143948199418, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}

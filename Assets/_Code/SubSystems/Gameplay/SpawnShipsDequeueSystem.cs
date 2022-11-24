@@ -89,7 +89,7 @@ namespace Lsss
             public InstantiateCommandBuffer<Parent>  icb;
             public ComponentLookup<NextSpawnCounter> nscLookup;
 
-            public void Execute(Entity entity, [EntityInQueryIndex] int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref Rotation rotation,
+            public void Execute(Entity entity, [EntityIndexInQuery] int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref Rotation rotation,
                                 in SpawnPoint spawnData, in SafeToSpawn safe)
             {
                 if (useBeforeIndex && entityInQueryIndex < initialIndex)

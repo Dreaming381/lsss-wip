@@ -52,7 +52,7 @@ namespace Lsss
             public float arenaRadius;
             public Rng   rng;
 
-            public void Execute([EntityInQueryIndex] int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
+            public void Execute([EntityIndexInQuery] int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
                                 in Translation translation)
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)

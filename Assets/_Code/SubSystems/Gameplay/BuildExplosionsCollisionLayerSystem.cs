@@ -58,7 +58,7 @@ namespace Lsss
             public NativeArray<ColliderBody> bodies;
 
             public void Execute(Entity entity,
-                                [EntityInQueryIndex] int entityInQueryIndex,
+                                [EntityIndexInQuery] int entityInQueryIndex,
                                 in Translation translation,
                                 in Scale scale)
             {
