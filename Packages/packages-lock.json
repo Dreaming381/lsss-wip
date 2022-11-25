@@ -7,7 +7,7 @@
       "dependencies": {
         "com.unity.entities": "1.0.0-pre.15",
         "com.unity.audio.dspgraph": "0.1.0-preview.22",
-        "com.unity.entities.graphics": "1.0.0-exp.14"
+        "com.unity.entities.graphics": "1.0.0-pre.15"
       }
     },
     "com.unity.ai.navigation": {
@@ -82,11 +82,12 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.entities.graphics": {
-      "version": "1.0.0-exp.14",
-      "depth": 0,
+      "version": "1.0.0-pre.15",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
-        "com.unity.entities": "1.0.0-exp.12",
+        "com.unity.entities": "1.0.0-pre.15",
+        "com.unity.modules.particlesystem": "1.0.0",
         "com.unity.render-pipelines.core": "14.0.3"
       },
       "url": "https://packages.unity.com"

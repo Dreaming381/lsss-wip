@@ -47,8 +47,8 @@ namespace Lsss
                 playerFound = true;
 
                 healthValue = health.health;
-                SetComponent(wbe,
-                             new CachedShipBaseHealth { health = baseHealth.baseHealth });
+                SystemAPI.SetComponent(wbe,
+                                       new CachedShipBaseHealth { health = baseHealth.baseHealth });
 
                 m_bulletCountBuilder.Clear();
                 m_bulletCountBuilder.Append(bullets.bulletsRemaining);

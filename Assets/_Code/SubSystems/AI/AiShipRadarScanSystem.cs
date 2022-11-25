@@ -170,7 +170,7 @@ namespace Lsss
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var dst = chunk.GetNativeArray(scanResultsHandle);
+                var dst = chunk.GetNativeArray(ref scanResultsHandle);
                 var src = array.GetSubArray(indicesOfFirstEntitiesInChunk[unfilteredChunkIndex], chunk.Count);
                 dst.CopyFrom(src);
             }

@@ -81,11 +81,11 @@ namespace Latios.Systems
             {
                 Assert.IsFalse(useEnabledMask);
 
-                if (chunk.DidChange(ParentTypeHandle, LastSystemVersion) ||
-                    chunk.DidChange(PreviousParentTypeHandle, LastSystemVersion))
+                if (chunk.DidChange(ref ParentTypeHandle, LastSystemVersion) ||
+                    chunk.DidChange(ref PreviousParentTypeHandle, LastSystemVersion))
                 {
-                    var chunkPreviousParents = chunk.GetNativeArray(PreviousParentTypeHandle);
-                    var chunkParents         = chunk.GetNativeArray(ParentTypeHandle);
+                    var chunkPreviousParents = chunk.GetNativeArray(ref PreviousParentTypeHandle);
+                    var chunkParents         = chunk.GetNativeArray(ref ParentTypeHandle);
                     var chunkEntities        = chunk.GetNativeArray(EntityTypeHandle);
 
                     for (int j = 0, chunkEntityCount = chunk.Count; j < chunkEntityCount; j++)

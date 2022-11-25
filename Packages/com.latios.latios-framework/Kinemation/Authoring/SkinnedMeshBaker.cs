@@ -209,12 +209,6 @@ namespace Latios.Kinemation.Authoring
 #pragma warning disable CS0162
         private static void AddRendererComponents<T>(Entity entity, Baker<T> baker, in RenderMeshDescription renderMeshDescription, RenderMesh renderMesh) where T : Component
         {
-#if UNITY_EDITOR
-            // Skip the validation check in the player to minimize overhead.
-            if (!RenderMeshUtility.ValidateMesh(renderMesh))
-                return;
-#endif
-
             // Entities with Static are never rendered with motion vectors
             bool inMotionPass = RenderMeshUtility.kUseHybridMotionPass &&
                                 renderMeshDescription.FilterSettings.IsInMotionPass &&
