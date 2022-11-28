@@ -1,21 +1,19 @@
 ﻿using Latios;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     [BurstCompile]
     public partial struct AiSearchAndDestroyInitializePersonalitySystem : ISystem, ISystemNewScene
     {
-        struct AiRng : IComponentData
-        {
-            public Rng rng;
-        }
-
         EntityQuery m_query;
 
         LatiosWorldUnmanaged latiosWorld;
@@ -23,24 +21,22 @@ namespace Lsss
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_query = SystemAPI.QueryBuilder().WithAllRW<AiSearchAndDestroyPersonality>().WithAll<AiSearchAndDestroyPersonalityInitializerValues, AiTag>().Build();
+            m_query = QueryBuilder().WithAllRW<AiSearchAndDestroyPersonality>().WithAll<AiSearchAndDestroyPersonalityInitializerValues, AiTag>().Build();
 
             latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddComponentData(new AiRng {
-            rng = new Rng("AiSearchAndDestroyInitializePersonalitySystem")
-        });
+        public void OnNewScene(ref SystemState state) => state.EntityManager.AddComponentData(state.SystemHandle, new SystemRng("AiSearchAndDestroyInitializePersonalitySystem"));
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var rng                                                            = latiosWorld.sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
-            latiosWorld.sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
-
             var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
 
-            new Job { rng = rng }.ScheduleParallel(m_query);
+            new Job
+            {
+                rng = GetComponentRW<SystemRng>(state.SystemHandle).ValueRW.Shuffle(),
+            }.ScheduleParallel(m_query);
 
             ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
         }
@@ -51,15 +47,23 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
         {
-            public Rng rng;
+            public SystemRng rng;
 
-            public void Execute([EntityIndexInQuery] int entityInQueryIndex, ref AiSearchAndDestroyPersonality personality,
-                                in AiSearchAndDestroyPersonalityInitializerValues initalizer)
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var random                     = rng.GetSequence(entityInQueryIndex);
-                personality.targetLeadDistance = random.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
+                rng.BeginChunk(unfilteredChunkIndex);
+                return true;
+            }
+
+            public void Execute(ref AiSearchAndDestroyPersonality personality, in AiSearchAndDestroyPersonalityInitializerValues initalizer)
+            {
+                personality.targetLeadDistance = rng.NextFloat(initalizer.targetLeadDistanceMinMax.x, initalizer.targetLeadDistanceMinMax.y);
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
     }

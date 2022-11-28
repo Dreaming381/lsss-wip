@@ -37,7 +37,7 @@ namespace Latios.Kinemation.Systems
 
         protected override void OnCreate()
         {
-            m_metaQuery = Fluent.WithAll<EntitiesGraphicsChunkInfo>(false).WithAll<ChunkHeader>(true).Build();
+            m_metaQuery = Fluent.WithAll<EntitiesGraphicsChunkInfo>(false).WithAll<ChunkHeader>(true).WithAll<ChunkPerCameraCullingMask>(true).Build();
 
             m_persistentInstanceDataSize = kGPUBufferSizeInitial;
 

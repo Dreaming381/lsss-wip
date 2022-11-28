@@ -1,10 +1,13 @@
 ﻿using Latios;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
+
+using static Unity.Entities.SystemAPI;
 
 namespace Lsss
 {
@@ -12,17 +15,9 @@ namespace Lsss
     [RequireMatchingQueriesForUpdate]
     public partial struct AiExploreSystem : ISystem, ISystemNewScene
     {
-        struct AiRng : IComponentData
-        {
-            public Rng rng;
-        }
-
         LatiosWorldUnmanaged latiosWorld;
 
-        public void OnNewScene(ref SystemState state)
-        {
-            latiosWorld.sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreSystem") });
-        }
+        public void OnNewScene(ref SystemState state) => state.EntityManager.AddComponentData(state.SystemHandle, new SystemRng("AiExploreSystem"));
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -36,28 +31,30 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var rng                                                            = latiosWorld.sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
-            latiosWorld.sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
             new Job
             {
                 arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius,
-                rng         = rng
+                rng         = GetComponentRW<SystemRng>(state.SystemHandle).ValueRW.Shuffle(),
             }.ScheduleParallel();
         }
 
         [BurstCompile]
         [WithAll(typeof(AiTag))]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
         {
-            public float arenaRadius;
-            public Rng   rng;
+            public float     arenaRadius;
+            public SystemRng rng;
 
-            public void Execute([EntityIndexInQuery] int entityInQueryIndex, ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality,
-                                in Translation translation)
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                rng.BeginChunk(unfilteredChunkIndex);
+                return true;
+            }
+
+            public void Execute(ref AiExploreOutput output, ref AiExploreState state, in AiExplorePersonality personality, in Translation translation)
             {
                 if (math.distancesq(translation.Value, state.wanderPosition) < personality.wanderDestinationRadius * personality.wanderDestinationRadius)
                 {
-                    var   random         = rng.GetSequence(entityInQueryIndex);
                     float maxValidRadius = math.min(personality.wanderPositionSearchRadius, arenaRadius - math.length(translation.Value));
                     if (maxValidRadius < personality.wanderDestinationRadius)
                     {
@@ -66,12 +63,16 @@ namespace Lsss
                     }
                     else
                     {
-                        float radius         = random.NextFloat(0f, maxValidRadius);
-                        state.wanderPosition = random.NextFloat3Direction() * radius + translation.Value;
+                        float radius         = rng.NextFloat(0f, maxValidRadius);
+                        state.wanderPosition = rng.NextFloat3Direction() * radius + translation.Value;
                     }
                 }
                 output.wanderPosition      = state.wanderPosition;
                 output.wanderPositionValid = true;
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
     }

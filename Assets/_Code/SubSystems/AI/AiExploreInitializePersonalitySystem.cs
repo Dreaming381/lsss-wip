@@ -1,10 +1,13 @@
 ﻿using Latios;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
+
+using static Unity.Entities.SystemAPI;
 
 namespace Lsss
 {
@@ -12,11 +15,6 @@ namespace Lsss
     [BurstCompile]
     public partial struct AiExploreInitializePersonalitySystem : ISystem, ISystemNewScene
     {
-        struct AiRng : IComponentData
-        {
-            public Rng rng;
-        }
-
         EntityQuery m_query;
 
         LatiosWorldUnmanaged latiosWorld;
@@ -26,21 +24,22 @@ namespace Lsss
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
             m_query     =
-                SystemAPI.QueryBuilder().WithAllRW<AiExplorePersonality, AiExploreState>().WithAll<AiExplorePersonalityInitializerValues, Translation, Rotation, AiTag>().Build();
+                QueryBuilder().WithAllRW<AiExplorePersonality, AiExploreState>().WithAll<AiExplorePersonalityInitializerValues, Translation, Rotation, AiTag>().Build();
         }
 
-        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddComponentData(new AiRng { rng = new Rng("AiExploreInitializePersonalitySystem") });
+        public void OnNewScene(ref SystemState state) => state.EntityManager.AddComponentData(state.SystemHandle, new SystemRng("AiExploreInitializePersonalitySystem"));
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var rng                                                            = latiosWorld.sceneBlackboardEntity.GetComponentData<AiRng>().rng.Shuffle();
-            latiosWorld.sceneBlackboardEntity.SetComponentData(new AiRng { rng = rng });
-
             var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
 
             float arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
-            new Job { rng     = rng, arenaRadius = arenaRadius }.ScheduleParallel(m_query);
+            new Job
+            {
+                rng         = GetComponentRW<SystemRng>(state.SystemHandle).ValueRW.Shuffle(),
+                arenaRadius = arenaRadius
+            }.ScheduleParallel(m_query);
 
             ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query);
         }
@@ -51,26 +50,34 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
         {
-            public Rng   rng;
-            public float arenaRadius;
+            public SystemRng rng;
+            public float     arenaRadius;
 
-            public void Execute([EntityIndexInQuery] int entityInQueryIndex,
-                                ref AiExplorePersonality personality,
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                rng.BeginChunk(unfilteredChunkIndex);
+                return true;
+            }
+
+            public void Execute(ref AiExplorePersonality personality,
                                 ref AiExploreState state,
                                 in AiExplorePersonalityInitializerValues initalizer,
                                 in Translation trans,
                                 in Rotation rot)
             {
-                var random                             = rng.GetSequence(entityInQueryIndex);
-                personality.spawnForwardDistance       = random.NextFloat(initalizer.spawnForwardDistanceMinMax.x, initalizer.spawnForwardDistanceMinMax.y);
-                personality.wanderDestinationRadius    = random.NextFloat(initalizer.wanderDestinationRadiusMinMax.x, initalizer.wanderDestinationRadiusMinMax.y);
-                personality.wanderPositionSearchRadius = random.NextFloat(initalizer.wanderPositionSearchRadiusMinMax.x, initalizer.wanderPositionSearchRadiusMinMax.y);
+                personality.spawnForwardDistance       = rng.NextFloat(initalizer.spawnForwardDistanceMinMax.x, initalizer.spawnForwardDistanceMinMax.y);
+                personality.wanderDestinationRadius    = rng.NextFloat(initalizer.wanderDestinationRadiusMinMax.x, initalizer.wanderDestinationRadiusMinMax.y);
+                personality.wanderPositionSearchRadius = rng.NextFloat(initalizer.wanderPositionSearchRadiusMinMax.x, initalizer.wanderPositionSearchRadiusMinMax.y);
 
                 var targetPosition   = math.forward(rot.Value) * (personality.spawnForwardDistance + personality.wanderDestinationRadius) + trans.Value;
                 var radius           = math.length(targetPosition);
                 state.wanderPosition = math.select(targetPosition, targetPosition * arenaRadius / radius, radius > arenaRadius);
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
     }
