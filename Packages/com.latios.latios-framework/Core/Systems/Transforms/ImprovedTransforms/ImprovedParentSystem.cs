@@ -363,6 +363,24 @@ namespace Latios.Systems
             //var fixupChangedChildrenJobHandle = fixupChangedChildrenJob.Schedule();
             //fixupChangedChildrenJobHandle.Complete();
             fixupChangedChildrenJob.Execute();
+
+            // 8. Remove empty Child[] buffer from now-childless parents
+            var parents      = uniqueParents.GetKeyArray(Allocator.Temp);
+            var emptyParents = new NativeList<Entity>(128, Allocator.Temp);
+            foreach (var parentEntity in parents)
+            {
+                var children = state.EntityManager.GetBuffer<Child>(parentEntity);
+                if (children.Length == 0)
+                {
+                    //var componentsToRemove = new ComponentTypeSet(ComponentType.ReadWrite<Child>());
+                    //state.EntityManager.RemoveComponent(parentEntity, componentsToRemove);
+                    emptyParents.Add(parentEntity);
+                }
+            }
+            if (!emptyParents.IsEmpty)
+            {
+                state.EntityManager.RemoveComponent<Child>(emptyParents.AsArray());
+            }
         }
 
         [BurstCompile]
@@ -382,7 +400,7 @@ namespace Latios.Systems
                     for (int j = 0; j < childEntitiesSource.Length; j++)
                     {
                         var childEntity = childEntitiesSource[j].Value;
-                        if (ParentFromEntity.HasComponent(childEntity) && ParentFromEntity[childEntity].Value == parentEntity)
+                        if (ParentFromEntity.TryGetComponent(childEntity, out var parent) && parent.Value == parentEntity)
                         {
                             Children.Add(childEntitiesSource[j].Value);
                         }
