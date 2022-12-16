@@ -54,6 +54,12 @@ namespace Latios.Transforms
         public Entity previousParent;
     }
 
+    [InternalBufferCapacity(0)]
+    public struct Child : ICleanupBufferElementData
+    {
+        public EntityWith<Parent> child;
+    }
+
     // Optional matrix that is applied after computing the final WorldTransform
     public struct PostProcessMatrix : IComponentData
     {
