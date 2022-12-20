@@ -24,7 +24,7 @@ namespace Lsss
 
         protected override void OnCreate()
         {
-            m_shipsQuery                                                             = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>(true).IncludeDisabled().Build();
+            m_shipsQuery                                                             = Fluent.WithAll<ShipTag>(true).WithAll<FactionMember>(true).IncludeDisabledEntities().Build();
             worldBlackboardEntity.AddComponentData(new CachedShipBaseHealth { health = 0f });
         }
 

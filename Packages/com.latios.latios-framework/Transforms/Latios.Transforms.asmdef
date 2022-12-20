@@ -7,7 +7,8 @@
         "Unity.Burst",
         "Unity.Collections",
         "Unity.Jobs",
-        "Latios.Core"
+        "Latios.Core",
+        "Unity.Entities.Hybrid"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -31,17 +31,17 @@ namespace Latios.Transforms
     }
 
     // Local space transform relative to the parent, only valid if parent exists
-    public struct LocalToParentTransform : IComponentData
+    public struct LocalTransform : IComponentData
     {
         // Stretch comes from the WorldTransform and is not duplicated here so-as to improve chunk occupancy
-        public TransformQvs localToParentTransform;
+        public TransformQvs localTransform;
 
-        public float3 position => localToParentTransform.position;
-        public quaternion rotation => localToParentTransform.rotation;
-        public float scale => localToParentTransform.scale;
+        public float3 position => localTransform.position;
+        public quaternion rotation => localTransform.rotation;
+        public float scale => localTransform.scale;
     }
 
-    // Can replace LocalToParentTransform and ParentToWorldTransform to improve chunk occupancy if the entity copies the parent's transform exactly
+    // Can replace LocalTransform and ParentToWorldTransform to improve chunk occupancy if the entity copies the parent's transform exactly
     public struct IdentityLocalToParentTransformTag : IComponentData { }
 
     public struct Parent : IComponentData

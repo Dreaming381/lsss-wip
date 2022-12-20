@@ -13,6 +13,7 @@ using static Unity.Entities.SystemAPI;
 
 namespace Latios.Transforms
 {
+    [DisableAutoCreation]
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
     public partial struct ParentChangeSystem : ISystem
@@ -32,8 +33,8 @@ namespace Latios.Transforms
             m_deadChildrenQuery           = QueryBuilder().WithAll<PreviousParent>().WithNone<Parent>().Build();
             m_allChildrenQuery            = QueryBuilder().WithAny<Parent>().WithAnyRW<PreviousParent>().Build();
             m_deadChildrenQuery           = QueryBuilder().WithAll<Child>().WithNone<WorldTransform>().Build();
-            m_identityCorrectionQuery     = QueryBuilder().WithAll<IdentityLocalToParentTransformTag>().WithAny<LocalToParentTransform, ParentToWorldTransform>().Build();
-            m_parentlessCorrectionQuery   = QueryBuilder().WithNone<Parent, PreviousParent>().WithAny<LocalToParentTransform, ParentToWorldTransform,
+            m_identityCorrectionQuery     = QueryBuilder().WithAll<IdentityLocalToParentTransformTag>().WithAny<LocalTransform, ParentToWorldTransform>().Build();
+            m_parentlessCorrectionQuery   = QueryBuilder().WithNone<Parent, PreviousParent>().WithAny<LocalTransform, ParentToWorldTransform,
                                                                                                       IdentityLocalToParentTransformTag>().Build();
         }
 
@@ -64,7 +65,7 @@ namespace Latios.Transforms
             state.Dependency = new FindChildrenWithChangesJob
             {
                 entityHandle                       = GetEntityTypeHandle(),
-                localTransformHandle               = GetComponentTypeHandle<LocalToParentTransform>(true),
+                localTransformHandle               = GetComponentTypeHandle<LocalTransform>(true),
                 parentHandle                       = GetComponentTypeHandle<Parent>(true),
                 previousParentHandle               = GetComponentTypeHandle<PreviousParent>(false),
                 childLookup                        = GetBufferLookup<Child>(true),
@@ -106,17 +107,17 @@ namespace Latios.Transforms
             state.CompleteDependency();
 
             state.EntityManager.RemoveComponent(m_deadChildrenQuery, new ComponentTypeSet(ComponentType.ReadWrite<PreviousParent>(),
-                                                                                          ComponentType.ReadWrite<LocalToParentTransform>(),
+                                                                                          ComponentType.ReadWrite<LocalTransform>(),
                                                                                           ComponentType.ReadWrite<ParentToWorldTransform>(),
                                                                                           ComponentType.ReadWrite<IdentityLocalToParentTransformTag>()));
             state.EntityManager.AddComponent(                m_newChildrenNotIdentityQuery, new ComponentTypeSet(ComponentType.ReadWrite<PreviousParent>(),
-                                                                                                                 ComponentType.ReadWrite<LocalToParentTransform>(),
+                                                                                                                 ComponentType.ReadWrite<LocalTransform>(),
                                                                                                                  ComponentType.ReadWrite<ParentToWorldTransform>()));
             state.EntityManager.AddComponent<PreviousParent>(m_newChildrenIdentityQuery);
-            state.EntityManager.RemoveComponent(m_parentlessCorrectionQuery, new ComponentTypeSet(ComponentType.ReadWrite<LocalToParentTransform>(),
+            state.EntityManager.RemoveComponent(m_parentlessCorrectionQuery, new ComponentTypeSet(ComponentType.ReadWrite<LocalTransform>(),
                                                                                                   ComponentType.ReadWrite<ParentToWorldTransform>(),
                                                                                                   ComponentType.ReadWrite<IdentityLocalToParentTransformTag>()));
-            state.EntityManager.RemoveComponent(m_identityCorrectionQuery,   new ComponentTypeSet(ComponentType.ReadWrite<LocalToParentTransform>(),
+            state.EntityManager.RemoveComponent(m_identityCorrectionQuery,   new ComponentTypeSet(ComponentType.ReadWrite<LocalTransform>(),
                                                                                                   ComponentType.ReadWrite<ParentToWorldTransform>()));
 
             parentsWithoutChildBufferJH.Complete();
@@ -125,7 +126,7 @@ namespace Latios.Transforms
             childrenWithNullParentsJH.Complete();
             state.EntityManager.RemoveComponent(childrenWithNullParentsList.AsArray(), new ComponentTypeSet(ComponentType.ReadWrite<Parent>(),
                                                                                                             ComponentType.ReadWrite<PreviousParent>(),
-                                                                                                            ComponentType.ReadWrite<LocalToParentTransform>(),
+                                                                                                            ComponentType.ReadWrite<LocalTransform>(),
                                                                                                             ComponentType.ReadWrite<ParentToWorldTransform>(),
                                                                                                             ComponentType.ReadWrite<IdentityLocalToParentTransformTag>()));
             sortChangeOpsJH.Complete();
@@ -141,7 +142,7 @@ namespace Latios.Transforms
             state.Dependency = new UpdateNewPreviousParentsJob
             {
                 entities             = newChildrenList.AsArray(),
-                localTransformLookup = GetComponentLookup<LocalToParentTransform>(false),
+                localTransformLookup = GetComponentLookup<LocalTransform>(false),
                 parentLookup         = GetComponentLookup<Parent>(true),
                 previousLookup       = GetComponentLookup<PreviousParent>(false)
             }.ScheduleParallel(newChildrenList.Length, 32, state.Dependency);
@@ -200,10 +201,10 @@ namespace Latios.Transforms
         [BurstCompile]
         struct FindChildrenWithChangesJob : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle                            entityHandle;
-            [ReadOnly] public ComponentTypeHandle<LocalToParentTransform> localTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<Parent>                 parentHandle;
-            public ComponentTypeHandle<PreviousParent>                    previousParentHandle;
+            [ReadOnly] public EntityTypeHandle                    entityHandle;
+            [ReadOnly] public ComponentTypeHandle<LocalTransform> localTransformHandle;
+            [ReadOnly] public ComponentTypeHandle<Parent>         parentHandle;
+            public ComponentTypeHandle<PreviousParent>            previousParentHandle;
 
             [ReadOnly] public BufferLookup<Child>             childLookup;
             [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
@@ -460,10 +461,10 @@ namespace Latios.Transforms
         [BurstCompile]
         struct UpdateNewPreviousParentsJob : IJobFor
         {
-            [ReadOnly] public NativeArray<Entity>                                                entities;
-            [ReadOnly] public ComponentLookup<Parent>                                            parentLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<PreviousParent>         previousLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<LocalToParentTransform> localTransformLookup;
+            [ReadOnly] public NativeArray<Entity>                                        entities;
+            [ReadOnly] public ComponentLookup<Parent>                                    parentLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<PreviousParent> previousLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<LocalTransform> localTransformLookup;
 
             public void Execute(int index)
             {
@@ -475,7 +476,7 @@ namespace Latios.Transforms
 
                     // We need to check in case the entity has an IdentityLocalToParentTransformTag
                     if (localTransformLookup.HasComponent(entity))
-                        localTransformLookup[entity] = new LocalToParentTransform { localToParentTransform = TransformQvs.identity };
+                        localTransformLookup[entity] = new LocalTransform { localTransform = TransformQvs.identity };
                 }
 
                 previousLookup[entity] = new PreviousParent { previousParent = parentLookup[entity].parent };

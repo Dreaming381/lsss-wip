@@ -27,10 +27,10 @@ namespace Lsss
 
         public void OnCreate(ref SystemState state)
         {
-            m_oldPlayerShipQuery = state.Fluent().WithAll<ShipTag>(true).WithAll<PlayerTag>().WithAll<FactionMember>().IncludeDisabled().Build();
-            m_newPlayerShipQuery = state.Fluent().WithAll<PlayerTag>(true).WithAll<NewShipTag>(true).IncludeDisabled().Build();
-            m_oldShipQuery       = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
-            m_newAiShipQuery     = state.Fluent().WithAll<NewShipTag>(true).Without<PlayerTag>().IncludeDisabled().Build();
+            m_oldPlayerShipQuery = state.Fluent().WithAll<ShipTag>(true).WithAll<PlayerTag>().WithAll<FactionMember>().IncludeDisabledEntities().Build();
+            m_newPlayerShipQuery = state.Fluent().WithAll<PlayerTag>(true).WithAll<NewShipTag>(true).IncludeDisabledEntities().Build();
+            m_oldShipQuery       = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabledEntities().Build();
+            m_newAiShipQuery     = state.Fluent().WithAll<NewShipTag>(true).Without<PlayerTag>().IncludeDisabledEntities().Build();
 
             m_entityListCache              = new NativeList<Entity>(Allocator.Persistent);
             m_playersWithoutReinforcements = new NativeList<Entity>(Allocator.Persistent);

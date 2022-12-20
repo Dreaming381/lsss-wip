@@ -8,7 +8,7 @@ namespace Latios.Transforms
     public readonly partial struct TransformAspect : IAspect
     {
         readonly RefRW<WorldTransform>                               m_worldTransform;
-        [Optional] readonly RefRW<LocalToParentTransform>            m_localTransform;
+        [Optional] readonly RefRW<LocalTransform>                    m_localTransform;
         [Optional] readonly RefRO<ParentToWorldTransform>            m_parentToWorldTransform;
         [Optional] readonly RefRO<IdentityLocalToParentTransformTag> m_identityLocalToParentTransformTag;
 
@@ -28,7 +28,7 @@ namespace Latios.Transforms
 
                 m_worldTransform.ValueRW.worldTransform.position = value;
                 if (hasMutableLocalToParent)
-                    m_localTransform.ValueRW.localToParentTransform.position = qvvs.InverseTransformPoint(in parentToWorldInternal, value);
+                    m_localTransform.ValueRW.localTransform.position = qvvs.InverseTransformPoint(in parentToWorldInternal, value);
             }
         }
 
@@ -47,7 +47,7 @@ namespace Latios.Transforms
 
                 m_worldTransform.ValueRW.worldTransform.rotation = value;
                 if (hasMutableLocalToParent)
-                    m_localTransform.ValueRW.localToParentTransform.rotation = math.InverseRotateFast(parentToWorldInternal.rotation, value);
+                    m_localTransform.ValueRW.localTransform.rotation = math.InverseRotateFast(parentToWorldInternal.rotation, value);
             }
         }
 
@@ -66,7 +66,7 @@ namespace Latios.Transforms
 
                 m_worldTransform.ValueRW.worldTransform.scale = value;
                 if (hasMutableLocalToParent)
-                    m_localTransform.ValueRW.localToParentTransform.scale = value / parentToWorldInternal.scale;
+                    m_localTransform.ValueRW.localTransform.scale = value / parentToWorldInternal.scale;
             }
         }
 
@@ -84,8 +84,8 @@ namespace Latios.Transforms
             {
                 if (hasMutableLocalToParent)
                 {
-                    m_localTransform.ValueRW.localToParentTransform.position = value;
-                    m_worldTransform.ValueRW.worldTransform.position         = qvvs.TransformPoint(in parentToWorldInternal, value);
+                    m_localTransform.ValueRW.localTransform.position = value;
+                    m_worldTransform.ValueRW.worldTransform.position = qvvs.TransformPoint(in parentToWorldInternal, value);
                 }
                 else if (Hint.Unlikely(hasIdentityLocalToParent))
                     ThrowOnWriteToIdenityLocalToParent();
@@ -108,8 +108,8 @@ namespace Latios.Transforms
             {
                 if (hasMutableLocalToParent)
                 {
-                    m_localTransform.ValueRW.localToParentTransform.rotation = value;
-                    m_worldTransform.ValueRW.worldTransform.rotation         = math.mul(parentToWorldInternal.rotation, value);
+                    m_localTransform.ValueRW.localTransform.rotation = value;
+                    m_worldTransform.ValueRW.worldTransform.rotation = math.mul(parentToWorldInternal.rotation, value);
                 }
                 else if (Hint.Unlikely(hasIdentityLocalToParent))
                     ThrowOnWriteToIdenityLocalToParent();
@@ -132,8 +132,8 @@ namespace Latios.Transforms
             {
                 if (hasMutableLocalToParent)
                 {
-                    m_localTransform.ValueRW.localToParentTransform.scale = value;
-                    m_worldTransform.ValueRW.worldTransform.scale         = parentToWorldInternal.scale * value;
+                    m_localTransform.ValueRW.localTransform.scale = value;
+                    m_worldTransform.ValueRW.worldTransform.scale = parentToWorldInternal.scale * value;
                 }
                 else if (Hint.Unlikely(hasIdentityLocalToParent))
                     ThrowOnWriteToIdenityLocalToParent();
@@ -174,7 +174,7 @@ namespace Latios.Transforms
             {
                 m_worldTransform.ValueRW.worldTransform = value;
                 if (hasMutableLocalToParent)
-                    m_localTransform.ValueRW.localToParentTransform = qvvs.inversemul(in parentToWorldInternal, value);
+                    m_localTransform.ValueRW.localTransform = qvvs.inversemul(in parentToWorldInternal, value);
             }
         }
 
@@ -187,13 +187,13 @@ namespace Latios.Transforms
         /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
         public TransformQvs localTransform
         {
-            get => hasMutableLocalToParent ? m_localTransform.ValueRO.localToParentTransform :
+            get => hasMutableLocalToParent ? m_localTransform.ValueRO.localTransform :
             hasIdentityLocalToParent ? TransformQvs.identity : QvsFromQvvs(m_worldTransform.ValueRO.worldTransform);
             set
             {
                 if (hasMutableLocalToParent)
                 {
-                    m_localTransform.ValueRW.localToParentTransform = value;
+                    m_localTransform.ValueRW.localTransform = value;
                     qvvs.mul(ref m_worldTransform.ValueRW.worldTransform, in parentToWorldInternal, value);
                 }
                 else if (Hint.Unlikely(hasIdentityLocalToParent))
@@ -320,35 +320,35 @@ namespace Latios.Transforms
         /// Stretch is included.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
-        public float3x4 localMatrix3x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localToParentTransform.ToMatrix3x4(stretch) :
+        public float3x4 localMatrix3x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToMatrix3x4(stretch) :
             hasIdentityLocalToParent ? float3x4.identity : worldMatrix3x4;
         /// <summary>
         /// The matrix that represent's the entity's local transform relative to its parent, or relative to the world if it does not have a parent.
         /// Stretch is included.
         /// </summary>
-        public float4x4 localMatrix4x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localToParentTransform.ToMatrix4x4(stretch) :
+        public float4x4 localMatrix4x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToMatrix4x4(stretch) :
             hasIdentityLocalToParent ? float4x4.identity : worldMatrix4x4;
         /// <summary>
         /// The inverse of localMatrix3x4, computed directly from the QVS or QVVS data. Stretch is included.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
-        public float3x4 inverseLocalMatrix3x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localToParentTransform.ToInverseMatrix3x4(stretch) :
+        public float3x4 inverseLocalMatrix3x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix3x4(stretch) :
             hasIdentityLocalToParent ? float3x4.identity : inverseWorldMatrix3x4;
         /// <summary>
         /// The inverse of localMatrix4x4, computed directly from the QVS or QVVS data. Stretch is included.
         /// </summary>
-        public float4x4 inverseLocalMatrix4x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localToParentTransform.ToInverseMatrix4x4(stretch) :
+        public float4x4 inverseLocalMatrix4x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix4x4(stretch) :
             hasIdentityLocalToParent ? float4x4.identity : inverseWorldMatrix4x4;
         /// <summary>
         /// The inverse of localMatrix3x4, computed directly from the QVS or QVVS data, except stretch is ignored.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
-        public float3x4 inverseLocalMatrix3x4IgnoreStretch => hasMutableLocalToParent? m_localTransform.ValueRO.localToParentTransform.ToInverseMatrix3x4() :
+        public float3x4 inverseLocalMatrix3x4IgnoreStretch => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix3x4() :
             hasIdentityLocalToParent ? float3x4.identity : inverseWorldMatrix3x4IgnoreStretch;
         /// <summary>
         /// The inverse of localMatrix4x4, computed directly from the QVS or QVVS data, except stretch is ignored.
         /// </summary>
-        public float4x4 inverseLocalMatrix4x4IgnoreStretch => hasMutableLocalToParent? m_localTransform.ValueRO.localToParentTransform.ToInverseMatrix4x4() :
+        public float4x4 inverseLocalMatrix4x4IgnoreStretch => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix4x4() :
             hasIdentityLocalToParent ? float4x4.identity : inverseWorldMatrix4x4IgnoreStretch;
         #endregion
 

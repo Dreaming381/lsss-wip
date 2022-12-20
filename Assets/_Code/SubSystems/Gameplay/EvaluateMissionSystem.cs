@@ -35,7 +35,7 @@ namespace Lsss
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_query = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabled().Build();
+            m_query = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().IncludeDisabledEntities().Build();
         }
 
         [BurstCompile]
