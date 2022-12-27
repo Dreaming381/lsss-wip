@@ -308,8 +308,8 @@ namespace Latios.Kinemation.Systems
 
                     int chunkStartIndex = entitiesGraphicsChunkInfo.CullingData.ChunkOffsetInBatch;
 
-                    var mask       = chunk.GetChunkComponentRefRO(in chunkPerCameraCullingMaskHandle);
-                    var splitsMask = chunk.GetChunkComponentRefRO(in chunkPerCameraCullingSplitsMaskHandle);
+                    var mask       = chunk.GetChunkComponentRefRO(ref chunkPerCameraCullingMaskHandle);
+                    var splitsMask = chunk.GetChunkComponentRefRO(ref chunkPerCameraCullingSplitsMaskHandle);
 
                     for (int j = 0; j < 2; j++)
                     {

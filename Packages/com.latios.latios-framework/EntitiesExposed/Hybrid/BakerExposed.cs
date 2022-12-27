@@ -13,11 +13,6 @@ namespace Unity.Entities.Exposed
         }
     }
 
-    public static class UnityObjectRefExtensions
-    {
-        public static int GetInstanceID<T>(this UnityObjectRef<T> objectRef) where T : UnityEngine.Object => objectRef.instanceId;
-    }
-
     /// <summary>
     /// Overrides the global list of bakers either adding new ones or replacing old ones.
     /// This is used for tests. Always make sure to dispose to revert the global state back to what it was.
@@ -29,6 +24,15 @@ namespace Unity.Entities.Exposed
         public OverrideBakers(bool replaceExistingBakers, params Type[] bakerTypes)
         {
             m_override = new BakerDataUtility.OverrideBakers(replaceExistingBakers, bakerTypes);
+            // Sort the bakers so that the bakers for base authoring components are evaluated before bakers for derived types.
+            // This guarantees that the type hierarchy chain authoring components is respected, regardless of the order in which
+            // the bakers are defined in code.
+            var fieldInfo = typeof(BakerDataUtility).GetField("_IndexToBakerInstances", BindingFlags.Static | BindingFlags.NonPublic);
+            var dict      = fieldInfo.GetValue(null) as Dictionary<TypeIndex, BakerDataUtility.BakerData[]>;
+            foreach (var bakers in dict.Values)
+            {
+                Array.Sort(bakers, (a, b) => b.CompatibleComponentCount.CompareTo(a.CompatibleComponentCount));
+            }
         }
 
         public void Dispose()

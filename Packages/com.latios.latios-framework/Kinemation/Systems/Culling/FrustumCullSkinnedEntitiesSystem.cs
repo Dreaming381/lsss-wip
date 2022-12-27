@@ -149,7 +149,7 @@ namespace Latios.Kinemation.Systems
 
             void Execute(in ArchetypeChunk chunk)
             {
-                ref var cameraMask = ref chunk.GetChunkComponentRefRW(in chunkPerCameraMaskHandle);
+                ref var cameraMask = ref chunk.GetChunkComponentRefRW(ref chunkPerCameraMaskHandle);
                 if (!chunk.Has(ref dependentHandle))
                 {
                     cameraMask = default;
@@ -207,8 +207,8 @@ namespace Latios.Kinemation.Systems
 
             void Execute(in ArchetypeChunk chunk)
             {
-                ref var cameraMask       = ref chunk.GetChunkComponentRefRW(in chunkPerCameraMaskHandle);
-                ref var cameraSplitsMask = ref chunk.GetChunkComponentRefRW(in chunkPerCameraSplitsMaskHandle);
+                ref var cameraMask       = ref chunk.GetChunkComponentRefRW(ref chunkPerCameraMaskHandle);
+                ref var cameraSplitsMask = ref chunk.GetChunkComponentRefRW(ref chunkPerCameraSplitsMaskHandle);
                 cameraSplitsMask         = default;
 
                 var rootRefs = chunk.GetNativeArray(ref dependentHandle);
@@ -250,7 +250,7 @@ namespace Latios.Kinemation.Systems
 
                 if (result)
                 {
-                    var referenceSplits = info.Chunk.GetChunkComponentRefRO(in chunkSkeletonSplitsMaskHandle);
+                    var referenceSplits = info.Chunk.GetChunkComponentRefRO(ref chunkSkeletonSplitsMaskHandle);
                     splits              = referenceSplits.ValueRO.splitMasks[info.IndexInChunk];
                 }
                 return result;

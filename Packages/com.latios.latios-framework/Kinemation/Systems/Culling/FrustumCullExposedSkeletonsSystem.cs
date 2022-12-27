@@ -334,7 +334,7 @@ namespace Latios.Kinemation.Systems
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                ref var mask = ref chunk.GetChunkComponentRefRW(in perCameraCullingMaskHandle);
+                ref var mask = ref chunk.GetChunkComponentRefRW(ref perCameraCullingMaskHandle);
                 mask         = default;
 
                 var cullingIndices = chunk.GetNativeArray(ref cullingIndexHandle);
@@ -370,8 +370,8 @@ namespace Latios.Kinemation.Systems
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                ref var mask       = ref chunk.GetChunkComponentRefRW(in perCameraCullingMaskHandle);
-                ref var splitMasks = ref chunk.GetChunkComponentRefRW(in perCameraCullingSplitsMaskHandle);
+                ref var mask       = ref chunk.GetChunkComponentRefRW(ref perCameraCullingMaskHandle);
+                ref var splitMasks = ref chunk.GetChunkComponentRefRW(ref perCameraCullingSplitsMaskHandle);
                 mask               = default;
                 splitMasks         = default;
 

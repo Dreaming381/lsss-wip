@@ -1773,7 +1773,7 @@ namespace Latios.Kinemation.Systems
 
                 bool structuralChanges = chunk.DidOrderChange(LastSystemVersion);
 
-                ref var mask = ref chunk.GetChunkComponentRefRW(in chunkMaterialPropertyDirtyMask);
+                ref var mask = ref chunk.GetChunkComponentRefRW(ref chunkMaterialPropertyDirtyMask);
 
                 fixed (DynamicComponentTypeHandle* fixedT0 = &ComponentTypes.t0)
                 {

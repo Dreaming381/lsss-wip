@@ -64,12 +64,12 @@ namespace Latios.Kinemation.Authoring
 
         public bool Equals(MeshReference other)
         {
-            return mesh.GetInstanceID().Equals(other.mesh.GetInstanceID());
+            return mesh.Equals(other.mesh);
         }
 
         public override int GetHashCode()
         {
-            return mesh.GetInstanceID();
+            return mesh.GetHashCode();
         }
     }
 }

@@ -78,7 +78,7 @@ namespace Latios.Psyshock.Authoring.Systems
 
             Entities.WithEntityQueryOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).ForEach((in ConvexColliderBlobBakeData data) =>
             {
-                mapWriter.TryAdd(data.mesh.GetInstanceID(), new UniqueItem { bakeData = data });
+                mapWriter.TryAdd(data.mesh.GetHashCode(), new UniqueItem { bakeData = data });
             }).WithStoreEntityQueryInField(ref m_query).ScheduleParallel();
 
             var meshes   = new NativeList<UnityObjectRef<Mesh> >(Allocator.TempJob);
@@ -131,15 +131,15 @@ namespace Latios.Psyshock.Authoring.Systems
             {
                 for (int i = 0; i < meshes.Length; i++)
                 {
-                    var element                        = hashmap[meshes[i].GetInstanceID()];
-                    element.blob                       = builders[i].result;
-                    hashmap[meshes[i].GetInstanceID()] = element;
+                    var element                      = hashmap[meshes[i].GetHashCode()];
+                    element.blob                     = builders[i].result;
+                    hashmap[meshes[i].GetHashCode()] = element;
                 }
             }).Schedule();
 
             Entities.ForEach((ref SmartBlobberResult result, in ConvexColliderBlobBakeData data) =>
             {
-                result.blob = UnsafeUntypedBlobAssetReference.Create(hashmap[data.mesh.GetInstanceID()].blob);
+                result.blob = UnsafeUntypedBlobAssetReference.Create(hashmap[data.mesh.GetHashCode()].blob);
             }).ScheduleParallel();
 
             Dependency = hashmap.Dispose(Dependency);

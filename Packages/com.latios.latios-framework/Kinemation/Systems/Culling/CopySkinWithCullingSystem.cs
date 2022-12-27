@@ -202,7 +202,7 @@ namespace Latios.Kinemation.Systems
                 var invertedFrameMasks         = chunk.GetChunkComponentData(ref chunkPerFrameMaskHandle);
                 invertedFrameMasks.lower.Value = ~invertedFrameMasks.lower.Value;
                 invertedFrameMasks.upper.Value = ~invertedFrameMasks.upper.Value;
-                ref var cameraMask             = ref chunk.GetChunkComponentRefRW(in chunkPerCameraMaskHandle);
+                ref var cameraMask             = ref chunk.GetChunkComponentRefRW(ref chunkPerCameraMaskHandle);
 
                 var inMask = cameraMask.lower.Value;
                 for (int i = math.tzcnt(inMask); i < 64; inMask ^= 1ul << i, i = math.tzcnt(inMask))
@@ -225,7 +225,7 @@ namespace Latios.Kinemation.Systems
 
                 if (context.linearBlendDirty || context.computeDeformDirty)
                 {
-                    ref var dirtyMask = ref chunk.GetChunkComponentRefRW(in chunkMaterialPropertyDirtyMask);
+                    ref var dirtyMask = ref chunk.GetChunkComponentRefRW(ref chunkMaterialPropertyDirtyMask);
                     if (context.linearBlendDirty)
                     {
                         dirtyMask.lower.Value |= linearBlendMaterialMaskLower;
@@ -300,8 +300,8 @@ namespace Latios.Kinemation.Systems
                 var invertedFrameMasks         = chunk.GetChunkComponentData(ref chunkPerFrameMaskHandle);
                 invertedFrameMasks.lower.Value = ~invertedFrameMasks.lower.Value;
                 invertedFrameMasks.upper.Value = ~invertedFrameMasks.upper.Value;
-                ref var cameraMask             = ref chunk.GetChunkComponentRefRW(in chunkPerCameraMaskHandle);
-                ref var cameraSplitsMask       = ref chunk.GetChunkComponentRefRW(in chunkPerCameraSplitsMaskHandle);
+                ref var cameraMask             = ref chunk.GetChunkComponentRefRW(ref chunkPerCameraMaskHandle);
+                ref var cameraSplitsMask       = ref chunk.GetChunkComponentRefRW(ref chunkPerCameraSplitsMaskHandle);
                 cameraSplitsMask               = default;
 
                 var inMask = cameraMask.lower.Value;
@@ -329,7 +329,7 @@ namespace Latios.Kinemation.Systems
 
                 if (context.linearBlendDirty || context.computeDeformDirty)
                 {
-                    ref var dirtyMask = ref chunk.GetChunkComponentRefRW(in chunkMaterialPropertyDirtyMask);
+                    ref var dirtyMask = ref chunk.GetChunkComponentRefRW(ref chunkMaterialPropertyDirtyMask);
                     if (context.linearBlendDirty)
                     {
                         dirtyMask.lower.Value |= linearBlendMaterialMaskLower;
@@ -352,7 +352,7 @@ namespace Latios.Kinemation.Systems
                     return false;
 
                 var  info          = esiLookup[reference];
-                var  referenceMask = info.Chunk.GetChunkComponentRefRO(in chunkPerCameraMaskHandle);
+                var  referenceMask = info.Chunk.GetChunkComponentRefRO(ref chunkPerCameraMaskHandle);
                 bool result;
                 if (info.IndexInChunk >= 64)
                     result = referenceMask.ValueRO.upper.IsSet(info.IndexInChunk - 64);
@@ -361,7 +361,7 @@ namespace Latios.Kinemation.Systems
 
                 if (result)
                 {
-                    var referenceSplits = info.Chunk.GetChunkComponentRefRO(in chunkPerCameraSplitsMaskHandle);
+                    var referenceSplits = info.Chunk.GetChunkComponentRefRO(ref chunkPerCameraSplitsMaskHandle);
                     splits              = referenceSplits.ValueRO.splitMasks[info.IndexInChunk];
                 }
 
