@@ -1,5 +1,7 @@
 
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 
 namespace Unity.Entities.Exposed
 {
@@ -32,6 +34,28 @@ namespace Unity.Entities.Exposed
         public void Dispose()
         {
             m_override.Dispose();
+        }
+
+        public static List<Type> GetDefaultBakerTypes()
+        {
+            var candidateBakers = new List<System.Type>();
+
+            foreach (var type in UnityEditor.TypeCache.GetTypesDerivedFrom(typeof(Baker<>)))
+            {
+                if (!type.IsAbstract && !type.IsDefined(typeof(DisableAutoCreationAttribute)))
+                {
+                    candidateBakers.Add(type);
+                }
+            }
+            foreach (var type in UnityEditor.TypeCache.GetTypesDerivedFrom(typeof(GameObjectBaker)))
+            {
+                if (!type.IsAbstract && !type.IsDefined(typeof(DisableAutoCreationAttribute)))
+                {
+                    candidateBakers.Add(type);
+                }
+            }
+
+            return candidateBakers;
         }
     }
 }

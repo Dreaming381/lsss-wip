@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
 using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
@@ -59,7 +60,8 @@ namespace Latios.Kinemation.Authoring.Systems
                 skeletonReferenceLookup         = skeletonReferenceLookup,
                 copyLocalToParentFromBoneLookup = copyLocalToParentFromBoneLookup,
                 localToParentLookup             = localToParentLookup,
-                parentLookup                    = parentLookup
+                parentLookup                    = parentLookup,
+                transformAuthoringLookup        = GetComponentLookup<TransformAuthoring>(true)
             }.ScheduleParallel();
 
             var ecbRemove                        = new EntityCommandBuffer(Allocator.TempJob);
@@ -109,7 +111,7 @@ namespace Latios.Kinemation.Authoring.Systems
 
             public void Execute()
             {
-                bonesToReChild.Capacity = boneCount.Value * 2;
+                bonesToReChild.Capacity = math.max(boneCount.Value * 2, bonesToReChild.Capacity);
             }
         }
 
@@ -126,9 +128,34 @@ namespace Latios.Kinemation.Authoring.Systems
             public ComponentTypeSet                                                                   componentTypesToAdd;
             public ComponentTypeSet                                                                   componentTypesToRemove;
 
-            public void Execute(Entity entity, [ChunkIndexInQuery] int chunkIndexInQuery, in DynamicBuffer<OptimizedSkeletonExportedBone> bones,
+            [ReadOnly] public ComponentLookup<TransformAuthoring> transformAuthoringLookup;
+
+            public void Execute(Entity entity, [ChunkIndexInQuery] int chunkIndexInQuery, ref DynamicBuffer<OptimizedSkeletonExportedBone> bones,
                                 in DynamicBuffer<OptimizedBoneToRoot> boneToRoots)
             {
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    if (bones[i].boneIndex == 0)
+                    {
+                        // If the exported bone is still parented to the root, it is not actually an exported bone.
+                        // We need to set it up like a local transform.
+                        var transformAuthoring                                                           = transformAuthoringLookup[bones[i].boneEntity];
+                        ecb.AddComponent(chunkIndexInQuery, bones[i].boneEntity, new Translation { Value = transformAuthoring.LocalPosition });
+                        ecb.AddComponent(chunkIndexInQuery, bones[i].boneEntity, new Rotation { Value    = transformAuthoring.LocalRotation });
+                        ecb.AddComponent(chunkIndexInQuery, bones[i].boneEntity, new Parent { Value      = entity });
+                        ecb.AddComponent(chunkIndexInQuery, bones[i].boneEntity, new LocalToParent {
+                            Value = float4x4.TRS(transformAuthoring.LocalPosition, transformAuthoring.LocalRotation, transformAuthoring.LocalScale)
+                        });
+                        ecb.AddComponent(chunkIndexInQuery, bones[i].boneEntity, new LocalToWorld { Value = transformAuthoring.LocalToWorld });
+
+                        if (math.any(transformAuthoring.LocalScale != new float3(1f, 1f, 1f)))
+                            ecb.AddComponent(chunkIndexInQuery, bones[i].boneEntity, new NonUniformScale { Value = transformAuthoring.LocalScale });
+
+                        bones.RemoveAt(i);
+                        i--;
+                    }
+                }
+
                 foreach (var bone in bones)
                 {
                     if (copyLocalToParentFromBoneLookup.HasComponent(bone.boneEntity))
