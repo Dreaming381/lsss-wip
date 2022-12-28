@@ -6,6 +6,148 @@ namespace Latios.Psyshock
 {
     public static partial class Physics
     {
+        public static void ScaleStretchCollider(ref Collider collider, float scale, float3 stretch)
+        {
+            switch (collider.type)
+            {
+                case ColliderType.Sphere:
+                    ScaleStretchCollider(ref collider.m_sphere,   scale, stretch);
+                    break;
+                case ColliderType.Capsule:
+                    ScaleStretchCollider(ref collider.m_capsule,  scale, stretch);
+                    break;
+                case ColliderType.Box:
+                    ScaleStretchCollider(ref collider.m_box,      scale, stretch);
+                    break;
+                case ColliderType.Triangle:
+                    ScaleStretchCollider(ref collider.m_triangle, scale, stretch);
+                    break;
+                case ColliderType.Convex:
+                    ScaleStretchCollider(ref collider.m_convex,   scale, stretch);
+                    break;
+                case ColliderType.Compound:
+                    ScaleStretchCollider(ref collider.m_compound, scale, stretch);
+                    break;
+                default:
+                    ThrowUnsupportedType();
+                    break;
+            }
+        }
+
+        public static Collider ScaleStretchCollider(Collider collider, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref collider, scale, stretch);
+            return collider;
+        }
+
+        public static void ScaleStretchCollider(ref SphereCollider sphere, float scale, float3 stretch)
+        {
+            switch (sphere.stretchMode)
+            {
+                case SphereCollider.StretchMode.StretchCenter:
+                    sphere.center *= stretch * scale;
+                    sphere.radius *= scale;
+                    break;
+                case SphereCollider.StretchMode.IgnoreStretch:
+                    sphere.radius *= scale;
+                    break;
+            }
+        }
+
+        public static SphereCollider ScaleStretchCollider(SphereCollider sphere, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref sphere, scale, stretch);
+            return sphere;
+        }
+
+        public static void ScaleStretchCollider(ref CapsuleCollider capsule, float scale, float3 stretch)
+        {
+            switch(capsule.stretchMode)
+            {
+                case CapsuleCollider.StretchMode.StretchPoints:
+                    capsule.pointA *= stretch * scale;
+                    capsule.pointB *= stretch * scale;
+                    capsule.radius *= scale;
+                    break;
+                case CapsuleCollider.StretchMode.IgnoreStretch:
+                {
+                    capsule.pointA *= scale;
+                    capsule.pointB *= scale;
+                    capsule.radius *= scale;
+                    break;
+                }
+            }
+        }
+
+        public static CapsuleCollider ScaleStretchCollider(CapsuleCollider capsule, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref capsule, scale, stretch);
+            return capsule;
+        }
+
+        public static void ScaleStretchCollider(ref BoxCollider box, float scale, float3 stretch)
+        {
+            var newPositive = (box.center + box.halfSize) * stretch * scale;
+            var newNegative = (box.center - box.halfSize) * stretch * scale;
+            box.center      = (newPositive + newNegative) / 2f;
+            box.halfSize    = math.abs(newPositive - box.center);
+        }
+
+        public static BoxCollider ScaleStretchCollider(BoxCollider box, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref box, scale, stretch);
+            return box;
+        }
+
+        public static void ScaleStretchCollider(ref TriangleCollider triangle, float scale, float3 stretch)
+        {
+            var factor       = scale * stretch;
+            triangle.pointA *= factor;
+            triangle.pointB *= factor;
+            triangle.pointC *= factor;
+        }
+
+        public static TriangleCollider ScaleStretchCollider(TriangleCollider triangle, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref triangle, scale, stretch);
+            return triangle;
+        }
+
+        public static void ScaleStretchCollider(ref ConvexCollider convex, float scale, float3 stretch)
+        {
+            convex.scale *= stretch * scale;
+        }
+
+        public static ConvexCollider ScaleStretchCollider(ConvexCollider convex, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref convex, scale, stretch);
+            return convex;
+        }
+
+        public static void ScaleStretchCollider(ref CompoundCollider compound, float scale, float3 stretch)
+        {
+            switch (compound.stretchMode)
+            {
+                case CompoundCollider.StretchMode.RotateStretchLocally:
+                    compound.scale   *= scale;
+                    compound.stretch *= stretch;
+                    break;
+                case CompoundCollider.StretchMode.IgnoreStretch:
+                    compound.scale *= scale;
+                    break;
+                case CompoundCollider.StretchMode.StretchPositionsOnly:
+                    compound.scale   *= scale;
+                    compound.stretch *= stretch;
+                    break;
+            }
+        }
+
+        public static CompoundCollider ScaleStretchCollider(CompoundCollider compound, float scale, float3 stretch)
+        {
+            ScaleStretchCollider(ref compound, scale, stretch);
+            return compound;
+        }
+
         public static Collider ScaleCollider(in Collider collider, PhysicsScale scale)
         {
             switch (collider.type)

@@ -14,13 +14,74 @@ namespace Latios.Psyshock
     [StructLayout(LayoutKind.Explicit)]
     public struct CompoundCollider
     {
+        public enum StretchMode : byte
+        {
+            RotateStretchLocally = 0,
+            IgnoreStretch = 1,
+            StretchPositionsOnly = 2
+        }
+
         [FieldOffset(0)] public BlobAssetReference<CompoundColliderBlob> compoundColliderBlob;
         [FieldOffset(8)] public float                                    scale;
+        [FieldOffset(12)] public float3                                  stretch;  // Todo: Alignment?
+        [FieldOffset(24)] public StretchMode                             stretchMode;
 
-        public CompoundCollider(BlobAssetReference<CompoundColliderBlob> compoundColliderBlob, float scale = 1f)
+        public CompoundCollider(BlobAssetReference<CompoundColliderBlob> compoundColliderBlob, float scale = 1f, StretchMode stretchMode = StretchMode.RotateStretchLocally)
         {
             this.compoundColliderBlob = compoundColliderBlob;
             this.scale                = scale;
+            this.stretch              = 1f;
+            this.stretchMode          = stretchMode;
+        }
+
+        public CompoundCollider(BlobAssetReference<CompoundColliderBlob> compoundColliderBlob,
+                                float scale,
+                                float3 stretch,
+                                StretchMode stretchMode = StretchMode.RotateStretchLocally)
+        {
+            this.compoundColliderBlob = compoundColliderBlob;
+            this.scale                = scale;
+            this.stretch              = stretch;
+            this.stretchMode          = stretchMode;
+        }
+
+        internal void GetScaledStretchedSubCollider(int index, out Collider blobCollider, out RigidTransform blobTransform)
+        {
+            ref var blob = ref compoundColliderBlob.Value;
+            switch (stretchMode)
+            {
+                case StretchMode.RotateStretchLocally:
+                {
+                    blobTransform      = blob.transforms[index];
+                    blobTransform.pos *= scale * stretch;
+                    var localStretch   = math.InverseRotateFast(blobTransform.rot, stretch);
+                    blobCollider       = blob.colliders[index];
+                    Physics.ScaleStretchCollider(ref blobCollider, scale, localStretch);
+                    break;
+                }
+                case StretchMode.IgnoreStretch:
+                {
+                    blobTransform      = blob.transforms[index];
+                    blobTransform.pos *= scale;
+                    blobCollider       = blob.colliders[index];
+                    Physics.ScaleStretchCollider(ref blobCollider, scale, 1f);
+                    break;
+                }
+                case StretchMode.StretchPositionsOnly:
+                {
+                    blobTransform      = blob.transforms[index];
+                    blobTransform.pos *= scale;
+                    blobCollider       = blob.colliders[index];
+                    Physics.ScaleStretchCollider(ref blobCollider, scale, 1f);
+                    break;
+                }
+                default:
+                {
+                    blobTransform = default;
+                    blobCollider  = default;
+                    break;
+                }
+            }
         }
     }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using Latios.Transforms;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -373,14 +374,13 @@ namespace Latios.Psyshock
             var     compoundScale = new PhysicsScale { scale = compound.scale, state = PhysicsScale.State.Uniform };
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compound.scale;
-                bool newHit        = DistanceBetween(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(compoundTransform, blobTransform),
-                                                     in sphere,
-                                                     in sphereTransform,
-                                                     math.min(result.distance, maxDistance),
-                                                     out var newResult);
+                compound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(in blobCollider,
+                                              math.mul(compoundTransform, blobTransform),
+                                              in sphere,
+                                              in sphereTransform,
+                                              math.min(result.distance, maxDistance),
+                                              out var newResult);
 
                 newResult.subColliderIndexA  = i;
                 newHit                      &= newResult.distance < result.distance;
@@ -410,14 +410,13 @@ namespace Latios.Psyshock
             var     compoundScale = new PhysicsScale { scale = compound.scale, state = PhysicsScale.State.Uniform };
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compound.scale;
-                bool newHit        = DistanceBetween(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(compoundTransform, blobTransform),
-                                                     in capsule,
-                                                     in capsuleTransform,
-                                                     math.min(result.distance, maxDistance),
-                                                     out var newResult);
+                compound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(in blobCollider,
+                                              math.mul(compoundTransform, blobTransform),
+                                              in capsule,
+                                              in capsuleTransform,
+                                              math.min(result.distance, maxDistance),
+                                              out var newResult);
 
                 newResult.subColliderIndexA  = i;
                 newHit                      &= newResult.distance < result.distance;
@@ -447,14 +446,13 @@ namespace Latios.Psyshock
             var     compoundScale = new PhysicsScale { scale = compound.scale, state = PhysicsScale.State.Uniform };
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compound.scale;
-                bool newHit        = DistanceBetween(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(compoundTransform, blobTransform),
-                                                     in box,
-                                                     in boxTransform,
-                                                     maxDistance,
-                                                     out var newResult);
+                compound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(in blobCollider,
+                                              math.mul(compoundTransform, blobTransform),
+                                              in box,
+                                              in boxTransform,
+                                              maxDistance,
+                                              out var newResult);
 
                 newResult.subColliderIndexA  = i;
                 newHit                      &= newResult.distance < result.distance;
@@ -484,14 +482,13 @@ namespace Latios.Psyshock
             var     compoundScale = new PhysicsScale { scale = compound.scale, state = PhysicsScale.State.Uniform };
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compound.scale;
-                bool newHit        = DistanceBetween(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(compoundTransform, blobTransform),
-                                                     in triangle,
-                                                     in triangleTransform,
-                                                     maxDistance,
-                                                     out var newResult);
+                compound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(in blobCollider,
+                                              math.mul(compoundTransform, blobTransform),
+                                              in triangle,
+                                              in triangleTransform,
+                                              maxDistance,
+                                              out var newResult);
 
                 newResult.subColliderIndexA  = i;
                 newHit                      &= newResult.distance < result.distance;
@@ -521,14 +518,13 @@ namespace Latios.Psyshock
             var     compoundScale = new PhysicsScale { scale = compound.scale, state = PhysicsScale.State.Uniform };
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compound.scale;
-                bool newHit        = DistanceBetween(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(compoundTransform, blobTransform),
-                                                     in convex,
-                                                     in convexTransform,
-                                                     maxDistance,
-                                                     out var newResult);
+                compound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(in blobCollider,
+                                              math.mul(compoundTransform, blobTransform),
+                                              in convex,
+                                              in convexTransform,
+                                              maxDistance,
+                                              out var newResult);
 
                 newResult.subColliderIndexA  = i;
                 newHit                      &= newResult.distance < result.distance;
@@ -551,21 +547,19 @@ namespace Latios.Psyshock
                                            float maxDistance,
                                            out ColliderDistanceResult result)
         {
-            bool hit              = false;
-            result                = default;
-            result.distance       = float.MaxValue;
-            ref var blob          = ref compoundA.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundA.scale, state = PhysicsScale.State.Uniform };
+            bool hit        = false;
+            result          = default;
+            result.distance = float.MaxValue;
+            ref var blob    = ref compoundA.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundA.scale;
-                bool newHit        = DistanceBetween(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(aTransform, blobTransform),
-                                                     in compoundB,
-                                                     in bTransform,
-                                                     math.min(result.distance, maxDistance),
-                                                     out var newResult);
+                compoundA.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(in blobCollider,
+                                              math.mul(aTransform, blobTransform),
+                                              in compoundB,
+                                              in bTransform,
+                                              math.min(result.distance, maxDistance),
+                                              out var newResult);
 
                 newResult.subColliderIndexA  = i;
                 newHit                      &= newResult.distance < result.distance;
@@ -577,30 +571,56 @@ namespace Latios.Psyshock
 
         #endregion
 
+        #region Qvvs
+        public static bool DistanceBetween(Collider colliderA,
+                                           in TransformQvvs transformA,
+                                           Collider colliderB,
+                                           in TransformQvvs transformB,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result)
+        {
+            ScaleStretchCollider(ref colliderA, transformA.scale, transformA.stretch);
+            ScaleStretchCollider(ref colliderB, transformB.scale, transformB.stretch);
+            return DistanceBetween(in colliderA, new RigidTransform(transformA.rotation, transformA.position), in colliderB,
+                                   new RigidTransform(transformB.rotation, transformB.position), maxDistance, out result);
+        }
+        #endregion
+
         #region Layer
-        public static bool DistanceBetween(Collider collider,
-                                           RigidTransform transform,
-                                           CollisionLayer layer,
+        public static bool DistanceBetween(in Collider collider,
+                                           in RigidTransform transform,
+                                           in CollisionLayer layer,
                                            float maxDistance,
                                            out ColliderDistanceResult result,
                                            out LayerBodyInfo layerBodyInfo)
         {
             result              = default;
             layerBodyInfo       = default;
-            var processor       = new LayerQueryProcessors.ColliderDistanceClosestImmediateProcessor(collider, transform, maxDistance, ref result, ref layerBodyInfo);
+            var processor       = new LayerQueryProcessors.ColliderDistanceClosestImmediateProcessor(in collider, in transform, maxDistance, ref result, ref layerBodyInfo);
             var aabb            = AabbFrom(in collider, in transform);
             var offsetDistance  = math.max(maxDistance, 0f);
             aabb.min           -= offsetDistance;
             aabb.max           += offsetDistance;
-            FindObjects(aabb, layer, processor).RunImmediate();
+            FindObjects(aabb, in layer, in processor).RunImmediate();
             var hit                  = result.subColliderIndexB >= 0;
             result.subColliderIndexB = math.max(result.subColliderIndexB, 0);
             return hit;
         }
 
-        public static bool DistanceBetweenAny(Collider collider,
-                                              RigidTransform transform,
-                                              CollisionLayer layer,
+        public static bool DistanceBetween(Collider collider,
+                                           in TransformQvvs transform,
+                                           in CollisionLayer layer,
+                                           float maxDistance,
+                                           out ColliderDistanceResult result,
+                                           out LayerBodyInfo layerBodyInfo)
+        {
+            ScaleStretchCollider(ref collider, transform.scale, transform.stretch);
+            return DistanceBetween(in collider, new RigidTransform(transform.rotation, transform.position), in layer, maxDistance, out result, out layerBodyInfo);
+        }
+
+        public static bool DistanceBetweenAny(in Collider collider,
+                                              in RigidTransform transform,
+                                              in CollisionLayer layer,
                                               float maxDistance,
                                               out ColliderDistanceResult result,
                                               out LayerBodyInfo layerBodyInfo)
@@ -612,10 +632,21 @@ namespace Latios.Psyshock
             var offsetDistance  = math.max(maxDistance, 0f);
             aabb.min           -= offsetDistance;
             aabb.max           += offsetDistance;
-            FindObjects(aabb, layer, processor).RunImmediate();
+            FindObjects(aabb, in layer, in processor).RunImmediate();
             var hit                  = result.subColliderIndexB >= 0;
             result.subColliderIndexB = math.max(result.subColliderIndexB, 0);
             return hit;
+        }
+
+        public static bool DistanceBetweenAny(Collider collider,
+                                              in TransformQvvs transform,
+                                              in CollisionLayer layer,
+                                              float maxDistance,
+                                              out ColliderDistanceResult result,
+                                              out LayerBodyInfo layerBodyInfo)
+        {
+            ScaleStretchCollider(ref collider, transform.scale, transform.stretch);
+            return DistanceBetweenAny(in collider, new RigidTransform(transform.rotation, transform.position), in layer, maxDistance, out result, out layerBodyInfo);
         }
         #endregion
 
@@ -730,20 +761,18 @@ namespace Latios.Psyshock
 
         public static bool DistanceBetween(float3 point, in CompoundCollider compound, in RigidTransform compoundTransform, float maxDistance, out PointDistanceResult result)
         {
-            bool hit              = false;
-            result                = default;
-            result.distance       = float.MaxValue;
-            ref var blob          = ref compound.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compound.scale, state = PhysicsScale.State.Uniform };
+            bool hit        = false;
+            result          = default;
+            result.distance = float.MaxValue;
+            ref var blob    = ref compound.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compound.scale;
-                bool newHit        = DistanceBetween(point,
-                                                     ScaleCollider(in blob.colliders[i], compoundScale),
-                                                     math.mul(compoundTransform, blobTransform),
-                                                     math.min(result.distance, maxDistance),
-                                                     out var newResult);
+                compound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = DistanceBetween(point,
+                                              in blobCollider,
+                                              math.mul(compoundTransform, blobTransform),
+                                              math.min(result.distance, maxDistance),
+                                              out var newResult);
 
                 newResult.subColliderIndex  = i;
                 newHit                     &= newResult.distance < result.distance;

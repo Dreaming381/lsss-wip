@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Latios.Transforms;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -195,15 +196,13 @@ namespace Latios.Psyshock
                 return false;
             }
 
-            ref var blob          = ref targetCompound.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = targetCompound.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref targetCompound.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= targetCompound.scale;
-                bool newHit        = ColliderCast(in sphereToCast, in castStart, castEnd, ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  math.mul(targetCompoundTransform, blobTransform),
-                                                  out var newResult);
+                targetCompound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = ColliderCast(in sphereToCast, in castStart, castEnd, in blobCollider,
+                                           math.mul(targetCompoundTransform, blobTransform),
+                                           out var newResult);
 
                 newResult.subColliderIndexOnTarget  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -582,15 +581,13 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref targetCompound.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = targetCompound.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref targetCompound.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= targetCompound.scale;
-                bool newHit        = ColliderCast(in capsuleToCast, in castStart, castEnd, ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  math.mul(targetCompoundTransform, blobTransform),
-                                                  out var newResult);
+                targetCompound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = ColliderCast(in capsuleToCast, in castStart, castEnd, in blobCollider,
+                                           math.mul(targetCompoundTransform, blobTransform),
+                                           out var newResult);
 
                 newResult.subColliderIndexOnTarget  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -789,15 +786,13 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref targetCompound.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = targetCompound.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref targetCompound.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= targetCompound.scale;
-                bool newHit        = ColliderCast(in boxToCast, in castStart, castEnd, ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  math.mul(targetCompoundTransform, blobTransform),
-                                                  out var newResult);
+                targetCompound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = ColliderCast(in boxToCast, in castStart, castEnd, in blobCollider,
+                                           math.mul(targetCompoundTransform, blobTransform),
+                                           out var newResult);
 
                 newResult.subColliderIndexOnTarget  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -947,15 +942,13 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref targetCompound.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = targetCompound.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref targetCompound.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= targetCompound.scale;
-                bool newHit        = ColliderCast(in triangleToCast, in castStart, castEnd, ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  math.mul(targetCompoundTransform, blobTransform),
-                                                  out var newResult);
+                targetCompound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = ColliderCast(in triangleToCast, in castStart, castEnd, in blobCollider,
+                                           math.mul(targetCompoundTransform, blobTransform),
+                                           out var newResult);
 
                 newResult.subColliderIndexOnTarget  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1145,15 +1138,13 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref targetCompound.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = targetCompound.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref targetCompound.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= targetCompound.scale;
-                bool newHit        = ColliderCast(in convexToCast, in castStart, castEnd, ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  math.mul(targetCompoundTransform, blobTransform),
-                                                  out var newResult);
+                targetCompound.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                bool newHit = ColliderCast(in convexToCast, in castStart, castEnd, in blobCollider,
+                                           math.mul(targetCompoundTransform, blobTransform),
+                                           out var newResult);
 
                 newResult.subColliderIndexOnTarget  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1179,18 +1170,16 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref compoundToCast.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundToCast.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref compoundToCast.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundToCast.scale;
-                var  start         = math.mul(castStart, blobTransform);
-                bool newHit        = ColliderCast(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  start, start.pos + (castEnd - castStart.pos),
-                                                  in targetSphere,
-                                                  in targetSphereTransform,
-                                                  out var newResult);
+                compoundToCast.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                var  start  = math.mul(castStart, blobTransform);
+                bool newHit = ColliderCast(in blobCollider,
+                                           start, start.pos + (castEnd - castStart.pos),
+                                           in targetSphere,
+                                           in targetSphereTransform,
+                                           out var newResult);
 
                 newResult.subColliderIndexOnCaster  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1214,18 +1203,16 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref compoundToCast.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundToCast.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref compoundToCast.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundToCast.scale;
-                var  start         = math.mul(castStart, blobTransform);
-                bool newHit        = ColliderCast(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  start, start.pos + (castEnd - castStart.pos),
-                                                  in targetCapsule,
-                                                  in targetCapsuleTransform,
-                                                  out var newResult);
+                compoundToCast.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                var  start  = math.mul(castStart, blobTransform);
+                bool newHit = ColliderCast(in blobCollider,
+                                           start, start.pos + (castEnd - castStart.pos),
+                                           in targetCapsule,
+                                           in targetCapsuleTransform,
+                                           out var newResult);
 
                 newResult.subColliderIndexOnCaster  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1249,18 +1236,16 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref compoundToCast.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundToCast.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref compoundToCast.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundToCast.scale;
-                var  start         = math.mul(castStart, blobTransform);
-                bool newHit        = ColliderCast(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  start, start.pos + (castEnd - castStart.pos),
-                                                  in targetBox,
-                                                  in targetBoxTransform,
-                                                  out var newResult);
+                compoundToCast.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                var  start  = math.mul(castStart, blobTransform);
+                bool newHit = ColliderCast(in blobCollider,
+                                           start, start.pos + (castEnd - castStart.pos),
+                                           in targetBox,
+                                           in targetBoxTransform,
+                                           out var newResult);
 
                 newResult.subColliderIndexOnCaster  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1284,18 +1269,16 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref compoundToCast.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundToCast.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref compoundToCast.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundToCast.scale;
-                var  start         = math.mul(castStart, blobTransform);
-                bool newHit        = ColliderCast(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  start, start.pos + (castEnd - castStart.pos),
-                                                  in targetTriangle,
-                                                  in targetTriangleTransform,
-                                                  out var newResult);
+                compoundToCast.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                var  start  = math.mul(castStart, blobTransform);
+                bool newHit = ColliderCast(in blobCollider,
+                                           start, start.pos + (castEnd - castStart.pos),
+                                           in targetTriangle,
+                                           in targetTriangleTransform,
+                                           out var newResult);
 
                 newResult.subColliderIndexOnCaster  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1319,18 +1302,16 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref compoundToCast.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundToCast.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref compoundToCast.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundToCast.scale;
-                var  start         = math.mul(castStart, blobTransform);
-                bool newHit        = ColliderCast(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  start, start.pos + (castEnd - castStart.pos),
-                                                  in targetConvex,
-                                                  in targetConvexTransform,
-                                                  out var newResult);
+                compoundToCast.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                var  start  = math.mul(castStart, blobTransform);
+                bool newHit = ColliderCast(in blobCollider,
+                                           start, start.pos + (castEnd - castStart.pos),
+                                           in targetConvex,
+                                           in targetConvexTransform,
+                                           out var newResult);
 
                 newResult.subColliderIndexOnCaster  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1354,18 +1335,16 @@ namespace Latios.Psyshock
             {
                 return false;
             }
-            ref var blob          = ref compoundToCast.compoundColliderBlob.Value;
-            var     compoundScale = new PhysicsScale { scale = compoundToCast.scale, state = PhysicsScale.State.Uniform };
+            ref var blob = ref compoundToCast.compoundColliderBlob.Value;
             for (int i = 0; i < blob.colliders.Length; i++)
             {
-                var blobTransform  = blob.transforms[i];
-                blobTransform.pos *= compoundToCast.scale;
-                var  start         = math.mul(castStart, blobTransform);
-                bool newHit        = ColliderCast(ScaleCollider(in blob.colliders[i], compoundScale),
-                                                  start, start.pos + (castEnd - castStart.pos),
-                                                  in targetCompound,
-                                                  in targetCompoundTransform,
-                                                  out var newResult);
+                compoundToCast.GetScaledStretchedSubCollider(i, out var blobCollider, out var blobTransform);
+                var  start  = math.mul(castStart, blobTransform);
+                bool newHit = ColliderCast(in blobCollider,
+                                           start, start.pos + (castEnd - castStart.pos),
+                                           in targetCompound,
+                                           in targetCompoundTransform,
+                                           out var newResult);
 
                 newResult.subColliderIndexOnCaster  = i;
                 newHit                             &= newResult.distance < result.distance;
@@ -1373,6 +1352,25 @@ namespace Latios.Psyshock
                 result                              = newHit ? newResult : result;
             }
             return hit;
+        }
+        #endregion
+
+        #region Qvvs
+        public static bool ColliderCast(Collider colliderToCast,
+                                        TransformQvvs castStart,
+                                        float3 castEnd,
+                                        Collider targetCollider,
+                                        TransformQvvs targetTransform,
+                                        out ColliderCastResult result)
+        {
+            ScaleStretchCollider(ref colliderToCast, castStart.scale,       castStart.stretch);
+            ScaleStretchCollider(ref targetCollider, targetTransform.scale, targetTransform.stretch);
+            return ColliderCast(in colliderToCast,
+                                new RigidTransform(castStart.rotation, castStart.position),
+                                castEnd,
+                                in targetCollider,
+                                new RigidTransform(targetTransform.rotation, targetTransform.position),
+                                out result);
         }
         #endregion
 
@@ -1387,11 +1385,22 @@ namespace Latios.Psyshock
         {
             result        = default;
             layerBodyInfo = default;
-            var processor = new LayerQueryProcessors.ColliderCastClosestImmediateProcessor(colliderToCast, castStart, castEnd, ref result, ref layerBodyInfo);
-            FindObjects(AabbFrom(in colliderToCast, in castStart, castEnd), layer, processor).RunImmediate();
+            var processor = new LayerQueryProcessors.ColliderCastClosestImmediateProcessor(in colliderToCast, in castStart, castEnd, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(in colliderToCast, in castStart, castEnd), in layer, in processor).RunImmediate();
             var hit                         = result.subColliderIndexOnTarget >= 0;
             result.subColliderIndexOnTarget = math.max(result.subColliderIndexOnTarget, 0);
             return hit;
+        }
+
+        public static bool ColliderCast(Collider colliderToCast,
+                                        in TransformQvvs castStart,
+                                        float3 castEnd,
+                                        in CollisionLayer layer,
+                                        out ColliderCastResult result,
+                                        out LayerBodyInfo layerBodyInfo)
+        {
+            ScaleStretchCollider(ref colliderToCast, castStart.scale, castStart.stretch);
+            return ColliderCast(in colliderToCast, new RigidTransform(castStart.rotation, castStart.position), castEnd, in layer, out result, out layerBodyInfo);
         }
 
         public static bool ColliderCastAny(in Collider colliderToCast,
@@ -1403,11 +1412,22 @@ namespace Latios.Psyshock
         {
             result        = default;
             layerBodyInfo = default;
-            var processor = new LayerQueryProcessors.ColliderCastAnyImmediateProcessor(colliderToCast, castStart, castEnd, ref result, ref layerBodyInfo);
-            FindObjects(AabbFrom(in colliderToCast, in castStart, castEnd), layer, processor).RunImmediate();
+            var processor = new LayerQueryProcessors.ColliderCastAnyImmediateProcessor(in colliderToCast, in castStart, castEnd, ref result, ref layerBodyInfo);
+            FindObjects(AabbFrom(in colliderToCast, in castStart, castEnd), in layer, in processor).RunImmediate();
             var hit                         = result.subColliderIndexOnTarget >= 0;
             result.subColliderIndexOnTarget = math.max(result.subColliderIndexOnTarget, 0);
             return hit;
+        }
+
+        public static bool ColliderCastAny(Collider colliderToCast,
+                                           in TransformQvvs castStart,
+                                           float3 castEnd,
+                                           in CollisionLayer layer,
+                                           out ColliderCastResult result,
+                                           out LayerBodyInfo layerBodyInfo)
+        {
+            ScaleStretchCollider(ref colliderToCast, castStart.scale, castStart.stretch);
+            return ColliderCastAny(in colliderToCast, new RigidTransform(castStart.rotation, castStart.position), castEnd, in layer, out result, out layerBodyInfo);
         }
 
         #endregion

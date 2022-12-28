@@ -80,7 +80,8 @@ namespace Latios.Psyshock.Authoring
             Collider collider = new CompoundCollider
             {
                 compoundColliderBlob = m_handle.Resolve(entityManager),
-                scale                = m_scale
+                scale                = m_scale,
+                stretch              = 1f
             };
             entityManager.AddComponentData(entity, collider);
         }

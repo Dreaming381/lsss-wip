@@ -21,7 +21,8 @@
         "Unity.Mathematics.Extensions",
         "Unity.usfxr",
         "Latios.Kinemation",
-        "Unity.Entities.Graphics"
+        "Unity.Entities.Graphics",
+        "Latios.Transforms"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

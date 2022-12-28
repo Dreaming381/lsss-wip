@@ -153,8 +153,8 @@ namespace Latios.Psyshock
             private ColliderDistanceResult* m_resultPtr;
             private LayerBodyInfo*          m_infoPtr;
 
-            public ColliderDistanceClosestImmediateProcessor(Collider collider,
-                                                             RigidTransform transform,
+            public ColliderDistanceClosestImmediateProcessor(in Collider collider,
+                                                             in RigidTransform transform,
                                                              float maxDistance,
                                                              ref ColliderDistanceResult result,
                                                              ref LayerBodyInfo info)
@@ -192,7 +192,11 @@ namespace Latios.Psyshock
             private ColliderDistanceResult* m_resultPtr;
             private LayerBodyInfo*          m_infoPtr;
 
-            public ColliderDistanceAnyImmediateProcessor(Collider collider, RigidTransform transform, float maxDistance, ref ColliderDistanceResult result, ref LayerBodyInfo info)
+            public ColliderDistanceAnyImmediateProcessor(in Collider collider,
+                                                         in RigidTransform transform,
+                                                         float maxDistance,
+                                                         ref ColliderDistanceResult result,
+                                                         ref LayerBodyInfo info)
             {
                 m_collider                     = collider;
                 m_transform                    = transform;
@@ -229,8 +233,8 @@ namespace Latios.Psyshock
             private ColliderCastResult* m_resultPtr;
             private LayerBodyInfo*      m_infoPtr;
 
-            public ColliderCastClosestImmediateProcessor(Collider collider,
-                                                         RigidTransform start,
+            public ColliderCastClosestImmediateProcessor(in Collider collider,
+                                                         in RigidTransform start,
                                                          float3 end,
                                                          ref ColliderCastResult result,
                                                          ref LayerBodyInfo info)
@@ -268,8 +272,8 @@ namespace Latios.Psyshock
             private ColliderCastResult* m_resultPtr;
             private LayerBodyInfo*      m_infoPtr;
 
-            public ColliderCastAnyImmediateProcessor(Collider collider,
-                                                     RigidTransform start,
+            public ColliderCastAnyImmediateProcessor(in Collider collider,
+                                                     in RigidTransform start,
                                                      float3 end,
                                                      ref ColliderCastResult result,
                                                      ref LayerBodyInfo info)

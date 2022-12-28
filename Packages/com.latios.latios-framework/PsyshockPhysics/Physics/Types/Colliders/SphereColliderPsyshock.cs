@@ -9,13 +9,21 @@ namespace Latios.Psyshock
     [Serializable]
     public struct SphereCollider
     {
-        public float3 center;
-        public float  radius;
-
-        public SphereCollider(float3 center, float radius)
+        public enum StretchMode : byte
         {
-            this.center = center;
-            this.radius = radius;
+            StretchCenter = 0,
+            IgnoreStretch = 1,
+        }
+
+        public float3      center;
+        public float       radius;
+        public StretchMode stretchMode;
+
+        public SphereCollider(float3 center, float radius, StretchMode stretchMode = StretchMode.StretchCenter)
+        {
+            this.center      = center;
+            this.radius      = radius;
+            this.stretchMode = stretchMode;
         }
     }
 }

@@ -10,15 +10,24 @@ namespace Latios.Psyshock
     [Serializable]
     public struct CapsuleCollider
     {
-        public float3 pointA;
-        public float  radius;
-        public float3 pointB;
-
-        public CapsuleCollider(float3 pointA, float3 pointB, float radius)
+        public enum StretchMode : byte
         {
-            this.pointA = pointA;
-            this.pointB = pointB;
-            this.radius = radius;
+            StretchPoints = 0,
+            IgnoreStretch = 1,
+            //StretchHeight = 2,
+        }
+
+        public float3      pointA;
+        public float       radius;
+        public float3      pointB;
+        public StretchMode stretchMode;
+
+        public CapsuleCollider(float3 pointA, float3 pointB, float radius, StretchMode stretchMode = StretchMode.StretchPoints)
+        {
+            this.pointA      = pointA;
+            this.pointB      = pointB;
+            this.radius      = radius;
+            this.stretchMode = stretchMode;
         }
     }
 }
