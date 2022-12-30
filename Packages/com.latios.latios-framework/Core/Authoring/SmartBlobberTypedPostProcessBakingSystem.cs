@@ -3,6 +3,7 @@ using GameObject = UnityEngine.GameObject;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Entities.LowLevel.Unsafe;
@@ -188,8 +189,13 @@ namespace Latios.Authoring
             [ReadOnly] public ComponentTypeHandle<SmartBlobberTrackingData>         trackingDataHandle;
             public ComponentTypeHandle<SmartBlobberResult>                          resultHandle;
 
+            [NativeDisableContainerSafetyRestriction] NativeHashSet<BlobAssetReference<TBlobType> > disposedBlobs;
+
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                if (!disposedBlobs.IsCreated)
+                    disposedBlobs = new NativeHashSet<BlobAssetReference<TBlobType> >(128, Allocator.Temp);
+
                 var trackingDataArray = chunk.GetNativeArray(ref trackingDataHandle);
                 var resultArray       = chunk.GetNativeArray(ref resultHandle);
                 for (int i = 0; i < chunk.Count; i++)
@@ -211,8 +217,10 @@ namespace Latios.Authoring
                         resultArray[i] = default;
                         continue;
                     }
-                    if (blob != savedBlob)
+                    if (blob != savedBlob && disposedBlobs.Add(blob))
+                    {
                         blob.Dispose();
+                    }
 
                     savedBlob.GetUnsafePtr();  // Invokes ValidateAllowNull()
                     resultArray[i] = new SmartBlobberResult { blob = UnsafeUntypedBlobAssetReference.Create(savedBlob) };
