@@ -78,13 +78,9 @@ namespace Latios.Psyshock
     public struct ColliderCastResult
     {
         /// <summary>
-        /// Where the hit occurred on the translated caster in world space. Should be the same as hitpointOnTarget
+        /// Where the hit occurred in world space. The hitpoint should be the same for both objects.
         /// </summary>
-        public float3 hitpointOnCaster;
-        /// <summary>
-        /// Where the hit occurred on the stationary target in world space. Should be the same as hitpointOnCaster
-        /// </summary>
-        public float3 hitpointOnTarget;
+        public float3 hitpoint;
         /// <summary>
         /// The outward normal of the caster at the hitpoint in world space
         /// </summary>

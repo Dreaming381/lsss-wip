@@ -56,7 +56,7 @@ namespace Latios.Psyshock
             }
         }
 
-        internal FindObjectsResult(CollisionLayer layer, BucketSlices bucket, int jobIndex, bool isThreadSafe)
+        internal FindObjectsResult(in CollisionLayer layer, in BucketSlices bucket, int jobIndex, bool isThreadSafe)
         {
             m_layer             = layer;
             m_bucket            = bucket;
@@ -74,7 +74,7 @@ namespace Latios.Psyshock
 
     public static partial class Physics
     {
-        public static FindObjectsConfig<T> FindObjects<T>(Aabb aabb, in CollisionLayer layer, in T processor) where T : struct, IFindObjectsProcessor
+        public static FindObjectsConfig<T> FindObjects<T>(in Aabb aabb, in CollisionLayer layer, in T processor) where T : struct, IFindObjectsProcessor
         {
             return new FindObjectsConfig<T>
             {
@@ -111,7 +111,7 @@ namespace Latios.Psyshock
 
         public void RunImmediate()
         {
-            FindObjectsInternal.RunImmediate(aabb, layer, processor);
+            FindObjectsInternal.RunImmediate(in aabb, in layer, processor);
         }
 
         public void Run()

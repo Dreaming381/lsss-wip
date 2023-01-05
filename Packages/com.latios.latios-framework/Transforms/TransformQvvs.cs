@@ -20,6 +20,33 @@ namespace Latios.Transforms
             stretch    = 1f,
             worldIndex = 0
         };
+
+        public TransformQvvs(float3 position, quaternion rotation)
+        {
+            this.position = position;
+            this.rotation = rotation;
+            scale         = 1f;
+            stretch       = 1f;
+            worldIndex    = 0;
+        }
+
+        public TransformQvvs(float3 position, quaternion rotation, float scale, float3 stretch, int worldIndex = 0)
+        {
+            this.position   = position;
+            this.rotation   = rotation;
+            this.scale      = scale;
+            this.stretch    = stretch;
+            this.worldIndex = worldIndex;
+        }
+
+        public TransformQvvs(RigidTransform rigidTransform)
+        {
+            position   = rigidTransform.pos;
+            rotation   = rigidTransform.rot;
+            scale      = 1f;
+            stretch    = 1f;
+            worldIndex = 0;
+        }
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 32)]

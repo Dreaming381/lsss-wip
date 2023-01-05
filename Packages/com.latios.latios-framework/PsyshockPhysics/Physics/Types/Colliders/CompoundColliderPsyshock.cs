@@ -48,6 +48,13 @@ namespace Latios.Psyshock
         internal void GetScaledStretchedSubCollider(int index, out Collider blobCollider, out RigidTransform blobTransform)
         {
             ref var blob = ref compoundColliderBlob.Value;
+            if (math.all(new float4(stretch, scale) == 1f))
+            {
+                blobTransform = blob.transforms[index];
+                blobCollider  = blob.colliders[index];
+                return;
+            }
+
             switch (stretchMode)
             {
                 case StretchMode.RotateStretchLocally:

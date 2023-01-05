@@ -6,8 +6,19 @@ namespace Latios.Psyshock
 {
     public static partial class Physics
     {
+        /// <summary>
+        /// Bakes the scale and stretch values into the collider's shape.
+        /// For some collider types, the resulting collider may only be an approximation.
+        /// Such colliders usually have a StretchMode enum to control the behavior.
+        /// </summary>
+        /// <param name="collider">The collider to bake the scale and stretch into</param>
+        /// <param name="scale">A uniform scale of the collider</param>
+        /// <param name="stretch">A non-uniform squash/stretch of the collider in the collider's local space</param>
         public static void ScaleStretchCollider(ref Collider collider, float scale, float3 stretch)
         {
+            if (math.all(new float4(stretch, scale) == 1f))
+                return;
+
             switch (collider.type)
             {
                 case ColliderType.Sphere:
@@ -34,13 +45,22 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Bakes the scale and stretch values into the collider's shape as a new collider.
+        /// For some collider types, the resulting collider may only be an approximation.
+        /// Such colliders usually have a StretchMode enum to control the behavior.
+        /// </summary>
+        /// <param name="collider">The collider to use as a base when baking the scale and stretch</param>
+        /// <param name="scale">A uniform scale of the collider</param>
+        /// <param name="stretch">A non-uniform squash/stretch of the collider in the collider's local space</param>
+        /// <returns>A new collider with the baked scale and stretch</returns>
         public static Collider ScaleStretchCollider(Collider collider, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref collider, scale, stretch);
             return collider;
         }
 
-        public static void ScaleStretchCollider(ref SphereCollider sphere, float scale, float3 stretch)
+        internal static void ScaleStretchCollider(ref SphereCollider sphere, float scale, float3 stretch)
         {
             switch (sphere.stretchMode)
             {
@@ -54,13 +74,13 @@ namespace Latios.Psyshock
             }
         }
 
-        public static SphereCollider ScaleStretchCollider(SphereCollider sphere, float scale, float3 stretch)
+        internal static SphereCollider ScaleStretchCollider(SphereCollider sphere, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref sphere, scale, stretch);
             return sphere;
         }
 
-        public static void ScaleStretchCollider(ref CapsuleCollider capsule, float scale, float3 stretch)
+        internal static void ScaleStretchCollider(ref CapsuleCollider capsule, float scale, float3 stretch)
         {
             switch(capsule.stretchMode)
             {
@@ -79,13 +99,13 @@ namespace Latios.Psyshock
             }
         }
 
-        public static CapsuleCollider ScaleStretchCollider(CapsuleCollider capsule, float scale, float3 stretch)
+        internal static CapsuleCollider ScaleStretchCollider(CapsuleCollider capsule, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref capsule, scale, stretch);
             return capsule;
         }
 
-        public static void ScaleStretchCollider(ref BoxCollider box, float scale, float3 stretch)
+        internal static void ScaleStretchCollider(ref BoxCollider box, float scale, float3 stretch)
         {
             var newPositive = (box.center + box.halfSize) * stretch * scale;
             var newNegative = (box.center - box.halfSize) * stretch * scale;
@@ -93,13 +113,13 @@ namespace Latios.Psyshock
             box.halfSize    = math.abs(newPositive - box.center);
         }
 
-        public static BoxCollider ScaleStretchCollider(BoxCollider box, float scale, float3 stretch)
+        internal static BoxCollider ScaleStretchCollider(BoxCollider box, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref box, scale, stretch);
             return box;
         }
 
-        public static void ScaleStretchCollider(ref TriangleCollider triangle, float scale, float3 stretch)
+        internal static void ScaleStretchCollider(ref TriangleCollider triangle, float scale, float3 stretch)
         {
             var factor       = scale * stretch;
             triangle.pointA *= factor;
@@ -107,24 +127,24 @@ namespace Latios.Psyshock
             triangle.pointC *= factor;
         }
 
-        public static TriangleCollider ScaleStretchCollider(TriangleCollider triangle, float scale, float3 stretch)
+        internal static TriangleCollider ScaleStretchCollider(TriangleCollider triangle, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref triangle, scale, stretch);
             return triangle;
         }
 
-        public static void ScaleStretchCollider(ref ConvexCollider convex, float scale, float3 stretch)
+        internal static void ScaleStretchCollider(ref ConvexCollider convex, float scale, float3 stretch)
         {
             convex.scale *= stretch * scale;
         }
 
-        public static ConvexCollider ScaleStretchCollider(ConvexCollider convex, float scale, float3 stretch)
+        internal static ConvexCollider ScaleStretchCollider(ConvexCollider convex, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref convex, scale, stretch);
             return convex;
         }
 
-        public static void ScaleStretchCollider(ref CompoundCollider compound, float scale, float3 stretch)
+        internal static void ScaleStretchCollider(ref CompoundCollider compound, float scale, float3 stretch)
         {
             switch (compound.stretchMode)
             {
@@ -142,12 +162,13 @@ namespace Latios.Psyshock
             }
         }
 
-        public static CompoundCollider ScaleStretchCollider(CompoundCollider compound, float scale, float3 stretch)
+        internal static CompoundCollider ScaleStretchCollider(CompoundCollider compound, float scale, float3 stretch)
         {
             ScaleStretchCollider(ref compound, scale, stretch);
             return compound;
         }
 
+        // Todo: Legacy, remove
         public static Collider ScaleCollider(in Collider collider, PhysicsScale scale)
         {
             switch (collider.type)

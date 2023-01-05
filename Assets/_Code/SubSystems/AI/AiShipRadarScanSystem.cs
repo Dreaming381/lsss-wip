@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -209,7 +210,7 @@ namespace Lsss
                 if (radar.cosFov < 0f)
                 {
                     //Todo: Create tighter bounds here too.
-                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, transform);
+                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, new TransformQvvs(transform));
                 }
                 else
                 {
