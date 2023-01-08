@@ -192,40 +192,5 @@ namespace Latios.Psyshock
         public float subtreeXmax;
         public int   bucketRelativeBodyIndex;
     }
-
-    /*public struct RayQueryLayer : IDisposable
-     *  {
-     *   public NativeArray<int2>   bucketRanges;
-     *   public NativeArray<float>  xmin;
-     *   public NativeArray<float>  xmax;
-     *   public NativeArray<float4> yzminmax;
-     *   public NativeArray<Entity> entity;
-     *   public NativeArray<Ray>    ray;
-     *   public float               gridSpacing;
-     *   public int                 gridCells1DFromOrigin;
-     *
-     *   public RayQueryLayer(EntityQuery query, int gridCells1DFromOrigin, float worldHalfExtent, Allocator allocator)
-     *   {
-     *       this.gridCells1DFromOrigin = gridCells1DFromOrigin;
-     *       gridSpacing                = worldHalfExtent / gridCells1DFromOrigin;
-     *       int entityCount            = query.CalculateLength();
-     *       bucketRanges               = CollectionHelper.CreateNativeArray<int2>(gridCells1DFromOrigin * gridCells1DFromOrigin + 1, allocator, NativeArrayOptions.UninitializedMemory);
-     *       xmin                       = CollectionHelper.CreateNativeArray<float>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       xmax                       = CollectionHelper.CreateNativeArray<float>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       yzminmax                   = CollectionHelper.CreateNativeArray<float4>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       entity                     = CollectionHelper.CreateNativeArray<Entity>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *       ray                        = CollectionHelper.CreateNativeArray<Ray>(entityCount, allocator, NativeArrayOptions.UninitializedMemory);
-     *   }
-     *
-     *   public void Dispose()
-     *   {
-     *       bucketRanges.Dispose();
-     *       xmin.Dispose();
-     *       xmax.Dispose();
-     *       yzminmax.Dispose();
-     *       entity.Dispose();
-     *       ray.Dispose();
-     *   }
-     *  }*/
 }
 

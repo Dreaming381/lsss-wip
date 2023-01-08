@@ -8,9 +8,18 @@ namespace Latios.Psyshock
     /// </summary>
     public struct ColliderBody
     {
-        public Collider       collider;
+        /// <summary>
+        /// The Collider associated with the AABB
+        /// </summary>
+        public Collider collider;
+        /// <summary>
+        /// The transform of the collider
+        /// </summary>
         public RigidTransform transform;
-        public Entity         entity;
+        /// <summary>
+        /// The entity associated with the collider
+        /// </summary>
+        public Entity entity;
     }
 }
 

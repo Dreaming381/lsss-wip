@@ -222,15 +222,12 @@ namespace Latios.Psyshock
         /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc for any subcolliders which have round features</param>
         public static void DrawCollider(in CompoundCollider compound, in RigidTransform transform, Color color, int segmentsPerPi = 6)
         {
-            ref var blob  = ref compound.compoundColliderBlob.Value;
-            var     scale = new PhysicsScale(compound.scale);
+            ref var blob = ref compound.compoundColliderBlob.Value;
 
             for (int i = 0; i < blob.blobColliders.Length; i++)
             {
-                var c               = Physics.ScaleCollider(blob.colliders[i], scale);
-                var localTransform  = blob.transforms[i];
-                localTransform.pos *= compound.scale;
-                var t               = math.mul(transform, localTransform);
+                compound.GetScaledStretchedSubCollider(i, out var c, out var localTransform);
+                var t = math.mul(transform, localTransform);
                 DrawCollider(c, t, color, segmentsPerPi);
             }
         }

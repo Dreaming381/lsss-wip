@@ -7,6 +7,20 @@ namespace Latios.Psyshock
     public static partial class Physics
     {
         #region Collider vs Collider
+        /// <summary>
+        /// Sweeps a collider beginning at castStart through to castEnd and checks if the collider hits
+        /// another target collider. If so, results about the hit are generated and reported. It is assumed
+        /// that rotation, scale, and stretch remain constant throughout the operation. No hit is reported
+        /// if the casted collider starts already overlapping the target.
+        /// </summary>
+        /// <param name="colliderToCast">The casted collider that should sweep through space</param>
+        /// <param name="castStart">The transform of the casted collider at the start of the cast</param>
+        /// <param name="castEnd">The position of the casted collider at the end of the cast range</param>
+        /// <param name="targetCollider">The target collider that the casted collider should check for a hit against</param>
+        /// <param name="targetTransform">The target collider's transform</param>
+        /// <param name="result">The resulting information about the hit if there is one. If there is no hit,
+        /// the contents of the result are undefined.</param>
+        /// <returns>True if a hit was found, false otherwise</returns>
         public static bool ColliderCast(in Collider colliderToCast,
                                         in TransformQvvs castStart,
                                         float3 castEnd,
@@ -39,6 +53,22 @@ namespace Latios.Psyshock
         #endregion
 
         #region Collider vs Layer
+        /// <summary>
+        /// Sweeps a collider beginning at castStart throught to castEnd and checks if the collider hits
+        /// any other collider in the CollisionLayer. If so, results of the hit in which the casted collider
+        /// traveled the least is reported. It is assumed that rotation, scale, and stretch remain constant
+        /// throughout the operation. Hits where the casted collider starts already overlapping a target in
+        /// the CollisionLayer are ignored.
+        /// </summary>
+        /// <param name="colliderToCast">The casted collider that should be swept through space</param>
+        /// <param name="castStart">The transform of the casted collider at the start of the cast</param>
+        /// <param name="castEnd">The position of the casted collider at the end of the cast range</param>
+        /// <param name="layer">The CollisionLayer containing 0 or more colliders the casted collider should
+        /// be tested against</param>
+        /// <param name="result">The resulting information about the least-swept hit if there is one. If there
+        /// is no hit, the contents of the result are undefined.</param>
+        /// <param name="layerBodyInfo">Additional info as to which collider in the CollisionLayer was hit</param>
+        /// <returns>True if a hit was found, false otherwise</returns>
         public static bool ColliderCast(in Collider colliderToCast,
                                         in TransformQvvs castStart,
                                         float3 castEnd,
@@ -59,6 +89,21 @@ namespace Latios.Psyshock
             return hit;
         }
 
+        /// <summary>
+        /// Sweeps a collider beginning at castStart throught to castEnd and checks if the collider hits
+        /// any other collider in the CollisionLayer. If so, results of the first hit the algorithm finds
+        /// is reported. It is assumed that rotation, scale, and stretch remain constant throughout the operation.
+        /// Hits where the casted collider starts already overlapping a target in the CollisionLayer are ignored.
+        /// </summary>
+        /// <param name="colliderToCast">The casted collider that should be swept through space</param>
+        /// <param name="castStart">The transform of the casted collider at the start of the cast</param>
+        /// <param name="castEnd">The position of the casted collider at the end of the cast range</param>
+        /// <param name="layer">The CollisionLayer containing 0 or more colliders the casted collider should
+        /// be tested against</param>
+        /// <param name="result">The resulting information about the hit if there is one. If there is no hit,
+        /// the contents of the result are undefined.</param>
+        /// <param name="layerBodyInfo">Additional info as to which collider in the CollisionLayer was hit</param>
+        /// <returns>True if a hit was found, false otherwise</returns>
         public static bool ColliderCastAny(Collider colliderToCast,
                                            in TransformQvvs castStart,
                                            float3 castEnd,

@@ -8,11 +8,17 @@ namespace Latios.Psyshock
     public static partial class Physics
     {
         #region Rays
+        /// <summary>
+        /// Returns an Aabb that encompasses the ray
+        /// </summary>
         public static Aabb AabbFrom(in Ray ray)
         {
             return new Aabb(math.min(ray.start, ray.end), math.max(ray.start, ray.end));
         }
 
+        /// <summary>
+        /// Returns an Aabb that encompasses a ray with the provided endpoints
+        /// </summary>
         public static Aabb AabbFrom(float3 rayStart, float3 rayEnd)
         {
             return new Aabb(math.min(rayStart, rayEnd), math.max(rayStart, rayEnd));
@@ -20,6 +26,13 @@ namespace Latios.Psyshock
         #endregion
 
         #region Dispatch
+        /// <summary>
+        /// Returns an Aabb that encompasses the collider after being transformed by transform
+        /// </summary>
+        /// <param name="collider">The collider around which an Aabb should be created</param>
+        /// <param name="transform">A transform which specifies how the collider is oriented within
+        /// the coordinate space that the Aabb should be created in</param>
+        /// <returns>An Aabb that encompasses the collider with the specified transform</returns>
         public static Aabb AabbFrom(in Collider collider, in TransformQvvs transform)
         {
             if (math.all(new float4(transform.stretch, transform.scale) == 1f))
@@ -48,6 +61,15 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Returns an Aabb that encompasses a ColliderCast operation, that is, it encompasses the full range of space
+        /// caused by sweeping a collider from a start to an end point. It is assumed rotation, scale, and stretch are
+        /// constant throughout the cast.
+        /// </summary>
+        /// <param name="colliderToCast">The collider shape that is being casted</param>
+        /// <param name="castStart">The transform of the collider at the start of the cast</param>
+        /// <param name="castEnd">The position of the collider at the end of the cast</param>
+        /// <returns>An encompassing Aabb for a ColliderCast operation</returns>
         public static Aabb AabbFrom(in Collider colliderToCast, in TransformQvvs castStart, float3 castEnd)
         {
             if (math.all(new float4(castStart.stretch, castStart.scale) == 1f))
