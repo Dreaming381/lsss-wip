@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace Latios.Transforms
+namespace Latios.Transforms.Systems
 {
     /// <summary>
     /// The Transform System Group of Latios Transforms which performs hierarchy synchronization.
@@ -50,6 +50,26 @@ namespace Latios.Transforms
         protected override void CreateSystems()
         {
             EnableSystemSorting = true;
+
+#if !UNITY_DISABLE_MANAGED_COMPONENTS
+            GetOrCreateAndAddUnmanagedSystem<CompanionGameObjectUpdateTransformSystem>();
+#endif
+        }
+    }
+
+    [DisableAutoCreation]
+    [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    [UpdateBefore(typeof(FixedStepSimulationSystemGroup))]
+    [UpdateBefore(typeof(VariableRateSimulationSystemGroup))]
+    [UpdateAfter(typeof(BeginSimulationEntityCommandBufferSystem))]
+    public partial class MotionHistoryUpdateSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = true;
+
+            GetOrCreateAndAddUnmanagedSystem<MotionHistoryUpdateSystem>();
         }
     }
 }

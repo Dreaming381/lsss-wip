@@ -2,29 +2,31 @@ using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Properties;
 
 namespace Latios.Transforms
 {
     public readonly partial struct TransformAspect : IAspect
     {
-        readonly RefRW<WorldTransform>                               m_worldTransform;
-        [Optional] readonly RefRW<LocalTransform>                    m_localTransform;
-        [Optional] readonly RefRO<ParentToWorldTransform>            m_parentToWorldTransform;
-        [Optional] readonly RefRO<IdentityLocalToParentTransformTag> m_identityLocalToParentTransformTag;
+        readonly RefRW<WorldTransform>                         m_worldTransform;
+        [Optional] readonly RefRW<LocalTransform>              m_localTransform;
+        [Optional] readonly RefRO<ParentToWorldTransform>      m_parentToWorldTransform;
+        [Optional] readonly RefRO<CopyParentWorldTransformTag> m_copyParentWorldTransformTag;
 
         #region Read/Write Properties
         /// <summary>
         /// The world-space position of the entity that can be read or modified.
         /// If the entity has a parent, the localPosition and worldPosition are synchronized using the cached ParentToWorldTransform.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
+        [CreateProperty]
         public float3 worldPosition
         {
             get => m_worldTransform.ValueRO.position;
             set
             {
-                if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
 
                 m_worldTransform.ValueRW.worldTransform.position = value;
                 if (hasMutableLocalToParent)
@@ -36,14 +38,15 @@ namespace Latios.Transforms
         /// The world-space rotation of the entity that can be read or modified.
         /// If the entity has a parent, the localRotation and worldRotation are synchronized using the cached ParentToWorldTransform.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
+        [CreateProperty]
         public quaternion worldRotation
         {
             get => m_worldTransform.ValueRO.rotation;
             set
             {
-                if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
 
                 m_worldTransform.ValueRW.worldTransform.rotation = value;
                 if (hasMutableLocalToParent)
@@ -55,14 +58,15 @@ namespace Latios.Transforms
         /// The world-space scale of the entity that can be read or modified.
         /// If the entity has a parent, the localScale and worldScale are synchronized using the cached ParentToWorldTransform.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
+        [CreateProperty]
         public float worldScale
         {
             get => m_worldTransform.ValueRO.scale;
             set
             {
-                if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
 
                 m_worldTransform.ValueRW.worldTransform.scale = value;
                 if (hasMutableLocalToParent)
@@ -74,12 +78,13 @@ namespace Latios.Transforms
         /// The local-space position of the entity that can be read or modified.
         /// If the entity has a parent, the localPosition and worldPosition are synchronized using the cached ParentToWorldTransform.
         /// Otherwise, this reads/writes the worldPosition.
-        /// When reading, float3.zero is returned if the entity has an IdentityLocalToParentTransformTag.
+        /// When reading, float3.zero is returned if the entity has an CopyParentWorldTransformTag.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
+        [CreateProperty]
         public float3 localPosition
         {
-            get => hasMutableLocalToParent ? m_localTransform.ValueRO.position : hasIdentityLocalToParent ? 0f : m_worldTransform.ValueRO.position;
+            get => hasMutableLocalToParent ? m_localTransform.ValueRO.position : hasCopyParentWorldTransformTag ? 0f : m_worldTransform.ValueRO.position;
             set
             {
                 if (hasMutableLocalToParent)
@@ -87,8 +92,8 @@ namespace Latios.Transforms
                     m_localTransform.ValueRW.localTransform.position = value;
                     m_worldTransform.ValueRW.worldTransform.position = qvvs.TransformPoint(in parentToWorldInternal, value);
                 }
-                else if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                else if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
                 else
                     m_worldTransform.ValueRW.worldTransform.position = value;
             }
@@ -98,12 +103,13 @@ namespace Latios.Transforms
         /// The local-space rotation of the entity that can be read or modified.
         /// If the entity has a parent, the localRotation and worldRotation are synchronized using the cached ParentToWorldTransform.
         /// Otherwise, this reads/writes the worldRotation.
-        /// When reading, quaternion.identity is returned if the entity has an IdentityLocalToParentTransformTag.
+        /// When reading, quaternion.identity is returned if the entity has an CopyParentWorldTransformTag.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
+        [CreateProperty]
         public quaternion localRotation
         {
-            get => hasMutableLocalToParent ? m_localTransform.ValueRO.rotation : hasIdentityLocalToParent ? quaternion.identity : m_worldTransform.ValueRO.rotation;
+            get => hasMutableLocalToParent ? m_localTransform.ValueRO.rotation : hasCopyParentWorldTransformTag ? quaternion.identity : m_worldTransform.ValueRO.rotation;
             set
             {
                 if (hasMutableLocalToParent)
@@ -111,8 +117,8 @@ namespace Latios.Transforms
                     m_localTransform.ValueRW.localTransform.rotation = value;
                     m_worldTransform.ValueRW.worldTransform.rotation = math.mul(parentToWorldInternal.rotation, value);
                 }
-                else if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                else if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
                 else
                     m_worldTransform.ValueRW.worldTransform.rotation = value;
             }
@@ -122,12 +128,13 @@ namespace Latios.Transforms
         /// The local-space scale of the entity that can be read or modified.
         /// If the entity has a parent, the localScale and worldScale are synchronized using the cached ParentToWorldTransform.
         /// Otherwise, this reads/writes the worldScale.
-        /// When reading, 1f is returned if the entity has an IdentityLocalToParentTransformTag.
+        /// When reading, 1f is returned if the entity has an CopyParentWorldTransformTag.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
+        [CreateProperty]
         public float localScale
         {
-            get => hasMutableLocalToParent ? m_localTransform.ValueRO.scale : hasIdentityLocalToParent ? 1f : m_worldTransform.ValueRO.scale;
+            get => hasMutableLocalToParent ? m_localTransform.ValueRO.scale : hasCopyParentWorldTransformTag ? 1f : m_worldTransform.ValueRO.scale;
             set
             {
                 if (hasMutableLocalToParent)
@@ -135,8 +142,8 @@ namespace Latios.Transforms
                     m_localTransform.ValueRW.localTransform.scale = value;
                     m_worldTransform.ValueRW.worldTransform.scale = parentToWorldInternal.scale * value;
                 }
-                else if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                else if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
                 else
                     m_worldTransform.ValueRW.worldTransform.scale = value;
             }
@@ -146,6 +153,7 @@ namespace Latios.Transforms
         /// The stretch of the entity that can be read or modified.
         /// This value affects children's positions but nothing else.
         /// </summary>
+        [CreateProperty]
         public float3 stretch
         {
             get => m_worldTransform.ValueRO.stretch;
@@ -156,6 +164,7 @@ namespace Latios.Transforms
         /// The worldIndex of the entity that can be read or modified.
         /// It is a user value (do what you want with it) and not used directly by Latios Transforms (though other modules may support specific use cases).
         /// </summary>
+        [CreateProperty]
         public int worldIndex
         {
             get => m_worldTransform.ValueRO.worldIndex;
@@ -166,7 +175,7 @@ namespace Latios.Transforms
         /// The world-space QVVS transform of the entity that can be read or modified.
         /// If the entity has a parent, the localTransform and worldTransform are synchronized using the cached ParentToWorldTransform.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
         public TransformQvvs worldTransform
         {
             get => m_worldTransform.ValueRO.worldTransform;
@@ -182,13 +191,13 @@ namespace Latios.Transforms
         /// The local-space QVS transform of the entity that can be read or modified.
         /// If the entity has a parent, the localTransform and worldTransform are synchronized using the cached ParentToWorldTransform.
         /// Otherwise, this reads/writes the position, rotation, and scale properties of the worldTransform.
-        /// When reading, TransformQvs.identity is returned if the entity has an IdentityLocalToParentTransformTag.
+        /// When reading, TransformQvs.identity is returned if the entity has an CopyParentWorldTransformTag.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an IdentityLocalToParentTransformTag</exception>
+        /// <exception cref="System.InvalidOperationException">Throws when writing if the entity has an CopyParentWorldTransformTag</exception>
         public TransformQvs localTransform
         {
             get => hasMutableLocalToParent ? m_localTransform.ValueRO.localTransform :
-            hasIdentityLocalToParent ? TransformQvs.identity : QvsFromQvvs(m_worldTransform.ValueRO.worldTransform);
+            hasCopyParentWorldTransformTag ? TransformQvs.identity : QvsFromQvvs(m_worldTransform.ValueRO.worldTransform);
             set
             {
                 if (hasMutableLocalToParent)
@@ -196,14 +205,72 @@ namespace Latios.Transforms
                     m_localTransform.ValueRW.localTransform = value;
                     qvvs.mul(ref m_worldTransform.ValueRW.worldTransform, in parentToWorldInternal, value);
                 }
-                else if (Hint.Unlikely(hasIdentityLocalToParent))
-                    ThrowOnWriteToIdenityLocalToParent();
+                else if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
                 else
                 {
                     ref var t  = ref m_worldTransform.ValueRW.worldTransform;
                     t.position = value.position;
                     t.rotation = value.rotation;
                     t.scale    = value.scale;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The local-space transform in full QVVS representation that can be read or modified.
+        /// If the entity has a parent, the localTransform and worldTransform are synchronized using the cached ParentToWorldTransform.
+        /// Otherwise, this reads/writes to the worldTransform.
+        /// </summary>
+        public TransformQvvs localTransformQvvs
+        {
+            get
+            {
+                if (hasMutableLocalToParent)
+                {
+                    ref readonly var local = ref m_localTransform.ValueRO;
+                    return new TransformQvvs
+                    {
+                        rotation   = local.rotation,
+                        position   = local.position,
+                        worldIndex = worldIndex,
+                        stretch    = stretch,
+                        scale      = local.scale
+                    };
+                }
+                if (hasCopyParentWorldTransformTag)
+                {
+                    return new TransformQvvs
+                    {
+                        rotation   = quaternion.identity,
+                        position   = 0f,
+                        worldIndex = worldIndex,
+                        stretch    = stretch,
+                        scale      = 1f
+                    };
+                }
+                return m_worldTransform.ValueRO.worldTransform;
+            }
+            set
+            {
+                if (hasMutableLocalToParent)
+                {
+                    stretch    = value.stretch;
+                    worldIndex = value.worldIndex;
+                    var local  = new TransformQvs
+                    {
+                        rotation = value.rotation,
+                        position = value.position,
+                        scale    = value.scale
+                    };
+                    m_localTransform.ValueRW.localTransform = local;
+                    qvvs.mul(ref m_worldTransform.ValueRW.worldTransform, in parentToWorldInternal, local);
+                }
+                else if (Hint.Unlikely(hasCopyParentWorldTransformTag))
+                    ThrowOnWriteToCopyParentWorldTransformTag();
+                else
+                {
+                    m_worldTransform.ValueRW.worldTransform = value;
                 }
             }
         }
@@ -216,17 +283,17 @@ namespace Latios.Transforms
         public TransformQvvs parentToWorldTransform => hasMutableLocalToParent ? m_parentToWorldTransform.ValueRO.parentToWorldTransform : qvvs.IdentityWithWorldIndex(worldIndex);
 
         /// <summary>
-        /// True if the entity has a parent and not an IdentityLocalToParentTransformTag.
+        /// True if the entity has a parent and not an CopyParentWorldTransformTag.
         /// </summary>
         public bool hasMutableLocalToParent => m_parentToWorldTransform.IsValid;  // && m_localTransform.IsValid; The latter should be guaranteed.
         /// <summary>
-        /// True if the entity has an IdentityLocalToParentTransformTag, which effectively makes this entity's transforms read-only
+        /// True if the entity has an CopyParentWorldTransformTag, which effectively makes this entity's transforms read-only
         /// </summary>
-        public bool hasIdentityLocalToParent => m_identityLocalToParentTransformTag.IsValid;
+        public bool hasCopyParentWorldTransformTag => m_copyParentWorldTransformTag.IsValid;
         /// <summary>
         /// True if the entity has a parent
         /// </summary>
-        public bool hasLocalToParent => hasMutableLocalToParent || hasIdentityLocalToParent;
+        public bool hasLocalToParentOrCopyParent => hasMutableLocalToParent || hasCopyParentWorldTransformTag;
 
         /// <summary>
         /// The unit forward vector (local Z+) of the entity in world-space
@@ -283,37 +350,41 @@ namespace Latios.Transforms
 
         /// <summary>
         /// The matrix that represents the transformation of the entity from parent-space to world-space including the parent's stretch.
-        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, float3x4.identity is returned.
+        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, WorldTransform is used.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
-        public float3x4 parentToWorldMatrix3x4 => hasMutableLocalToParent? parentToWorldInternal.ToMatrix3x4() : float3x4.identity;
+        public float3x4 parentToWorldMatrix3x4 => hasMutableLocalToParent? parentToWorldInternal.ToMatrix3x4() : m_worldTransform.ValueRO.worldTransform.ToMatrix3x4();
         /// <summary>
         /// The matrix that represents the transformation of the entity from parent-space to world-space including the parent's stretch.
-        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, float4x4.identity is returned.
+        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, WorldTransform is used.
         /// </summary>
-        public float4x4 parentToWorldMatrix4x4 => hasMutableLocalToParent? parentToWorldInternal.ToMatrix4x4() : float4x4.identity;
+        public float4x4 parentToWorldMatrix4x4 => hasMutableLocalToParent? parentToWorldInternal.ToMatrix4x4() : m_worldTransform.ValueRO.worldTransform.ToMatrix4x4();
         /// <summary>
         /// The matrix that represents the transformation of the entity from world-space to parent-space including the parent's stretch.
-        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, float3x4.identity is returned.
+        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, WorldTransform is used.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
-        public float3x4 inverseParentToWorldMatrix3x4 => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix3x4() : float3x4.identity;
+        public float3x4 inverseParentToWorldMatrix3x4 => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix3x4() : m_worldTransform.ValueRO.worldTransform.
+            ToInverseMatrix3x4();
         /// <summary>
         /// The matrix that represents the transformation of the entity from world-space to parent-space including the parent's stretch.
-        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, float4x4.identity is returned.
+        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, WorldTransform is used.
         /// </summary>
-        public float4x4 inverseParentToWorldMatrix4x4 => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix4x4() : float4x4.identity;
+        public float4x4 inverseParentToWorldMatrix4x4 => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix4x4() : m_worldTransform.ValueRO.worldTransform.
+            ToInverseMatrix4x4();
         /// <summary>
         /// The matrix that represents the transformation of the entity from world-space to parent-space ignoring stretch.
-        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, float3x4.identity is returned.
+        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, WorldTransform is used.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
-        public float3x4 inverseParentToWorldMatrix3x4IgnoreStretch => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix3x4IgnoreStretch() : float3x4.identity;
+        public float3x4 inverseParentToWorldMatrix3x4IgnoreStretch => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix3x4IgnoreStretch() : m_worldTransform.ValueRO.
+            worldTransform.ToInverseMatrix3x4IgnoreStretch();
         /// <summary>
         /// The matrix that represents the transformation of the entity from world-space to parent-space ignoring stretch.
-        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, float4x4.identity is returned.
+        /// If present, the cached ParentToWorldTransform is used when generating this matrix. Otherwise, WorldTransform is used.
         /// </summary>
-        public float4x4 inverseParentToWorldMatrix4x4IgnoreStretch => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix4x4IgnoreStretch() : float4x4.identity;
+        public float4x4 inverseParentToWorldMatrix4x4IgnoreStretch => hasMutableLocalToParent? parentToWorldInternal.ToInverseMatrix4x4IgnoreStretch() : m_worldTransform.ValueRO.
+            worldTransform.ToInverseMatrix4x4IgnoreStretch();
 
         /// <summary>
         /// The matrix that represent's the entity's local transform relative to its parent, or relative to the world if it does not have a parent.
@@ -321,35 +392,35 @@ namespace Latios.Transforms
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
         public float3x4 localMatrix3x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToMatrix3x4(stretch) :
-            hasIdentityLocalToParent ? float3x4.identity : worldMatrix3x4;
+            hasCopyParentWorldTransformTag? float3x4.Scale(stretch) : worldMatrix3x4;
         /// <summary>
         /// The matrix that represent's the entity's local transform relative to its parent, or relative to the world if it does not have a parent.
         /// Stretch is included.
         /// </summary>
         public float4x4 localMatrix4x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToMatrix4x4(stretch) :
-            hasIdentityLocalToParent ? float4x4.identity : worldMatrix4x4;
+            hasCopyParentWorldTransformTag? float4x4.Scale(stretch) : worldMatrix4x4;
         /// <summary>
         /// The inverse of localMatrix3x4, computed directly from the QVS or QVVS data. Stretch is included.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
         public float3x4 inverseLocalMatrix3x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix3x4(stretch) :
-            hasIdentityLocalToParent ? float3x4.identity : inverseWorldMatrix3x4;
+            hasCopyParentWorldTransformTag? float3x4.Scale(math.rcp(stretch)) : inverseWorldMatrix3x4;
         /// <summary>
         /// The inverse of localMatrix4x4, computed directly from the QVS or QVVS data. Stretch is included.
         /// </summary>
         public float4x4 inverseLocalMatrix4x4 => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix4x4(stretch) :
-            hasIdentityLocalToParent ? float4x4.identity : inverseWorldMatrix4x4;
+            hasCopyParentWorldTransformTag? float4x4.Scale(math.rcp(stretch)) : inverseWorldMatrix4x4;
         /// <summary>
         /// The inverse of localMatrix3x4, computed directly from the QVS or QVVS data, except stretch is ignored.
         /// This version discards the bottom row of a typical 4x4 matrix as that row is assumed to be (0, 0, 0, 1).
         /// </summary>
         public float3x4 inverseLocalMatrix3x4IgnoreStretch => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix3x4() :
-            hasIdentityLocalToParent ? float3x4.identity : inverseWorldMatrix3x4IgnoreStretch;
+            hasCopyParentWorldTransformTag ? float3x4.identity : inverseWorldMatrix3x4IgnoreStretch;
         /// <summary>
         /// The inverse of localMatrix4x4, computed directly from the QVS or QVVS data, except stretch is ignored.
         /// </summary>
         public float4x4 inverseLocalMatrix4x4IgnoreStretch => hasMutableLocalToParent? m_localTransform.ValueRO.localTransform.ToInverseMatrix4x4() :
-            hasIdentityLocalToParent ? float4x4.identity : inverseWorldMatrix4x4IgnoreStretch;
+            hasCopyParentWorldTransformTag ? float4x4.identity : inverseWorldMatrix4x4IgnoreStretch;
         #endregion
 
         #region Modification Methods
@@ -596,10 +667,10 @@ namespace Latios.Transforms
             };
         }
 
-        void ThrowOnWriteToIdenityLocalToParent()
+        void ThrowOnWriteToCopyParentWorldTransformTag()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            throw new System.InvalidOperationException("Entity has an IdentityLocalToParentTransformTag. You cannot write to the postion, rotation, or scale.");
+            throw new System.InvalidOperationException("Entity has an CopyParentWorldTransformTag. You cannot write to the postion, rotation, or scale.");
 #endif
         }
     }

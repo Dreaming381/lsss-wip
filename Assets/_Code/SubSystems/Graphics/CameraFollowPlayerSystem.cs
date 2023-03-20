@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -13,9 +13,12 @@ namespace Lsss
     [BurstCompile]
     public partial struct CameraFollowPlayerSystem : ISystem
     {
+        TransformAspect.Lookup m_transformLookup;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            m_transformLookup = new TransformAspect.Lookup(ref state, false);
         }
         [BurstCompile]
         public void OnDestroy(ref SystemState state)
@@ -24,10 +27,11 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var mountEntity = new NativeReference<EntityWith<LocalToWorld> >(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var mountEntity = new NativeReference<EntityWith<WorldTransform> >(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
             new JobA { mountEntity = mountEntity }.Schedule();
-            var jobB               = new JobB { mountEntity = mountEntity, ltwLookup = GetComponentLookup<LocalToWorld>(true) };
+            m_transformLookup.Update(ref state);
+            var jobB = new JobB { mountEntity = mountEntity, transformLookup = m_transformLookup };
             jobB.Schedule();
         }
 
@@ -35,7 +39,7 @@ namespace Lsss
         [WithAll(typeof(PlayerTag))]
         partial struct JobA : IJobEntity
         {
-            public NativeReference<EntityWith<LocalToWorld> > mountEntity;
+            public NativeReference<EntityWith<WorldTransform> > mountEntity;
 
             public void Execute(in CameraMountPoint mount)
             {
@@ -45,21 +49,21 @@ namespace Lsss
 
         [BurstCompile]
         [WithAll(typeof(CameraManager))]
+        [WithAll(typeof(WorldTransform))]
         partial struct JobB : IJobEntity
         {
-            public NativeReference<EntityWith<LocalToWorld> > mountEntity;
-            [ReadOnly] public ComponentLookup<LocalToWorld>   ltwLookup;
+            public NativeReference<EntityWith<WorldTransform> > mountEntity;
+            public TransformAspect.Lookup                       transformLookup;
 
-            public void Execute(ref Translation translation, ref Rotation rotation)
+            public void Execute(Entity entity)
             {
                 if (mountEntity.Value == Entity.Null)
                     return;
 
-                // !!!!!!!!!!!!!!!!Unity FIX THIS!!!!!!!!!!!!!!!
-                // var ltw           = GetComponent<LocalToWorld>(mountEntity.Value);
-                var ltw           = ltwLookup[mountEntity.Value];
-                translation.Value = ltw.Position;
-                rotation.Value    = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
+                var worldTransform            = transformLookup[mountEntity.Value];
+                var cameraTransform           = transformLookup[entity];
+                cameraTransform.worldRotation = worldTransform.worldRotation;
+                cameraTransform.worldPosition = worldTransform.worldPosition;
             }
         }
     }

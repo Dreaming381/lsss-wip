@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 using UnityEngine.Jobs;
 
 //Todo: Use order versions to detect changes
@@ -18,7 +18,7 @@ namespace Lsss
         protected override void OnCreate()
         {
             m_transforms = new TransformAccessArray(1);
-            m_query      = Fluent.WithAll<CameraManager>().WithAll<LocalToWorld>(true).Build();
+            m_query      = Fluent.WithAll<CameraManager>().WithAll<WorldTransform>(true).Build();
         }
 
         protected override void OnUpdate()
@@ -46,11 +46,11 @@ namespace Lsss
                 m_transforms.Add(manager.camera.transform);
             }).WithoutBurst().Run();
 
-            var ltws = m_query.ToComponentDataListAsync<LocalToWorld>(Allocator.TempJob, out var jh2);
+            var ltws = m_query.ToComponentDataListAsync<WorldTransform>(Allocator.TempJob, out var jh2);
 
             Dependency = new CopyTransformsJob
             {
-                ltws = ltws.AsDeferredJobArray()
+                worldTransforms = ltws.AsDeferredJobArray()
             }.Schedule(m_transforms, JobHandle.CombineDependencies(jh, jh2));
 
             Dependency = ltws.Dispose(Dependency);
@@ -64,13 +64,12 @@ namespace Lsss
         [BurstCompile]
         struct CopyTransformsJob : IJobParallelForTransform
         {
-            [ReadOnly] public NativeArray<LocalToWorld> ltws;
+            [ReadOnly] public NativeArray<WorldTransform> worldTransforms;
 
             public void Execute(int index, TransformAccess transform)
             {
-                transform.position = ltws[index].Position;
-                var rotation       = quaternion.LookRotationSafe(ltws[index].Forward, ltws[index].Up);
-                transform.rotation = rotation;
+                transform.rotation = worldTransforms[index].rotation;
+                transform.position = worldTransforms[index].position;
             }
         }
     }

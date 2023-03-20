@@ -134,12 +134,6 @@ namespace Lsss
 
     public struct BulletTag : IComponentData { }
 
-    //Partial CCD hack
-    public struct BulletPreviousPosition : IComponentData
-    {
-        public float3 previousPosition;
-    }
-
     public struct BulletFirer : IComponentData
     {
         // Todo: Change this after upgrade to 2020.3.

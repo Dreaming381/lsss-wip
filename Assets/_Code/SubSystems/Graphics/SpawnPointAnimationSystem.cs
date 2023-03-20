@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Lsss
 {
@@ -30,7 +30,7 @@ namespace Lsss
         [BurstCompile]
         partial struct Job : IJobEntity
         {
-            public void Execute(ref Rotation rot, ref Scale scale, in TimeToLive timeToLive, in SpawnPointAnimationData data)
+            public void Execute(ref TransformAspect transform, in TimeToLive timeToLive, in SpawnPointAnimationData data)
             {
                 float growFactor   = math.unlerp(data.growStartTime, data.growEndTime, timeToLive.timeToLive);
                 growFactor         = math.select(growFactor, 1f, data.growStartTime == data.growEndTime);
@@ -42,8 +42,8 @@ namespace Lsss
                 float shrinkRadians = math.lerp(data.shrinkSpins, 0f, factor);
                 float rads          = math.select(shrinkRadians, growRadians, isGrowing);
 
-                rot.Value   = quaternion.Euler(0f, 0f, rads);
-                scale.Value = factor;
+                transform.localRotation = quaternion.Euler(0f, 0f, rads);
+                transform.localScale    = factor;
             }
         }
     }

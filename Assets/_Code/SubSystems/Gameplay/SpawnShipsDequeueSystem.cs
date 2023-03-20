@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -44,8 +44,7 @@ namespace Lsss
             var    spawnQueues  = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
             int    initialIndex = latiosWorld.sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
             Entity nscEntity    = latiosWorld.sceneBlackboardEntity;
-            var    icb          = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>();
-            icb.AddComponentTag<LocalToParent>();
+            var    icb          = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent, LocalTransform>();
 
             var job = new SpawnDequeueJob
             {
@@ -84,12 +83,12 @@ namespace Lsss
             public int  initialIndex;
             public bool useBeforeIndex;
 
-            public SpawnQueues                       spawnQueues;
-            public Entity                            nscEntity;
-            public InstantiateCommandBuffer<Parent>  icb;
-            public ComponentLookup<NextSpawnCounter> nscLookup;
+            public SpawnQueues                                      spawnQueues;
+            public Entity                                           nscEntity;
+            public InstantiateCommandBuffer<Parent, LocalTransform> icb;
+            public ComponentLookup<NextSpawnCounter>                nscLookup;
 
-            public void Execute(Entity entity, [EntityIndexInQuery] int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref Rotation rotation,
+            public void Execute(Entity entity, [EntityIndexInQuery] int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, ref TransformAspect transform,
                                 in SpawnPoint spawnData, in SafeToSpawn safe)
             {
                 if (useBeforeIndex && entityInQueryIndex < initialIndex)
@@ -111,11 +110,11 @@ namespace Lsss
                     times.enableTime = spawnData.maxTimeUntilSpawn;
                     times.pauseTime  = spawnData.maxPauseTime;
 
-                    var nsc        = nscLookup[nscEntity];
-                    rotation.Value = nsc.random.NextQuaternionRotation();
-                    rotation.Value = quaternion.LookRotationSafe(math.forward(rotation.Value), new float3(0f, 1f, 0f));
+                    var nsc                 = nscLookup[nscEntity];
+                    var rotation            = nsc.random.NextQuaternionRotation();
+                    transform.localRotation = quaternion.LookRotationSafe(math.forward(rotation), new float3(0f, 1f, 0f));
 
-                    icb.Add(spawnData.spawnGraphicPrefab, new Parent { Value = entity });
+                    icb.Add(spawnData.spawnGraphicPrefab, new Parent { parent = entity }, new LocalTransform { localTransform = new TransformQvs(0, quaternion.identity, 0f)});
 
                     nsc.index            = entityInQueryIndex;
                     nscLookup[nscEntity] = nsc;

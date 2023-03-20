@@ -27,14 +27,14 @@ namespace Latios.Kinemation.Systems
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_query = state.Fluent().WithAll<DependentSkinnedMesh>(true).WithAll<ChunkSkeletonWorldBounds>(true, true).WithAll<SkeletonWorldBounds>(true)
+            m_query = state.Fluent().WithAll<DependentSkinnedMesh>(true).WithAll<ChunkOptimizedSkeletonWorldBounds>(true, true).WithAll<OptimizedSkeletonWorldBounds>(true)
                       .WithAll<ChunkPerCameraSkeletonCullingMask>(false, true).WithAll<ChunkPerCameraSkeletonCullingSplitsMask>(false, true).Build();
 
             m_singleJob = new SingleSplitCullingJob
             {
-                chunkWorldRenderBoundsHandle = state.GetComponentTypeHandle<ChunkSkeletonWorldBounds>(true),
+                chunkWorldRenderBoundsHandle = state.GetComponentTypeHandle<ChunkOptimizedSkeletonWorldBounds>(true),
                 perCameraCullingMaskHandle   = state.GetComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>(false),
-                worldRenderBoundsHandle      = state.GetComponentTypeHandle<SkeletonWorldBounds>(true)
+                worldRenderBoundsHandle      = state.GetComponentTypeHandle<OptimizedSkeletonWorldBounds>(true)
             };
 
             m_multiJob = new MultiSplitCullingJob
@@ -80,8 +80,8 @@ namespace Latios.Kinemation.Systems
         unsafe struct SingleSplitCullingJob : IJobChunk
         {
             [ReadOnly] public NativeReference<CullingSplits>                cullingSplits;
-            [ReadOnly] public ComponentTypeHandle<SkeletonWorldBounds>      worldRenderBoundsHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkSkeletonWorldBounds> chunkWorldRenderBoundsHandle;
+            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonWorldBounds>      worldRenderBoundsHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkOptimizedSkeletonWorldBounds> chunkWorldRenderBoundsHandle;
 
             public ComponentTypeHandle<ChunkPerCameraSkeletonCullingMask> perCameraCullingMaskHandle;
 
@@ -131,8 +131,8 @@ namespace Latios.Kinemation.Systems
         unsafe struct MultiSplitCullingJob : IJobChunk
         {
             [ReadOnly] public NativeReference<CullingSplits>                cullingSplits;
-            [ReadOnly] public ComponentTypeHandle<SkeletonWorldBounds>      worldRenderBoundsHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkSkeletonWorldBounds> chunkWorldRenderBoundsHandle;
+            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonWorldBounds>      worldRenderBoundsHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkOptimizedSkeletonWorldBounds> chunkWorldRenderBoundsHandle;
 
             public ComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>       perCameraCullingMaskHandle;
             public ComponentTypeHandle<ChunkPerCameraSkeletonCullingSplitsMask> perCameraCullingSplitsMaskHandle;

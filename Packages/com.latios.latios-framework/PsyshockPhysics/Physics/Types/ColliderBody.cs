@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Latios.Transforms;
+using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -15,7 +16,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// The transform of the collider
         /// </summary>
-        public RigidTransform transform;
+        public TransformQvvs transform;
         /// <summary>
         /// The entity associated with the collider
         /// </summary>

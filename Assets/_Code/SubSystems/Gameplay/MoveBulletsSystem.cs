@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -24,7 +24,7 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt     = SystemAPI.Time.DeltaTime;
+            float dt     = Time.DeltaTime;
             new Job { dt = dt }.ScheduleParallel();
         }
 
@@ -34,10 +34,9 @@ namespace Lsss
         {
             public float dt;
 
-            public void Execute(ref Translation translation, ref BulletPreviousPosition prevPosition, in Speed speed, in Rotation rotation)
+            public void Execute(ref TransformAspect transform, in Speed speed)
             {
-                prevPosition.previousPosition  = translation.Value;
-                translation.Value             += math.forward(rotation.Value) * speed.speed * dt;
+                transform.worldPosition += transform.forwardDirection * speed.speed * dt;
             }
         }
     }

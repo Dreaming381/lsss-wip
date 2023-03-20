@@ -9,7 +9,6 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 using UnityEngine.Profiling;
 
 using static Unity.Entities.SystemAPI;
@@ -38,7 +37,7 @@ namespace Lsss
 
             m_scanResultsHandle = state.GetComponentTypeHandle<AiShipRadarScanResults>(false);
 
-            m_radarsQuery = QueryBuilder().WithAllRW<AiShipRadarScanResults>().WithAll<AiRadarTag, AiShipRadar, LocalToWorld, FactionMember>().Build();
+            m_radarsQuery = QueryBuilder().WithAllRW<AiShipRadarScanResults>().WithAll<AiRadarTag, AiShipRadar, WorldTransform, FactionMember>().Build();
         }
 
         [BurstCompile]
@@ -98,15 +97,12 @@ namespace Lsss
                                                                                    collisionLayerSettings,
                                                                                    allocator,
                                                                                    out var radarLayer,
-                                                                                   out var remapArray,
                                                                                    rootDependency);
 
                 var scanResultsArray = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(radarLayer.Count, allocator, NativeArrayOptions.UninitializedMemory);
                 m_scanResultsArrayListCache.Add(scanResultsArray);
                 scanFriendsProcessor.scanResultsArray = scanResultsArray;
                 scanEnemiesProcessor.scanResultsArray = scanResultsArray;
-                scanFriendsProcessor.remapArray       = remapArray;
-                scanEnemiesProcessor.remapArray       = remapArray;
 
                 jh = new ClearArrayJob { scanResultsArray = scanResultsArray }.Schedule(jh);
 
@@ -182,7 +178,6 @@ namespace Lsss
                                           CollisionLayerSettings settings,
                                           Allocator allocator,
                                           out CollisionLayer layer,
-                                          out NativeArray<int>   remapArray,
                                           JobHandle inputDeps)
         {
             m_radarsQuery.SetSharedComponentFilter(factionMember);
@@ -190,7 +185,7 @@ namespace Lsss
             var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var jh     = new BuildRadarBodiesJob { bodies = bodies, aabbs = aabbs }.ScheduleParallel(m_radarsQuery, inputDeps);
-            jh         = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).WithRemapArray(out remapArray, allocator).ScheduleParallel(out layer, allocator, jh);
+            jh         = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).ScheduleParallel(out layer, allocator, jh);
             return jh;
         }
 
@@ -203,19 +198,18 @@ namespace Lsss
             public NativeArray<ColliderBody> bodies;
             public NativeArray<Aabb>         aabbs;
 
-            public void Execute(Entity e, [EntityIndexInQuery] int entityInQueryIndex, in AiShipRadar radar, in LocalToWorld ltw)
+            public void Execute(Entity e, [EntityIndexInQuery] int entityInQueryIndex, in AiShipRadar radar, in WorldTransform worldTransform)
             {
-                var transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position);
-                var sphere    = new SphereCollider(0f, radar.distance);
+                var sphere = new SphereCollider(0f, radar.distance);
                 if (radar.cosFov < 0f)
                 {
                     //Todo: Create tighter bounds here too.
-                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, new TransformQvvs(transform));
+                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, worldTransform.worldTransform);
                 }
                 else
                 {
                     //Compute aabb of vertex and spherical cap points which are extreme points
-                    float3 forward             = math.forward(transform.rot);
+                    float3 forward             = worldTransform.forwardDirection;
                     bool3  positiveOnSphereCap = forward > radar.cosFov;
                     bool3  negativeOnSphereCap = -forward > radar.cosFov;
                     float3 min                 = math.select(0f, -radar.distance, negativeOnSphereCap);
@@ -231,8 +225,8 @@ namespace Lsss
                     float3 extents            = sin.xyz * radius;
                     min                       = center - extents;
                     max                       = center + extents;
-                    aabb.min                  = math.min(aabb.min, min) + transform.pos;
-                    aabb.max                  = math.max(aabb.max, max) + transform.pos;
+                    aabb.min                  = math.min(aabb.min, min) + worldTransform.position;
+                    aabb.max                  = math.max(aabb.max, max) + worldTransform.position;
                     aabbs[entityInQueryIndex] = aabb;
                 }
 
@@ -240,7 +234,7 @@ namespace Lsss
                 {
                     collider  = sphere,
                     entity    = e,
-                    transform = transform
+                    transform = worldTransform.worldTransform
                 };
             }
         }
@@ -251,23 +245,22 @@ namespace Lsss
             [ReadOnly] public CollisionLayer                                                 wallLayer;
             [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarLookup;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
-            [ReadOnly] public NativeArray<int>                                               remapArray;
 
             public void Execute(in FindPairsResult result)
             {
                 var    radar       = radarLookup[result.entityA];
-                float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
+                float3 radarToShip = result.transformB.position - result.transformA.position;
                 bool   isInRange   = math.lengthsq(radarToShip) < radar.friendCrossHairsDistanceFilter * radar.friendCrossHairsDistanceFilter;
                 bool   isInView    =
                     math.dot(math.normalize(radarToShip),
-                             math.forward(math.mul(result.bodyA.transform.rot, radar.crossHairsForwardDirectionBias))) > radar.friendCrossHairsCosFovFilter;
+                             math.forward(math.mul(result.transformA.rotation, radar.crossHairsForwardDirectionBias))) > radar.friendCrossHairsCosFovFilter;
 
                 if (isInRange && isInView)
                 {
-                    var hitWall = Physics.RaycastAny(result.bodyA.transform.pos, result.bodyB.transform.pos, in wallLayer, out _, out _);
+                    var hitWall = Physics.RaycastAny(result.transformA.position, result.transformB.position, in wallLayer, out _, out _);
                     if (!hitWall)
                     {
-                        var srcIndex               = remapArray[result.indexA];
+                        var srcIndex               = result.sourceIndexA;
                         var scanResult             = scanResultsArray[srcIndex];
                         scanResult.friendFound     = true;
                         scanResultsArray[srcIndex] = scanResult;
@@ -282,26 +275,25 @@ namespace Lsss
             [ReadOnly] public CollisionLayer                                                 wallLayer;
             [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarLookup;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
-            [ReadOnly] public NativeArray<int>                                               remapArray;
 
             public void Execute(in FindPairsResult result)
             {
                 var    radar       = radarLookup[result.entityA];
-                float3 radarToShip = result.bodyB.transform.pos - result.bodyA.transform.pos;
+                float3 radarToShip = result.transformB.position - result.transformA.position;
 
                 bool  useFullRange  = radar.target.entity == result.entityB || radar.target == Entity.Null;
                 float radarDistance = math.select(radar.nearestEnemyCrossHairsDistanceFilter, radar.distance, useFullRange);
                 float radarCosFov   = math.select(radar.nearestEnemyCrossHairsCosFovFilter, radar.cosFov, useFullRange);
 
                 bool isInRange = math.lengthsq(radarToShip) < radarDistance * radarDistance;
-                bool isInView  = math.dot(math.normalize(radarToShip), math.forward(math.mul(result.bodyA.transform.rot, radar.crossHairsForwardDirectionBias))) > radarCosFov;
+                bool isInView  = math.dot(math.normalize(radarToShip), math.forward(math.mul(result.transformA.rotation, radar.crossHairsForwardDirectionBias))) > radarCosFov;
 
                 if (isInRange && isInView)
                 {
-                    var hitWall = Physics.RaycastAny(result.bodyA.transform.pos, result.bodyB.transform.pos, in wallLayer, out _, out _);
+                    var hitWall = Physics.RaycastAny(result.transformA.position, result.transformB.position, in wallLayer, out _, out _);
                     if (!hitWall)
                     {
-                        var srcIndex   = remapArray[result.indexA];
+                        var srcIndex   = result.sourceIndexA;
                         var scanResult = scanResultsArray[srcIndex];
 
                         if (radar.target == Entity.Null)
@@ -309,17 +301,17 @@ namespace Lsss
                             if (scanResult.target == Entity.Null)
                             {
                                 scanResult.target          = result.entityB;
-                                scanResult.targetTransform = result.transformB;
+                                scanResult.targetTransform = new RigidTransform(result.transformB.rotation, result.transformB.position);
                             }
                             else
                             {
                                 var optimalPosition =
-                                    math.forward(math.mul(result.transformA.rot,
-                                                          radar.crossHairsForwardDirectionBias)) * radar.preferredTargetDistance + result.transformA.pos;
-                                if (math.distancesq(scanResult.targetTransform.pos, optimalPosition) > math.distancesq(result.transformB.pos, optimalPosition))
+                                    math.forward(math.mul(result.transformA.rotation,
+                                                          radar.crossHairsForwardDirectionBias)) * radar.preferredTargetDistance + result.transformA.position;
+                                if (math.distancesq(scanResult.targetTransform.pos, optimalPosition) > math.distancesq(result.transformB.position, optimalPosition))
                                 {
                                     scanResult.target          = result.entityB;
-                                    scanResult.targetTransform = result.transformB;
+                                    scanResult.targetTransform = new RigidTransform(result.transformB.rotation, result.transformB.position);
                                 }
                             }
                         }
@@ -330,25 +322,26 @@ namespace Lsss
                             if (radar.target.entity == result.entityB)
                             {
                                 scanResult.target          = result.entityB;
-                                scanResult.targetTransform = result.transformB;
+                                scanResult.targetTransform = new RigidTransform(result.transformB.rotation, result.transformB.position);
                             }
 
                             if (scanResult.nearestEnemy == Entity.Null)
                             {
-                                if (math.dot(math.normalize(result.transformB.pos - result.transformA.pos),
-                                             math.forward(math.mul(result.transformA.rot,
+                                if (math.dot(math.normalize(result.transformB.position - result.transformA.position),
+                                             math.forward(math.mul(result.transformA.rotation,
                                                                    radar.crossHairsForwardDirectionBias))) > radar.nearestEnemyCrossHairsCosFovFilter)
                                 {
                                     scanResult.nearestEnemy          = result.entityB;
-                                    scanResult.nearestEnemyTransform = result.transformB;
+                                    scanResult.nearestEnemyTransform = new RigidTransform(result.transformB.rotation, result.transformB.position);
                                 }
                             }
                             else
                             {
-                                if (math.distancesq(scanResult.nearestEnemyTransform.pos, result.transformA.pos) > math.distancesq(result.transformB.pos, result.transformA.pos))
+                                if (math.distancesq(scanResult.nearestEnemyTransform.pos,
+                                                    result.transformA.position) > math.distancesq(result.transformB.position, result.transformA.position))
                                 {
                                     scanResult.nearestEnemy          = result.entityB;
-                                    scanResult.nearestEnemyTransform = result.transformB;
+                                    scanResult.nearestEnemyTransform = new RigidTransform(result.transformB.rotation, result.transformB.position);
                                 }
                             }
                         }

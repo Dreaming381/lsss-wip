@@ -1,7 +1,6 @@
 ﻿using Latios;
 using Lsss.Tools;
 using Unity.Entities;
-using Unity.Transforms;
 
 namespace Lsss.SuperSystems
 {
@@ -21,13 +20,13 @@ namespace Lsss.SuperSystems
         {
             GetOrCreateAndAddManagedSystem<GameplaySyncPointSuperSystem>();
 
-            GetOrCreateAndAddManagedSystem<TransformSystemGroup>();
+            GetOrCreateAndAddManagedSystem<Latios.Transforms.Systems.TransformSuperSystem>();
             //GetOrCreateAndAddManagedSystem<CompanionGameObjectUpdateTransformSystem>();  //Todo: Namespace
         }
     }
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateBefore(typeof(TransformSystemGroup))]
+    [UpdateBefore(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
     public class LsssPreTransformRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
@@ -38,7 +37,7 @@ namespace Lsss.SuperSystems
     }
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(TransformSystemGroup))]
+    [UpdateAfter(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
     public class LsssPostTransformRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()

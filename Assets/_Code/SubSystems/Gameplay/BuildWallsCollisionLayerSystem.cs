@@ -5,7 +5,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Lsss
 {
@@ -20,7 +19,7 @@ namespace Lsss
 
         public void OnCreate(ref SystemState state)
         {
-            m_query = state.Fluent().WithAll<WallTag>(true).WithAll<LocalToWorld>(true).PatchQueryForBuildingCollisionLayer().Build();
+            m_query = state.Fluent().WithAll<WallTag>(true).PatchQueryForBuildingCollisionLayer().Build();
 
             m_handles = new BuildCollisionLayerTypeHandles(ref state);
 

@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Lsss
 {
@@ -35,9 +35,9 @@ namespace Lsss
         {
             public NativeReference<float3> foundCamera;
 
-            public void Execute(in Translation translation)
+            public void Execute(in WorldTransform translation)
             {
-                foundCamera.Value = translation.Value;
+                foundCamera.Value = translation.position;
             }
         }
 
@@ -47,14 +47,13 @@ namespace Lsss
         {
             [ReadOnly] public NativeReference<float3> foundCamera;
 
-            public void Execute(ref Rotation rotation, in LocalToWorld ltw)
+            public void Execute(ref TransformAspect transform)
             {
                 var    camPos    = foundCamera.Value;
-                float3 direction = math.normalize(camPos - ltw.Position);
+                float3 direction = math.normalize(camPos - transform.worldPosition);
                 if (math.abs(math.dot(direction, new float3(0f, 1f, 0f))) < 0.9999f)
                 {
-                    var parentRot  = math.mul(ltw.Rotation, math.inverse(rotation.Value));
-                    rotation.Value = math.mul(math.inverse(parentRot), quaternion.LookRotationSafe(direction, new float3(0f, 1f, 0f)));
+                    transform.LookAt(direction, new float3(0f, 1f, 0f));
                 }
             }
         }

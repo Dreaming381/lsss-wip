@@ -1,11 +1,11 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -37,15 +37,13 @@ namespace Lsss
 
             var populatorQuery  = QueryBuilder().WithAll<OrbitalSpawnPointProcGen>().Build();
             var populators      = populatorQuery.ToComponentDataArray<OrbitalSpawnPointProcGen>(Allocator.Temp);
-            var newSpawnerQuery = QueryBuilder().WithAllRW<Translation, Rotation>().WithAllRW<SpawnPointOrbitalPath>().WithAll<NewSpawnerTag>().Build();
+            var newSpawnerQuery = QueryBuilder().WithAllRW<WorldTransform>().WithAllRW<SpawnPointOrbitalPath>().WithAll<NewSpawnerTag>().Build();
             foreach (var populator in populators)
             {
                 Collider collider = new SphereCollider(0f, populator.colliderRadius);
 
                 var entity = state.EntityManager.CreateEntity();
-                state.EntityManager.AddComponent<Translation>( entity);
-                state.EntityManager.AddComponent<Rotation>(    entity);
-                state.EntityManager.AddComponent<LocalToWorld>(entity);
+                state.EntityManager.AddComponent<WorldTransform>( entity);
                 state.EntityManager.AddComponentData(entity, collider);
                 state.EntityManager.AddComponentData(entity, new SpawnPoint
                 {
@@ -71,7 +69,7 @@ namespace Lsss
         {
             Random random = new Random(populator.randomSeed);
 
-            foreach((var trans, var rot, var path) in Query<RefRW<Translation>, RefRW<Rotation>, RefRW<SpawnPointOrbitalPath> >().WithAll<NewSpawnerTag>())
+            foreach((var transform, var path) in Query<TransformAspect, RefRW<SpawnPointOrbitalPath> >().WithAll<NewSpawnerTag>())
             {
                 float orbitalRadius           = random.NextFloat(0f, 1f);
                 path.ValueRW.radius           = orbitalRadius * orbitalRadius * (radius - populator.colliderRadius);
@@ -79,9 +77,10 @@ namespace Lsss
                 path.ValueRW.orbitPlaneNormal = random.NextFloat3Direction();
                 path.ValueRW.orbitSpeed       = random.NextFloat(populator.minMaxOrbitSpeed.x, populator.minMaxOrbitSpeed.y);
 
-                rot.ValueRW.Value = quaternion.identity;
-
-                trans.ValueRW.Value = math.forward(quaternion.AxisAngle(path.ValueRW.orbitPlaneNormal, random.NextFloat(-math.PI, math.PI))) * path.ValueRW.radius;
+                transform.localScale    = 1f;
+                transform.stretch       = 1f;
+                transform.worldRotation = quaternion.identity;
+                transform.worldPosition = math.forward(quaternion.AxisAngle(path.ValueRW.orbitPlaneNormal, random.NextFloat(-math.PI, math.PI))) * path.ValueRW.radius;
             }
         }
     }

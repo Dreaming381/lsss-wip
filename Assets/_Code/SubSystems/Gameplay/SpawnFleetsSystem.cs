@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using Debug = UnityEngine.Debug;
 using static Unity.Entities.SystemAPI;
@@ -46,8 +46,8 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            m_playerQuery = QueryBuilder().WithAll<FactionMember, FleetSpawnSlotTag, FleetSpawnPlayerSlotTag, LocalToWorld>().Build();
-            m_aiQuery     = QueryBuilder().WithAll<FactionMember, FleetSpawnSlotTag, LocalToWorld>().WithNone<FleetSpawnPlayerSlotTag>().Build();
+            m_playerQuery = QueryBuilder().WithAll<FactionMember, FleetSpawnSlotTag, FleetSpawnPlayerSlotTag, WorldTransform>().Build();
+            m_aiQuery     = QueryBuilder().WithAll<FactionMember, FleetSpawnSlotTag, WorldTransform>().WithNone<FleetSpawnPlayerSlotTag>().Build();
 
             var ecb = new EntityCommandBuffer(Allocator.TempJob);
             foreach ((var factionRef, var entity) in Query<RefRO<FleetSpawnSlotFactionReference> >().WithEntityAccess())
@@ -97,26 +97,26 @@ namespace Lsss
 
         void SpawnPlayer(Entity newPlayerShip, ref SystemState state)
         {
-            var ltws                                            = m_playerQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
-            var ltw                                             = ltws[0];
-            var rotation                                        = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
-            SetComponent(newPlayerShip, new Rotation { Value    = rotation });
-            SetComponent(newPlayerShip, new Translation { Value = ltw.Position });
+            var wts                 = m_playerQuery.ToComponentDataArray<WorldTransform>(Allocator.Temp);
+            var wt                  = wts[0];
+            var transform           = GetAspectRW<TransformAspect>(newPlayerShip);
+            transform.worldRotation = wt.rotation;
+            transform.worldPosition = wt.position;
         }
 
         void SpawnAi(NativeArray<Entity> newShips, ref SystemState state)
         {
-            var ltws = m_aiQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
-            int i    = 0;
-            foreach (var ltw in ltws)
+            var wts = m_aiQuery.ToComponentDataArray<WorldTransform>(Allocator.Temp);
+            int i   = 0;
+            foreach (var wt in wts)
             {
                 if (i >= newShips.Length)
                     break;
 
-                var ship                                   = newShips[i];
-                var rotation                               = quaternion.LookRotationSafe(ltw.Forward, new float3(0f, 1f, 0f));
-                SetComponent(ship, new Rotation { Value    = rotation });
-                SetComponent(ship, new Translation { Value = ltw.Position });
+                var ship                = newShips[i];
+                var transform           = GetAspectRW<TransformAspect>(ship);
+                transform.worldRotation = wt.rotation;
+                transform.worldPosition = wt.position;
             }
         }
 

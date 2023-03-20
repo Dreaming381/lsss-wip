@@ -1,5 +1,6 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -7,10 +8,10 @@ using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
 
 namespace Lsss
 {
+    // Todo: Make this ISystem
     public partial class GravityWarpShaderUpdateSystem : SubSystem
     {
         EntityQuery m_warpZoneQuery;
@@ -22,12 +23,12 @@ namespace Lsss
             var warpZoneBodies = new NativeArray<ColliderBody>(m_warpZoneQuery.CalculateEntityCount(), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
             Entities.WithAll<GravityWarpZoneTag>().WithStoreEntityQueryInField(ref m_warpZoneQuery).
-            ForEach((Entity entity, int entityInQueryIndex, in LocalToWorld ltw, in GravityWarpZoneRadius radius) =>
+            ForEach((Entity entity, int entityInQueryIndex, in WorldTransform worldTransform, in GravityWarpZoneRadius radius) =>
             {
                 warpZoneBodies[entityInQueryIndex] = new ColliderBody
                 {
                     collider  = new SphereCollider(0f, radius.radius),
-                    transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position),
+                    transform = worldTransform.worldTransform,
                     entity    = entity
                 };
             }).ScheduleParallel();
@@ -41,16 +42,16 @@ namespace Lsss
             Entities.ForEach((ref GravityWarpZoneParamsProperty paramsProp) => { paramsProp = default; }).ScheduleParallel();
 
             Entities.WithAll<GravityWarpZoneParamsProperty>().ForEach((Entity entity, int entityInQueryIndex, ref RenderBounds renderBounds, in BackupRenderBounds backupBounds,
-                                                                       in LocalToWorld ltw) =>
+                                                                       in WorldTransform worldTransform) =>
             {
                 renderBounds = backupBounds.bounds;
 
-                warpedAabbs[entityInQueryIndex] = Physics.TransformAabb(ltw.Value, renderBounds.Value.Center, renderBounds.Value.Extents);
+                warpedAabbs[entityInQueryIndex] = Physics.TransformAabb(worldTransform.worldTransform, new Aabb(renderBounds.Value.Min, renderBounds.Value.Max));
 
                 warpedBodies[entityInQueryIndex] = new ColliderBody
                 {
                     collider  = new Collider(),
-                    transform = new RigidTransform(quaternion.LookRotationSafe(ltw.Forward, ltw.Up), ltw.Position),
+                    transform = worldTransform.worldTransform,
                     entity    = entity
                 };
             }).WithStoreEntityQueryInField(ref m_warpedQuery).ScheduleParallel();
@@ -108,7 +109,7 @@ namespace Lsss
                     maxW               = warpZone.maxW,
                 };
 
-                positionRadiusLookup[result.entityB] = new GravityWarpZonePositionRadiusProperty { position = result.bodyA.transform.pos, radius = sphere.radius };
+                positionRadiusLookup[result.entityB] = new GravityWarpZonePositionRadiusProperty { position = result.transformA.position, radius = sphere.radius };
             }
         }
     }

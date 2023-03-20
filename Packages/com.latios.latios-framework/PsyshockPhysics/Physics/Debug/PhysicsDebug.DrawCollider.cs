@@ -1,5 +1,6 @@
 ﻿using Color = UnityEngine.Color;
 using Debug = UnityEngine.Debug;
+using Latios.Transforms;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -262,6 +263,20 @@ namespace Latios.Psyshock
                     DrawCollider(in collider.m_compound, transform, color, segmentsPerPi);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Draws a wireframe of a collider using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="sphere">The collider to draw</param>
+        /// <param name="transform">The transform of the collider in world space</param>
+        /// <param name="color">The color of the wireframe</param>
+        /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc if the collider has round features</param>
+        public static void DrawCollider(in Collider collider, in TransformQvvs transform, Color color, int segmentsPerPi = 6)
+        {
+            var c = collider;
+            Physics.ScaleStretchCollider(ref c, transform.scale, transform.stretch);
+            DrawCollider(in c, new RigidTransform(transform.rotation, transform.position), color, segmentsPerPi);
         }
     }
 }

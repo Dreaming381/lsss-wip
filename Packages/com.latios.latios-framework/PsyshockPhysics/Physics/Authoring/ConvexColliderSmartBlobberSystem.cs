@@ -113,7 +113,7 @@ namespace Latios.Psyshock.Authoring.Systems
             {
                 var mesh         = meshes[i].Value;
                 var builder      = builders[i];
-                builder.meshName = mesh.name;
+                builder.meshName = mesh.name ?? default;
                 builders[i]      = builder;
                 m_meshCache.Add(mesh);
             }
@@ -140,7 +140,7 @@ namespace Latios.Psyshock.Authoring.Systems
                 }
             }).Schedule();
 
-            Entities.ForEach((ref SmartBlobberResult result, in ConvexColliderBlobBakeData data) =>
+            Entities.WithReadOnly(hashmap).ForEach((ref SmartBlobberResult result, in ConvexColliderBlobBakeData data) =>
             {
                 result.blob = UnsafeUntypedBlobAssetReference.Create(hashmap[data.mesh.GetHashCode()].blob);
             }).ScheduleParallel();
@@ -214,7 +214,7 @@ namespace Latios.Psyshock.Authoring.Systems
                 var edgeIndicesInFaces                = new NativeList<int>(convexHullBuilder.numFaceVertices, Allocator.Temp);
                 var edgeIndicesInFacesStartsAndCounts = new NativeList<int2>(convexHullBuilder.numFaces, Allocator.Temp);
                 var vertexIndicesInEdges              = new NativeList<int2>(convexHullBuilder.vertices.peakCount, Allocator.Temp);
-                var edgeHashMap                       = new NativeParallelHashMap<int2, int>(convexHullBuilder.vertices.peakCount, Allocator.Temp);
+                var edgeHashMap                       = new NativeHashMap<int2, int>(convexHullBuilder.vertices.peakCount, Allocator.Temp);
                 var edgeFlippedInFaces                = new NativeList<bool>(convexHullBuilder.numFaceVertices, Allocator.Temp);
 
                 var tempVerticesInFace = new NativeList<int>(Allocator.Temp);

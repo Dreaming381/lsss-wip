@@ -1,11 +1,11 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -73,9 +73,9 @@ namespace Lsss
     {
         protected override void OnUpdate()
         {
-            Entities.WithAll<ShipTag>().ForEach((in Collider collider, in Translation translation, in Rotation rotation) =>
+            Entities.WithAll<ShipTag>().ForEach((in Collider collider, in WorldTransform worldTransform) =>
             {
-                PhysicsDebug.DrawCollider(in collider, new RigidTransform(rotation.Value, translation.Value), UnityEngine.Color.green);
+                PhysicsDebug.DrawCollider(in collider, in worldTransform.worldTransform, UnityEngine.Color.green);
                 if (collider.type == ColliderType.Box)
                     UnityEngine.Debug.Log("Box collider");
                 else if (collider.type == ColliderType.Compound)

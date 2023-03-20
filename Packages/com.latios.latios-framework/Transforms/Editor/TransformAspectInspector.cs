@@ -25,7 +25,8 @@ namespace Latios.Transforms.Editor
 
             var localUniformScale  = new FloatField { label = "Local Uniform Scale", bindingPath = "localScale" }.WithIconPrefix(toolHandleLocalName);
             var globalUniformScale                                                               =
-                new FloatField { label                                                           = "World Uniform Scale", bindingPath = "worldScale" }.WithIconPrefix(toolHandleGlobalName);
+                new FloatField { label                                                           = "World Uniform Scale", bindingPath = "worldScale" }.WithIconPrefix(
+                toolHandleGlobalName);
 
             var stretch = new Vector3Field { label = "Stretch", bindingPath = "stretch" }.WithIconPrefix(toolHandleLocalName);
 

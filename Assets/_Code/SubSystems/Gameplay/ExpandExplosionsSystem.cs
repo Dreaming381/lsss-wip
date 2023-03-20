@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Lsss
 {
@@ -31,10 +31,11 @@ namespace Lsss
         {
             public float dt;
 
-            public void Execute(ref Scale scale, in ExplosionStats stats)
+            public void Execute(ref TransformAspect transform, in ExplosionStats stats)
             {
-                scale.Value += stats.expansionRate * dt;
-                scale.Value  = math.min(scale.Value, stats.radius);
+                var scale            = transform.localScale + stats.expansionRate * dt;
+                scale                = math.min(scale, stats.radius);
+                transform.localScale = scale;
             }
         }
     }

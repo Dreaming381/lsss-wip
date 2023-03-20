@@ -8,7 +8,6 @@
         "Unity.Collections",
         "Unity.Mathematics",
         "Unity.Jobs",
-        "Unity.Transforms",
         "Unity.Entities.Hybrid",
         "Unity.Burst"
     ],

@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -34,15 +34,15 @@ namespace Lsss
         partial struct Job : IJobEntity
         {
             public float dt;
-            public void Execute(ref Translation translation, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime)
+            public void Execute(ref TransformAspect transform, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime)
             {
                 // !!!!!!!!!!!!!!!!!!!!! SERIOUSLY UNITY? !!!!!!!!!!!!!!!!!!!
                 //var    dt                   = Time.DeltaTime;
                 var    rotation             = quaternion.AxisAngle(path.orbitPlaneNormal, path.orbitSpeed * dt);
-                float3 currentOutwardVector = translation.Value - path.center;
+                float3 currentOutwardVector = transform.worldPosition - path.center;
                 float3 newOutwardVector     = math.rotate(rotation, currentOutwardVector);
                 newOutwardVector            = math.normalizesafe(newOutwardVector) * path.radius;
-                translation.Value           = math.select(translation.Value, path.center + newOutwardVector, pauseTime.pauseTime <= 0f);
+                transform.worldPosition     = math.select(transform.worldPosition, path.center + newOutwardVector, pauseTime.pauseTime <= 0f);
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Latios.Transforms.Authoring;
+using Unity.Entities;
 using UnityEngine;
 
 namespace Lsss.Authoring
@@ -23,10 +24,12 @@ namespace Lsss.Authoring
             AddComponent(new Damage { damage                      = authoring.damage });
             AddComponent(new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
             AddComponent(new FadeProperty { fade                  = 1f });
-            AddComponent<BulletPreviousPosition>();
+            AddComponent<TickStarting>();
             AddComponent<BulletFirer>();
             AddComponent<BulletTag>();
         }
+
+        struct TickStarting : IRequestTickStartingTransform { }
     }
 }
 

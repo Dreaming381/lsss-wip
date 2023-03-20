@@ -205,7 +205,8 @@ namespace Latios.Psyshock
             var         local = convex.convexColliderBlob.Value.localAabb;
             float3      c     = (local.min + local.max) / 2f;
             BoxCollider box   = new BoxCollider(c, local.max - c);
-            return AabbFrom(ScaleCollider(box, new PhysicsScale(convex.scale)), transform);
+            ScaleStretchCollider(ref box, 1f, convex.scale);
+            return AabbFrom(in box, transform);
         }
 
         private static Aabb AabbFrom(ConvexCollider convex, in TransformQvvs transform)

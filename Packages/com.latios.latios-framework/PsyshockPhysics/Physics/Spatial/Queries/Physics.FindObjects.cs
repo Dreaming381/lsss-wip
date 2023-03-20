@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Latios.Transforms;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
@@ -38,11 +39,15 @@ namespace Latios.Psyshock
         /// <summary>
         /// The transform of the collider
         /// </summary>
-        public RigidTransform transform => body.transform;
+        public TransformQvvs transform => body.transform;
         /// <summary>
         /// The index of the collider in the CollisionLayer
         /// </summary>
         public int bodyIndex => m_bodyIndexRelative + m_bucket.count;
+        /// <summary>
+        /// The index of the collider relative to the original EntityQuery or NativeArrays used to create the CollisionLayer
+        /// </summary>
+        public int sourceIndex => m_bucket.srcIndices[m_bodyIndexRelative];
         /// <summary>
         /// An index that is guaranteed to be deterministic and unique between threads for a given FindObjects operation,
         /// and can be used as the sortKey for command buffers
@@ -56,7 +61,7 @@ namespace Latios.Psyshock
         private bool           m_isThreadSafe;
 
         /// <summary>
-        /// An safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
+        /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
         /// owning entity of the collider. It can also be implicitly casted and used as a normal entity reference.
         /// </summary>
 #if ENABLE_UNITY_COLLECTIONS_CHECKS

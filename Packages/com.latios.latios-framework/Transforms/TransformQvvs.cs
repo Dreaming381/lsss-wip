@@ -62,6 +62,13 @@ namespace Latios.Transforms
             rotation = quaternion.identity,
             scale    = 1f
         };
+
+        public TransformQvs(float3 position, quaternion rotation, float scale = 1f)
+        {
+            this.position = position;
+            this.rotation = rotation;
+            this.scale    = scale;
+        }
     }
 
     public static class qvvs
@@ -74,14 +81,14 @@ namespace Latios.Transforms
             {
                 rotation   = math.mul(a.rotation, b.rotation),
                 position   = a.position + math.rotate(a.rotation, b.position * a.stretch * a.scale),  // We scale by A's stretch and scale because we are leaving A's space
-                worldIndex = a.worldIndex,  // We inherit A's index because we were relative to A
+                worldIndex = b.worldIndex,  // We retain B's worldIndex as the result is B in a different coordinate space
                 stretch    = b.stretch,  // We retain B's stretch as the result is B in a different coordinate space
                 scale      = a.scale * b.scale
             };
         }
 
         // Assuming B represents a transform in A's space, this converts B into the same space
-        // A resides in, where bStretch is forwarded from
+        // A resides in, where bStretch is forwarded from bWorld
         public static void mul(ref TransformQvvs bWorld, in TransformQvvs a, TransformQvs b)
         {
             bWorld.rotation = math.mul(a.rotation, b.rotation);
@@ -103,20 +110,19 @@ namespace Latios.Transforms
             };
         }
 
-        // Todo: Which worldIndex should we use?
-        //public static TransformQvvs inversemulqvvs(in TransformQvvs a, in TransformQvvs b)
-        //{
-        //    var inverseRotation = math.conjugate(a.rotation);
-        //    var rcps = math.rcp(new float4(a.stretch, a.scale));
-        //    return new TransformQvvs
-        //    {
-        //        position = math.rotate(inverseRotation, b.position - a.position) * rcps.xyz * rcps.w,
-        //        rotation = math.mul(inverseRotation, b.rotation),
-        //        scale = rcps.w * b.scale,
-        //        stretch = b.stretch,
-        //        worldIndex = ?
-        //    };
-        //}
+        public static TransformQvvs inversemulqvvs(in TransformQvvs a, in TransformQvvs b)
+        {
+            var inverseRotation = math.conjugate(a.rotation);
+            var rcps            = math.rcp(new float4(a.stretch, a.scale));
+            return new TransformQvvs
+            {
+                position   = math.rotate(inverseRotation, b.position - a.position) * rcps.xyz * rcps.w,
+                rotation   = math.mul(inverseRotation, b.rotation),
+                scale      = rcps.w * b.scale,
+                stretch    = b.stretch,
+                worldIndex = b.worldIndex
+            };
+        }
 
         public static float3x4 ToMatrix3x4(in this TransformQvvs transform)
         {

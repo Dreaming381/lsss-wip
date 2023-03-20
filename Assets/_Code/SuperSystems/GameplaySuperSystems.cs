@@ -67,7 +67,7 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddUnmanagedSystem<ShipVsWallDamageSystem>();
             GetOrCreateAndAddUnmanagedSystem<BulletVsWallSystem>();
             GetOrCreateAndAddUnmanagedSystem<CheckSpawnPointIsSafeSystem>();
-            GetOrCreateAndAddUnmanagedSystem<TravelThroughWormholeSystem>();
+            //GetOrCreateAndAddUnmanagedSystem<TravelThroughWormholeSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateTimeToLiveSystem>();
             GetOrCreateAndAddUnmanagedSystem<DestroyShipsWithNoHealthSystem>();
             GetOrCreateAndAddUnmanagedSystem<SpawnShipsPrioritizeSystem>();

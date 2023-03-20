@@ -1,16 +1,18 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
-namespace Lsss
-{
+// Todo: Need to redesign this feature.
+/*
+   namespace Lsss
+   {
     [BurstCompile]
     public partial struct TravelThroughWormholeSystem : ISystem
     {
@@ -98,5 +100,6 @@ namespace Lsss
             }
         }
     }
-}
+   }
+ */
 

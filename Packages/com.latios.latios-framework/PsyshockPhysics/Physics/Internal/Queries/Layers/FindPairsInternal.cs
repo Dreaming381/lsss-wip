@@ -182,7 +182,7 @@ namespace Latios.Psyshock
 
                 public void Execute(in FindPairsResult result)
                 {
-                    int2 pair = new int2(result.indexA, result.indexB);
+                    int2 pair = new int2(result.bodyIndexA, result.bodyIndexB);
                     cache.Write(pair);
                 }
             }
@@ -517,7 +517,7 @@ namespace Latios.Psyshock
 
                 public void Execute(in FindPairsResult result)
                 {
-                    int2 pair = new int2(result.indexA, result.indexB);
+                    int2 pair = new int2(result.bodyIndexA, result.bodyIndexB);
                     cache.Write(pair);
                 }
             }

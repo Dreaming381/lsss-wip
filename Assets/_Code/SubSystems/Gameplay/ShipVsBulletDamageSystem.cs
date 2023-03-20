@@ -1,11 +1,11 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -35,7 +35,7 @@ namespace Lsss
             var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
-            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation>().AsParallelWriter();
+            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform>().AsParallelWriter();
 
             new BulletFirerJob { frameId = m_frameId }.ScheduleParallel();
 
@@ -84,8 +84,8 @@ namespace Lsss
             [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabLookup;
             public int                                             frameId;
 
-            public DestroyCommandBuffer.ParallelWriter                            dcb;
-            public InstantiateCommandBuffer<Rotation, Translation>.ParallelWriter icb;
+            public DestroyCommandBuffer.ParallelWriter                     dcb;
+            public InstantiateCommandBuffer<WorldTransform>.ParallelWriter icb;
 
             public void Execute(in FindPairsResult result)
             {
@@ -115,9 +115,9 @@ namespace Lsss
                     var hitPrefab = shipHitEffectPrefabLookup[result.entityB];
                     if (hitPrefab.hitEffectPrefab != Entity.Null)
                     {
-                        float3 upDir                                                         = math.select(math.up(), math.forward(), math.abs(hitData.normalB.y) == 1f);
-                        var    rotation                                                      = new Rotation { Value = quaternion.LookRotationSafe(hitData.normalB, upDir) };
-                        icb.Add(hitPrefab.hitEffectPrefab, rotation, new Translation { Value = hitData.hitpointB }, result.jobIndex);
+                        float3 upDir                                                           = math.select(math.up(), math.forward(), math.abs(hitData.normalB.y) == 1f);
+                        var    rotation                                                        = quaternion.LookRotationSafe(hitData.normalB, upDir);
+                        icb.Add(hitPrefab.hitEffectPrefab, new WorldTransform { worldTransform = new TransformQvvs( hitData.hitpointB, rotation) }, result.jobIndex);
                     }
                 }
             }

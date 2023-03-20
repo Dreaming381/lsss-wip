@@ -1,11 +1,11 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -38,7 +38,7 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var query = QueryBuilder().WithAll<Translation, Rotation, Collider, BulletPreviousPosition, BulletTag>().Build();
+            var query = QueryBuilder().WithAll<WorldTransform, Collider, TickStartingTransform, BulletTag>().Build();
 
             var bodies =
                 CollectionHelper.CreateNativeArray<ColliderBody>(query.CalculateEntityCount(),
@@ -59,13 +59,12 @@ namespace Lsss
 
             public void Execute(Entity entity,
                                 [EntityIndexInQuery] int entityInQueryIndex,
-                                in Translation translation,
-                                in Rotation rotation,
+                                in WorldTransform worldTransform,
                                 in Collider collider,
-                                in BulletPreviousPosition previousPosition)
+                                in TickStartingTransform previousPosition)
             {
                 CapsuleCollider capsule     = collider;
-                float           tailLength  = math.distance(translation.Value, previousPosition.previousPosition);
+                float           tailLength  = math.distance(worldTransform.position, previousPosition.position);
                 capsule.pointA              = capsule.pointB;
                 capsule.pointA.z           -= math.max(tailLength, 1.1920928955078125e-7f);  //Todo: Use math version of this once released.
 
@@ -73,7 +72,7 @@ namespace Lsss
                 {
                     collider  = capsule,
                     entity    = entity,
-                    transform = new RigidTransform(rotation.Value, translation.Value)
+                    transform = worldTransform.worldTransform
                 };
             }
         }

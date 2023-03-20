@@ -797,9 +797,11 @@ namespace Lsss.Authoring
     [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
     public partial struct SoundEffectBakingSystem : ISystem
     {
-        [BurstCompile] public void OnCreate(ref SystemState state) {
+        [BurstCompile] public void OnCreate(ref SystemState state)
+        {
         }
-        [BurstCompile] public void OnDestroy(ref SystemState state) {
+        [BurstCompile] public void OnDestroy(ref SystemState state)
+        {
         }
         [BurstCompile] public void OnUpdate(ref SystemState state)
         {

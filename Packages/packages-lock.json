@@ -7,7 +7,8 @@
       "dependencies": {
         "com.unity.entities": "1.0.0-pre.15",
         "com.unity.audio.dspgraph": "0.1.0-preview.22",
-        "com.unity.entities.graphics": "1.0.0-pre.15"
+        "com.unity.entities.graphics": "1.0.0-pre.15",
+        "com.unity.burst": "1.8.3"
       }
     },
     "com.unity.ai.navigation": {
@@ -33,8 +34,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.1",
-      "depth": 0,
+      "version": "1.8.3",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.mathematics": "1.2.1"

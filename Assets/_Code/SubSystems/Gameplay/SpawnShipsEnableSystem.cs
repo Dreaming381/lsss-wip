@@ -1,10 +1,10 @@
 ﻿using Latios;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -30,10 +30,11 @@ namespace Lsss
                 {
                     var ship = payload.ValueRO.disabledShip;
                     ecb.Add(ship);
-                    var trans = GetComponent<Translation>(entity);
-                    var rot   = GetComponent<Rotation>(entity);
-                    SetComponent(ship, trans);
-                    SetComponent(ship, rot);
+
+                    var entityTransform          = GetAspectRO<TransformAspect>(entity);
+                    var shipTransform            = GetAspectRW<TransformAspect>(ship);
+                    shipTransform.worldRotation  = entityTransform.worldRotation;
+                    shipTransform.worldPosition  = entityTransform.worldPosition;
                     payload.ValueRW.disabledShip = Entity.Null;
                 }
             }

@@ -5,7 +5,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -16,10 +15,15 @@ namespace Lsss
     {
         LatiosWorldUnmanaged latiosWorld;
 
-        [BurstCompile]
+        EntityQuery                    m_query;
+        BuildCollisionLayerTypeHandles m_handles;
+
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
+
+            m_query   = state.Fluent().WithAll<ExplosionTag>(true).PatchQueryForBuildingCollisionLayer().Build();
+            m_handles = new BuildCollisionLayerTypeHandles(ref state);
         }
 
         [BurstCompile]
@@ -38,38 +42,12 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var query = QueryBuilder().WithAll<Translation, Scale, ExplosionTag>().Build();
-
-            var bodies =
-                CollectionHelper.CreateNativeArray<ColliderBody>(query.CalculateEntityCount(),
-                                                                 state.WorldUnmanaged.UpdateAllocator.ToAllocator,
-                                                                 NativeArrayOptions.UninitializedMemory);
-
-            new Job { bodies = bodies }.ScheduleParallel(query);
-
-            state.Dependency   = Physics.BuildCollisionLayer(bodies).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
+            m_handles.Update(ref state);
+            state.Dependency = Physics.BuildCollisionLayer(m_query, m_handles).WithSettings(settings).ScheduleParallel(out CollisionLayer layer,
+                                                                                                                       Allocator.Persistent,
+                                                                                                                       state.Dependency);
             var explosionLayer = new ExplosionCollisionLayer { layer = layer };
             latiosWorld.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(explosionLayer);
-        }
-
-        [BurstCompile]
-        partial struct Job : IJobEntity
-        {
-            public NativeArray<ColliderBody> bodies;
-
-            public void Execute(Entity entity,
-                                [EntityIndexInQuery] int entityInQueryIndex,
-                                in Translation translation,
-                                in Scale scale)
-            {
-                var sphere                 = new SphereCollider(0f, scale.Value / 2f);  //convert diameter to radius
-                bodies[entityInQueryIndex] = new ColliderBody
-                {
-                    entity    = entity,
-                    transform = new RigidTransform(quaternion.identity, translation.Value),
-                    collider  = sphere
-                };
-            }
         }
     }
 }

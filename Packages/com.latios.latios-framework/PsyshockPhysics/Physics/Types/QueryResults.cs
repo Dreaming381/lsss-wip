@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Latios.Transforms;
+using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -137,6 +138,11 @@ namespace Latios.Psyshock
         /// The index in the CollisionLayer of the body that generated the corresponding result
         /// </summary>
         public int bodyIndex;
+        /// <summary>
+        /// The index of the body that generated the corresponding result relative to the original EntityQuery or NativeArrays
+        /// used to create the CollisionLayer
+        /// </summary>
+        public int sourceIndex;
 
         /// <summary>
         /// The entity in the CollisionLayer that generated the corresponding result
@@ -149,7 +155,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// The transform in the CollisionLayer that generated the corresponding result
         /// </summary>
-        public RigidTransform transform => body.transform;
+        public TransformQvvs transform => body.transform;
     }
 }
 

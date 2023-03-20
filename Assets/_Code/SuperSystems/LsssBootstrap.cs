@@ -20,6 +20,7 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
                 UnityEngine.Debug.Log("Why? How? TypeManager corruption?");
         }
 
+        Latios.Transforms.Authoring.TransformsBakingBootstrap.InstallLatiosTransformsBakers(ref context);
         Latios.Psyshock.Authoring.PsyshockBakingBootstrap.InstallLegacyColliderBakers(ref context);
         Latios.Kinemation.Authoring.KinemationBakingBootstrap.InstallKinemationBakersAndSystems(ref context);
     }
@@ -36,7 +37,7 @@ public class LatiosEditorBootstrap : ICustomEditorBootstrap
 
         BootstrapTools.InjectSystems(systems, world, world.simulationSystemGroup);
 
-        CoreBootstrap.InstallExtremeTransforms(world);
+        Latios.Transforms.TransformsBootstrap.InstallTransforms(world, world.simulationSystemGroup);
         Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
 
         world.initializationSystemGroup.SortSystems();
@@ -62,11 +63,8 @@ public class LatiosBootstrap : ICustomBootstrap
         BootstrapTools.InjectUnitySystems(systems, world, world.simulationSystemGroup);
         BootstrapTools.InjectRootSuperSystems(systems, world, world.simulationSystemGroup);
 
-        //world.GetExistingSystemManaged<Unity.Transforms.CopyInitialTransformFromGameObjectSystem>().Enabled = false;  // Leaks LocalToWorld query and generates ECB.
-
         CoreBootstrap.InstallSceneManager(world);
-        CoreBootstrap.InstallExtremeTransforms(world);
-        //CoreBootstrap.InstallImprovedTransforms(world);
+        Latios.Transforms.TransformsBootstrap.InstallTransforms(world, world.simulationSystemGroup);
         Latios.Myri.MyriBootstrap.InstallMyri(world);
         Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
 

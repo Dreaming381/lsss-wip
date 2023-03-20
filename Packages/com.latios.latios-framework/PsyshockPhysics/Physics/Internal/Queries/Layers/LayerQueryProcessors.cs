@@ -30,9 +30,10 @@ namespace Latios.Psyshock
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                     m_ray.end = m_resultPtr->position;
                 }
@@ -64,9 +65,10 @@ namespace Latios.Psyshock
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                 }
             }
@@ -96,9 +98,10 @@ namespace Latios.Psyshock
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                     m_maxDistance = m_resultPtr->distance;
                 }
@@ -132,9 +135,10 @@ namespace Latios.Psyshock
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                 }
             }
@@ -164,15 +168,24 @@ namespace Latios.Psyshock
 
             public void Execute(in FindObjectsResult result)
             {
-                var hit = ColliderColliderDispatch.DistanceBetween(in m_collider, in m_transform, result.collider, result.transform, m_maxDistance, out var newResult);
+                var target          = result.collider;
+                var targetTransform = result.transform;
+                Physics.ScaleStretchCollider(ref target, targetTransform.scale, targetTransform.stretch);
+                var hit = ColliderColliderDispatch.DistanceBetween(in m_collider,
+                                                                   in m_transform,
+                                                                   target,
+                                                                   new RigidTransform(targetTransform.rotation, targetTransform.position),
+                                                                   m_maxDistance,
+                                                                   out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                     m_maxDistance = m_resultPtr->distance;
                 }
@@ -206,15 +219,24 @@ namespace Latios.Psyshock
                 if (m_resultPtr->subColliderIndexB >= 0)
                     return;
 
-                var hit = ColliderColliderDispatch.DistanceBetween(in m_collider, in m_transform, result.collider, result.transform, m_maxDistance, out var newResult);
+                var target          = result.collider;
+                var targetTransform = result.transform;
+                Physics.ScaleStretchCollider(ref target, targetTransform.scale, targetTransform.stretch);
+                var hit = ColliderColliderDispatch.DistanceBetween(in m_collider,
+                                                                   in m_transform,
+                                                                   target,
+                                                                   new RigidTransform(targetTransform.rotation, targetTransform.position),
+                                                                   m_maxDistance,
+                                                                   out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                 }
             }
@@ -244,15 +266,24 @@ namespace Latios.Psyshock
 
             public void Execute(in FindObjectsResult result)
             {
-                var hit = ColliderColliderDispatch.ColliderCast(in m_collider, in m_start, m_end, result.collider, result.transform, out var newResult);
+                var target          = result.collider;
+                var targetTransform = result.transform;
+                Physics.ScaleStretchCollider(ref target, targetTransform.scale, targetTransform.stretch);
+                var hit = ColliderColliderDispatch.ColliderCast(in m_collider,
+                                                                in m_start,
+                                                                m_end,
+                                                                target,
+                                                                new RigidTransform(targetTransform.rotation, targetTransform.position),
+                                                                out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                     m_end = m_resultPtr->distance * math.normalize(m_end - m_start.pos) + m_start.pos;
                 }
@@ -286,15 +317,24 @@ namespace Latios.Psyshock
                 if (m_resultPtr->subColliderIndexOnTarget >= 0)
                     return;
 
-                var hit = ColliderColliderDispatch.ColliderCast(in m_collider, in m_start, m_end, result.collider, result.transform, out var newResult);
+                var target          = result.collider;
+                var targetTransform = result.transform;
+                Physics.ScaleStretchCollider(ref target, targetTransform.scale, targetTransform.stretch);
+                var hit = ColliderColliderDispatch.ColliderCast(in m_collider,
+                                                                in m_start,
+                                                                m_end,
+                                                                target,
+                                                                new RigidTransform(targetTransform.rotation, targetTransform.position),
+                                                                out var newResult);
                 if (hit)
                 {
                     *m_resultPtr = newResult;
                     *m_infoPtr   = new LayerBodyInfo
                     {
-                        body      = result.body,
-                        bodyIndex = result.bodyIndex,
-                        aabb      = result.aabb
+                        body        = result.body,
+                        bodyIndex   = result.bodyIndex,
+                        sourceIndex = result.sourceIndex,
+                        aabb        = result.aabb
                     };
                 }
             }

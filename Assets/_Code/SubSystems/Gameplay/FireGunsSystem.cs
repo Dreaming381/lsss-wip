@@ -1,11 +1,11 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 using static Unity.Entities.SystemAPI;
 
@@ -30,19 +30,17 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var bulletIcb           = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Rotation, Translation, BulletFirer>().AsParallelWriter();
-            var effectIcbMainThread = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>();
-            effectIcbMainThread.AddComponentTag<LocalToParent>();
-            var   effectIcb = effectIcbMainThread.AsParallelWriter();
+            var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform, BulletFirer>().AsParallelWriter();
+            var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>().AsParallelWriter();
             float dt        = Time.DeltaTime;
 
             var job = new Job
             {
-                bulletIcb      = bulletIcb,
-                effectIcb      = effectIcb,
-                dt             = dt,
-                ltwLookup      = GetComponentLookup<LocalToWorld>(true),
-                colliderLookup = GetComponentLookup<Collider>(true)
+                bulletIcb            = bulletIcb,
+                effectIcb            = effectIcb,
+                dt                   = dt,
+                worldTransformLookup = GetComponentLookup<WorldTransform>(true),
+                colliderLookup       = GetComponentLookup<Collider>(true)
             };
             job.ScheduleParallel();
 
@@ -54,12 +52,12 @@ namespace Lsss
         [BurstCompile]
         partial struct Job : IJobEntity
         {
-            public InstantiateCommandBuffer<Rotation, Translation, BulletFirer>.ParallelWriter bulletIcb;
-            public InstantiateCommandBuffer<Parent>.ParallelWriter                             effectIcb;
-            public float                                                                       dt;
+            public InstantiateCommandBuffer<WorldTransform, BulletFirer>.ParallelWriter bulletIcb;
+            public InstantiateCommandBuffer<Parent>.ParallelWriter                      effectIcb;
+            public float                                                                dt;
 
-            [ReadOnly] public ComponentLookup<LocalToWorld> ltwLookup;
-            [ReadOnly] public ComponentLookup<Collider>     colliderLookup;
+            [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
+            [ReadOnly] public ComponentLookup<Collider>       colliderLookup;
 
             public void Execute(Entity entity,
                                 [ChunkIndexInQuery] int chunkIndexInQuery,
@@ -76,18 +74,17 @@ namespace Lsss
                     {
                         for (int i = 0; i < gunPoints.Length; i++)
                         {
-                            CapsuleCollider collider   = colliderLookup[bulletPrefab.bulletPrefab];
-                            float           halfLength = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
-                            var             ltw        = ltwLookup[gunPoints[i].gun];
-                            var             rot        = quaternion.LookRotationSafe(ltw.Forward, ltw.Up);
+                            CapsuleCollider collider                   = colliderLookup[bulletPrefab.bulletPrefab];
+                            float           halfLength                 = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
+                            var             gunPointTransform          = worldTransformLookup[gunPoints[i].gun];
+                            gunPointTransform.worldTransform.position += gunPointTransform.forwardDirection * halfLength;
                             bulletIcb.Add(bulletPrefab.bulletPrefab,
-                                          new Rotation { Value     = rot },
-                                          new Translation { Value  = ltw.Position + math.forward(rot) * halfLength },
+                                          gunPointTransform,
                                           new BulletFirer { entity = entity, initialized = false },
                                           chunkIndexInQuery);
                             if (effectPrefab.effectPrefab != Entity.Null)
                             {
-                                effectIcb.Add(effectPrefab.effectPrefab, new Parent { Value = gunPoints[i].gun }, chunkIndexInQuery);
+                                effectIcb.Add(effectPrefab.effectPrefab, new Parent { parent = gunPoints[i].gun }, chunkIndexInQuery);
                             }
                         }
                     }

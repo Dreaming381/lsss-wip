@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -92,6 +93,18 @@ namespace Latios.Psyshock
             return new PhysicsComponentLookup<T> { lookup = componentDataFromEntity };
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Update(ref SystemState state)
+        {
+            lookup.Update(ref state);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Update(SystemBase system)
+        {
+            lookup.Update(system);
+        }
+
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         static void ValidateSafeEntityIsSafe(SafeEntity safeEntity)
         {
@@ -161,6 +174,18 @@ namespace Latios.Psyshock
         public static implicit operator PhysicsBufferLookup<T>(BufferLookup<T> bufferFromEntity)
         {
             return new PhysicsBufferLookup<T> { lookup = bufferFromEntity };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Update(ref SystemState state)
+        {
+            lookup.Update(ref state);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Update(SystemBase system)
+        {
+            lookup.Update(system);
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
