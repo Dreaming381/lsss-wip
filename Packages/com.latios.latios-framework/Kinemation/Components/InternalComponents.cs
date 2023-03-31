@@ -365,8 +365,8 @@ namespace Latios.Kinemation
         public ThreadLocalAllocator                            cullingThreadLocalAllocator;
         public BatchCullingOutput                              batchCullingOutput;
         public NativeParallelHashMap<int, BatchFilterSettings> batchFilterSettingsByRenderFilterSettingsSharedIndex;
+        public NativeParallelHashMap<int, BRGRenderMeshArray>  brgRenderMeshArrays;
 #if UNITY_EDITOR
-        public NativeParallelHashMap<int, BatchEditorRenderData> batchEditorSharedIndexToSceneMaskMap;
         public IncludeExcludeListFilter includeExcludeListFilter;
 #endif
 

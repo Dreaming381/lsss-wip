@@ -29,8 +29,6 @@ namespace Lsss.Authoring
                 expansionRate = 1f / authoring.expansionDuration
             });
 
-            AddComponent(new Scale { Value = 0f });
-
             AddComponent<ExplosionTag>();
         }
     }

@@ -25,6 +25,30 @@ namespace Latios.Authoring.Systems
     [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
     public class SmartBlobberCleanupBakingGroup : ComponentSystemGroup
     {
+        List<SystemHandle> m_systemsToAddBeforeCreate = null;
+        bool               m_created                  = false;
+
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+            m_created = true;
+            foreach (var system in m_systemsToAddBeforeCreate)
+                AddSystemToUpdateList(system);
+        }
+
+        public void AddSystemToUpdateListSafe(SystemHandle system)
+        {
+            if (m_created)
+            {
+                AddSystemToUpdateList(system);
+            }
+            else
+            {
+                if (m_systemsToAddBeforeCreate == null)
+                    m_systemsToAddBeforeCreate = new List<SystemHandle>();
+                m_systemsToAddBeforeCreate.Add(system);
+            }
+        }
     }
 
     /// <summary>

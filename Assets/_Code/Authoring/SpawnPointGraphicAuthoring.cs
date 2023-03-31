@@ -31,7 +31,6 @@ namespace Lsss.Authoring
                 shrinkSpins     = authoring.shrinkSpins * math.PI * 2
             });
             AddComponent(new TimeToLive { timeToLive = authoring.lifeTime });
-            AddComponent(new Scale { Value           = 0f });
         }
     }
 }

@@ -260,7 +260,7 @@ namespace Latios.Authoring
                 return;
             var system = managedWorld.GetOrCreateSystemManaged<Systems.SmartBlobberTypedPostProcessBakingSystem<TBlobType> >();
             var group  = managedWorld.GetExistingSystemManaged<Systems.SmartBlobberCleanupBakingGroup>();
-            group.AddSystemToUpdateList(system);
+            group.AddSystemToUpdateListSafe(system.SystemHandle);
         }
     }
 

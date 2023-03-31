@@ -422,7 +422,7 @@ namespace Latios
 
         #region TypeManager
         private delegate void TmAddTypeInfoToTables(Type type, TypeManager.TypeInfo typeInfo, string name, int descendentCount);
-        private delegate TypeManager.TypeInfo TmBuildComponentType(Type type, Dictionary<Type, ulong> hashCache, HashSet<Type> nestedContainerCache);
+        private delegate TypeManager.TypeInfo TmBuildComponentType(Type type, Dictionary<Type, ulong> hashCache, Dictionary<Type, bool> nestedContainerCache);
 
         //public static bool s_initialized = false;
 
@@ -451,7 +451,7 @@ namespace Latios
 
             // Unity needs these
             Dictionary<Type, ulong> hashCache            = new Dictionary<Type, ulong>();
-            HashSet<Type>           nestedContainerCache = new HashSet<Type>();
+            Dictionary<Type, bool>  nestedContainerCache = new Dictionary<Type, bool>();
 
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             foreach (var assembly in assemblies)
