@@ -33,11 +33,9 @@ namespace Lsss
         public EntityWith<Prefab> playerPrefab;
     }
 
-    public struct FactionShipsCollisionLayer : ICollectionComponent
+    public partial struct FactionShipsCollisionLayer : ICollectionComponent
     {
         public CollisionLayer layer;
-
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<FactionTag>();
 
         public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
@@ -144,19 +142,15 @@ namespace Lsss
     }
 
     //Todo: Replace with Spherecast
-    public struct BulletCollisionLayer : ICollectionComponent
+    public partial struct BulletCollisionLayer : ICollectionComponent
     {
         public CollisionLayer layer;
-
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite < BulletCollisionLayerTag>();
 
         public JobHandle TryDispose(JobHandle inputDeps)
         {
             return layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
         }
     }
-
-    public struct BulletCollisionLayerTag : IComponentData { }
 
     public struct ExplosionTag : IComponentData { }
 
@@ -166,16 +160,12 @@ namespace Lsss
         public float expansionRate;
     }
 
-    public struct ExplosionCollisionLayer : ICollectionComponent
+    public partial struct ExplosionCollisionLayer : ICollectionComponent
     {
         public CollisionLayer layer;
 
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<ExplosionCollisionLayerTag>();
-
         public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
-
-    public struct ExplosionCollisionLayerTag : IComponentData { }
 
     public struct WormholeTag : IComponentData { }
 
@@ -184,29 +174,21 @@ namespace Lsss
         public EntityWith<WormholeDestination> wormholeDestination;
     }
 
-    public struct WormholeCollisionLayer : ICollectionComponent
+    public partial struct WormholeCollisionLayer : ICollectionComponent
     {
         public CollisionLayer layer;
 
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<WormholeCollisionLayerTag>();
-
         public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
-
-    public struct WormholeCollisionLayerTag : IComponentData { }
 
     public struct WallTag : IComponentData { }
 
-    public struct WallCollisionLayer : ICollectionComponent
+    public partial struct WallCollisionLayer : ICollectionComponent
     {
         public CollisionLayer layer;
 
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<WallCollisionLayerTag>();
-
         public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
-
-    public struct WallCollisionLayerTag : IComponentData { }
 
     public struct SpawnPointTag : IComponentData { }
 
@@ -241,18 +223,14 @@ namespace Lsss
         public float pauseTime;
     }
 
-    public struct SpawnPointCollisionLayer : ICollectionComponent
+    public partial struct SpawnPointCollisionLayer : ICollectionComponent
     {
         public CollisionLayer layer;
-
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<SpawnPointCollisionLayerTag>();
 
         public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
     }
 
-    public struct SpawnPointCollisionLayerTag : IComponentData { }
-
-    public struct SpawnQueues : ICollectionComponent
+    public partial struct SpawnQueues : ICollectionComponent
     {
         public struct FactionRanges
         {

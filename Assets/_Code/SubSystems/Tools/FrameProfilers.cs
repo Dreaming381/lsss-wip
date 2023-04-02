@@ -12,15 +12,13 @@ using UnityEngine.Rendering;
 
 namespace Lsss.Tools
 {
-    public struct ProfilingDataManaged : IManagedStructComponent
+    public partial struct ProfilingDataManaged : IManagedStructComponent
     {
         public Stopwatch frameStopwatch;
         public Stopwatch gpuStopwatch;
-
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite<ProfilingDataTag>();
     }
 
-    public struct ProfilingData : ICollectionComponent
+    public partial struct ProfilingData : ICollectionComponent
     {
         public NativeArray<float>   cpuShort;
         public NativeArray<float>   cpuMin;
@@ -32,8 +30,6 @@ namespace Lsss.Tools
         public NativeArray<float>   gpuMax;
         public NativeArray<Color32> image;
         public NativeArray<float>   barValues;
-
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite < ProfilingDataTag>();
 
         public JobHandle TryDispose(JobHandle inputDeps)
         {
@@ -52,8 +48,6 @@ namespace Lsss.Tools
             return result;
         }
     }
-
-    public struct ProfilingDataTag : IComponentData { }
 
     public partial class BeginFrameProfilingSystem : SubSystem
     {

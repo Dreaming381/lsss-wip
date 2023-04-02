@@ -86,10 +86,6 @@ namespace Latios
         /// <param name="role">The role of the world. Leave at default unless this is a NetCode project.</param>
         public unsafe LatiosWorld(string name, WorldFlags flags = WorldFlags.Simulation, WorldRole role = WorldRole.Default) : base(name, flags)
         {
-            //BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentTag<>),               typeof(IManagedComponent));
-            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(ManagedComponentCleanupTag<>),    typeof(IManagedStructComponent));
-            //BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentTag<>),            typeof(ICollectionComponent));
-            BootstrapTools.PopulateTypeManagerWithGenerics(typeof(CollectionComponentCleanupTag<>), typeof(ICollectionComponent));
             m_interfacesDispatcher = new UnmanagedExtraInterfacesDispatcher();
 
             m_latiosWorldUnmanagedSystem = this.GetOrCreateSystem<LatiosWorldUnmanagedSystem>();

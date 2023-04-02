@@ -13,25 +13,21 @@ namespace Latios.Systems
     [DisableAutoCreation, NoGroupInjection]
     public class LatiosInitializationSystemGroup : InitializationSystemGroup
     {
-        private SyncPointPlaybackSystemDispatch      m_syncPlayback;
-        private MergeBlackboardsSystem               m_mergeGlobals;
-        private ManagedComponentsReactiveSystemGroup m_cleanupGroup;
-        private LatiosWorldSyncGroup                 m_syncGroup;
-        private PreSyncPointGroup                    m_preSyncGroup;
-
         protected override void OnCreate()
         {
             base.OnCreate();
-            m_syncPlayback = World.CreateSystemManaged<SyncPointPlaybackSystemDispatch>();
-            m_mergeGlobals = World.CreateSystemManaged<MergeBlackboardsSystem>();
-            m_cleanupGroup = World.CreateSystemManaged<ManagedComponentsReactiveSystemGroup>();
-            m_syncGroup    = World.GetOrCreateSystemManaged<LatiosWorldSyncGroup>();
-            m_preSyncGroup = World.GetOrCreateSystemManaged<PreSyncPointGroup>();
-            AddSystemToUpdateList(m_syncPlayback);
-            AddSystemToUpdateList(m_syncGroup);
-            AddSystemToUpdateList(m_preSyncGroup);
-            m_syncGroup.AddSystemToUpdateList(m_mergeGlobals);
-            m_syncGroup.AddSystemToUpdateList(m_cleanupGroup);
+            var syncPlayback          = World.CreateSystemManaged<SyncPointPlaybackSystemDispatch>();
+            var mergeGlobals          = World.CreateSystemManaged<MergeBlackboardsSystem>();
+            var collectionReactive    = World.CreateSystem<CollectionComponentsReactiveSystem>();
+            var managedStructReactive = World.CreateSystem<ManagedStructComponentsReactiveSystem>();
+            var syncGroup             = World.GetOrCreateSystemManaged<LatiosWorldSyncGroup>();
+            var preSyncGroup          = World.GetOrCreateSystemManaged<PreSyncPointGroup>();
+            AddSystemToUpdateList(syncPlayback);
+            AddSystemToUpdateList(syncGroup);
+            AddSystemToUpdateList(preSyncGroup);
+            syncGroup.AddSystemToUpdateList(mergeGlobals);
+            syncGroup.AddSystemToUpdateList(collectionReactive);
+            syncGroup.AddSystemToUpdateList(managedStructReactive);
         }
 
         SystemSortingTracker m_tracker;
