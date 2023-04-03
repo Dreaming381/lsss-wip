@@ -2,7 +2,7 @@
 
 namespace Lsss.SuperSystems
 {
-    public class AiUpdateSuperSystem : SuperSystem
+    public partial class AiUpdateSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {

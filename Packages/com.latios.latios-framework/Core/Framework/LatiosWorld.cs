@@ -219,7 +219,7 @@ namespace Systems
     /// The SimulationSystemGroup for a LatiosWorld created with WorldRole.Default
     /// </summary>
     [DisableAutoCreation, NoGroupInjection]
-    public class LatiosSimulationSystemGroup : SimulationSystemGroup
+    public partial class LatiosSimulationSystemGroup : SimulationSystemGroup
     {
         SystemSortingTracker m_tracker;
         internal bool        skipInDeferred = false;
@@ -235,7 +235,7 @@ namespace Systems
     /// The PresentationSystemGroup for a LatiosWorld created with WorldRole.Default
     /// </summary>
     [DisableAutoCreation, NoGroupInjection]
-    public class LatiosPresentationSystemGroup : PresentationSystemGroup
+    public partial class LatiosPresentationSystemGroup : PresentationSystemGroup
     {
         SystemSortingTracker m_tracker;
 

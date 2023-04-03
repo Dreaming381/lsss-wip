@@ -2,7 +2,7 @@
 
 namespace Lsss
 {
-    public class AudioSuperSystem : SuperSystem
+    public partial class AudioSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {

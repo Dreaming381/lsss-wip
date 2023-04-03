@@ -6,7 +6,7 @@ namespace Lsss.SuperSystems
     /// <summary>
     /// Updates transforms of graphics-exclusive items (Cameras, billboards, ect)
     /// </summary>
-    public class GraphicsTransformsSuperSystem : SuperSystem
+    public partial class GraphicsTransformsSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
@@ -20,7 +20,7 @@ namespace Lsss.SuperSystems
         }
     }
 
-    public class ShaderPropertySuperSystem : SuperSystem
+    public partial class ShaderPropertySuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {

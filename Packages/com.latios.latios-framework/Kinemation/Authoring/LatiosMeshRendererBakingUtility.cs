@@ -178,7 +178,7 @@ namespace Latios.Kinemation.Authoring
                 Entity meshEntity;
                 if (root == null)
                 {
-                    meshEntity = baker.CreateAdditionalEntity(TransformUsageFlags.Default, false, $"{baker.GetName()}-MeshRendererEntity");
+                    meshEntity = baker.CreateAdditionalEntity(TransformUsageFlags.Renderable, false, $"{baker.GetName()}-MeshRendererEntity");
 
                     // Update Transform components:
                     baker.AddComponent<AdditionalMeshRendererEntity>(meshEntity);

@@ -11,7 +11,7 @@ namespace Latios.Systems
     /// A specialized version of InitializationSystemGroup for LatiosWorld.
     /// </summary>
     [DisableAutoCreation, NoGroupInjection]
-    public class LatiosInitializationSystemGroup : InitializationSystemGroup
+    public partial class LatiosInitializationSystemGroup : InitializationSystemGroup
     {
         protected override void OnCreate()
         {
@@ -51,7 +51,7 @@ namespace Latios.Systems
     [DisableAutoCreation]
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     [UpdateAfter(typeof(Unity.Scenes.SceneSystemGroup))]
-    public class LatiosWorldSyncGroup : ComponentSystemGroup
+    public partial class LatiosWorldSyncGroup : ComponentSystemGroup
     {
         SystemSortingTracker m_tracker;
 
@@ -70,7 +70,7 @@ namespace Latios.Systems
     [UpdateInGroup(typeof(InitializationSystemGroup), OrderFirst = true)]
     [UpdateBefore(typeof(BeginInitializationEntityCommandBufferSystem))]
     [UpdateBefore(typeof(SyncPointPlaybackSystemDispatch))]
-    public class PreSyncPointGroup : ComponentSystemGroup
+    public partial class PreSyncPointGroup : ComponentSystemGroup
     {
         SystemSortingTracker m_tracker;
 

@@ -5,7 +5,7 @@ using Unity.Entities;
 namespace Lsss.SuperSystems
 {
     [UpdateInGroup(typeof(Latios.Systems.PreSyncPointGroup))]
-    public class LsssPreSyncRootSuperSystem : RootSuperSystem
+    public partial class LsssPreSyncRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
@@ -14,7 +14,7 @@ namespace Lsss.SuperSystems
     }
 
     [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup), OrderLast = true)]
-    public class LsssInitializationRootSuperSystem : RootSuperSystem
+    public partial class LsssInitializationRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
@@ -27,7 +27,7 @@ namespace Lsss.SuperSystems
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateBefore(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
-    public class LsssPreTransformRootSuperSystem : RootSuperSystem
+    public partial class LsssPreTransformRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
@@ -38,7 +38,7 @@ namespace Lsss.SuperSystems
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateAfter(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
-    public class LsssPostTransformRootSuperSystem : RootSuperSystem
+    public partial class LsssPostTransformRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
@@ -50,7 +50,7 @@ namespace Lsss.SuperSystems
     }
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
-    public class LsssPresentationRootSuperSystem : RootSuperSystem
+    public partial class LsssPresentationRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {

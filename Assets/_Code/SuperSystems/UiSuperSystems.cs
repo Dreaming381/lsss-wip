@@ -3,7 +3,7 @@ using Lsss.Tools;
 
 namespace Lsss.SuperSystems
 {
-    public class UiMainMenuSuperSystem : SuperSystem
+    public partial class UiMainMenuSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
@@ -11,7 +11,7 @@ namespace Lsss.SuperSystems
         }
     }
 
-    public class UiGameplaySuperSystem : SuperSystem
+    public partial class UiGameplaySuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
@@ -19,7 +19,7 @@ namespace Lsss.SuperSystems
         }
     }
 
-    public class UiResultsSuperSystem : SuperSystem
+    public partial class UiResultsSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
