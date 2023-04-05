@@ -1,10 +1,10 @@
+using static Unity.Entities.SystemAPI;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-
-using static Unity.Entities.SystemAPI;
+using Unity.Mathematics;
 
 namespace Latios.Transforms.Systems
 {
@@ -58,9 +58,16 @@ namespace Latios.Transforms.Systems
 
                     for (int i = 0; i < chunk.Count; i++)
                     {
-                        prevs[i]             = starts[i];
+                        // Need to compensate for uninitialized baked values
+                        if (starts[i].worldIndex == 0)
+                        {
+                            prevs[i]            = currents[i];
+                            prevs[i].worldIndex = 0;
+                        }
+                        else
+                            prevs[i]         = starts[i];
                         starts[i]            = currents[i];
-                        starts[i].worldIndex = prevs[i].worldIndex + 1;
+                        starts[i].worldIndex = prevs[i].worldIndex + math.select(1, 2, prevs[i].worldIndex + 1 == 0);
                     }
                 }
                 else if (updatePrevious)
@@ -77,7 +84,9 @@ namespace Latios.Transforms.Systems
 
                     for (int i = 0; i < chunk.Count; i++)
                     {
-                        int newVersion       = starts[i].worldIndex + 1;
+                        int newVersion = starts[i].worldIndex + 1;
+                        if (newVersion == 0)
+                            newVersion++;
                         starts[i]            = currents[i];
                         starts[i].worldIndex = newVersion;
                     }

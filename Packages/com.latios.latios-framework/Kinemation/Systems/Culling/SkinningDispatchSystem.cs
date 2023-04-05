@@ -992,7 +992,7 @@ namespace Latios.Kinemation.Systems
                     ProcessChain(requests.GetSubArray(0, startOfPrevious), meshes, indexInChunk, skeletonBonesCount);
                 if (startOfTwoAgo < 0 && startOfPrevious >= 0)
                     ProcessChain(requests.GetSubArray(startOfPrevious, requests.Length - startOfPrevious), meshes, indexInChunk, skeletonBonesCount);
-                else if (startOfPrevious >= 0)
+                else if (startOfPrevious >= 0 && startOfPrevious != startOfTwoAgo)
                     ProcessChain(requests.GetSubArray(startOfPrevious, startOfTwoAgo), meshes, indexInChunk, skeletonBonesCount);
                 if (startOfTwoAgo >= 0)
                     ProcessChain(requests.GetSubArray(startOfTwoAgo, requests.Length - startOfTwoAgo), meshes, indexInChunk, skeletonBonesCount);

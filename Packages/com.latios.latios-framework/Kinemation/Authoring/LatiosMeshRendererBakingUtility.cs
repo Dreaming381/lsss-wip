@@ -11,6 +11,7 @@ namespace Latios.Kinemation.Authoring
 {
     class MeshRendererBakingUtility
     {
+        [BakingType]
         struct CopyParentRequestTag : IRequestCopyParentTransform { }
 
         struct LODState

@@ -177,6 +177,7 @@ namespace Latios.Kinemation.Authoring
     // Copied from MeshRendererBakingUtility.cs and modified to conform to Kinemation's format
     class SkinnedMeshRendererBakingUtility
     {
+        [BakingType]
         struct CopyParentRequestTag : IRequestCopyParentTransform { }
 
         static int s_currentVertexMatrixProperty  = Shader.PropertyToID("_latiosCurrentVertexSkinningMatrixBase");

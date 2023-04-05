@@ -4,16 +4,19 @@ using UnityEngine;
 
 namespace Latios.Transforms.Authoring
 {
+    // You must add this attribute to inheriting types
     [BakingType]
     public interface IRequestTickStartingTransform : IComponentData
     {
     }
 
+    // You must add this attribute to inheriting types
     [BakingType]
     public interface IRequestPreviousTickStartingTransform : IComponentData
     {
     }
 
+    // You must add this attribute to inheriting types
     [BakingType]
     public interface IRequestCopyParentTransform : IComponentData
     {
