@@ -68,6 +68,9 @@ namespace Lsss
 
             public void Execute(int index, TransformAccess transform)
             {
+                if (worldTransforms.Length <= index)
+                    return;
+
                 transform.rotation = worldTransforms[index].rotation;
                 transform.position = worldTransforms[index].position;
             }
