@@ -61,14 +61,18 @@ namespace Latios.Transforms.Authoring.Systems
             var pssrt = s_previousTickStartingRequestTypes.ToNativeList(Allocator.Temp);
             var irt   = s_identityRequestTypes.ToNativeList(Allocator.Temp);
 
-            m_addTickStartingQuery            = new EntityQueryBuilder(Allocator.Temp).WithAny(ref ssrt).WithNone<TickStartingTransform>().Build(ref state);
-            m_removeTickStartingQuery         = new EntityQueryBuilder(Allocator.Temp).WithAll<TickStartingTransform>().WithNone(ref ssrt).Build(ref state);
-            m_addPreviousTickStartingQuery    = new EntityQueryBuilder(Allocator.Temp).WithAny(ref pssrt).WithNone<PreviousTickStartingTransform>().Build(ref state);
-            m_removePreviousTickStartingQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<PreviousTickStartingTransform>().WithNone(ref pssrt).Build(ref state);
-            m_addIdentityQuery                =
-                new EntityQueryBuilder(Allocator.Temp).WithAny(ref irt).WithNone<CopyParentWorldTransformTag>().Build(ref state);
-            m_removeIdentityQuery =
-                new EntityQueryBuilder(Allocator.Temp).WithAll<CopyParentWorldTransformTag>().WithNone(ref irt).Build(ref state);
+            m_addTickStartingQuery = new EntityQueryBuilder(Allocator.Temp).WithAny(ref ssrt).WithNone<TickStartingTransform>().WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
+            m_removeTickStartingQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<TickStartingTransform>().WithNone(ref ssrt).WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
+            m_addPreviousTickStartingQuery = new EntityQueryBuilder(Allocator.Temp).WithAny(ref pssrt).WithNone<PreviousTickStartingTransform>().WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
+            m_removePreviousTickStartingQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<PreviousTickStartingTransform>().WithNone(ref pssrt).WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
+            m_addIdentityQuery = new EntityQueryBuilder(Allocator.Temp).WithAny(ref irt).WithNone<CopyParentWorldTransformTag>().WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
+            m_removeIdentityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<CopyParentWorldTransformTag>().WithNone(ref irt).WithOptions(
+                EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build(ref state);
         }
 
         [BurstCompile]

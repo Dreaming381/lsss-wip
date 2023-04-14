@@ -232,6 +232,8 @@ namespace Latios.Kinemation.Authoring
         }
 
 #pragma warning disable CS0162
+        [BakingType] struct RequestTickStartingTag : IRequestTickStartingTransform { }
+
         private static void AddRendererComponents<T>(Entity entity, Baker<T> baker, in RenderMeshDescription renderMeshDescription, RenderMesh renderMesh) where T : Component
         {
             // Entities with Static are never rendered with motion vectors
@@ -248,6 +250,11 @@ namespace Latios.Kinemation.Authoring
             // Add all components up front using as few calls as possible.
             var componentTypes = RenderMeshUtility.s_EntitiesGraphicsComponentTypes.GetComponentTypes(flags);
             baker.AddComponent(entity, componentTypes);
+            for (int i = 0; i < componentTypes.Length; i++)
+            {
+                if (componentTypes.GetTypeIndex(i) == TypeManager.GetTypeIndex<TickStartingTransform>())
+                    baker.AddComponent<RequestTickStartingTag>(entity);
+            }
 
             //if (renderMesh.mesh == null || renderMesh.material == null)
             //Debug.Log($"Baked Mesh {renderMesh.mesh.name}, Material {renderMesh.material.name}");
