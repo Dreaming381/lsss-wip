@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using System.Collections.Generic;
 using System.Reflection;
 using Latios.Transforms;
@@ -22,7 +23,7 @@ namespace Latios.Kinemation.Authoring
             public int      LodGroupIndex;
         }
 
-        static void CreateLODState<T>(Baker<T> baker, Renderer authoringSource, out LODState lodState) where T : Component
+        static void CreateLODState(IBaker baker, Renderer authoringSource, out LODState lodState)
         {
             // LODGroup
             lodState                = new LODState();
@@ -53,9 +54,9 @@ namespace Latios.Kinemation.Authoring
         }
 
 #pragma warning disable CS0162
-        [BakingType] struct RequestTickStartingTag : IRequestTickStartingTransform { }
+        [BakingType] struct RequestPreviousTag : IRequestPreviousTransform { }
 
-        private static void AddRendererComponents<T>(Entity entity, Baker<T> baker, in RenderMeshDescription renderMeshDescription, RenderMesh renderMesh) where T : Component
+        private static void AddRendererComponents(Entity entity, IBaker baker, in RenderMeshDescription renderMeshDescription, RenderMesh renderMesh)
         {
             // Entities with Static are never rendered with motion vectors
             bool inMotionPass = RenderMeshUtility.kUseHybridMotionPass &&
@@ -73,8 +74,8 @@ namespace Latios.Kinemation.Authoring
             baker.AddComponent(entity, componentTypes);
             for (int i = 0; i < componentTypes.Length; i++)
             {
-                if (componentTypes.GetTypeIndex(i) == TypeManager.GetTypeIndex<TickStartingTransform>())
-                    baker.AddComponent<RequestTickStartingTag>(entity);
+                if (componentTypes.GetTypeIndex(i) == TypeManager.GetTypeIndex<PreviousTransform>())
+                    baker.AddComponent<RequestPreviousTag>(entity);
             }
 
             baker.SetSharedComponentManaged(entity, renderMesh);
@@ -84,13 +85,13 @@ namespace Latios.Kinemation.Authoring
             baker.SetComponent(entity, new RenderBounds { Value = localBounds });
         }
 
-        internal static void Convert<T>(Baker<T>              baker,
-                                        Renderer authoring,
-                                        Mesh mesh,
-                                        List<Material>        sharedMaterials,
-                                        bool attachToPrimaryEntityForSingleMaterial,
-                                        out List<Entity>      additionalEntities,
-                                        UnityEngine.Transform root = null) where T : Component
+        internal static void Convert(IBaker baker,
+                                     Renderer authoring,
+                                     Mesh mesh,
+                                     List<Material>        sharedMaterials,
+                                     bool attachToPrimaryEntityForSingleMaterial,
+                                     out List<Entity>      additionalEntities,
+                                     UnityEngine.Transform root = null)
         {
             additionalEntities = new List<Entity>();
 
@@ -145,11 +146,11 @@ namespace Latios.Kinemation.Authoring
 
 #pragma warning restore CS0162
 
-        static void ConvertToSingleEntity<T>(
-            Baker<T>              baker,
+        static void ConvertToSingleEntity(
+            IBaker baker,
             RenderMeshDescription renderMeshDescription,
             RenderMesh renderMesh,
-            Renderer renderer) where T : Component
+            Renderer renderer)
         {
             CreateLODState(baker, renderer, out var lodState);
 
@@ -164,14 +165,14 @@ namespace Latios.Kinemation.Authoring
             }
         }
 
-        internal static void ConvertToMultipleEntities<T>(
-            Baker<T>              baker,
+        internal static void ConvertToMultipleEntities(
+            IBaker baker,
             RenderMeshDescription renderMeshDescription,
             RenderMesh renderMesh,
             Renderer renderer,
             List<Material>        sharedMaterials,
             UnityEngine.Transform root,
-            out List<Entity>      additionalEntities) where T : Component
+            out List<Entity>      additionalEntities)
         {
             CreateLODState(baker, renderer, out var lodState);
 
@@ -231,4 +232,5 @@ namespace Latios.Kinemation.Authoring
         }
     }
 }
+#endif
 

@@ -23,7 +23,7 @@ static const uint kMeshOpMulGsMatWithOffsetBindposesStoreGs                = 1;
 static const uint kMeshOpMulGsMatWithBindposesStoreGs                      = 2;
 static const uint kMeshOpLoadQvvsMulMatWithOffsetBindposesStoreGs          = 3;
 static const uint kMeshOpLoadQvvsMulMatWithBindposesStoreGs                = 4;
-static const uint kMeshOpGsTfStoreDst                                     = 5;
+static const uint kMeshOpGsTfStoreDst                                      = 5;
 static const uint kMeshOpSkinMatVertInSrc                                  = 6;
 static const uint kMeshOpSkinMatVertInDst                                  = 7;
 static const uint kMeshOpCvtGsQvvsToDqsWithOffsetStoreDst                  = 8;
@@ -518,7 +518,7 @@ void BatchSkinning(uint threadId : SV_GroupIndex, uint3 groupIds : SV_GroupID)
             [unroll]
             for (uint inner = 0; inner < THREAD_GROUP_DIVISOR; inner++)
             {
-                if (vertexIndexBase + threadId < meshVerticesCount)
+                if (vertexIndexBase + threadId + inner * THREAD_GROUP_SIZE < meshVerticesCount)
                 {
                     uint nextWeightIndex = currentWeightBatchStart + threadId + inner * THREAD_GROUP_SIZE;
                     bool isEnd = false;
@@ -608,7 +608,7 @@ void BatchSkinning(uint threadId : SV_GroupIndex, uint3 groupIds : SV_GroupID)
             [unroll]
             for (uint inner = 0; inner < THREAD_GROUP_DIVISOR; inner++)
             {
-                if (vertexIndexBase + threadId < meshVerticesCount)
+                if (vertexIndexBase + threadId + inner * THREAD_GROUP_SIZE < meshVerticesCount)
                 {
                     uint nextWeightIndex = currentWeightBatchStart + threadId + inner * THREAD_GROUP_SIZE;
                     bool isEnd = false;
@@ -877,7 +877,7 @@ void BatchSkinning(uint threadId : SV_GroupIndex, uint3 groupIds : SV_GroupID)
             [unroll]
             for (uint inner = 0; inner < THREAD_GROUP_DIVISOR; inner++)
             {
-                if (vertexIndexBase + threadId < meshVerticesCount)
+                if (vertexIndexBase + threadId + inner * THREAD_GROUP_SIZE < meshVerticesCount)
                 {
                     uint nextWeightIndex = currentWeightBatchStart + threadId + inner * THREAD_GROUP_SIZE;
                     bool isEnd = false;
@@ -1072,7 +1072,7 @@ void BatchSkinning(uint threadId : SV_GroupIndex, uint3 groupIds : SV_GroupID)
             [unroll]
             for (uint inner = 0; inner < THREAD_GROUP_DIVISOR; inner++)
             {
-                if (vertexIndexBase + threadId < meshVerticesCount)
+                if (vertexIndexBase + threadId + inner * THREAD_GROUP_SIZE < meshVerticesCount)
                 {
                     uint nextWeightIndex = currentWeightBatchStart + threadId + inner * THREAD_GROUP_SIZE;
                     bool isEnd = false;
@@ -1259,7 +1259,7 @@ void BatchSkinning(uint threadId : SV_GroupIndex, uint3 groupIds : SV_GroupID)
             [unroll]
             for (uint inner = 0; inner < THREAD_GROUP_DIVISOR; inner++)
             {
-                if (vertexIndexBase + threadId < meshVerticesCount)
+                if (vertexIndexBase + threadId + inner * THREAD_GROUP_SIZE < meshVerticesCount)
                 {
                     uint nextWeightIndex = currentWeightBatchStart + threadId + inner * THREAD_GROUP_SIZE;
                     bool isEnd = false;

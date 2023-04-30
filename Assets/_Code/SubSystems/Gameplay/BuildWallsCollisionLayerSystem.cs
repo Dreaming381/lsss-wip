@@ -17,6 +17,7 @@ namespace Lsss
 
         LatiosWorldUnmanaged latiosWorld;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             m_query = state.Fluent().WithAll<WallTag>(true).PatchQueryForBuildingCollisionLayer().Build();

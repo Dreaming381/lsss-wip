@@ -47,7 +47,7 @@ namespace Lsss
             m_scanResultsArrayListCache.Dispose();
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             m_scanResultsHandle.Update(ref state);

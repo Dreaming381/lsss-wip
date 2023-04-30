@@ -14,12 +14,13 @@ namespace Latios.Psyshock
         public struct ColliderAoSData
         {
             public Collider      collider;
-            public TransformQvvs rigidTransform;
+            public TransformQvvs transform;
             public Aabb          aabb;
             public Entity        entity;
         }
 
         #region Jobs
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
         //Parallel
         //Calculate RigidTransform, AABB, and target bucket. Write the targetBucket as the layerIndex
         [BurstCompile]
@@ -50,10 +51,10 @@ namespace Latios.Psyshock
 
                     colliderAoS[index] = new ColliderAoSData
                     {
-                        collider       = collider,
-                        rigidTransform = transform.worldTransform,
-                        aabb           = aabb,
-                        entity         = entity
+                        collider  = collider,
+                        transform = transform.worldTransform,
+                        aabb      = aabb,
+                        entity    = entity
                     };
                     xMinMaxs[index] = new float2(aabb.min.x, aabb.max.x);
 
@@ -77,6 +78,7 @@ namespace Latios.Psyshock
                 }
             }
         }
+#endif
 
         //Parallel
         //Calculated Target Bucket and write as layer index
@@ -285,7 +287,7 @@ namespace Latios.Psyshock
                 layer.bodies[i] = new ColliderBody
                 {
                     collider  = aos.collider,
-                    transform = aos.rigidTransform,
+                    transform = aos.transform,
                     entity    = aos.entity
                 };
                 layer.xmins[i]     = aos.aabb.min.x;

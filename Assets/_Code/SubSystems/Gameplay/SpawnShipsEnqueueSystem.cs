@@ -24,6 +24,7 @@ namespace Lsss
 
         LatiosWorldUnmanaged latiosWorld;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             m_oldPlayerShipQuery = state.Fluent().WithAll<ShipTag>(true).WithAll<PlayerTag>().WithAll<FactionMember>().IncludeDisabledEntities().Build();

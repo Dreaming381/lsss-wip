@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using Latios.Transforms;
 using Latios.Transforms.Authoring;
 using Unity.Burst;
@@ -24,9 +25,9 @@ namespace Latios.Kinemation.Authoring.Systems
         }
 
         [BakingType]
-        struct RequestTickStartingTransform : IRequestTickStartingTransform { }
+        struct RequestPreviousTransform : IRequestPreviousTransform { }
         [BakingType]
-        struct RequestPreviousTickStartingTransform : IRequestPreviousTickStartingTransform { }
+        struct RequestTwoAgoTransform : IRequestTwoAgoTransform { }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
@@ -39,12 +40,10 @@ namespace Latios.Kinemation.Authoring.Systems
             exposedBoneTypes.Add(ComponentType.ReadWrite<BoneWorldBounds>());
             exposedBoneTypes.Add(ComponentType.ChunkComponent<ChunkBoneWorldBounds>());
             exposedBoneTypes.Add(ComponentType.ReadWrite<ExposedBoneInertialBlendState>());
-            exposedBoneTypes.Add(ComponentType.ReadWrite<RequestTickStartingTransform>());
-            exposedBoneTypes.Add(ComponentType.ReadWrite<RequestPreviousTickStartingTransform>());
+            exposedBoneTypes.Add(ComponentType.ReadWrite<RequestPreviousTransform>());
+            exposedBoneTypes.Add(ComponentType.ReadWrite<RequestTwoAgoTransform>());
             ComponentTypeSet exposedBoneTypesToRemove = new ComponentTypeSet(in exposedBoneTypes);
-            exposedBoneTypes.Add(ComponentType.ReadWrite<TickStartingTransform>());
-            exposedBoneTypes.Add(ComponentType.ReadWrite<PreviousTickStartingTransform>());
-            ComponentTypeSet exposedBoneTypesToAdd = new ComponentTypeSet(in exposedBoneTypes);
+            ComponentTypeSet exposedBoneTypesToAdd    = new ComponentTypeSet(in exposedBoneTypes);
 
             new ClearJob().ScheduleParallel();
 
@@ -133,4 +132,5 @@ namespace Latios.Kinemation.Authoring.Systems
         }
     }
 }
+#endif
 

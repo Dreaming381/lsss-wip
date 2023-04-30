@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -113,7 +114,7 @@ namespace Latios.Transforms
     }
 
     // Part of Motion History, used for motion vectors
-    public struct TickStartingTransform : IComponentData
+    public struct PreviousTransform : IComponentData
     {
         public TransformQvvs worldTransform;
 
@@ -127,7 +128,7 @@ namespace Latios.Transforms
     }
 
     // Part of Motion History, used for Inertial Blending
-    public struct PreviousTickStartingTransform : IComponentData
+    public struct TwoAgoTransform : IComponentData
     {
         public TransformQvvs worldTransform;
 
@@ -139,5 +140,26 @@ namespace Latios.Transforms
         public int version => worldTransform.worldIndex;
         public bool isInitialized => version != 0;
     }
+
+    internal struct Depth : IComponentData
+    {
+        public byte depth;
+    }
+
+    internal struct ChunkDepthMask : IComponentData
+    {
+        public BitField32 chunkDepthMask;
+    }
+
+    internal struct RuntimeFeatureFlags : IComponentData
+    {
+        public enum Flags : byte
+        {
+            None = 0,
+            ExtremeTransforms = 1
+        }
+        public Flags flags;
+    }
 }
+#endif
 

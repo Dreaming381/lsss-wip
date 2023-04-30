@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using Latios;
 using Latios.Transforms;
 using Latios.Transforms.Systems;
@@ -81,10 +82,10 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct InitSkeletonJob : IJobChunk
         {
-            public BufferTypeHandle<OptimizedBoneTransform>                                bonesWriteHandle;
-            public ComponentTypeHandle<OptimizedSkeletonState>                             stateHandle;
-            [ReadOnly] public BufferTypeHandle<OptimizedBoneTransform>                     bonesReadHandle;
-            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> blobHandle;
+            public BufferTypeHandle<OptimizedBoneTransform>                                                     bonesWriteHandle;
+            public ComponentTypeHandle<OptimizedSkeletonState>                                                  stateHandle;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] public BufferTypeHandle<OptimizedBoneTransform> bonesReadHandle;
+            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference>                      blobHandle;
 
             public uint lastSystemVersion;
 
@@ -98,7 +99,7 @@ namespace Latios.Kinemation.Systems
                 bool needsWrite = false;
 
                 // Much more likely for there to be a new entity at the end of a chunk.
-                for (int i = chunk.Count - 1; i > 0; i--)
+                for (int i = chunk.Count - 1; i >= 0; i--)
                 {
                     if (bones[i].Length != blobs[i].blob.Value.parentIndices.Length * 6)
                     {
@@ -188,9 +189,9 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct InitBlendShapesJob : IJobChunk
         {
-            public BufferTypeHandle<BlendShapeWeight>            weightsWriteHandle;
-            [ReadOnly] public BufferTypeHandle<BlendShapeWeight> weightsReadHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>     blobHandle;
+            public BufferTypeHandle<BlendShapeWeight>                                                     weightsWriteHandle;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] public BufferTypeHandle<BlendShapeWeight> weightsReadHandle;
+            [ReadOnly] public ComponentTypeHandle<BoundMesh>                                              blobHandle;
 
             public uint lastSystemVersion;
 
@@ -203,7 +204,7 @@ namespace Latios.Kinemation.Systems
                 var  weights    = chunk.GetBufferAccessor(ref weightsReadHandle);
                 bool needsWrite = false;
 
-                for (int i = chunk.Count - 1; i > 0; i--)
+                for (int i = chunk.Count - 1; i >= 0; i--)
                 {
                     if (weights[i].Length != blobs[i].meshBlob.Value.blendShapesData.shapes.Length * 3)
                     {
@@ -225,6 +226,8 @@ namespace Latios.Kinemation.Systems
                         UnityEngine.Debug.LogWarning($"Mesh {blobs[i].meshBlob.Value.name} does not have blend shapes!");
                         weights[i].Clear();
                     }
+                    else if (weights[i].Length == shapes * 3)
+                        continue;
                     else if (weights[i].Length == shapes)
                     {
                         weights[i].Resize(shapes * 3, NativeArrayOptions.UninitializedMemory);
@@ -272,9 +275,9 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct InitMeshJob : IJobChunk
         {
-            public BufferTypeHandle<DynamicMeshVertex>            verticesWriteHandle;
-            [ReadOnly] public BufferTypeHandle<DynamicMeshVertex> verticesReadHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>      blobHandle;
+            public BufferTypeHandle<DynamicMeshVertex>                                                     verticesWriteHandle;
+            [ReadOnly, NativeDisableContainerSafetyRestriction] public BufferTypeHandle<DynamicMeshVertex> verticesReadHandle;
+            [ReadOnly] public ComponentTypeHandle<BoundMesh>                                               blobHandle;
 
             public uint lastSystemVersion;
 
@@ -287,7 +290,7 @@ namespace Latios.Kinemation.Systems
                 var  vertices   = chunk.GetBufferAccessor(ref verticesReadHandle);
                 bool needsWrite = false;
 
-                for (int i = chunk.Count - 1; i > 0; i--)
+                for (int i = chunk.Count - 1; i >= 0; i--)
                 {
                     if (vertices[i].Length != blobs[i].meshBlob.Value.undeformedVertices.Length * 3)
                     {
@@ -303,11 +306,14 @@ namespace Latios.Kinemation.Systems
 
                 for (int i = 0; i < chunk.Count; i++)
                 {
-                    vertices[i].Resize(blobs[i].meshBlob.Value.undeformedVertices.Length * 3, NativeArrayOptions.UninitializedMemory);
-                    UnsafeUtility.MemCpyReplicate(vertices[i].GetUnsafePtr(),
-                                                  blobs[i].meshBlob.Value.undeformedVertices.GetUnsafePtr(),
-                                                  sizeof(UndeformedVertex) * vertices.Length,
-                                                  3);
+                    if (vertices[i].Length != blobs[i].meshBlob.Value.undeformedVertices.Length * 3)
+                    {
+                        vertices[i].Resize(blobs[i].meshBlob.Value.undeformedVertices.Length * 3, NativeArrayOptions.UninitializedMemory);
+                        UnsafeUtility.MemCpyReplicate(vertices[i].GetUnsafePtr(),
+                                                      blobs[i].meshBlob.Value.undeformedVertices.GetUnsafePtr(),
+                                                      sizeof(UndeformedVertex) * blobs[i].meshBlob.Value.undeformedVertices.Length,
+                                                      3);
+                    }
                 }
             }
         }
@@ -341,4 +347,5 @@ namespace Latios.Kinemation.Systems
         }
     }
 }
+#endif
 

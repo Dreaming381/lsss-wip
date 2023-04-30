@@ -18,6 +18,7 @@ namespace Lsss
         EntityQuery                    m_query;
         BuildCollisionLayerTypeHandles m_handles;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();

@@ -32,7 +32,7 @@ namespace Lsss
         {
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             new SpawnPointResetFlagsJob().ScheduleParallel();

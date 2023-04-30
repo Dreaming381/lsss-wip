@@ -32,7 +32,7 @@ namespace Lsss
             m_layers.Dispose();
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             m_layers.Clear();

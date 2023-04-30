@@ -20,6 +20,7 @@ namespace Lsss
 
         LatiosWorldUnmanaged latiosWorld;
 
+        [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             m_query       = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();

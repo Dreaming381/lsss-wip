@@ -24,12 +24,12 @@ namespace Lsss.Authoring
             AddComponent(new Damage { damage                      = authoring.damage });
             AddComponent(new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
             AddComponent(new FadeProperty { fade                  = 1f });
-            AddComponent<TickStarting>();
+            AddComponent<PreviousRequest>();
             AddComponent<BulletFirer>();
             AddComponent<BulletTag>();
         }
 
-        struct TickStarting : IRequestTickStartingTransform { }
+        struct PreviousRequest : IRequestPreviousTransform { }
     }
 }
 

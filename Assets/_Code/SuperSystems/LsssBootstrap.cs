@@ -61,12 +61,13 @@ public class LatiosBootstrap : ICustomBootstrap
         var systems = new List<Type>(DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.Default));
 
         BootstrapTools.InjectUnitySystems(systems, world, world.simulationSystemGroup);
-        BootstrapTools.InjectRootSuperSystems(systems, world, world.simulationSystemGroup);
 
         CoreBootstrap.InstallSceneManager(world);
-        Latios.Transforms.TransformsBootstrap.InstallTransforms(world, world.simulationSystemGroup);
+        Latios.Transforms.TransformsBootstrap.InstallTransforms(world, world.simulationSystemGroup, true);
         Latios.Myri.MyriBootstrap.InstallMyri(world);
         Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
+
+        BootstrapTools.InjectRootSuperSystems(systems, world, world.simulationSystemGroup);
 
         world.initializationSystemGroup.SortSystems();
         world.simulationSystemGroup.SortSystems();

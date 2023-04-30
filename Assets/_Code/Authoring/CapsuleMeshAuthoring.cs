@@ -267,7 +267,7 @@ namespace Lsss.Authoring
         }
     }
 
-    public class CapsuleMeshBaker : OverrideMeshRendererBakerBase<CapsuleMeshAuthoring>
+    public class CapsuleMeshBaker : Baker<CapsuleMeshAuthoring>
     {
         List<Material> m_materialsCache = new List<Material>();
 
@@ -282,7 +282,7 @@ namespace Lsss.Authoring
 
             var mesh = authoring.ProcessMeshForBake();
 
-            BakeMeshAndMaterial(meshRenderer, mesh, m_materialsCache);
+            this.BakeMeshAndMaterial(meshRenderer, mesh, m_materialsCache);
         }
     }
 }

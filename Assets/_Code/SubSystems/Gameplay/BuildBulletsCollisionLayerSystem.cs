@@ -38,7 +38,7 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var query = QueryBuilder().WithAll<WorldTransform, Collider, TickStartingTransform, BulletTag>().Build();
+            var query = QueryBuilder().WithAll<WorldTransform, Collider, PreviousTransform, BulletTag>().Build();
 
             var bodies =
                 CollectionHelper.CreateNativeArray<ColliderBody>(query.CalculateEntityCount(),
@@ -61,7 +61,7 @@ namespace Lsss
                                 [EntityIndexInQuery] int entityInQueryIndex,
                                 in WorldTransform worldTransform,
                                 in Collider collider,
-                                in TickStartingTransform previousPosition)
+                                in PreviousTransform previousPosition)
             {
                 CapsuleCollider capsule     = collider;
                 float           tailLength  = math.distance(worldTransform.position, previousPosition.position);

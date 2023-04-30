@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -6,13 +7,13 @@ namespace Latios.Transforms.Authoring
 {
     // You must add this attribute to inheriting types
     [BakingType]
-    public interface IRequestTickStartingTransform : IComponentData
+    public interface IRequestPreviousTransform : IComponentData
     {
     }
 
     // You must add this attribute to inheriting types
     [BakingType]
-    public interface IRequestPreviousTickStartingTransform : IComponentData
+    public interface IRequestTwoAgoTransform : IComponentData
     {
     }
 
@@ -90,4 +91,5 @@ namespace Latios.Transforms.Authoring
         }
     }
 }
+#endif
 

@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using System.Collections.Generic;
 using Latios.Transforms.Authoring;
 using Unity.Collections;
@@ -45,8 +46,8 @@ namespace Latios.Kinemation.Authoring
             AddComponent<SkeletonRootTag>();
 
             // For extra safety, always add the history components
-            AddComponent<RequestTickStarting>();
-            AddComponent<RequestPreviousTickStarting>();
+            AddComponent<RequestPrevious>();
+            AddComponent<RequestTwoAgo>();
 
             // For now we just always assume we have the whole hierarchy to fetch.
             if (authoring.hasTransformHierarchy)
@@ -122,9 +123,9 @@ namespace Latios.Kinemation.Authoring
         }
 
         [BakingType]
-        struct RequestTickStarting : IRequestTickStartingTransform { }
+        struct RequestPrevious : IRequestPreviousTransform { }
         [BakingType]
-        struct RequestPreviousTickStarting : IRequestPreviousTickStartingTransform { }
+        struct RequestTwoAgo : IRequestTwoAgoTransform { }
     }
 
     public static class SkeletonBakerExtensions
@@ -141,4 +142,5 @@ namespace Latios.Kinemation.Authoring
         }
     }
 }
+#endif
 

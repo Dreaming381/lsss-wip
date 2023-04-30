@@ -26,7 +26,7 @@ namespace Lsss
         {
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var explosionLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
