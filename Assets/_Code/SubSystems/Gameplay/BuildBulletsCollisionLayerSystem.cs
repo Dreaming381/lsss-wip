@@ -85,7 +85,7 @@ namespace Lsss
             var layer = sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             CompleteDependency();
             PhysicsDebug.DrawLayer(layer).Run();
-            //UnityEngine.Debug.Log("Bullets in layer: " + layer.Count);
+            //UnityEngine.Debug.Log("Bullets in layer: " + layer.count);
         }
     }
 }

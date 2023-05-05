@@ -371,7 +371,7 @@ namespace Latios.Psyshock
                 layerIndices   = layerIndices,
                 xMinMaxs       = xMinMaxs
             };
-            for (int i = 0; i < layer.Count; i++)
+            for (int i = 0; i < layer.count; i++)
             {
                 p1.Execute(i);
             }
@@ -387,7 +387,7 @@ namespace Latios.Psyshock
                 layerIndices       = layerIndices,
                 unsortedSrcIndices = layer.srcIndices
             };
-            for (int i = 0; i < layer.Count; i++)
+            for (int i = 0; i < layer.count; i++)
             {
                 p3.Execute(i);
             }
@@ -399,7 +399,7 @@ namespace Latios.Psyshock
                 trees                = layer.intervalTrees,
                 xMinMaxs             = xMinMaxs
             };
-            for (int i = 0; i < layer.BucketCount; i++)
+            for (int i = 0; i < layer.bucketCount; i++)
             {
                 p4.Execute(i);
             }
@@ -410,7 +410,7 @@ namespace Latios.Psyshock
                 bodies = bodies,
                 layer  = layer,
             };
-            for (int i = 0; i < layer.Count; i++)
+            for (int i = 0; i < layer.count; i++)
             {
                 p5.Execute(i);
             }
@@ -428,7 +428,7 @@ namespace Latios.Psyshock
                 layerIndices = layerIndices,
                 xMinMaxs     = xMinMaxs
             };
-            for (int i = 0; i < layer.Count; i++)
+            for (int i = 0; i < layer.count; i++)
             {
                 p1.Execute(i);
             }
@@ -444,7 +444,7 @@ namespace Latios.Psyshock
                 layerIndices       = layerIndices,
                 unsortedSrcIndices = layer.srcIndices
             };
-            for (int i = 0; i < layer.Count; i++)
+            for (int i = 0; i < layer.count; i++)
             {
                 p3.Execute(i);
             }
@@ -455,7 +455,7 @@ namespace Latios.Psyshock
                 unsortedSrcIndices   = layer.srcIndices,
                 xMinMaxs             = xMinMaxs
             };
-            for (int i = 0; i < layer.BucketCount; i++)
+            for (int i = 0; i < layer.bucketCount; i++)
             {
                 p4.Execute(i);
             }
@@ -466,7 +466,7 @@ namespace Latios.Psyshock
                 bodies = bodies,
                 layer  = layer,
             };
-            for (int i = 0; i < layer.Count; i++)
+            for (int i = 0; i < layer.count; i++)
             {
                 p5.Execute(i);
             }

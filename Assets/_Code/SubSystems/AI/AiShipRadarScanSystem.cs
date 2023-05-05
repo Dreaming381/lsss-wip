@@ -99,7 +99,7 @@ namespace Lsss
                                                                                    out var radarLayer,
                                                                                    rootDependency);
 
-                var scanResultsArray = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(radarLayer.Count, allocator, NativeArrayOptions.UninitializedMemory);
+                var scanResultsArray = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(radarLayer.count, allocator, NativeArrayOptions.UninitializedMemory);
                 m_scanResultsArrayListCache.Add(scanResultsArray);
                 scanFriendsProcessor.scanResultsArray = scanResultsArray;
                 scanEnemiesProcessor.scanResultsArray = scanResultsArray;

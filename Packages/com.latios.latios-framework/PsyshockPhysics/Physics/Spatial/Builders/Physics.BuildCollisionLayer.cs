@@ -349,7 +349,7 @@ namespace Latios.Psyshock
                     unsortedSrcIndices   = layer.srcIndices,
                     trees                = layer.intervalTrees,
                     xMinMaxs             = xMinMaxs
-                }.Run(layer.BucketCount);
+                }.Run(layer.bucketCount);
 
                 new BuildCollisionLayerInternal.Part5FromQueryJob
                 {
@@ -533,7 +533,7 @@ namespace Latios.Psyshock
                     xMinMaxs             = xMinMaxs,
                     trees                = layer.intervalTrees,
                     bucketStartAndCounts = layer.bucketStartsAndCounts
-                }.Schedule(layer.BucketCount, 1, jh);
+                }.Schedule(layer.bucketCount, 1, jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromQueryJob
                 {
@@ -595,7 +595,7 @@ namespace Latios.Psyshock
                     unsortedSrcIndices   = layer.srcIndices,
                     trees                = layer.intervalTrees,
                     xMinMaxs             = xMinMaxs
-                }.Schedule(layer.BucketCount, 1, jh);
+                }.Schedule(layer.bucketCount, 1, jh);
 
                 jh = new BuildCollisionLayerInternal.Part5FromArraysJob
                 {

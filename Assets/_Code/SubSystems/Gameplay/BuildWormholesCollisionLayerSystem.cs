@@ -70,7 +70,7 @@ namespace Lsss
             var layer = sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             CompleteDependency();
             PhysicsDebug.DrawLayer(layer).Run();
-            UnityEngine.Debug.Log("Wormholes in layer: " + layer.Count);
+            UnityEngine.Debug.Log("Wormholes in layer: " + layer.count);
         }
     }
 }

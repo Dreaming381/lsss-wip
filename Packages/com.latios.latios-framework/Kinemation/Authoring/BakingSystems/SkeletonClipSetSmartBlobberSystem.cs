@@ -178,12 +178,6 @@ namespace Latios.Kinemation.Authoring
     }
 
     [TemporaryBakingType]
-    internal struct ClipEventToBake : IBufferElementData
-    {
-        public ClipEvent clipEvent;
-    }
-
-    [TemporaryBakingType]
     internal struct SampledBoneTransform : IBufferElementData
     {
         public TransformQvvs boneTransform;

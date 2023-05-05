@@ -64,6 +64,7 @@ namespace Latios.Kinemation.Authoring.Systems
             GetOrCreateAndAddSystem<MeshPathsSmartBlobberSystem>();  // async
             GetOrCreateAndAddSystem<SkeletonPathsSmartBlobberSystem>();  // async
             GetOrCreateAndAddSystem<SkeletonHierarchySmartBlobberSystem>();  // async
+            GetOrCreateAndAddSystem<ParameterClipSetSmartBlobberSystem>();  // async
 
             GetOrCreateAndAddSystem<SetupExportedBonesSystem>();  // async -> sync
             GetOrCreateAndAddManagedSystem<SkeletonClipSetSmartBlobberSystem>();  // sync -> async
