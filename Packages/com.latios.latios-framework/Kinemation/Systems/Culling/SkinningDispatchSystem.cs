@@ -2000,6 +2000,8 @@ namespace Latios.Kinemation.Systems
                     var history = header.loadOp & SkinningStreamHeader.LoadOp.HistoryMask;
                     if (history == SkinningStreamHeader.LoadOp.Current)
                     {
+                        // Todo: Need to switch this to be bone index 0 for better compliance with documentation.
+                        // This should use a check if it and the skeleton entity are the same.
                         var skeletonWorldTransform = skeletonWorldTransforms[header.indexInSkeletonChunk].worldTransform;
                         if (bones.Length == header.boneTransformCount)
                         {

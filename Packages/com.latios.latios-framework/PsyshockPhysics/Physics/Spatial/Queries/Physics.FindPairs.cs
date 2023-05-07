@@ -7,7 +7,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-//Todo: Stream types, caches, scratchlists, and inflations
+//Todo: FilteredCache playback and inflations
 namespace Latios.Psyshock
 {
     /// <summary>
