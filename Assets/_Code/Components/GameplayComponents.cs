@@ -244,8 +244,6 @@ namespace Lsss
         public NativeList<EntityWith<Disabled> >  newAiEntitiesToPrioritize;
         public NativeList<FactionRanges>          factionRanges;
 
-        public ComponentType AssociatedComponentType => ComponentType.ReadWrite < SpawnQueuesTag>();
-
         public unsafe JobHandle TryDispose(JobHandle inputDeps)
         {
             if (!playerQueue.IsCreated)
@@ -260,8 +258,6 @@ namespace Lsss
             return Unity.Jobs.LowLevel.Unsafe.JobHandleUnsafeUtility.CombineDependencies(jh, 4);
         }
     }
-
-    public struct SpawnQueuesTag : IComponentData { }
 
     public struct FleetSpawnPointTag : IComponentData { }
 
