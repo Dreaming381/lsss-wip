@@ -46,7 +46,8 @@ namespace Lsss.Authoring
     {
         public override void Bake(SpaceshipAuthoring authoring)
         {
-            AddComponent(new ShipSpeedStats
+            var entity = GetEntity(TransformUsageFlags.Dynamic);
+            AddComponent(entity, new ShipSpeedStats
             {
                 topSpeed     = authoring.topSpeed,
                 boostSpeed   = authoring.boostSpeed,
@@ -61,22 +62,22 @@ namespace Lsss.Authoring
                 boostDepleteRate  = authoring.boostDepletionRate,
                 boostRechargeRate = authoring.boostRechargeRate
             });
-            AddComponent(new ShipBoostTank { boost = authoring.initialBoost });
-            AddComponent(new Speed { speed         = 0f });
+            AddComponent(entity, new ShipBoostTank { boost = authoring.initialBoost });
+            AddComponent(entity, new Speed { speed         = 0f });
 
-            AddComponent(new ShipHealth { health                   = authoring.health });
-            AddComponent(new ShipBaseHealth { baseHealth           = authoring.health });
-            AddComponent(new Damage { damage                       = authoring.collisionDamageToOther });
-            AddComponent(new CameraMountPoint { mountPoint         = GetEntity(authoring.cameraMountPoint) });
-            AddComponent(new ShipExplosionPrefab { explosionPrefab = GetEntity(authoring.explosionPrefab) });
-            AddComponent(new ShipHitEffectPrefab { hitEffectPrefab = GetEntity(authoring.hitEffectPrefab) });
-            var gunBuffer                                          = AddBuffer<ShipGunPoint>();
+            AddComponent(entity, new ShipHealth { health                   = authoring.health });
+            AddComponent(entity, new ShipBaseHealth { baseHealth           = authoring.health });
+            AddComponent(entity, new Damage { damage                       = authoring.collisionDamageToOther });
+            AddComponent(entity, new CameraMountPoint { mountPoint         = GetEntity(authoring.cameraMountPoint, TransformUsageFlags.Renderable) });
+            AddComponent(entity, new ShipExplosionPrefab { explosionPrefab = GetEntity(authoring.explosionPrefab, TransformUsageFlags.Dynamic) });
+            AddComponent(entity, new ShipHitEffectPrefab { hitEffectPrefab = GetEntity(authoring.hitEffectPrefab, TransformUsageFlags.Dynamic) });
+            var gunBuffer                                                  = AddBuffer<ShipGunPoint>(entity);
             foreach (var gunTip in authoring.gunTips)
             {
-                gunBuffer.Add(new ShipGunPoint { gun = GetEntity(gunTip) });
+                gunBuffer.Add(new ShipGunPoint { gun = GetEntity(gunTip, TransformUsageFlags.Renderable) });
             }
 
-            AddComponent(new ShipReloadTime
+            AddComponent(entity, new ShipReloadTime
             {
                 bulletReloadTime    = 0f,
                 maxBulletReloadTime = math.rcp(authoring.fireRate),
@@ -85,11 +86,11 @@ namespace Lsss.Authoring
                 clipReloadTime      = authoring.clipReloadTime,
                 maxClipReloadTime   = authoring.clipReloadTime
             });
-            AddComponent(new ShipBulletPrefab { bulletPrefab     = GetEntity(authoring.bulletPrefab) });
-            AddComponent(new ShipFireEffectPrefab { effectPrefab = GetEntity(authoring.fireEffectPrefab) });
+            AddComponent(                    entity, new ShipBulletPrefab { bulletPrefab     = GetEntity(authoring.bulletPrefab, TransformUsageFlags.Dynamic) });
+            AddComponent(                    entity, new ShipFireEffectPrefab { effectPrefab = GetEntity(authoring.fireEffectPrefab, TransformUsageFlags.Dynamic) });
 
-            AddComponent<ShipDesiredActions>();
-            AddComponent<ShipTag>();
+            AddComponent<ShipDesiredActions>(entity);
+            AddComponent<ShipTag>(           entity);
         }
     }
 }

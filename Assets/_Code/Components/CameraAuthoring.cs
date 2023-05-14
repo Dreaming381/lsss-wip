@@ -16,7 +16,8 @@ public class CameraBaker : Baker<CameraAuthoring>
 {
     public override void Bake(CameraAuthoring authoring)
     {
-        AddComponentObject(new CameraManager());
+        var entity = GetEntity(TransformUsageFlags.Dynamic);
+        AddComponentObject(entity, new CameraManager());
     }
 }
 

@@ -34,7 +34,7 @@ namespace Lsss
         partial struct Job : IJobEntity
         {
             public float dt;
-            public void Execute(ref TransformAspect transform, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime)
+            public void Execute(TransformAspect transform, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime)
             {
                 // !!!!!!!!!!!!!!!!!!!!! SERIOUSLY UNITY? !!!!!!!!!!!!!!!!!!!
                 //var    dt                   = Time.DeltaTime;

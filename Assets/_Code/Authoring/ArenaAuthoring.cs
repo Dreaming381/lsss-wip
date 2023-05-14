@@ -16,14 +16,15 @@ namespace Lsss
     {
         public override void Bake(ArenaAuthoring authoring)
         {
-            AddComponent(new ArenaRadius { radius = authoring.radius });
-            AddComponent<ArenaTag>();
+            var entity                                              = GetEntity(TransformUsageFlags.None);
+            AddComponent(          entity, new ArenaRadius { radius = authoring.radius });
+            AddComponent<ArenaTag>(entity);
 
             float cornerAlongAxis = math.sqrt((authoring.radius * authoring.radius) / 3f);
 
             if (cornerAlongAxis <= 250f)
             {
-                AddComponent(new ArenaCollisionSettings
+                AddComponent(entity, new ArenaCollisionSettings
                 {
                     settings = BuildCollisionLayerConfig.defaultSettings
                 });
@@ -31,7 +32,7 @@ namespace Lsss
             else
             {
                 int subdivisions = Mathf.CeilToInt(cornerAlongAxis / 250f) * 2;
-                AddComponent(new ArenaCollisionSettings
+                AddComponent(entity, new ArenaCollisionSettings
                 {
                     settings = new CollisionLayerSettings
                     {

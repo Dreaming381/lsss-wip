@@ -15,10 +15,11 @@ namespace Lsss.Authoring
     {
         public override void Bake(CameraDrawDistancesAuthoring authoring)
         {
+            var           entity        = GetEntity(TransformUsageFlags.None);
             DrawDistances drawDistances = default;
             foreach (var d in authoring.distances)
                 drawDistances.distances.Add(d);
-            AddComponent(drawDistances);
+            AddComponent(entity, drawDistances);
         }
     }
 }

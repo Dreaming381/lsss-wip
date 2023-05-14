@@ -20,17 +20,18 @@ namespace Lsss.Authoring
     {
         public override void Bake(FactionAuthoring authoring)
         {
-            AddComponent(new Faction
+            var entity = GetEntity(TransformUsageFlags.None);
+            AddComponent(entity, new Faction
             {
                 name                    = authoring.name,
                 remainingReinforcements = authoring.totalUnits,
                 maxFieldUnits           = authoring.maxUnitsAtOnce,
                 spawnWeightInverse      = authoring.spawnWeightInverse,
-                aiPrefab                = GetEntity(authoring.aiShipPrefab),
-                playerPrefab            = GetEntity(authoring.playerShipPrefab)  // This method handles null correctly
+                aiPrefab                = GetEntity(authoring.aiShipPrefab, TransformUsageFlags.None),
+                playerPrefab            = GetEntity(authoring.playerShipPrefab, TransformUsageFlags.None)  // This method handles null correctly
             });
-            AddComponent<FactionTag>();
-            AddComponent<FactionShipsCollisionLayer.ExistComponent>();
+            AddComponent<FactionTag>(                               entity);
+            AddComponent<FactionShipsCollisionLayer.ExistComponent>(entity);
         }
     }
 }

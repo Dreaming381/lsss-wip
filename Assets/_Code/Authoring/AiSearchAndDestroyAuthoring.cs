@@ -16,15 +16,16 @@ namespace Lsss.Authoring
     {
         public override void Bake(AiSearchAndDestroyAuthoring authoring)
         {
-            AddComponent(new AiShipRadarEntity { shipRadar = GetEntity(authoring.shipRadar) });
+            var entity                                             = GetEntity(TransformUsageFlags.None);
+            AddComponent(entity, new AiShipRadarEntity { shipRadar = GetEntity(authoring.shipRadar, TransformUsageFlags.Renderable) });
 
-            AddComponent(new AiSearchAndDestroyPersonalityInitializerValues
+            AddComponent(entity, new AiSearchAndDestroyPersonalityInitializerValues
             {
                 targetLeadDistanceMinMax = authoring.targetLeadDistanceMinMax
             });
 
-            AddComponent<AiSearchAndDestroyPersonality>();
-            AddComponent<AiSearchAndDestroyOutput>();
+            AddComponent<AiSearchAndDestroyPersonality>(entity);
+            AddComponent<AiSearchAndDestroyOutput>(     entity);
         }
     }
 }

@@ -15,8 +15,9 @@ namespace Lsss.Authoring
     {
         public override void Bake(WallAuthoring authoring)
         {
-            AddComponent(new Damage { damage = authoring.damage });
-            AddComponent<WallTag>();
+            var entity                                        = GetEntity(TransformUsageFlags.Renderable);
+            AddComponent(         entity, new Damage { damage = authoring.damage });
+            AddComponent<WallTag>(entity);
         }
     }
 }

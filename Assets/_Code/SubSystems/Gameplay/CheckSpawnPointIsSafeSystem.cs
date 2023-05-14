@@ -234,9 +234,9 @@ namespace Lsss
 
             public void Execute(int index)
             {
-                var entity                                  = spawnPointLayer.colliderBodies[index].entity;
-                var hit                                     = hitArray[index];
-                lookup.GetRefRW(entity, false).ValueRW.safe = !hit;
+                var entity                           = spawnPointLayer.colliderBodies[index].entity;
+                var hit                              = hitArray[index];
+                lookup.GetRefRW(entity).ValueRW.safe = !hit;
             }
         }
 

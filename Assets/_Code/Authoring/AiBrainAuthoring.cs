@@ -14,8 +14,9 @@ namespace Lsss.Authoring
     {
         public override void Bake(AiBrainAuthoring authoring)
         {
-            AddComponent<AiGoalOutput>();
-            AddComponent<AiTag>();
+            var entity = GetEntity(TransformUsageFlags.None);
+            AddComponent<AiGoalOutput>(entity);
+            AddComponent<AiTag>(       entity);
         }
     }
 }

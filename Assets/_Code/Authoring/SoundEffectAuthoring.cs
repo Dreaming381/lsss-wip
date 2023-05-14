@@ -36,9 +36,10 @@ namespace Lsss.Authoring
     {
         public override void Bake(SoundEffectAuthoring authoring)
         {
-            var blobHandle                                           = this.RequestCreateBlobAsset(GetName(), 44100, 1, out var blobEntity);
-            AddComponent(blobEntity, new SfxrParameters { sfxrParams = authoring.effectSettings });
-            AddComponent(new SoundEffectBlob { blobHandle            = blobHandle });
+            var entity                                                = GetEntity(TransformUsageFlags.None);
+            var blobHandle                                            = this.RequestCreateBlobAsset(GetName(), 44100, 1, out var blobEntity);
+            AddComponent(blobEntity, new SfxrParameters { sfxrParams  = authoring.effectSettings });
+            AddComponent(entity,     new SoundEffectBlob { blobHandle = blobHandle });
         }
     }
 

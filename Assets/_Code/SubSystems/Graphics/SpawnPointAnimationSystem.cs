@@ -30,7 +30,7 @@ namespace Lsss
         [BurstCompile]
         partial struct Job : IJobEntity
         {
-            public void Execute(ref TransformAspect transform, in TimeToLive timeToLive, in SpawnPointAnimationData data)
+            public void Execute(TransformAspect transform, in TimeToLive timeToLive, in SpawnPointAnimationData data)
             {
                 float growFactor   = math.unlerp(data.growStartTime, data.growEndTime, timeToLive.timeToLive);
                 growFactor         = math.select(growFactor, 1f, data.growStartTime == data.growEndTime);

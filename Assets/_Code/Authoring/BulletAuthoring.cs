@@ -18,17 +18,19 @@ namespace Lsss.Authoring
     {
         public override void Bake(BulletAuthoring authoring)
         {
-            float timeToLive                                      = authoring.travelDistance / authoring.speed;
-            AddComponent(new TimeToLive { timeToLive              = timeToLive });
-            AddComponent(new Speed { speed                        = authoring.speed });
-            AddComponent(new Damage { damage                      = authoring.damage });
-            AddComponent(new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
-            AddComponent(new FadeProperty { fade                  = 1f });
-            AddComponent<PreviousRequest>();
-            AddComponent<BulletFirer>();
-            AddComponent<BulletTag>();
+            var   entity                                                                   = GetEntity(TransformUsageFlags.Dynamic);
+            float timeToLive                                                               = authoring.travelDistance / authoring.speed;
+            AddComponent(                 entity, new TimeToLive { timeToLive              = timeToLive });
+            AddComponent(                 entity, new Speed { speed                        = authoring.speed });
+            AddComponent(                 entity, new Damage { damage                      = authoring.damage });
+            AddComponent(                 entity, new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
+            AddComponent(                 entity, new FadeProperty { fade                  = 1f });
+            AddComponent<PreviousRequest>(entity);
+            AddComponent<BulletFirer>(    entity);
+            AddComponent<BulletTag>(      entity);
         }
 
+        [BakingType]
         struct PreviousRequest : IRequestPreviousTransform { }
     }
 }

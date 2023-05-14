@@ -18,16 +18,17 @@ namespace Lsss.Authoring
     {
         public override void Bake(WormholeAuthoring authoring)
         {
-            AddComponent(new WormholeDestination { wormholeDestination = GetEntity(authoring.otherEnd) });
-            AddComponent<WormholeTag>();
+            var entity                                                                      = GetEntity(TransformUsageFlags.Renderable);
+            AddComponent(             entity, new WormholeDestination { wormholeDestination = GetEntity(authoring.otherEnd, TransformUsageFlags.Renderable) });
+            AddComponent<WormholeTag>(entity);
 
-            AddComponent(new GravityWarpZone
+            AddComponent(             entity, new GravityWarpZone
             {
                 swarchschildRadius = authoring.swarchschildRadius,
                 maxW               = authoring.maxW
             });
-            AddComponent(new GravityWarpZoneRadius { radius = authoring.gravityWarpZoneRadius });
-            AddComponent<GravityWarpZoneTag>();
+            AddComponent(                    entity, new GravityWarpZoneRadius { radius = authoring.gravityWarpZoneRadius });
+            AddComponent<GravityWarpZoneTag>(entity);
         }
     }
 }

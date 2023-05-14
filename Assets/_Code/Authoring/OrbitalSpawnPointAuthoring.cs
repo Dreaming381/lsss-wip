@@ -43,28 +43,29 @@ namespace Lsss.Authoring
     {
         public override void Bake(OrbitalSpawnPointAuthoring authoring)
         {
+            var entity = GetEntity(TransformUsageFlags.Dynamic);
             GetComponent<SpawnPointGraphicAuthoring>(authoring.spawnGraphicPrefab);
 
-            AddComponent(new SpawnPoint
+            AddComponent(entity, new SpawnPoint
             {
-                spawnGraphicPrefab = GetEntity(authoring.spawnGraphicPrefab),
+                spawnGraphicPrefab = GetEntity(authoring.spawnGraphicPrefab, TransformUsageFlags.Dynamic),
                 maxTimeUntilSpawn  = authoring.spawnGraphicPrefab.spawnTime,
                 maxPauseTime       = authoring.spawnGraphicPrefab.lifeTime
             });
-            AddComponent(new SpawnPayload { disabledShip = Entity.Null });
+            AddComponent(entity, new SpawnPayload { disabledShip = Entity.Null });
 
             var    transform     = GetComponent<Transform>();
             float3 outwardVector = (float3)transform.position - authoring.center;
-            AddComponent(new SpawnPointOrbitalPath
+            AddComponent(entity, new SpawnPointOrbitalPath
             {
                 center           = authoring.center,
                 radius           = math.distance(transform.position, authoring.center),
                 orbitSpeed       = 2 * math.PI / authoring.orbitTime,
                 orbitPlaneNormal = math.normalize(math.cross(outwardVector, math.cross(outwardVector, transform.up)))
             });
-            AddComponent<SafeToSpawn>();
-            AddComponent<SpawnTimes>();
-            AddComponent<SpawnPointTag>();
+            AddComponent<SafeToSpawn>(  entity);
+            AddComponent<SpawnTimes>(   entity);
+            AddComponent<SpawnPointTag>(entity);
         }
     }
 }

@@ -47,7 +47,7 @@ namespace Lsss
         {
             [ReadOnly] public NativeReference<float3> foundCamera;
 
-            public void Execute(ref TransformAspect transform)
+            public void Execute(TransformAspect transform)
             {
                 var    camPos    = foundCamera.Value;
                 float3 direction = math.normalize(camPos - transform.worldPosition);

@@ -14,7 +14,8 @@ namespace Lsss.Authoring
     {
         public override void Bake(FaceCameraAuthoring authoring)
         {
-            AddComponent<FaceCameraTag>();
+            var entity = GetEntity(TransformUsageFlags.Dynamic);
+            AddComponent<FaceCameraTag>(entity);
         }
     }
 }

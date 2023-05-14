@@ -19,17 +19,18 @@ namespace Lsss.Authoring
     {
         public override void Bake(ExplosionAuthoring authoring)
         {
-            AddComponent(new Damage { damage                      = authoring.damage });
-            AddComponent(new TimeToLive { timeToLive              = authoring.totalExplosionTime });
-            AddComponent(new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
-            AddComponent(new FadeProperty { fade                  = 1f });
-            AddComponent(new ExplosionStats
+            var entity                                                    = GetEntity(TransformUsageFlags.Dynamic);
+            AddComponent(entity, new Damage { damage                      = authoring.damage });
+            AddComponent(entity, new TimeToLive { timeToLive              = authoring.totalExplosionTime });
+            AddComponent(entity, new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
+            AddComponent(entity, new FadeProperty { fade                  = 1f });
+            AddComponent(entity, new ExplosionStats
             {
                 radius        = authoring.radius,
                 expansionRate = 1f / authoring.expansionDuration
             });
 
-            AddComponent<ExplosionTag>();
+            AddComponent<ExplosionTag>(entity);
         }
     }
 }

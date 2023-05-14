@@ -17,9 +17,10 @@ namespace Lsss.Authoring
     {
         public override void Bake(FleetSpawnPointAuthoring authoring)
         {
+            var entity = GetEntity(TransformUsageFlags.Dynamic);  // SpawnPointAnimationSystem assumes a parent.
             GetComponent<SpawnPointGraphicAuthoring>(authoring.spawnPointGraphic);
-            AddComponent(new TimeToLive { timeToLive = authoring.spawnPointGraphic.lifeTime });
-            AddComponent<FleetSpawnPointTag>();
+            AddComponent(                    entity, new TimeToLive { timeToLive = authoring.spawnPointGraphic.lifeTime });
+            AddComponent<FleetSpawnPointTag>(entity);
         }
     }
 }

@@ -31,10 +31,10 @@ namespace Lsss
                     var ship = payload.ValueRO.disabledShip;
                     ecb.Add(ship);
 
-                    var entityTransform          = GetAspectRO<TransformAspect>(entity);
-                    var shipTransform            = GetAspectRW<TransformAspect>(ship);
-                    shipTransform.worldRotation  = entityTransform.worldRotation;
-                    shipTransform.worldPosition  = entityTransform.worldPosition;
+                    var entityTransform          = GetComponent<WorldTransform>(entity);
+                    var shipTransform            = GetAspect<TransformAspect>(ship);
+                    shipTransform.worldRotation  = entityTransform.rotation;
+                    shipTransform.worldPosition  = entityTransform.position;
                     payload.ValueRW.disabledShip = Entity.Null;
                 }
             }

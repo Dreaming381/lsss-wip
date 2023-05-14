@@ -42,7 +42,7 @@ namespace Lsss
             public float dt;
             public float arenaRadius;
 
-            public void Execute(ref TransformAspect transform,
+            public void Execute(TransformAspect transform,
                                 ref Speed speed,
                                 ref ShipBoostTank boostTank,
                                 in ShipSpeedStats stats,

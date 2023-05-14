@@ -22,7 +22,8 @@ namespace Lsss.Authoring
     {
         public override void Bake(SpawnPointGraphicAuthoring authoring)
         {
-            AddComponent(new SpawnPointAnimationData
+            var entity = GetEntity(TransformUsageFlags.Dynamic);
+            AddComponent(entity, new SpawnPointAnimationData
             {
                 growStartTime   = authoring.lifeTime,
                 growEndTime     = authoring.lifeTime - authoring.growTime,
@@ -30,7 +31,7 @@ namespace Lsss.Authoring
                 growSpins       = authoring.growSpins * math.PI * 2,
                 shrinkSpins     = authoring.shrinkSpins * math.PI * 2
             });
-            AddComponent(new TimeToLive { timeToLive = authoring.lifeTime });
+            AddComponent(entity, new TimeToLive { timeToLive = authoring.lifeTime });
         }
     }
 }

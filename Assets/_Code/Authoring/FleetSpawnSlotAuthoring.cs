@@ -23,10 +23,12 @@ namespace Lsss.Authoring
                 return;
             }
 
-            AddComponent(new FleetSpawnSlotFactionReference { factionEntity = GetEntity(fleetSpawner.faction) });
-            AddComponent<FleetSpawnSlotTag>();
+            var entity = GetEntity(TransformUsageFlags.Renderable);
+
+            AddComponent(                   entity, new FleetSpawnSlotFactionReference { factionEntity = GetEntity(fleetSpawner.faction, TransformUsageFlags.None) });
+            AddComponent<FleetSpawnSlotTag>(entity);
             if (authoring.spawnPlayer)
-                AddComponent<FleetSpawnPlayerSlotTag>();
+                AddComponent<FleetSpawnPlayerSlotTag>(entity);
         }
     }
 }

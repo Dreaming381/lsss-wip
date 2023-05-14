@@ -21,7 +21,7 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
         }
 
         Latios.Transforms.Authoring.TransformsBakingBootstrap.InstallLatiosTransformsBakers(ref context);
-        Latios.Psyshock.Authoring.PsyshockBakingBootstrap.InstallLegacyColliderBakers(ref context);
+        Latios.Psyshock.Authoring.PsyshockBakingBootstrap.InstallUnityColliderBakers(ref context);
         Latios.Kinemation.Authoring.KinemationBakingBootstrap.InstallKinemationBakersAndSystems(ref context);
     }
 }
@@ -33,7 +33,7 @@ public class LatiosEditorBootstrap : ICustomEditorBootstrap
     {
         var world = new LatiosWorld(defaultEditorWorld.Name);
 
-        var systems = new List<Type>(DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.Default, true));
+        var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(WorldSystemFilterFlags.Default, true);
 
         BootstrapTools.InjectSystems(systems, world, world.simulationSystemGroup);
 
@@ -58,7 +58,7 @@ public class LatiosBootstrap : ICustomBootstrap
         world.useExplicitSystemOrdering       = true;
         world.zeroToleranceForExceptions      = true;
 
-        var systems = new List<Type>(DefaultWorldInitialization.GetAllSystems(WorldSystemFilterFlags.Default));
+        var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(WorldSystemFilterFlags.Default);
 
         BootstrapTools.InjectUnitySystems(systems, world, world.simulationSystemGroup);
 

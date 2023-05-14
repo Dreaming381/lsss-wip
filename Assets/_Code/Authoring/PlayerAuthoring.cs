@@ -13,7 +13,8 @@ namespace Lsss.Authoring
     {
         public override void Bake(PlayerAuthoring authoring)
         {
-            AddComponent<PlayerTag>();
+            var entity = GetEntity(TransformUsageFlags.None);
+            AddComponent<PlayerTag>(entity);
         }
     }
 }

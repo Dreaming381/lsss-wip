@@ -18,7 +18,7 @@ namespace Lsss
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_transformLookup = new TransformAspect.Lookup(ref state, false);
+            m_transformLookup = new TransformAspect.Lookup(ref state);
         }
         [BurstCompile]
         public void OnDestroy(ref SystemState state)

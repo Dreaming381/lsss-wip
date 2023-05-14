@@ -21,16 +21,17 @@ namespace Lsss.Authoring
     {
         public override void Bake(RandomOrbitalSpawnerProcGenAuthoring authoring)
         {
+            var entity = GetEntity(TransformUsageFlags.None);
             GetComponent<SpawnPointGraphicAuthoring>(authoring.spawnGraphicPrefab);
 
-            AddComponent(new OrbitalSpawnPointProcGen
+            AddComponent(entity, new OrbitalSpawnPointProcGen
             {
                 spawnerCount       = authoring.spawnerCount,
                 randomSeed         = authoring.randomSeed,
                 minRadius          = authoring.minRadius,
                 minMaxOrbitSpeed   = 2 * math.PI / authoring.minMaxOrbitTime.yx,
                 colliderRadius     = authoring.colliderRadius,
-                spawnGraphicPrefab = GetEntity(authoring.spawnGraphicPrefab),
+                spawnGraphicPrefab = GetEntity(authoring.spawnGraphicPrefab, TransformUsageFlags.Dynamic),
                 maxTimeUntilSpawn  = authoring.spawnGraphicPrefab.spawnTime,
                 maxPauseTime       = authoring.spawnGraphicPrefab.lifeTime
             });

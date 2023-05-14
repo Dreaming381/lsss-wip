@@ -31,7 +31,7 @@ namespace Lsss
         {
             public float dt;
 
-            public void Execute(ref TransformAspect transform, in ExplosionStats stats)
+            public void Execute(TransformAspect transform, in ExplosionStats stats)
             {
                 var scale            = transform.localScale + stats.expansionRate * dt;
                 scale                = math.min(scale, stats.radius);

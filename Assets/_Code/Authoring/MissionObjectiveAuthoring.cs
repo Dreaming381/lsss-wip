@@ -18,15 +18,16 @@ namespace Lsss.Authoring
     {
         public override void Bake(MissionObjectiveAuthoring authoring)
         {
+            var entity = GetEntity(TransformUsageFlags.None);
             if (authoring.destroyAllFactions)
-                AddComponent<LastAliveObjectiveTag>();
+                AddComponent<LastAliveObjectiveTag>(entity);
             else
             {
-                var factions = AddBuffer<DestroyFactionObjective>();
+                var factions = AddBuffer<DestroyFactionObjective>(entity);
                 foreach (var f in authoring.factionsToDestroy)
                 {
                     if (f != null)
-                        factions.Add(new DestroyFactionObjective { factionToDestroy = GetEntity(f) });
+                        factions.Add(new DestroyFactionObjective { factionToDestroy = GetEntity(f, TransformUsageFlags.None) });
                 }
             }
         }

@@ -34,7 +34,7 @@ namespace Lsss
         {
             public float dt;
 
-            public void Execute(ref TransformAspect transform, in Speed speed)
+            public void Execute(TransformAspect transform, in Speed speed)
             {
                 transform.worldPosition += transform.forwardDirection * speed.speed * dt;
             }

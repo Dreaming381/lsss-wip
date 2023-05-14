@@ -43,13 +43,14 @@ namespace Lsss.Authoring
     {
         public override void Bake(AiShipRadarAuthoring authoring)
         {
+            var        entity                         = GetEntity(TransformUsageFlags.Renderable);
             quaternion crossHairsForwardDirectionBias = quaternion.identity;
             if (authoring.biasCrossHairsUsingRootForward)
             {
                 var transform                  = GetComponent<Transform>();
                 crossHairsForwardDirectionBias = quaternion.LookRotationSafe(transform.InverseTransformDirection(transform.root.forward), transform.up);
             }
-            AddComponent(new AiShipRadar
+            AddComponent(entity, new AiShipRadar
             {
                 distance                             = authoring.range,
                 cosFov                               = math.cos(math.radians(authoring.fieldOfView) / 2f),
@@ -60,8 +61,8 @@ namespace Lsss.Authoring
                 nearestEnemyCrossHairsCosFovFilter   = math.cos(math.radians(authoring.enemyCrossHairsFieldOfView) / 2f),
                 crossHairsForwardDirectionBias       = crossHairsForwardDirectionBias
             });
-            AddComponent<AiShipRadarScanResults>();
-            AddComponent<AiRadarTag>();
+            AddComponent<AiShipRadarScanResults>(entity);
+            AddComponent<AiRadarTag>(            entity);
         }
     }
 }

@@ -6,6 +6,7 @@ using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
 
+using System.Runtime.InteropServices;
 using Latios.Systems;
 
 namespace Latios
@@ -90,7 +91,8 @@ namespace Latios
 
             m_latiosWorldUnmanagedSystem = this.GetOrCreateSystem<LatiosWorldUnmanagedSystem>();
 
-            m_unmanaged = Unmanaged.GetLatiosWorldUnmanaged();
+            m_unmanaged                                               = Unmanaged.GetLatiosWorldUnmanaged();
+            m_unmanaged.m_impl->m_unmanagedSystemInterfacesDispatcher = GCHandle.Alloc(m_interfacesDispatcher, GCHandleType.Normal);
 
             if (role == WorldRole.Default)
             {

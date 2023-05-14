@@ -17,15 +17,16 @@ namespace Lsss.Authoring
     {
         public override void Bake(AiExploreAuthoring authoring)
         {
-            AddComponent(new AiExplorePersonalityInitializerValues
+            var entity = GetEntity(TransformUsageFlags.None);
+            AddComponent(entity, new AiExplorePersonalityInitializerValues
             {
                 spawnForwardDistanceMinMax       = authoring.spawnForwardDistanceMinMax,
                 wanderDestinationRadiusMinMax    = authoring.wanderDestinationRadiusMinMax,
                 wanderPositionSearchRadiusMinMax = authoring.wanderPositionSearchRadiusMinMax
             });
-            AddComponent<AiExplorePersonality>();
-            AddComponent<AiExploreState>();
-            AddComponent<AiExploreOutput>();
+            AddComponent<AiExplorePersonality>(entity);
+            AddComponent<AiExploreState>(      entity);
+            AddComponent<AiExploreOutput>(     entity);
         }
     }
 }

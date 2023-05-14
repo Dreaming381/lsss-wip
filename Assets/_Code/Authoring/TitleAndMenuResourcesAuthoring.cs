@@ -17,12 +17,13 @@ namespace Lsss.Authoring
     {
         public override void Bake(TitleAndMenuResourcesAuthoring authoring)
         {
+            var entity = GetEntity(TransformUsageFlags.None);
             DependsOn(authoring.selectSoundEffect);
             DependsOn(authoring.navigateSoundEffect);
 
-            var selectEntity   = GetEntity(  authoring.selectSoundEffect);
-            var navigateEntity = GetEntity(authoring.navigateSoundEffect);
-            AddComponent( new TitleAndMenuResources
+            var selectEntity   = GetEntity(  authoring.selectSoundEffect, TransformUsageFlags.Dynamic);
+            var navigateEntity = GetEntity(authoring.navigateSoundEffect, TransformUsageFlags.Dynamic);
+            AddComponent(entity, new TitleAndMenuResources
             {
                 selectSoundEffect   = selectEntity,
                 navigateSoundEffect = navigateEntity
