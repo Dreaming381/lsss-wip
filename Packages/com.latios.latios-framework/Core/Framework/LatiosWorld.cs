@@ -96,9 +96,12 @@ namespace Latios
 
             if (role == WorldRole.Default)
             {
-                m_initializationSystemGroup = GetOrCreateSystemManaged<LatiosInitializationSystemGroup>();
-                m_simulationSystemGroup     = GetOrCreateSystemManaged<LatiosSimulationSystemGroup>();
-                m_presentationSystemGroup   = GetOrCreateSystemManaged<LatiosPresentationSystemGroup>();
+                m_initializationSystemGroup             = GetOrCreateSystemManaged<InitializationSystemGroup>();
+                m_simulationSystemGroup                 = GetOrCreateSystemManaged<SimulationSystemGroup>();
+                m_presentationSystemGroup               = GetOrCreateSystemManaged<PresentationSystemGroup>();
+                m_initializationSystemGroup.RateManager = new LatiosInitializationSystemGroupManager(this, m_initializationSystemGroup);
+                m_simulationSystemGroup.RateManager     = new LatiosSimulationSystemGroupManager();
+                m_presentationSystemGroup.RateManager   = new LatiosPresentationSystemGroupManager();
             }
             else if (role == WorldRole.Client)
             {
@@ -214,38 +217,5 @@ namespace Latios
             }
         }
     }
-
-namespace Systems
-{
-    /// <summary>
-    /// The SimulationSystemGroup for a LatiosWorld created with WorldRole.Default
-    /// </summary>
-    [DisableAutoCreation, NoGroupInjection]
-    public partial class LatiosSimulationSystemGroup : SimulationSystemGroup
-    {
-        SystemSortingTracker m_tracker;
-        internal bool        skipInDeferred = false;
-
-        protected override void OnUpdate()
-        {
-            if (!skipInDeferred)
-                SuperSystem.DoSuperSystemUpdate(this, ref m_tracker);
-        }
-    }
-
-    /// <summary>
-    /// The PresentationSystemGroup for a LatiosWorld created with WorldRole.Default
-    /// </summary>
-    [DisableAutoCreation, NoGroupInjection]
-    public partial class LatiosPresentationSystemGroup : PresentationSystemGroup
-    {
-        SystemSortingTracker m_tracker;
-
-        protected override void OnUpdate()
-        {
-            SuperSystem.DoSuperSystemUpdate(this, ref m_tracker);
-        }
-    }
-}
 }
 

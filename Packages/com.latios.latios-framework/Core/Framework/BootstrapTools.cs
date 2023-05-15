@@ -176,8 +176,7 @@ namespace Latios
                                                                            ComponentSystemGroup defaultGroup                          = null,
                                                                            NativeHashMap<SystemTypeIndex, SystemTypeIndex> groupRemap = default)
         {
-            var systems = world.GetOrCreateSystemsAndLogException(types,
-                                                                  Allocator.Temp);
+            var systems = world.GetOrCreateSystemsAndLogException(types, Allocator.Temp);
 
             // Add systems to their groups, based on the [UpdateInGroup] attribute.
             int typesIndex = -1;
@@ -201,7 +200,8 @@ namespace Latios
                 var updateInGroupAttributes = type.GetUpdateInGroupTargets();
                 if (updateInGroupAttributes.Length == 0)
                 {
-                    defaultGroup.AddSystemToUpdateList(system);
+                    if (defaultGroup.SystemHandle != system)
+                        defaultGroup.AddSystemToUpdateList(system);
                 }
 
                 foreach (var attr in updateInGroupAttributes)

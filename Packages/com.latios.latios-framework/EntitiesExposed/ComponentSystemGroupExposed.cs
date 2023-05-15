@@ -82,7 +82,9 @@ namespace Unity.Entities.Exposed
             bool sortingTurnedOn    = lastEnableSortingSetting == false && enableSorting == true;
 
             if ((systemCount != lastSystemCount && enableSorting) || sortingTurnedOn || hasSystemsToRemove)
+            {
                 group.SortSystems();
+            }
 
             lastSystemCount          = systemCount;
             lastEnableSortingSetting = enableSorting;
@@ -97,6 +99,25 @@ namespace Unity.Entities.Exposed.Dangerous
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !UNITY_DOTSRUNTIME
         public static void ClearSystemIds(this ComponentSystemGroup group) => JobsUtility.ClearSystemIds();
 #endif
+    }
+}
+
+// Add DisableAutoCreation to root groups to avoid self-injection issues since these systems are created anyways
+namespace Unity.Entities
+{
+    [DisableAutoCreation]
+    public partial class InitializationSystemGroup : ComponentSystemGroup
+    {
+    }
+
+    [DisableAutoCreation]
+    public partial class SimulationSystemGroup : ComponentSystemGroup
+    {
+    }
+
+    [DisableAutoCreation]
+    public partial class PresentationSystemGroup : ComponentSystemGroup
+    {
     }
 }
 
