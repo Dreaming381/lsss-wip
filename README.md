@@ -5,7 +5,7 @@ new features and improvements in Latios Framework up to version 0.4 and still
 serves as an example project and compatibility validation. A version of the
 framework is included as an embedded package.
 
-The Unity version is currently 2022.2.19f1
+The Unity version is currently 2022.3.0f1
 
 Feel free to clone, play with, and customize this game however you like! There
 are many features exposed in the project but not used in the release version of
