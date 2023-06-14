@@ -1,4 +1,3 @@
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using System;
 using System.Collections.Generic;
 using Latios.Authoring;
@@ -508,5 +507,4 @@ namespace Latios.Kinemation.Authoring.Systems
         }
     }
 }
-#endif
 

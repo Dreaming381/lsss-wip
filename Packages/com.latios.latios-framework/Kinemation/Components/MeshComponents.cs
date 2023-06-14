@@ -1,4 +1,3 @@
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using System;
 using Latios.Transforms;
 using Unity.Collections;
@@ -28,7 +27,10 @@ namespace Latios.Kinemation
     /// from latiosWorldUnmanaged.syncPoint. Otherwise, there may be motion vector artifacts for
     /// a frame.
     /// </remarks>
-    public struct PostProcessMatrix : IComponentData
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+    public
+#endif
+    struct PostProcessMatrix : IComponentData
     {
         public float3x4 postProcessMatrix;
     }
@@ -36,7 +38,10 @@ namespace Latios.Kinemation
     /// <summary>
     /// The previous frame's PostProcessMatrix used for rendering motion vectors.
     /// </summary>
-    public struct PreviousPostProcessMatrix : IComponentData
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+    public
+# endif
+    struct PreviousPostProcessMatrix : IComponentData
     {
         public float3x4 postProcessMatrix;
     }
@@ -407,5 +412,4 @@ namespace Latios.Kinemation
     }
     #endregion
 }
-#endif
 

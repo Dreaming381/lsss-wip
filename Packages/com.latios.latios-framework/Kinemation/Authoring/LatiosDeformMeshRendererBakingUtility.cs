@@ -1,4 +1,3 @@
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using System.Collections.Generic;
 using Latios.Transforms;
 using Latios.Transforms.Authoring;
@@ -88,8 +87,11 @@ namespace Latios.Kinemation.Authoring
             baker.AddComponent(entity, componentTypes);
             for (int i = 0; i < componentTypes.Length; i++)
             {
+                // Todo: What to do for Unity Transforms?
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
                 if (componentTypes.GetTypeIndex(i) == TypeManager.GetTypeIndex<PreviousTransform>())
                     baker.AddComponent<RequestPreviousTag>(entity);
+#endif
             }
 
             //if (renderMesh.mesh == null || renderMesh.material == null)
@@ -218,7 +220,6 @@ namespace Latios.Kinemation.Authoring
 
             int                  materialCount                  = sharedMaterials.Count;
             Entity               referenceEntity                = default;
-            TransformQvvs        worldTransform                 = TransformQvvs.identity;
             DeformClassification requiredPropertiesForReference = DeformClassification.None;
             for (var m = firstValidMaterialIndex; m != materialCount; m++)
             {
@@ -226,8 +227,6 @@ namespace Latios.Kinemation.Authoring
                 if (m == firstValidMaterialIndex)
                 {
                     meshEntity = baker.GetEntity(renderer, TransformUsageFlags.Renderable);
-
-                    worldTransform = baker.GetComponent<Transform>(renderer).GetWorldSpaceQvvs();
 
                     referenceEntity = meshEntity;
                     // Other transforms are handled in baking system once we know the animator wants the smr
@@ -337,5 +336,4 @@ namespace Latios.Kinemation.Authoring
         }
     }
 }
-#endif
 
