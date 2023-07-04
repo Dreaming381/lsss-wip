@@ -22,7 +22,8 @@
         "Unity.usfxr",
         "Latios.Kinemation",
         "Unity.Entities.Graphics",
-        "Latios.Transforms"
+        "Latios.Transforms",
+        "Latios.LifeFX"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

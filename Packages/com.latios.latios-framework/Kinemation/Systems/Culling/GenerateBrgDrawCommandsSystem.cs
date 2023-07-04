@@ -754,28 +754,28 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         unsafe struct EmitDrawCommandsJob : IJobParallelForDefer
         {
-            [ReadOnly] public NativeArray<ArchetypeChunk>                          chunksToProcess;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask>       chunkPerCameraCullingMaskHandle;
+            [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> chunkPerCameraCullingMaskHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> chunkPerCameraCullingSplitsMaskHandle;
-            public bool                                                            splitsAreValid;
+            public bool splitsAreValid;
 
             //[ReadOnly] public IndirectList<ChunkVisibilityItem> VisibilityItems;
-            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo>     EntitiesGraphicsChunkInfo;
-            [ReadOnly] public ComponentTypeHandle<MaterialMeshInfo>              MaterialMeshInfo;
+            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo> EntitiesGraphicsChunkInfo;
+            [ReadOnly] public ComponentTypeHandle<MaterialMeshInfo> MaterialMeshInfo;
             [ReadOnly] public ComponentTypeHandle<Unity.Transforms.LocalToWorld> WorldTransform;
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix>             PostProcessMatrix;
-            [ReadOnly] public ComponentTypeHandle<DepthSorted_Tag>               DepthSorted;
-            [ReadOnly] public SharedComponentTypeHandle<RenderMeshArray>         RenderMeshArray;
-            [ReadOnly] public SharedComponentTypeHandle<RenderFilterSettings>    RenderFilterSettings;
-            [ReadOnly] public SharedComponentTypeHandle<LightMaps>               LightMaps;
-            [ReadOnly] public NativeParallelHashMap<int, BRGRenderMeshArray>     BRGRenderMeshArrays;
+            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix> PostProcessMatrix;
+            [ReadOnly] public ComponentTypeHandle<DepthSorted_Tag> DepthSorted;
+            [ReadOnly] public SharedComponentTypeHandle<RenderMeshArray> RenderMeshArray;
+            [ReadOnly] public SharedComponentTypeHandle<RenderFilterSettings> RenderFilterSettings;
+            [ReadOnly] public SharedComponentTypeHandle<LightMaps> LightMaps;
+            [ReadOnly] public NativeParallelHashMap<int, BRGRenderMeshArray> BRGRenderMeshArrays;
 
             public ChunkDrawCommandOutput DrawCommandOutput;
 
-            public ulong  SceneCullingMask;
+            public ulong SceneCullingMask;
             public float3 CameraPosition;
-            public uint   LastSystemVersion;
-            public uint   CullingLayerMask;
+            public uint LastSystemVersion;
+            public uint CullingLayerMask;
 
             public ProfilerMarker ProfilerEmitChunk;
 
@@ -809,7 +809,7 @@ namespace Latios.Kinemation.Systems
                     BRGRenderMeshArray brgRenderMeshArray = default;
                     if (!BRGRenderMeshArrays.IsEmpty)
                     {
-                        int  renderMeshArrayIndex = chunk.GetSharedComponentIndex(RenderMeshArray);
+                        int renderMeshArrayIndex = chunk.GetSharedComponentIndex(RenderMeshArray);
                         bool hasRenderMeshArray   = renderMeshArrayIndex >= 0;
                         if (hasRenderMeshArray)
                             BRGRenderMeshArrays.TryGetValue(renderMeshArrayIndex, out brgRenderMeshArray);
@@ -819,9 +819,9 @@ namespace Latios.Kinemation.Systems
 
                     int batchIndex = entitiesGraphicsChunkInfo.BatchIndex;
 
-                    var  materialMeshInfos   = chunk.GetNativeArray(ref MaterialMeshInfo);
-                    var  worldTransforms     = chunk.GetNativeArray(ref WorldTransform);
-                    var  postProcessMatrices = chunk.GetNativeArray(ref PostProcessMatrix);
+                    var materialMeshInfos   = chunk.GetNativeArray(ref MaterialMeshInfo);
+                    var worldTransforms     = chunk.GetNativeArray(ref WorldTransform);
+                    var postProcessMatrices = chunk.GetNativeArray(ref PostProcessMatrix);
                     bool hasPostProcess      = chunk.Has(ref PostProcessMatrix);
                     bool isDepthSorted       = chunk.Has(ref DepthSorted);
                     bool isLightMapped       = chunk.GetSharedComponentIndex(LightMaps) >= 0;
@@ -859,7 +859,7 @@ namespace Latios.Kinemation.Systems
                         // so that the read pointer looks the same as our WorldTransforms.
                         // We compute them in the inner loop since only the visible instances are read from later,
                         // and it is a lot cheaper to only compute the visible instances.
-                        var allocator                        = DrawCommandOutput.ThreadLocalAllocator.ThreadAllocator(DrawCommandOutput.ThreadIndex)->Handle;
+                        var allocator = DrawCommandOutput.ThreadLocalAllocator.ThreadAllocator(DrawCommandOutput.ThreadIndex)->Handle;
                         postProcessDepthSortingTransformsPtr = AllocatorManager.Allocate<TransformQvvs>(allocator, chunk.Count);
                     }
 
@@ -869,8 +869,8 @@ namespace Latios.Kinemation.Systems
 
                         while (visibleWord != 0)
                         {
-                            int   bitIndex    = math.tzcnt(visibleWord);
-                            int   entityIndex = (j << 6) + bitIndex;
+                            int bitIndex    = math.tzcnt(visibleWord);
+                            int entityIndex = (j << 6) + bitIndex;
                             ulong entityMask  = 1ul << bitIndex;
 
                             // Clear the bit first in case we early out from the loop
