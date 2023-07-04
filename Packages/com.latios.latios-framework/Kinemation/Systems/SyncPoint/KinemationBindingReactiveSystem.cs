@@ -335,7 +335,7 @@ namespace Latios.Kinemation.Systems
                 JobHandle.ScheduleBatchedJobs();
 
                 // If we remove this component right away, we'll end up with motion vector artifacts. So we defer it by one frame.
-                latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent<PreviousPostProcessMatrix>(m_deadPreviousPostProcessMatrixQuery);
+                latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent<PreviousPostProcessMatrix>(m_deadPreviousPostProcessMatrixQuery, EntityQueryCaptureMode.AtRecord);
 
                 state.CompleteDependency();
 
@@ -408,6 +408,7 @@ namespace Latios.Kinemation.Systems
                                                                                                ComponentType.ReadWrite<SkeletonBoundsOffsetFromMeshes>()));
 
                 optimizedTypes.Add(ComponentType.ReadWrite<DependentSkinnedMesh>());
+                optimizedTypes.Add(ComponentType.ReadWrite<SkeletonBoundsOffsetFromMeshes>());
 
                 state.EntityManager.AddComponent(m_newOptimizedSkeletonsQuery, new ComponentTypeSet(optimizedTypes));
                 state.EntityManager.AddComponent(m_newExposedSkeletonsQuery,   new ComponentTypeSet(ComponentType.ReadWrite<DependentSkinnedMesh>(),
@@ -746,9 +747,13 @@ namespace Latios.Kinemation.Systems
                 {
                     var hasPathBindings  = chunk.Has(ref pathBindingsBlobRefHandle);
                     var hasOverrideBones = chunk.Has(ref overrideBonesHandle);
-                    var rootRefs         = chunk.GetNativeArray(ref rootRefHandle);
-                    var pathBindings     = chunk.GetNativeArray(ref pathBindingsBlobRefHandle);
-                    var overrideBones    = chunk.GetBufferAccessor(ref overrideBonesHandle);
+
+                    if (!hasPathBindings && !hasOverrideBones)
+                        return;
+
+                    var rootRefs      = chunk.GetNativeArray(ref rootRefHandle);
+                    var pathBindings  = chunk.GetNativeArray(ref pathBindingsBlobRefHandle);
+                    var overrideBones = chunk.GetBufferAccessor(ref overrideBonesHandle);
 
                     for (int i = 0; i < chunk.Count; i++)
                     {
@@ -947,9 +952,10 @@ namespace Latios.Kinemation.Systems
                                 meshEntity        = entities[i],
                                 oldBoundMeshState = meshes[i]
                             }, m_nativeThreadIndex);
+
+                            // Todo: We can't set the whole enabled bit array in batch?
+                            needs[i] = false;
                         }
-                        // Todo: We can't set the whole enabled bit array in batch?
-                        needs[i] = false;
                     }
                 }
 
@@ -1273,7 +1279,23 @@ namespace Latios.Kinemation.Systems
                             }
                             else
                             {
-                                if (!BindingUtilities.TrySolveBindings(op.meshBindingPathsBlob, op.skeletonBindingPathsBlob, newOffsetsCache, out int failedMeshIndex))
+                                if (op.meshBindingPathsBlob == BlobAssetReference<MeshBindingPathsBlob>.Null)
+                                {
+                                    UnityEngine.Debug.LogError(
+                                        $"Cannot bind entity {op.meshEntity} to {op.root.entity}. MeshBindingPathsBlob was null.");
+
+                                    outputSkinnedWriteOps.Add(new SkinnedMeshWriteStateOperation { meshEntity = op.meshEntity, skinnedState = default });
+                                    continue;
+                                }
+                                else if (op.skeletonBindingPathsBlob == BlobAssetReference<SkeletonBindingPathsBlob>.Null)
+                                {
+                                    UnityEngine.Debug.LogError(
+                                        $"Cannot bind entity {op.meshEntity} to {op.root.entity}. SkeletonBindingPathsBlob was null.");
+
+                                    outputSkinnedWriteOps.Add(new SkinnedMeshWriteStateOperation { meshEntity = op.meshEntity, skinnedState = default });
+                                    continue;
+                                }
+                                else if (!BindingUtilities.TrySolveBindings(op.meshBindingPathsBlob, op.skeletonBindingPathsBlob, newOffsetsCache, out int failedMeshIndex))
                                 {
                                     FixedString4096Bytes failedPath = default;
                                     failedPath.Append((byte*)op.meshBindingPathsBlob.Value.pathsInReversedNotation[failedMeshIndex].GetUnsafePtr(),

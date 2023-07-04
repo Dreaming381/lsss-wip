@@ -37,7 +37,7 @@ namespace Lsss
                 rng = GetComponentRW<SystemRng>(state.SystemHandle).ValueRW.Shuffle(),
             }.ScheduleParallel(m_query);
 
-            ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query);
+            ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query, EntityQueryCaptureMode.AtRecord);
         }
 
         [BurstCompile]

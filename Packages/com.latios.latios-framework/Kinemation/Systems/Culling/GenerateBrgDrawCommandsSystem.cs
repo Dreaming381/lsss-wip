@@ -1,5 +1,3 @@
-//#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-using System;
 using Latios.Transforms;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
@@ -504,7 +502,7 @@ namespace Latios.Kinemation.Systems
                 int*                                      visibleInstances,
                 float3*                                   sortingPositions,
                 DrawStream<DrawCommandVisibility>.Header* header,
-                DrawStream<IntPtr>.Header*                transformHeader,
+                DrawStream<System.IntPtr>.Header*         transformHeader,
                 int instanceOffset,
                 int positionOffset)
             {
@@ -578,174 +576,6 @@ namespace Latios.Kinemation.Systems
                 }
 
                 return numInstances;
-            }
-        }
-
-        [BurstCompile]
-        unsafe struct GenerateDrawCommandsJob : IJobParallelForDefer
-        {
-            public ChunkDrawCommandOutput DrawCommandOutput;
-
-            public void Execute(int index)
-            {
-                var sortedBin = DrawCommandOutput.SortedBins.ElementAt(index);
-                var settings  = DrawCommandOutput.UnsortedBins.ElementAt(sortedBin);
-                var bin       = DrawCommandOutput.BinIndices.ElementAt(sortedBin);
-
-                bool hasSortingPosition = settings.HasSortingPosition;
-                uint maxPerCommand      = hasSortingPosition ?
-                                          1u :
-                                          EntitiesGraphicsTuningConstants.kMaxInstancesPerDrawCommand;
-                uint numInstances    = (uint)bin.NumInstances;
-                int  numDrawCommands = bin.NumDrawCommands;
-
-                uint drawInstanceOffset      = (uint)bin.InstanceOffset;
-                uint drawPositionFloatOffset = (uint)bin.PositionOffset * 3;  // 3 floats per position
-
-                var cullingOutput = DrawCommandOutput.CullingOutputDrawCommands;
-                var draws         = cullingOutput->drawCommands;
-
-                for (int i = 0; i < numDrawCommands; ++i)
-                {
-                    var draw = new BatchDrawCommand
-                    {
-                        visibleOffset       = drawInstanceOffset,
-                        visibleCount        = math.min(maxPerCommand, numInstances),
-                        batchID             = settings.BatchID,
-                        materialID          = settings.MaterialID,
-                        meshID              = settings.MeshID,
-                        submeshIndex        = (ushort)settings.SubmeshIndex,
-                        splitVisibilityMask = settings.SplitMask,
-                        flags               = settings.Flags,
-                        sortingPosition     = hasSortingPosition ?
-                                              (int)drawPositionFloatOffset :
-                                              0,
-                    };
-
-                    int drawCommandIndex    = bin.DrawCommandOffset + i;
-                    draws[drawCommandIndex] = draw;
-
-                    drawInstanceOffset      += draw.visibleCount;
-                    drawPositionFloatOffset += draw.visibleCount * 3;
-                    numInstances            -= draw.visibleCount;
-                }
-            }
-        }
-
-        [BurstCompile]
-        internal unsafe struct GenerateDrawRangesJob : IJob
-        {
-            public ChunkDrawCommandOutput DrawCommandOutput;
-
-            [ReadOnly] public NativeParallelHashMap<int, BatchFilterSettings> FilterSettings;
-
-            private const int MaxInstances = EntitiesGraphicsTuningConstants.kMaxInstancesPerDrawRange;
-            private const int MaxCommands  = EntitiesGraphicsTuningConstants.kMaxDrawCommandsPerDrawRange;
-
-            private int m_PrevFilterIndex;
-            private int m_CommandsInRange;
-            private int m_InstancesInRange;
-
-            public void Execute()
-            {
-                int numBins = DrawCommandOutput.SortedBins.Length;
-                var output  = DrawCommandOutput.CullingOutputDrawCommands;
-
-                ref int rangeCount = ref output->drawRangeCount;
-                var     ranges     = output->drawRanges;
-
-                rangeCount         = 0;
-                m_PrevFilterIndex  = -1;
-                m_CommandsInRange  = 0;
-                m_InstancesInRange = 0;
-
-                for (int i = 0; i < numBins; ++i)
-                {
-                    var sortedBin = DrawCommandOutput.SortedBins.ElementAt(i);
-                    var settings  = DrawCommandOutput.UnsortedBins.ElementAt(sortedBin);
-                    var bin       = DrawCommandOutput.BinIndices.ElementAt(sortedBin);
-
-                    int  numInstances       = bin.NumInstances;
-                    int  drawCommandOffset  = bin.DrawCommandOffset;
-                    int  numDrawCommands    = bin.NumDrawCommands;
-                    int  filterIndex        = settings.FilterIndex;
-                    bool hasSortingPosition = settings.HasSortingPosition;
-
-                    for (int j = 0; j < numDrawCommands; ++j)
-                    {
-                        int instancesInCommand = math.min(numInstances, DrawCommandBin.MaxInstancesPerCommand);
-
-                        AccumulateDrawRange(
-                            ref rangeCount,
-                            ranges,
-                            drawCommandOffset,
-                            instancesInCommand,
-                            filterIndex,
-                            hasSortingPosition);
-
-                        ++drawCommandOffset;
-                        numInstances -= instancesInCommand;
-                    }
-                }
-
-                UnityEngine.Debug.Assert(rangeCount <= output->drawCommandCount);
-            }
-
-            private void AccumulateDrawRange(
-                ref int rangeCount,
-                BatchDrawRange* ranges,
-                int drawCommandOffset,
-                int numInstances,
-                int filterIndex,
-                bool hasSortingPosition)
-            {
-                bool isFirst = rangeCount == 0;
-
-                bool addNewCommand;
-
-                if (isFirst)
-                {
-                    addNewCommand = true;
-                }
-                else
-                {
-                    int newInstanceCount = m_InstancesInRange + numInstances;
-                    int newCommandCount  = m_CommandsInRange + 1;
-
-                    bool sameFilter       = filterIndex == m_PrevFilterIndex;
-                    bool tooManyInstances = newInstanceCount > MaxInstances;
-                    bool tooManyCommands  = newCommandCount > MaxCommands;
-
-                    addNewCommand = !sameFilter || tooManyInstances || tooManyCommands;
-                }
-
-                if (addNewCommand)
-                {
-                    ranges[rangeCount] = new BatchDrawRange
-                    {
-                        filterSettings    = FilterSettings[filterIndex],
-                        drawCommandsBegin = (uint)drawCommandOffset,
-                        drawCommandsCount = 1,
-                    };
-
-                    ranges[rangeCount].filterSettings.allDepthSorted = hasSortingPosition;
-
-                    m_PrevFilterIndex  = filterIndex;
-                    m_CommandsInRange  = 1;
-                    m_InstancesInRange = numInstances;
-
-                    ++rangeCount;
-                }
-                else
-                {
-                    ref var range = ref ranges[rangeCount - 1];
-
-                    ++range.drawCommandsCount;
-                    range.filterSettings.allDepthSorted &= hasSortingPosition;
-
-                    ++m_CommandsInRange;
-                    m_InstancesInRange += numInstances;
-                }
             }
         }
 #endif
@@ -948,6 +778,174 @@ namespace Latios.Kinemation.Systems
             }
         }
 #endif
+
+        [BurstCompile]
+        unsafe struct GenerateDrawCommandsJob : IJobParallelForDefer
+        {
+            public ChunkDrawCommandOutput DrawCommandOutput;
+
+            public void Execute(int index)
+            {
+                var sortedBin = DrawCommandOutput.SortedBins.ElementAt(index);
+                var settings  = DrawCommandOutput.UnsortedBins.ElementAt(sortedBin);
+                var bin       = DrawCommandOutput.BinIndices.ElementAt(sortedBin);
+
+                bool hasSortingPosition = settings.HasSortingPosition;
+                uint maxPerCommand      = hasSortingPosition ?
+                                          1u :
+                                          EntitiesGraphicsTuningConstants.kMaxInstancesPerDrawCommand;
+                uint numInstances    = (uint)bin.NumInstances;
+                int  numDrawCommands = bin.NumDrawCommands;
+
+                uint drawInstanceOffset      = (uint)bin.InstanceOffset;
+                uint drawPositionFloatOffset = (uint)bin.PositionOffset * 3;  // 3 floats per position
+
+                var cullingOutput = DrawCommandOutput.CullingOutputDrawCommands;
+                var draws         = cullingOutput->drawCommands;
+
+                for (int i = 0; i < numDrawCommands; ++i)
+                {
+                    var draw = new BatchDrawCommand
+                    {
+                        visibleOffset       = drawInstanceOffset,
+                        visibleCount        = math.min(maxPerCommand, numInstances),
+                        batchID             = settings.BatchID,
+                        materialID          = settings.MaterialID,
+                        meshID              = settings.MeshID,
+                        submeshIndex        = (ushort)settings.SubmeshIndex,
+                        splitVisibilityMask = settings.SplitMask,
+                        flags               = settings.Flags,
+                        sortingPosition     = hasSortingPosition ?
+                                              (int)drawPositionFloatOffset :
+                                              0,
+                    };
+
+                    int drawCommandIndex    = bin.DrawCommandOffset + i;
+                    draws[drawCommandIndex] = draw;
+
+                    drawInstanceOffset      += draw.visibleCount;
+                    drawPositionFloatOffset += draw.visibleCount * 3;
+                    numInstances            -= draw.visibleCount;
+                }
+            }
+        }
+
+        [BurstCompile]
+        internal unsafe struct GenerateDrawRangesJob : IJob
+        {
+            public ChunkDrawCommandOutput DrawCommandOutput;
+
+            [ReadOnly] public NativeParallelHashMap<int, BatchFilterSettings> FilterSettings;
+
+            private const int MaxInstances = EntitiesGraphicsTuningConstants.kMaxInstancesPerDrawRange;
+            private const int MaxCommands  = EntitiesGraphicsTuningConstants.kMaxDrawCommandsPerDrawRange;
+
+            private int m_PrevFilterIndex;
+            private int m_CommandsInRange;
+            private int m_InstancesInRange;
+
+            public void Execute()
+            {
+                int numBins = DrawCommandOutput.SortedBins.Length;
+                var output  = DrawCommandOutput.CullingOutputDrawCommands;
+
+                ref int rangeCount = ref output->drawRangeCount;
+                var     ranges     = output->drawRanges;
+
+                rangeCount         = 0;
+                m_PrevFilterIndex  = -1;
+                m_CommandsInRange  = 0;
+                m_InstancesInRange = 0;
+
+                for (int i = 0; i < numBins; ++i)
+                {
+                    var sortedBin = DrawCommandOutput.SortedBins.ElementAt(i);
+                    var settings  = DrawCommandOutput.UnsortedBins.ElementAt(sortedBin);
+                    var bin       = DrawCommandOutput.BinIndices.ElementAt(sortedBin);
+
+                    int  numInstances       = bin.NumInstances;
+                    int  drawCommandOffset  = bin.DrawCommandOffset;
+                    int  numDrawCommands    = bin.NumDrawCommands;
+                    int  filterIndex        = settings.FilterIndex;
+                    bool hasSortingPosition = settings.HasSortingPosition;
+
+                    for (int j = 0; j < numDrawCommands; ++j)
+                    {
+                        int instancesInCommand = math.min(numInstances, DrawCommandBin.MaxInstancesPerCommand);
+
+                        AccumulateDrawRange(
+                            ref rangeCount,
+                            ranges,
+                            drawCommandOffset,
+                            instancesInCommand,
+                            filterIndex,
+                            hasSortingPosition);
+
+                        ++drawCommandOffset;
+                        numInstances -= instancesInCommand;
+                    }
+                }
+
+                UnityEngine.Debug.Assert(rangeCount <= output->drawCommandCount);
+            }
+
+            private void AccumulateDrawRange(
+                ref int rangeCount,
+                BatchDrawRange* ranges,
+                int drawCommandOffset,
+                int numInstances,
+                int filterIndex,
+                bool hasSortingPosition)
+            {
+                bool isFirst = rangeCount == 0;
+
+                bool addNewCommand;
+
+                if (isFirst)
+                {
+                    addNewCommand = true;
+                }
+                else
+                {
+                    int newInstanceCount = m_InstancesInRange + numInstances;
+                    int newCommandCount  = m_CommandsInRange + 1;
+
+                    bool sameFilter       = filterIndex == m_PrevFilterIndex;
+                    bool tooManyInstances = newInstanceCount > MaxInstances;
+                    bool tooManyCommands  = newCommandCount > MaxCommands;
+
+                    addNewCommand = !sameFilter || tooManyInstances || tooManyCommands;
+                }
+
+                if (addNewCommand)
+                {
+                    ranges[rangeCount] = new BatchDrawRange
+                    {
+                        filterSettings    = FilterSettings[filterIndex],
+                        drawCommandsBegin = (uint)drawCommandOffset,
+                        drawCommandsCount = 1,
+                    };
+
+                    ranges[rangeCount].filterSettings.allDepthSorted = hasSortingPosition;
+
+                    m_PrevFilterIndex  = filterIndex;
+                    m_CommandsInRange  = 1;
+                    m_InstancesInRange = numInstances;
+
+                    ++rangeCount;
+                }
+                else
+                {
+                    ref var range = ref ranges[rangeCount - 1];
+
+                    ++range.drawCommandsCount;
+                    range.filterSettings.allDepthSorted &= hasSortingPosition;
+
+                    ++m_CommandsInRange;
+                    m_InstancesInRange += numInstances;
+                }
+            }
+        }
     }
 }
 

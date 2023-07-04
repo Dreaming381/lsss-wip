@@ -1,4 +1,3 @@
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
 using Latios.Authoring;
 using Latios.Kinemation.Authoring.Systems;
 using Unity.Entities;
@@ -37,7 +36,15 @@ namespace Latios.Kinemation.Authoring
             context.optimizationSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<LatiosAddWorldAndChunkRenderBoundsSystem>());
             context.optimizationSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<LatiosRenderBoundsUpdateSystem>());
         }
+
+        /// <summary>
+        /// Adds Mecanim bakers and baking systems into baking world
+        /// </summary>
+        public static void InstallMecanimBakersAndSystems(ref CustomBakingBootstrapContext context)
+        {
+            context.filteredBakerTypes.Add(typeof(MecanimSmartBaker));
+            context.bakingSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<MecanimAnimatorControllerSmartBlobberSystem>());
+        }
     }
 }
-#endif
 

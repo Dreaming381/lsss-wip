@@ -25,6 +25,7 @@ namespace Latios.Kinemation
         EntityQuery m_metaSkeletonsQuery;
         EntityQuery m_metaMeshesQuery;
         EntityQuery m_postProcessMatricesQuery;
+        EntityQuery m_exposedSkeletonBoundsOffsetsQuery;
 
         public void OnCreate(ref SystemState state)
         {
@@ -36,6 +37,8 @@ namespace Latios.Kinemation
             m_metaMeshesQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkWorldRenderBounds>(true).Without<ChunkSkinningCullingTag>().Build();
 
             m_postProcessMatricesQuery = state.Fluent().WithAll<PostProcessMatrix>(true).WithAll<ChunkSkinningCullingTag>(true, true).Build();
+
+            m_exposedSkeletonBoundsOffsetsQuery = state.Fluent().WithAll<ExposedSkeletonCullingIndex>(true).WithAll<SkeletonBoundsOffsetFromMeshes>(true).Build();
         }
 
         [BurstCompile]
@@ -49,13 +52,15 @@ namespace Latios.Kinemation
             var skeletonAabbs     = CollectionHelper.CreateNativeArray<Aabb>(JobsUtility.MaxJobThreadCount, state.WorldUpdateAllocator);
             var meshAabbs         = CollectionHelper.CreateNativeArray<Aabb>(JobsUtility.MaxJobThreadCount, state.WorldUpdateAllocator);
             var postProcessAabbs  = CollectionHelper.CreateNativeArray<Aabb>(JobsUtility.MaxJobThreadCount, state.WorldUpdateAllocator);
+            var exposedOffsets    = CollectionHelper.CreateNativeArray<float>(JobsUtility.MaxJobThreadCount, state.WorldUpdateAllocator);
             var skeletonsCombined = new NativeReference<Aabb>(state.WorldUpdateAllocator);
 
             var initJh = new InitializeAabbsJob
             {
                 skeletonAabbs    = skeletonAabbs,
                 meshAabbs        = meshAabbs,
-                postProcessAabbs = postProcessAabbs
+                postProcessAabbs = postProcessAabbs,
+                exposedOffsets   = exposedOffsets,
             }.Schedule(JobsUtility.MaxJobThreadCount, default);
 
             initJh = JobHandle.CombineDependencies(initJh, state.Dependency);
@@ -67,10 +72,17 @@ namespace Latios.Kinemation
                 skeletonPerThreadAabbs = skeletonAabbs,
             }.ScheduleParallel(m_metaSkeletonsQuery, initJh);
 
+            skeletonsJh = new ExposedSkeletonsBoundsOffsetJob
+            {
+                offsetsHandle  = GetComponentTypeHandle<SkeletonBoundsOffsetFromMeshes>(true),
+                exposedOffsets = exposedOffsets
+            }.ScheduleParallel(m_exposedSkeletonBoundsOffsetsQuery, skeletonsJh);
+
             skeletonsJh = new CombineSkeletonsJob
             {
                 aabbs             = skeletonAabbs,
-                skeletonsCombined = skeletonsCombined
+                skeletonsCombined = skeletonsCombined,
+                exposedOffsets    = exposedOffsets
             }.Schedule(skeletonsJh);
 
             var postProcessJh = new PostProcessMatricesJob
@@ -99,9 +111,10 @@ namespace Latios.Kinemation
         [BurstCompile]
         struct InitializeAabbsJob : IJobFor
         {
-            public NativeArray<Aabb> skeletonAabbs;
-            public NativeArray<Aabb> meshAabbs;
-            public NativeArray<Aabb> postProcessAabbs;
+            public NativeArray<Aabb>  skeletonAabbs;
+            public NativeArray<Aabb>  meshAabbs;
+            public NativeArray<Aabb>  postProcessAabbs;
+            public NativeArray<float> exposedOffsets;
 
             public void Execute(int i)
             {
@@ -109,6 +122,7 @@ namespace Latios.Kinemation
                 skeletonAabbs[i]    = aabb;
                 meshAabbs[i]        = aabb;
                 postProcessAabbs[i] = aabb;
+                exposedOffsets[i]   = 0f;
             }
         }
 
@@ -151,17 +165,42 @@ namespace Latios.Kinemation
         }
 
         [BurstCompile]
+        struct ExposedSkeletonsBoundsOffsetJob : IJobChunk
+        {
+            [ReadOnly] public ComponentTypeHandle<SkeletonBoundsOffsetFromMeshes> offsetsHandle;
+
+            [NativeDisableParallelForRestriction] public NativeArray<float> exposedOffsets;
+
+            [NativeSetThreadIndex]
+            int m_NativeThreadIndex;
+
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                var chunkOffsets = chunk.GetNativeArray(ref offsetsHandle);
+
+                for (int i = 0; i < chunk.Count; i++)
+                    exposedOffsets[m_NativeThreadIndex] = math.max(chunkOffsets[i].radialBoundsInWorldSpace, exposedOffsets[m_NativeThreadIndex]);
+            }
+        }
+
+        [BurstCompile]
         struct CombineSkeletonsJob : IJob
         {
-            [ReadOnly] public NativeArray<Aabb> aabbs;
-            public NativeReference<Aabb>        skeletonsCombined;
+            [ReadOnly] public NativeArray<Aabb>  aabbs;
+            [ReadOnly] public NativeArray<float> exposedOffsets;
+            public NativeReference<Aabb>         skeletonsCombined;
 
             public void Execute()
             {
                 Aabb aabb = new Aabb(float.MaxValue, float.MinValue);
                 foreach (var skeletonAabb in aabbs)
-                    aabb                = Physics.CombineAabb(aabb, skeletonAabb);
-                skeletonsCombined.Value = aabb;
+                    aabb               = Physics.CombineAabb(aabb, skeletonAabb);
+                float maxExposedOffset = 0f;
+                foreach (var offset in exposedOffsets)
+                    maxExposedOffset     = math.max(maxExposedOffset, offset);
+                aabb.min                -= maxExposedOffset;
+                aabb.max                += maxExposedOffset;
+                skeletonsCombined.Value  = aabb;
             }
         }
 

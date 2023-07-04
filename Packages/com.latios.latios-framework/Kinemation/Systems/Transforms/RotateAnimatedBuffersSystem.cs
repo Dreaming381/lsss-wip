@@ -28,6 +28,8 @@ namespace Latios.Kinemation.Systems
         EntityQuery m_blendShapesQuery;
         EntityQuery m_dynamicMeshesQuery;
 
+        bool ignoreChangeFilters;
+
         public void OnCreate(ref SystemState state)
         {
             m_initSkeletonsQuery = state.Fluent().WithAll<OptimizedSkeletonState>(true).WithAll<OptimizedBoneTransform>(false)
@@ -38,6 +40,8 @@ namespace Latios.Kinemation.Systems
             m_skeletonsQuery     = state.Fluent().WithAll<OptimizedSkeletonState>().WithAll<OptimizedBoneTransform>(true).IncludeDisabledEntities().Build();
             m_blendShapesQuery   = state.Fluent().WithAll<BlendShapeState>().WithAll<BlendShapeWeight>(true).IncludeDisabledEntities().Build();
             m_dynamicMeshesQuery = state.Fluent().WithAll<DynamicMeshState>().WithAll<DynamicMeshVertex>(true).IncludeDisabledEntities().Build();
+
+            ignoreChangeFilters = (state.WorldUnmanaged.Flags & WorldFlags.Editor) != WorldFlags.None;
         }
 
         [BurstCompile]
@@ -48,9 +52,10 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var skeletonJh = new InitSkeletonJob
+            var lastSystemVersion = math.select(state.LastSystemVersion, 0, ignoreChangeFilters);
+            var skeletonJh        = new InitSkeletonJob
             {
-                lastSystemVersion = state.LastSystemVersion,
+                lastSystemVersion = lastSystemVersion,
                 blobHandle        = GetComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference>(true),
                 bonesReadHandle   = GetBufferTypeHandle<OptimizedBoneTransform>(true),
                 bonesWriteHandle  = GetBufferTypeHandle<OptimizedBoneTransform>(false),
@@ -60,7 +65,7 @@ namespace Latios.Kinemation.Systems
 
             var blendShapeJh = new InitBlendShapesJob
             {
-                lastSystemVersion  = state.LastSystemVersion,
+                lastSystemVersion  = lastSystemVersion,
                 blobHandle         = GetComponentTypeHandle<BoundMesh>(true),
                 weightsReadHandle  = GetBufferTypeHandle<BlendShapeWeight>(true),
                 weightsWriteHandle = GetBufferTypeHandle<BlendShapeWeight>(false)
@@ -69,7 +74,7 @@ namespace Latios.Kinemation.Systems
 
             var meshJh = new InitMeshJob
             {
-                lastSystemVersion   = state.LastSystemVersion,
+                lastSystemVersion   = lastSystemVersion,
                 blobHandle          = GetComponentTypeHandle<BoundMesh>(true),
                 verticesReadHandle  = GetBufferTypeHandle<DynamicMeshVertex>(true),
                 verticesWriteHandle = GetBufferTypeHandle<DynamicMeshVertex>(false)
@@ -146,7 +151,7 @@ namespace Latios.Kinemation.Systems
                         bufferAsArray.GetSubArray(boneCount * 2, boneCount * 2).CopyFrom(bufferAsArray.GetSubArray(0, boneCount * 2));
                         bufferAsArray.GetSubArray(boneCount * 4, boneCount * 2).CopyFrom(bufferAsArray.GetSubArray(0, boneCount * 2));
                     }
-                    else  // Typically (buffer.Length == 0)
+                    else if (buffer.Length < boneCount * 6)  // Typically (buffer.Length == 0)
                     {
                         // Todo: Should we leave this uninitialized instead?
                         buffer.Resize(boneCount * 6, NativeArrayOptions.ClearMemory);

@@ -53,6 +53,12 @@ namespace Latios.Kinemation
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<RotateAnimatedBuffersSystem>(),                      world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<UpdateMatrixPreviousSystem>(),                       world);
         }
+
+        public static void InstallMecanimFeatures(World world)
+        {
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<KinemationAnimatorStateMachineSuperSystem>(),        world);
+        }
+
     }
 }
 

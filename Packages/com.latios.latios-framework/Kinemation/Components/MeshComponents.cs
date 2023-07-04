@@ -18,8 +18,19 @@ namespace Latios.Kinemation
     public struct RenderQuickToggleEnableFlag : IComponentData, IEnableableComponent { }
 
     /// <summary>
-    /// An optional matrix that is applied after computing the final WorldTransform.
+    /// An optional component that when present will be enabled for the duration of the frame
+    /// following a frame it was rendered by some view (including shadows), and disabled otherwise.
+    /// Usage: Add, remove, and read the enabled state.
+    /// </summary>
+    public struct RenderVisibilityFeedbackFlag : IComponentData, IEnableableComponent { }
+
+    /// <summary>
+    /// QVVS Transforms: An optional matrix that is applied after computing the final WorldTransform.
     /// It can be used for additional squash, stretch, and shear effects on a renderer.
+    ///
+    /// Unity Transforms: An optional matrix used to inform culling that a skinned mesh has
+    /// a different transform than the skeleton root. This transform must be assigned such that
+    /// the skinned mesh's LocalToWorld = math.mul(PostProcessMatrix, skeleton LocalToWorld)
     /// </summary>
     /// <remarks>
     /// If you remove this component from an entity which also has a PreviousPostProcessMatrix,
@@ -27,10 +38,7 @@ namespace Latios.Kinemation
     /// from latiosWorldUnmanaged.syncPoint. Otherwise, there may be motion vector artifacts for
     /// a frame.
     /// </remarks>
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-    public
-#endif
-    struct PostProcessMatrix : IComponentData
+    public struct PostProcessMatrix : IComponentData
     {
         public float3x4 postProcessMatrix;
     }
@@ -38,10 +46,7 @@ namespace Latios.Kinemation
     /// <summary>
     /// The previous frame's PostProcessMatrix used for rendering motion vectors.
     /// </summary>
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-    public
-# endif
-    struct PreviousPostProcessMatrix : IComponentData
+    public struct PreviousPostProcessMatrix : IComponentData
     {
         public float3x4 postProcessMatrix;
     }
