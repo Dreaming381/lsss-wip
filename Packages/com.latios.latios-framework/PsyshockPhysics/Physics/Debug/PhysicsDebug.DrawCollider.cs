@@ -61,7 +61,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// Draws a wireframe of a capsule using UnityEngine.Debug.DrawLine calls
         /// </summary>
-        /// <param name="sphere">The capsule to draw</param>
+        /// <param name="capsule">The capsule to draw</param>
         /// <param name="transform">The transform of the capsule in world space</param>
         /// <param name="color">The color of the wireframe</param>
         /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc</param>
@@ -146,7 +146,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// Draws a wireframe of a box using UnityEngine.Debug.DrawLine calls
         /// </summary>
-        /// <param name="sphere">The box to draw</param>
+        /// <param name="box">The box to draw</param>
         /// <param name="transform">The transform of the box in world space</param>
         /// <param name="color">The color of the wireframe</param>
         public static void DrawCollider(in BoxCollider box, in RigidTransform transform, Color color)
@@ -181,7 +181,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// Draws a wireframe of a triangle using UnityEngine.Debug.DrawLine calls
         /// </summary>
-        /// <param name="sphere">The triangle to draw</param>
+        /// <param name="triangle">The triangle to draw</param>
         /// <param name="transform">The transform of the triangle in world space</param>
         /// <param name="color">The color of the wireframe</param>
         public static void DrawCollider(in TriangleCollider triangle, in RigidTransform transform, Color color)
@@ -198,7 +198,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// Draws a wireframe of a convex mesh using UnityEngine.Debug.DrawLine calls
         /// </summary>
-        /// <param name="sphere">The convex mesh to draw</param>
+        /// <param name="convex">The convex mesh to draw</param>
         /// <param name="transform">The transform of the convex mesh in world space</param>
         /// <param name="color">The color of the wireframe</param>
         public static void DrawCollider(in ConvexCollider convex, in RigidTransform transform, Color color)
@@ -211,6 +211,23 @@ namespace Latios.Psyshock
                 float3 a         = new float3(blob.verticesX[abIndices.x], blob.verticesY[abIndices.x], blob.verticesZ[abIndices.x]) * convex.scale;
                 float3 b         = new float3(blob.verticesX[abIndices.y], blob.verticesY[abIndices.y], blob.verticesZ[abIndices.y]) * convex.scale;
                 Debug.DrawLine(math.transform(transform, a), math.transform(transform, b), color);
+            }
+        }
+
+        /// <summary>
+        /// Draws a wireframe of a TriMesh using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="triMesh">The convex mesh to draw</param>
+        /// <param name="transform">The transform of the convex mesh in world space</param>
+        /// <param name="color">The color of the wireframe</param>
+        public static void DrawCollider(in TriMeshCollider triMesh, in RigidTransform transform, Color color)
+        {
+            ref var blob = ref triMesh.triMeshColliderBlob.Value;
+
+            for (int i = 0; i < blob.triangles.Length; i++)
+            {
+                var triangle = Physics.ScaleStretchCollider(blob.triangles[i], 1f, triMesh.scale);
+                DrawCollider(in triangle, in transform, color);
             }
         }
 
@@ -258,6 +275,9 @@ namespace Latios.Psyshock
                     break;
                 case ColliderType.Convex:
                     DrawCollider(in collider.m_convex,   transform, color);
+                    break;
+                case ColliderType.TriMesh:
+                    DrawCollider(in collider.m_triMesh,  transform, color);
                     break;
                 case ColliderType.Compound:
                     DrawCollider(in collider.m_compound, transform, color, segmentsPerPi);

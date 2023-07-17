@@ -1,4 +1,5 @@
 ﻿using Unity.Burst;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -262,6 +263,297 @@ namespace Latios.Psyshock
                 default:
                     result = default;
                     return false;
+            }
+        }
+
+        unsafe struct DistanceAllResultFlipper<T> : Physics.IDistanceBetweenAllProcessor where T : unmanaged, Physics.IDistanceBetweenAllProcessor
+        {
+            public T* processor;
+
+            public void Execute(in ColliderDistanceResult result)
+            {
+                var result2                                            = result;
+                (result2.hitpointA, result2.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                (result2.normalA, result2.normalB)                     = (result.normalB, result.normalA);
+                (result2.subColliderIndexA, result2.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                processor->Execute(in result2);
+            }
+        }
+
+        public static unsafe void DistanceBetweenAll<T>(in Collider colliderA,
+                                                        in RigidTransform aTransform,
+                                                        in Collider colliderB,
+                                                        in RigidTransform bTransform,
+                                                        float maxDistance,
+                                                        ref T processor) where T : unmanaged, Physics.IDistanceBetweenAllProcessor
+        {
+            var                    flipper = new DistanceAllResultFlipper<T> { processor = (T*)UnsafeUtility.AddressOf(ref processor) };
+            ColliderDistanceResult result                                                = default;
+
+            switch ((colliderA.type, colliderB.type))
+            {
+                case (ColliderType.Sphere, ColliderType.Sphere):
+                {
+                    SphereSphere.DistanceBetween(in colliderA.m_sphere, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Sphere, ColliderType.Capsule):
+                {
+                    SphereCapsule.DistanceBetween(in colliderB.m_capsule, in bTransform, in colliderA.m_sphere, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Sphere, ColliderType.Box):
+                {
+                    SphereBox.DistanceBetween(in colliderB.m_box, in bTransform, in colliderA.m_sphere, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Sphere, ColliderType.Triangle):
+                {
+                    SphereTriangle.DistanceBetween(in colliderB.m_triangle, in bTransform, in colliderA.m_sphere, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Sphere, ColliderType.Convex):
+                {
+                    SphereConvex.DistanceBetween(in colliderB.m_convex, in bTransform, in colliderA.m_sphere, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Sphere, ColliderType.TriMesh):
+                    SphereTriMesh.DistanceBetweenAll(in colliderB.m_triMesh, in bTransform, in colliderA.m_sphere, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Sphere, ColliderType.Compound):
+                    SphereCompound.DistanceBetweenAll(in colliderB.m_compound, in bTransform, in colliderA.m_sphere, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Capsule, ColliderType.Sphere):
+                {
+                    SphereCapsule.DistanceBetween(in colliderA.m_capsule, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Capsule, ColliderType.Capsule):
+                {
+                    CapsuleCapsule.DistanceBetween(in colliderA.m_capsule, in aTransform, in colliderB.m_capsule, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Capsule, ColliderType.Box):
+                {
+                    CapsuleBox.DistanceBetween(in colliderB.m_box, in bTransform, in colliderA.m_capsule, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Capsule, ColliderType.Triangle):
+                {
+                    CapsuleTriangle.DistanceBetween(in colliderB.m_triangle, in bTransform, in colliderA.m_capsule, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Capsule, ColliderType.Convex):
+                {
+                    CapsuleConvex.DistanceBetween(in colliderB.m_convex, in bTransform, in colliderA.m_capsule, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Capsule, ColliderType.TriMesh):
+                    CapsuleTriMesh.DistanceBetweenAll(in colliderB.m_triMesh, in bTransform, in colliderA.m_capsule, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Capsule, ColliderType.Compound):
+                    CapsuleCompound.DistanceBetweenAll(in colliderB.m_compound, in bTransform, in colliderA.m_capsule, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Box, ColliderType.Sphere):
+                {
+                    SphereBox.DistanceBetween(in colliderA.m_box, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Box, ColliderType.Capsule):
+                {
+                    CapsuleBox.DistanceBetween(in colliderA.m_box, in aTransform, in colliderB.m_capsule, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Box, ColliderType.Box):
+                {
+                    BoxBox.DistanceBetween(in colliderA.m_box, in aTransform, in colliderB.m_box, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Box, ColliderType.Triangle):
+                {
+                    BoxTriangle.DistanceBetween(in colliderB.m_triangle, in bTransform, in colliderA.m_box, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Box, ColliderType.Convex):
+                {
+                    BoxConvex.DistanceBetween(in colliderB.m_convex, in bTransform, in colliderA.m_box, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Box, ColliderType.TriMesh):
+                    BoxTriMesh.DistanceBetweenAll(in colliderB.m_triMesh, in bTransform, in colliderA.m_box, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Box, ColliderType.Compound):
+                    BoxCompound.DistanceBetweenAll(in colliderB.m_compound, in bTransform, in colliderA.m_box, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Triangle, ColliderType.Sphere):
+                {
+                    SphereTriangle.DistanceBetween(in colliderA.m_triangle, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Triangle, ColliderType.Capsule):
+                {
+                    CapsuleTriangle.DistanceBetween(in colliderA.m_triangle, in aTransform, in colliderB.m_capsule, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Triangle, ColliderType.Box):
+                {
+                    BoxTriangle.DistanceBetween(in colliderA.m_triangle, in aTransform, in colliderB.m_box, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Triangle, ColliderType.Triangle):
+                {
+                    TriangleTriangle.DistanceBetween(in colliderA.m_triangle, in aTransform, in colliderB.m_triangle, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Triangle, ColliderType.Convex):
+                {
+                    TriangleConvex.DistanceBetween(in colliderB.m_convex, in bTransform, in colliderA.m_triangle, in aTransform, maxDistance, out result);
+
+                    (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
+                    (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
+                    (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Triangle, ColliderType.TriMesh):
+                    TriangleTriMesh.DistanceBetweenAll(in colliderB.m_triMesh, in bTransform, in colliderA.m_triangle, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Triangle, ColliderType.Compound):
+                    TriangleCompound.DistanceBetweenAll(in colliderB.m_compound, in bTransform, in colliderA.m_triangle, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Convex, ColliderType.Sphere):
+                {
+                    SphereConvex.DistanceBetween(in colliderA.m_convex, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Convex, ColliderType.Capsule):
+                {
+                    CapsuleConvex.DistanceBetween(in colliderA.m_convex, in aTransform, in colliderB.m_capsule, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Convex, ColliderType.Box):
+                {
+                    BoxConvex.DistanceBetween(in colliderA.m_convex, in aTransform, in colliderB.m_box, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Convex, ColliderType.Triangle):
+                {
+                    TriangleConvex.DistanceBetween(in colliderA.m_convex, in aTransform, in colliderB.m_triangle, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Convex, ColliderType.Convex):
+                {
+                    ConvexConvex.DistanceBetween(in colliderA.m_convex, in aTransform, in colliderB.m_convex, in bTransform, maxDistance, out result);
+                    processor.Execute(in result);
+                    break;
+                }
+                case (ColliderType.Convex, ColliderType.TriMesh):
+                    ConvexTriMesh.DistanceBetweenAll(in colliderB.m_triMesh, in bTransform, in colliderA.m_convex, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Convex, ColliderType.Compound):
+                    ConvexCompound.DistanceBetweenAll(in colliderB.m_compound, in bTransform, in colliderA.m_convex, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.Sphere):
+                    SphereTriMesh.DistanceBetweenAll(in colliderA.m_triMesh, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.Capsule):
+                    CapsuleTriMesh.DistanceBetweenAll(in colliderA.m_triMesh, in aTransform, in colliderB.m_capsule, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.Box):
+                    BoxTriMesh.DistanceBetweenAll(in colliderA.m_triMesh, in aTransform, in colliderB.m_box, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.Triangle):
+                    TriangleTriMesh.DistanceBetweenAll(in colliderA.m_triMesh, in aTransform, in colliderB.m_triangle, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.Convex):
+                    ConvexTriMesh.DistanceBetweenAll(in colliderA.m_triMesh, in aTransform, in colliderB.m_convex, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.TriMesh):
+                    TriMeshTriMesh.DistanceBetweenAll(in colliderA.m_triMesh, in aTransform, in colliderB.m_triMesh, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.TriMesh, ColliderType.Compound):
+                    TriMeshCompound.DistanceBetweenAll(in colliderB.m_compound, in bTransform, in colliderA.m_triMesh, in aTransform, maxDistance, ref flipper);
+                    break;
+                case (ColliderType.Compound, ColliderType.Sphere):
+                    SphereCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_sphere, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.Compound, ColliderType.Capsule):
+                    CapsuleCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_capsule, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.Compound, ColliderType.Box):
+                    BoxCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_box, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.Compound, ColliderType.Triangle):
+                    TriangleCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_triangle, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.Compound, ColliderType.Convex):
+                    ConvexCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_convex, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.Compound, ColliderType.TriMesh):
+                    TriMeshCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_triMesh, in bTransform, maxDistance, ref processor);
+                    break;
+                case (ColliderType.Compound, ColliderType.Compound):
+                    CompoundCompound.DistanceBetweenAll(in colliderA.m_compound, in aTransform, in colliderB.m_compound, in bTransform, maxDistance, ref processor);
+                    break;
             }
         }
 
