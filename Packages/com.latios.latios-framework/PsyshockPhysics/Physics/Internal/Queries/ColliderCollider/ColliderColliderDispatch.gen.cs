@@ -24,6 +24,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Sphere, ColliderType.Box):
@@ -33,6 +34,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Sphere, ColliderType.Triangle):
@@ -42,6 +44,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Sphere, ColliderType.Convex):
@@ -51,6 +54,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Sphere, ColliderType.TriMesh):
@@ -60,6 +64,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Sphere, ColliderType.Compound):
@@ -69,6 +74,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Capsule, ColliderType.Sphere):
@@ -82,6 +88,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Capsule, ColliderType.Triangle):
@@ -91,6 +98,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Capsule, ColliderType.Convex):
@@ -100,6 +108,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Capsule, ColliderType.TriMesh):
@@ -109,6 +118,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Capsule, ColliderType.Compound):
@@ -118,6 +128,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Box, ColliderType.Sphere):
@@ -133,6 +144,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Box, ColliderType.Convex):
@@ -142,6 +154,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Box, ColliderType.TriMesh):
@@ -151,6 +164,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Box, ColliderType.Compound):
@@ -160,6 +174,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Triangle, ColliderType.Sphere):
@@ -177,6 +192,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Triangle, ColliderType.TriMesh):
@@ -186,6 +202,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Triangle, ColliderType.Compound):
@@ -195,6 +212,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Convex, ColliderType.Sphere):
@@ -214,6 +232,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Convex, ColliderType.Compound):
@@ -223,6 +242,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.TriMesh, ColliderType.Sphere):
@@ -244,6 +264,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     return r;
                 }
                 case (ColliderType.Compound, ColliderType.Sphere):
@@ -276,6 +297,7 @@ namespace Latios.Psyshock
                 (result2.hitpointA, result2.hitpointB)                 = (result.hitpointB, result.hitpointA);
                 (result2.normalA, result2.normalB)                     = (result.normalB, result.normalA);
                 (result2.subColliderIndexA, result2.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                (result2.featureCodeA, result2.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                 processor->Execute(in result2);
             }
         }
@@ -305,6 +327,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -315,6 +338,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -325,6 +349,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -335,6 +360,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -363,6 +389,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -373,6 +400,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -383,6 +411,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -417,6 +446,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -427,6 +457,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
@@ -467,6 +498,7 @@ namespace Latios.Psyshock
                     (result.hitpointA, result.hitpointB)                 = (result.hitpointB, result.hitpointA);
                     (result.normalA, result.normalB)                     = (result.normalB, result.normalA);
                     (result.subColliderIndexA, result.subColliderIndexB) = (result.subColliderIndexB, result.subColliderIndexA);
+                    (result.featureCodeA, result.featureCodeB)           = (result.featureCodeB, result.featureCodeA);
                     processor.Execute(in result);
                     break;
                 }
