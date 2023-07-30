@@ -1469,7 +1469,7 @@ namespace Latios.Kinemation.Systems
                         requiredGpuSizes->requiredVertexUploadSize      += verticesNeeded;
                         requiredGpuSizes->requiredWeightUploadSize      += weightsNeeded;
                         requiredGpuSizes->requiredBindPoseUploadSize    += bindPosesNeeded;
-                        requiredGpuSizes->requiredBlendShapesBufferSize += blendShapesNeeded;
+                        requiredGpuSizes->requiredBlendShapesUploadSize += blendShapesNeeded;
 
                         meshManager.uploadCommands.Add(new MeshGpuUploadCommand
                         {

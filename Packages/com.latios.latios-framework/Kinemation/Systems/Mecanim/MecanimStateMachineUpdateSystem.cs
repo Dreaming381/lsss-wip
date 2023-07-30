@@ -21,7 +21,7 @@ namespace Latios.Kinemation.Systems
         public void OnCreate(ref SystemState state)
         {
             m_query = state.Fluent().WithAll<MecanimController>(false).WithAll<MecanimLayerStateMachineStatus>(false).WithAll<MecanimParameter>(false)
-                      .WithAll<MecanimControllerEnabledTag>(true).Build();
+                      .WithAll<MecanimControllerEnabledFlag>(true).Build();
         }
 
         [BurstCompile]
