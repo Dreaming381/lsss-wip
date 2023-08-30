@@ -30,7 +30,7 @@ namespace Latios.Kinemation
 
         protected override void OnCreate()
         {
-            m_query = Fluent.WithAll<DynamicMeshVertex>(true).WithAll<BlendShapeWeight>(true).WithAll<BoundMesh>(true)
+            m_query = Fluent.WithAll<BlendShapeWeight>(true).WithAll<BlendShapeState>(true).WithAll<BoundMesh>(true)
                       .WithAll<ChunkPerCameraCullingMask>(true, true).WithAll<ChunkPerFrameCullingMask>(true, true).Build();
 
             m_dispatchShader = Resources.Load<ComputeShader>("ShapeBlending");
@@ -367,7 +367,6 @@ namespace Latios.Kinemation
                 ref var blobShapes             = ref entry.blob.Value.blendShapesData;
                 var     weightsPtr             = (float*)payload.weightsPtr;
                 var     nextNonzeroWeightIndex = 0;
-
                 if (weightsPtr != null)
                 {
                     for (int i = 0; i < blobShapes.shapes.Length; i++)
