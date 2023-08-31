@@ -36,8 +36,6 @@ namespace Latios.Systems
             };
             worldBlackboardEntity.AddComponentData(curr);
 
-            latiosWorld.autoGenerateSceneBlackboardEntity = false;
-
             m_unitySubsceneLoadQuery        = Fluent.WithAll<Unity.Entities.RequestSceneLoaded>().Build();
             m_dontDestroyOnSceneChangeQuery = Fluent.WithAll<Unity.Entities.SceneTag>().WithAll<DontDestroyOnSceneChangeTag>().IncludeDisabledEntities().IncludePrefabs().Build();
         }
@@ -91,7 +89,6 @@ namespace Latios.Systems
                 currentScene.currentScene      = SceneManager.GetActiveScene().name;
                 currentScene.isSceneFirstFrame = true;
                 worldBlackboardEntity.SetComponentData(currentScene);
-                latiosWorld.CreateNewSceneBlackboardEntity();
             }
             else if (m_paused)
             {
@@ -103,13 +100,8 @@ namespace Latios.Systems
             }
             worldBlackboardEntity.SetComponentData(currentScene);
 
-            ForceSynchronousSubscenes(EntityManager, m_unitySubsceneLoadQuery);
-        }
-
-        internal static void ForceSynchronousSubscenes(EntityManager entityManager, EntityQuery unitySubsceneLoadQuery)
-        {
-            var subsceneRequests = unitySubsceneLoadQuery.ToComponentDataArray<RequestSceneLoaded>(Allocator.Temp);
-            var subsceneEntities = unitySubsceneLoadQuery.ToEntityArray(Allocator.Temp);
+            var subsceneRequests = m_unitySubsceneLoadQuery.ToComponentDataArray<RequestSceneLoaded>(Allocator.Temp);
+            var subsceneEntities = m_unitySubsceneLoadQuery.ToEntityArray(Allocator.Temp);
             for (int i = 0; i < subsceneEntities.Length; i++)
             {
                 var subsceneEntity = subsceneEntities[i];
@@ -117,11 +109,11 @@ namespace Latios.Systems
                 if ((request.LoadFlags & SceneLoadFlags.DisableAutoLoad) == 0)
                 {
                     request.LoadFlags |= SceneLoadFlags.BlockOnStreamIn;
-                    entityManager.SetComponentData(subsceneEntity, request);
-                    if (entityManager.HasComponent<Unity.Scenes.ResolvedSectionEntity>(subsceneEntity))
+                    EntityManager.SetComponentData(subsceneEntity, request);
+                    if (EntityManager.HasComponent<Unity.Scenes.ResolvedSectionEntity>(subsceneEntity))
                     {
-                        foreach (var s in entityManager.GetBuffer<Unity.Scenes.ResolvedSectionEntity>(subsceneEntity))
-                            entityManager.AddComponentData(s.SectionEntity, request);
+                        foreach (var s in EntityManager.GetBuffer<Unity.Scenes.ResolvedSectionEntity>(subsceneEntity))
+                            EntityManager.AddComponentData(s.SectionEntity, request);
                     }
                 }
             }

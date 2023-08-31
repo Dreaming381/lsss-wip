@@ -45,11 +45,6 @@ namespace Latios.Systems
             EntityManager.AddComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
             EntityManager.DestroyEntity(m_destroyQuery);
             EntityManager.RemoveComponent<LatiosSceneChangeDummyTag>(EntityManager.UniversalQuery);
-
-            SceneManagerSystem.ForceSynchronousSubscenes(EntityManager, m_unitySubsceneLoadQuery);
-            latiosWorld.GetExistingSystemManaged<Unity.Scenes.SceneSystemGroup>();
-            latiosWorld.GetExistingSystemManaged<MergeBlackboardsSystem>().Update();
-            latiosWorld.CreateNewSceneBlackboardEntity();
         }
     }
 }
