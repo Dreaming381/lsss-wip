@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Unity.Collections;
@@ -47,6 +48,8 @@ namespace Latios.Transforms
 
         EntityManager entityManager;
 
+        static List<IInitializeGameObjectEntity> s_initializeCache = new List<IInitializeGameObjectEntity>();
+
         void Awake()
         {
             var latiosWorld = World.DefaultGameObjectInjectionWorld as LatiosWorld;
@@ -70,6 +73,13 @@ namespace Latios.Transforms
             {
                 // Bind to host
                 entityManager.AddComponentData(entity, new GameObjectEntityBindClient { guid = guid });
+
+                s_initializeCache.Clear();
+                GetComponents(s_initializeCache);
+                foreach (var initializer in s_initializeCache)
+                {
+                    initializer.Initialize(latiosWorld, entity);
+                }
             }
         }
 
