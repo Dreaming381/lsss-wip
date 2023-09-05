@@ -6,6 +6,8 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     public partial class HudUpdateSystem : SubSystem
@@ -29,14 +31,11 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            Hud hud = null;
-            Entities.ForEach((Hud hudRef) =>
-            {
-                hud = hudRef;
-            }).WithoutBurst().Run();
-
-            if (hud == null)
+            var hudEntities = QueryBuilder().WithAll<HudReference.ExistComponent>().Build().ToEntityArray(Allocator.Temp);
+            if (hudEntities.Length == 0)
                 return;
+
+            var hud = latiosWorldUnmanaged.GetManagedStructComponent<HudReference>(hudEntities[0]).hud;
 
             bool   playerFound = false;
             float  healthValue = 0f;

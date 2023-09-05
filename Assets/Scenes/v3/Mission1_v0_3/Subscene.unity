@@ -175,6 +175,26 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6445809875158203674, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      propertyPath: m_guid
+      value: 7492ac2c36453a4bb3f8757b5d19f4f7
+      objectReference: {fileID: 0}
+    - target: {fileID: 6445809875158203674, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      propertyPath: m_guid.w
+      value: 4173262976
+      objectReference: {fileID: 0}
+    - target: {fileID: 6445809875158203674, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      propertyPath: m_guid.x
+      value: 587752575
+      objectReference: {fileID: 0}
+    - target: {fileID: 6445809875158203674, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      propertyPath: m_guid.y
+      value: 1080877319
+      objectReference: {fileID: 0}
+    - target: {fileID: 6445809875158203674, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      propertyPath: m_guid.z
+      value: 1995078808
+      objectReference: {fileID: 0}
     - target: {fileID: 7945271230694290733, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
       propertyPath: m_Name
       value: CameraManager
@@ -182,8 +202,31 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7945271230694290733, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 106682680}
   m_SourcePrefab: {fileID: 100100000, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+--- !u!1 &106682679 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7945271230694290733, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+  m_PrefabInstance: {fileID: 106682678}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &106682680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 106682679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e2d98aa905958a41a438d4ad14bbdfd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_guid:
+    serializedVersion: 2
+    Hash: c8edc1fd080fb34c8da28d026ab6db97
 --- !u!1 &219145922
 GameObject:
   m_ObjectHideFlags: 0

@@ -5,6 +5,8 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Lsss
 {
     public partial class SetCameraDrawDistanceSystem : SubSystem
@@ -22,17 +24,18 @@ namespace Lsss
         {
             var qualityLevel = worldBlackboardEntity.GetComponentData<GraphicsQualityLevel>();
 
-            Entities.ForEach((CameraManager camera, in DrawDistances distances) =>
+            foreach((var distances, var entity) in Query<RefRO<DrawDistances> >().WithEntityAccess().WithAll<CameraManager.ExistComponent>())
             {
-                if (camera.camera == null)
+                var camera = latiosWorldUnmanaged.GetManagedStructComponent<CameraManager>(entity).camera;
+                if (camera == null)
                     return;
-                if (qualityLevel.level != lastSeenQualityLevel || camera.camera != lastSeenCamera)
+                if (qualityLevel.level != lastSeenQualityLevel || camera != lastSeenCamera)
                 {
-                    camera.camera.farClipPlane = distances.distances[math.min(distances.distances.Length - 1, qualityLevel.level)];
-                    lastSeenCamera             = camera.camera;
-                    lastSeenQualityLevel       = qualityLevel.level;
+                    camera.farClipPlane  = distances.ValueRO.distances[math.min(distances.ValueRO.distances.Length - 1, qualityLevel.level)];
+                    lastSeenCamera       = camera;
+                    lastSeenQualityLevel = qualityLevel.level;
                 }
-            }).WithoutBurst().Run();
+            }
         }
     }
 }

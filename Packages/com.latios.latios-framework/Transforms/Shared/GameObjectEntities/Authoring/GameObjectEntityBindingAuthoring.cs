@@ -31,22 +31,23 @@ using UnityEngine;
 
 namespace Latios.Transforms
 {
-    internal partial class GameObjectEntityBindingAuthoring
+    [System.Serializable]
+    internal partial struct GameObjectEntityBindingAuthoring
     {
-        public uint4 hostGuid => m_hostGuid;
+        public Unity.Entities.Hash128 hostGuid => (Unity.Entities.Hash128)m_hostGuid;
         public string hostScene => m_hostScene;
 
-        [SerializeField] uint4  m_hostGuid;
-        [SerializeField] string m_hostScene;
+        [SerializeField] UnityEngine.Hash128 m_hostGuid;
+        [SerializeField] string              m_hostScene;
 
         public bool TryGetHost(out GameObjectEntityHostAuthoring host)
         {
-            return (host = GameObjectEntityHostAuthoring.Find(hostGuid)) != null;
+            return (host = GameObjectEntityHostAuthoring.Find(m_hostGuid)) != null;
         }
     }
 
 #if UNITY_EDITOR
-    internal partial class GameObjectEntityBindingAuthoring : ISerializationCallbackReceiver
+    internal partial struct GameObjectEntityBindingAuthoring : ISerializationCallbackReceiver
     {
         [SerializeField] private UnityEditor.SceneAsset m_editorSceneAsset;
         [SerializeField] private string m_editorGameObjectName;
@@ -73,7 +74,7 @@ namespace Latios.Transforms
             {
                 if (iconCache == null)
                 {
-                    var scriptType   = typeof(GameObjectEntityAuthoring);
+                    var scriptType   = typeof(GameObjectEntityHostAuthoring);
                     var scriptAsset  = UnityEditor.AssetDatabase.FindAssets(scriptType.Name + " t:" + nameof(UnityEditor.MonoScript));
                     var scriptPath   = UnityEditor.AssetDatabase.GUIDToAssetPath(scriptAsset[0]);
                     var scriptObject = UnityEditor.AssetDatabase.LoadAssetAtPath(scriptPath, typeof(UnityEditor.MonoScript));
@@ -100,40 +101,15 @@ namespace Latios.Transforms
             }
         }
 
-        static uint4 ReadUint4Property(UnityEditor.SerializedProperty property)
-        {
-            var x = property.FindPropertyRelative("x");
-            var y = property.FindPropertyRelative("y");
-            var z = property.FindPropertyRelative("z");
-            var w = property.FindPropertyRelative("w");
-
-            return new uint4(x.uintValue, y.uintValue, z.uintValue, w.uintValue);
-        }
-
-        static void WriteUint4Property(UnityEditor.SerializedProperty property, uint4 newGuid)
-        {
-            var x = property.FindPropertyRelative("x");
-            var y = property.FindPropertyRelative("y");
-            var z = property.FindPropertyRelative("z");
-            var w = property.FindPropertyRelative("w");
-
-            x.uintValue = newGuid.x;
-            y.uintValue = newGuid.y;
-            z.uintValue = newGuid.z;
-            w.uintValue = newGuid.w;
-
-            property.serializedObject.ApplyModifiedProperties();
-        }
-
         public override void OnGUI(Rect position, UnityEditor.SerializedProperty property, GUIContent label)
         {
-            var pGUID       = property.FindPropertyRelative("m_hostGUID");
+            var pGUID       = property.FindPropertyRelative("m_hostGuid");
             var pSceneName  = property.FindPropertyRelative("m_hostScene");
             var pSceneAsset = property.FindPropertyRelative("m_editorSceneAsset");
             var pName       = property.FindPropertyRelative("m_editorGameObjectName");
 
-            var currentHostGuid = ReadUint4Property(pGUID);
-            if (!currentHostGuid.Equals(uint4.zero))
+            var currentHostGuid = pGUID.hash128Value;
+            if (!currentHostGuid.Equals(default))
             {
                 var component = GameObjectEntityHostAuthoring.Find(currentHostGuid);
                 if (component != null && component.name != pName.stringValue)
@@ -198,7 +174,7 @@ namespace Latios.Transforms
                         {
                             if (buttonPos.Contains(Event.current.mousePosition))
                             {
-                                UnityEditor.EditorGUIUtility.ShowObjectPicker<GameObjectEntityHostAuthoring>(GameObjectEntityHostAuthoring.Find(ReadUint4Property(pGUID)),
+                                UnityEditor.EditorGUIUtility.ShowObjectPicker<GameObjectEntityHostAuthoring>(GameObjectEntityHostAuthoring.Find(pGUID.hash128Value),
                                                                                                              true,
                                                                                                              string.Empty,
                                                                                                              controlId);
@@ -233,7 +209,7 @@ namespace Latios.Transforms
                             var cmdSelect = Event.current.keyCode == KeyCode.Space || Event.current.keyCode == KeyCode.Return;
                             if (cmdSelect)
                             {
-                                UnityEditor.EditorGUIUtility.ShowObjectPicker<GameObjectEntityHostAuthoring>(GameObjectEntityHostAuthoring.Find(ReadUint4Property(pGUID)),
+                                UnityEditor.EditorGUIUtility.ShowObjectPicker<GameObjectEntityHostAuthoring>(GameObjectEntityHostAuthoring.Find(pGUID.hash128Value),
                                                                                                              true,
                                                                                                              string.Empty,
                                                                                                              controlId);
@@ -292,7 +268,7 @@ namespace Latios.Transforms
                 if (pGUID.hasMultipleDifferentValues)
                     return;
 
-                var targetGUID = ReadUint4Property(pGUID);
+                var targetGUID = pGUID.hash128Value;
                 var target     = GameObjectEntityHostAuthoring.Find(targetGUID);
 
                 if (target != null)
@@ -335,7 +311,7 @@ namespace Latios.Transforms
             {
                 if (component != null)
                 {
-                    WriteUint4Property(pGUID, component.guid);
+                    pGUID.hash128Value     = component.guid;
                     pName.stringValue      = component.name;
                     pSceneName.stringValue = component.gameObject.scene.name;
                     // nb! unsaved scene isn't possible because GUID doesn't exist for unsaved scene
@@ -343,7 +319,7 @@ namespace Latios.Transforms
                 }
                 else
                 {
-                    WriteUint4Property(pGUID, uint4.zero);
+                    pGUID.hash128Value               = default;
                     pName.stringValue                = string.Empty;
                     pSceneAsset.objectReferenceValue = null;
                     pSceneName.stringValue           = null;
@@ -360,9 +336,9 @@ namespace Latios.Transforms
 
             var className = UnityEditor.ObjectNames.NicifyVariableName(nameof(GameObjectEntityHostAuthoring));
 
-            var guidValue = ReadUint4Property(guid);
+            var guidValue = guid.hash128Value;
 
-            if (guidValue.Equals(uint4.zero))
+            if (guidValue.Equals(default))
                 return new GUIContent($"None ({className})");
 
             if (scene.objectReferenceValue == null)
@@ -419,7 +395,7 @@ namespace Latios.Transforms
                 }
             }
 
-            return result != null && !result.guid.Equals(uint4.zero);
+            return result != null && !result.guid.Equals(default);
         }
     }
 #endif

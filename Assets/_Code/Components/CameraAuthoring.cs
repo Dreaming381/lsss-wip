@@ -1,23 +1,21 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Latios;
+using Latios.Transforms;
 using Unity.Entities;
 using UnityEngine;
 
-public class CameraManager : IComponentData
+namespace Lsss
 {
-    public Camera camera;
-}
-
-public class CameraAuthoring : MonoBehaviour
-{
-}
-
-public class CameraBaker : Baker<CameraAuthoring>
-{
-    public override void Bake(CameraAuthoring authoring)
+    public partial struct CameraManager : IManagedStructComponent
     {
-        var entity = GetEntity(TransformUsageFlags.Dynamic);
-        AddComponentObject(entity, new CameraManager());
+        public Camera camera;
+    }
+
+    public class CameraAuthoring : MonoBehaviour, IInitializeGameObjectEntity
+    {
+        public void Initialize(LatiosWorld latiosWorld, Entity gameObjectEntity)
+        {
+            latiosWorld.latiosWorldUnmanaged.AddManagedStructComponent(gameObjectEntity, new CameraManager { camera = GetComponent<Camera>() });
+        }
     }
 }
 

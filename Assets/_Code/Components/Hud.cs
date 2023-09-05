@@ -1,4 +1,6 @@
-﻿using TMPro;
+﻿using Latios;
+using Latios.Transforms;
+using TMPro;
 using Unity.Entities;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,7 +8,7 @@ using UnityEngine.UI;
 namespace Lsss
 {
     [AddComponentMenu("LSSS/UI/HUD")]
-    public class Hud : MonoBehaviour
+    public class Hud : MonoBehaviour, IInitializeGameObjectEntity
     {
         public RectTransform boostBar;
         public TMP_Text      health;
@@ -17,22 +19,20 @@ namespace Lsss
         public float         blackFadeOutTime = 0.5f;
         public float         blackFadeInTime  = 0.5f;
 
-        private Entity entity = Entity.Null;
+        public void Initialize(LatiosWorld latiosWorld, Entity gameObjectEntity)
+        {
+            latiosWorld.latiosWorldUnmanaged.AddManagedStructComponent(gameObjectEntity, new HudReference { hud = this });
+        }
 
         private void Awake()
         {
             blackFade.color = new Color(0f, 0f, 0f, 1f);
         }
+    }
 
-        private void Update()
-        {
-            if (entity != Entity.Null)
-                return;
-
-            var em = World.DefaultGameObjectInjectionWorld.EntityManager;
-            entity = em.CreateEntity();
-            em.AddComponentObject(entity, this);
-        }
+    public partial struct HudReference : IManagedStructComponent
+    {
+        public Hud hud;
     }
 }
 

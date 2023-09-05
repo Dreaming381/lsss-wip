@@ -22,7 +22,6 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            // We use NativeList here because NativeReference is broken in ISystem
             var foundCamera = new NativeReference<float3>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
             new JobA { foundCamera = foundCamera }.Schedule();
@@ -30,7 +29,7 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(CameraManager))]
+        [WithAll(typeof(CameraManager.ExistComponent))]
         partial struct JobA : IJobEntity
         {
             public NativeReference<float3> foundCamera;

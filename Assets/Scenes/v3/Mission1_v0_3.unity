@@ -587,7 +587,10 @@ PrefabInstance:
     - {fileID: 5496620640134734703, guid: ed5d7d517f1a7524d877083b2751b24c, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6394657350821178756, guid: ed5d7d517f1a7524d877083b2751b24c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1174707579}
   m_SourcePrefab: {fileID: 100100000, guid: ed5d7d517f1a7524d877083b2751b24c, type: 3}
 --- !u!1 &707380975
 GameObject:
@@ -638,3 +641,28 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1174707575 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6394657350821178756, guid: ed5d7d517f1a7524d877083b2751b24c, type: 3}
+  m_PrefabInstance: {fileID: 348061629}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1174707579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1174707575}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fde6717ff83af14eb204d08bdbe0486, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hostEntity:
+    m_hostGuid:
+      serializedVersion: 2
+      Hash: c8edc1fd080fb34c8da28d026ab6db97
+    m_hostScene: Subscene
+    m_editorSceneAsset: {fileID: 102900000, guid: d408d0ed5dccaec4abcde4eb6af9be63, type: 3}
+    m_editorGameObjectName: CameraManager
+  useUniformScale: 0

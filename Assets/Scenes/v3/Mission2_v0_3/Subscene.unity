@@ -597,6 +597,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6445809875158203674, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      propertyPath: m_guid
+      value: 9b61c0f0637b07498a8ed514bc033a70
+      objectReference: {fileID: 0}
     - target: {fileID: 7945271230694290733, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
       propertyPath: m_Name
       value: CameraManager
@@ -604,8 +608,31 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7945271230694290733, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1665955610}
   m_SourcePrefab: {fileID: 100100000, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+--- !u!1 &1665955609 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7945271230694290733, guid: 68debc56c768aa543bf6ec0f0e0bc29d, type: 3}
+  m_PrefabInstance: {fileID: 1665955608}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1665955610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1665955609}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e2d98aa905958a41a438d4ad14bbdfd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_guid:
+    serializedVersion: 2
+    Hash: 8660cb6ae0e9ee47ba21cfcef2844d8d
 --- !u!1 &1862474109
 GameObject:
   m_ObjectHideFlags: 0

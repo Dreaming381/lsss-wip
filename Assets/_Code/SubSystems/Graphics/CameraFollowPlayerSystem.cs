@@ -48,7 +48,7 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(CameraManager))]
+        [WithAll(typeof(CameraManager.ExistComponent))]
         [WithAll(typeof(WorldTransform))]
         partial struct JobB : IJobEntity
         {

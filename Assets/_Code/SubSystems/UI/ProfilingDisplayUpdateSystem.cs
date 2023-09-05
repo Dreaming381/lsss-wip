@@ -7,7 +7,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Profiling;
+
+using static Unity.Entities.SystemAPI;
 
 namespace Lsss.Tools
 {
@@ -18,22 +19,27 @@ namespace Lsss.Tools
 
         protected override void OnUpdate()
         {
+            var panelEntities = QueryBuilder().WithAll<ProfilerPanelReference.ExistComponent>().Build().ToEntityArray(Allocator.Temp);
+
             if (!worldBlackboardEntity.HasCollectionComponent<ProfilingData>())
             {
-                Entities.ForEach((Entity entity, ProfilerPanel panel) =>
+                foreach(Entity entity in panelEntities)
                 {
+                    var panel = latiosWorldUnmanaged.GetManagedStructComponent<ProfilerPanelReference>(entity).profilerPanel;
                     if (panel.panel != null)
                     {
                         if (panel.panel.activeSelf)
                             panel.panel.SetActive(false);
                     }
-                }).WithoutBurst().Run();
+                }
                 return;
             }
 
             var profilingData = worldBlackboardEntity.GetCollectionComponent<ProfilingData>(false);
-            Entities.ForEach((Entity entity, ProfilerPanel panel) =>
+            CompleteDependency();
+            foreach (Entity entity in panelEntities)
             {
+                var panel = latiosWorldUnmanaged.GetManagedStructComponent<ProfilerPanelReference>(entity).profilerPanel;
                 if (panel.panel == null)
                 {
                     Debug.LogError("Exists with destroyed panel");
@@ -70,7 +76,7 @@ namespace Lsss.Tools
                     m_stringBuilder.Append(in fixedString);
                     panel.labels.SetText(m_stringBuilder);
                 }
-            }).WithoutBurst().Run();
+            }
         }
     }
 }

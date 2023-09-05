@@ -1,10 +1,13 @@
 ﻿using Latios;
+using Lsss.Tools;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.InputSystem;
+
+using static Unity.Entities.SystemAPI;
 
 namespace Lsss
 {
@@ -40,13 +43,14 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            TitleAndMenu titleAndMenu                           = null;
-            Entities.ForEach((TitleAndMenu tam) => titleAndMenu = tam).WithoutBurst().Run();
-            if (titleAndMenu == null)
+            var tamEntities = QueryBuilder().WithAll<TitleAndMenuReference.ExistComponent>().Build().ToEntityArray(Allocator.Temp);
+            if (tamEntities.Length == 0)
                 return;
 
+            var titleAndMenu = latiosWorldUnmanaged.GetManagedStructComponent<TitleAndMenuReference>(tamEntities[0]).titleAndMenu;
+
             EntityCommandBuffer immediateECB = default;
-            Entities.ForEach((in TitleAndMenuResources resources) =>
+            foreach(TitleAndMenuResources resources in Query<TitleAndMenuResources>())
             {
                 if (titleAndMenu.titlePanel.activeSelf)
                 {
@@ -288,7 +292,7 @@ namespace Lsss
 
                 float a                             = 0.75f * (float)math.sin(SystemAPI.Time.ElapsedTime / titleAndMenu.pulsePeriod * 2d * math.PI_DBL) + 0.5f;
                 titleAndMenu.pressToStartText.color = new UnityEngine.Color(1f, 1f, 1f, a);
-            }).WithoutBurst().Run();
+            }
 
             if (immediateECB.IsCreated)
                 immediateECB.Playback(EntityManager);

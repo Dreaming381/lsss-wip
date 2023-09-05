@@ -1,5 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Latios;
+using Latios.Transforms;
 using TMPro;
 using Unity.Entities;
 using UnityEngine;
@@ -7,7 +9,7 @@ using UnityEngine;
 namespace Lsss
 {
     [AddComponentMenu("LSSS/UI/Title and Menu")]
-    public class TitleAndMenu : MonoBehaviour
+    public class TitleAndMenu : MonoBehaviour, IInitializeGameObjectEntity
     {
         public GameObject                           titlePanel;
         public GameObject                           menuPanel;
@@ -103,16 +105,15 @@ namespace Lsss
             scrollRight = true;
         }
 
-        private Entity entity = Entity.Null;
-        private void Update()
+        public void Initialize(LatiosWorld latiosWorld, Entity gameObjectEntity)
         {
-            if (entity != Entity.Null)
-                return;
-
-            var em = World.DefaultGameObjectInjectionWorld.EntityManager;
-            entity = em.CreateEntity();
-            em.AddComponentObject(entity, this);
+            latiosWorld.latiosWorldUnmanaged.AddManagedStructComponent(gameObjectEntity, new TitleAndMenuReference { titleAndMenu = this });
         }
+    }
+
+    public partial struct TitleAndMenuReference : IManagedStructComponent
+    {
+        public TitleAndMenu titleAndMenu;
     }
 }
 

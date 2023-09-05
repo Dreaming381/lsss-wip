@@ -1,31 +1,19 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Latios;
+using Latios.Transforms;
 using Unity.Entities;
 using UnityEngine;
 
 namespace Lsss
 {
     [AddComponentMenu("LSSS/UI/Game Result")]
-    public class GameResult : MonoBehaviour
+    public class GameResult : MonoBehaviour, IInitializeGameObjectEntity
     {
         [HideInInspector] public bool retry;
         [HideInInspector] public bool mainMenu;
 
-        private Entity entity = Entity.Null;
-
         private void Awake()
         {
             Debug.Log("Results screen live");
-        }
-
-        private void Update()
-        {
-            if (entity != Entity.Null)
-                return;
-
-            var em = World.DefaultGameObjectInjectionWorld.EntityManager;
-            entity = em.CreateEntity();
-            em.AddComponentObject(entity, this);
         }
 
         public void SetNextAction(bool isRetryAndNotMainMenu)
@@ -33,6 +21,16 @@ namespace Lsss
             retry    = isRetryAndNotMainMenu;
             mainMenu = !isRetryAndNotMainMenu;
         }
+
+        public void Initialize(LatiosWorld latiosWorld, Entity gameObjectEntity)
+        {
+            latiosWorld.latiosWorldUnmanaged.AddManagedStructComponent(gameObjectEntity, new GameResultReference { gameResult = this });
+        }
+    }
+
+    public partial struct GameResultReference : IManagedStructComponent
+    {
+        public GameResult gameResult;
     }
 }
 

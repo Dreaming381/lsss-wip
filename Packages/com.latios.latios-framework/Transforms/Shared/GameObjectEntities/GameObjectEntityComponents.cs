@@ -18,7 +18,12 @@ namespace Latios.Transforms
         public void Dispose()
         {
             if (gameObjectTransform != null)
+            {
+                var mono = gameObjectTransform.GetComponent<GameObjectEntityAuthoring>();
+                if (mono != null)
+                    mono.entityManager = default;
                 UnityEngine.Object.Destroy(gameObjectTransform.gameObject);
+            }
         }
     }
 
@@ -44,7 +49,7 @@ namespace Latios.Transforms
     /// QVVS Transforms: The entity's world-space position and rotation are copied, and scale is multiplied by stretch and
     /// set as the GameObject's local-space scale.
     ///
-    /// Unity Transforms: Todo: What is possible?
+    /// Unity Transforms: The entity's world-space position and rotation are copied, and scale is set to identity.
     ///
     /// Usage: Add/Remove as needed
     /// </summary>
@@ -61,12 +66,12 @@ namespace Latios.Transforms
     #region Internal
     internal struct GameObjectEntityBindClient : IComponentData
     {
-        public uint4 guid;
+        public Unity.Entities.Hash128 guid;
     }
 
     internal struct GameObjectEntityHost : IComponentData
     {
-        public uint4 guid;
+        public Unity.Entities.Hash128 guid;
     }
 
     internal struct CopyTransformToEntityCleanupTag : ICleanupComponentData { }
@@ -104,6 +109,8 @@ namespace Latios.Transforms
             return JobHandle.CombineDependencies(entityToIndexMap.Dispose(default), indexToEntityMap.Dispose(default));
         }
     }
+
+    internal struct RemoveDontDestroyOnSceneChangeTag : IComponentData { }
     #endregion
 }
 

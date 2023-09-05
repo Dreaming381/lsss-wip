@@ -42,11 +42,11 @@ namespace Latios.Transforms
         [Tooltip("Applies only when no host is specified.")]
         public bool useUniformScale = false;
 
-        public uint4 guid => hostEntity.hostGuid;
+        public Unity.Entities.Hash128 guid => hostEntity.hostGuid;
 
         public Entity entity { get; internal set; }
 
-        EntityManager entityManager;
+        internal EntityManager entityManager;
 
         static List<IInitializeGameObjectEntity> s_initializeCache = new List<IInitializeGameObjectEntity>();
 
@@ -63,16 +63,11 @@ namespace Latios.Transforms
             entity                                                                                                        = entityManager.CreateEntity();
             latiosWorld.latiosWorldUnmanaged.AddManagedStructComponent(entity, new GameObjectEntity { gameObjectTransform = transform });
 
-            if (guid.Equals(uint4.zero))
+            if (guid.Equals(default))
             {
                 // Self-hosted
                 entityManager.AddComponent(entity, Abstract.QueryExtensions.GetAbstractWorldTransformRWComponentType());
                 entityManager.AddComponentData(entity, new CopyTransformToEntity { useUniformScale = useUniformScale });
-            }
-            else
-            {
-                // Bind to host
-                entityManager.AddComponentData(entity, new GameObjectEntityBindClient { guid = guid });
 
                 s_initializeCache.Clear();
                 GetComponents(s_initializeCache);
@@ -80,6 +75,16 @@ namespace Latios.Transforms
                 {
                     initializer.Initialize(latiosWorld, entity);
                 }
+            }
+            else
+            {
+                // Bind to host
+                entityManager.AddComponentData(entity, new GameObjectEntityBindClient { guid = guid });
+            }
+            if (!entityManager.HasComponent<DontDestroyOnSceneChangeTag>(entity))
+            {
+                entityManager.AddComponent<DontDestroyOnSceneChangeTag>(      entity);
+                entityManager.AddComponent<RemoveDontDestroyOnSceneChangeTag>(entity);
             }
         }
 

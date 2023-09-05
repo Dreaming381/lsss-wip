@@ -18,19 +18,21 @@ namespace Latios.Transforms.Systems
         EntityQuery m_deadTransformToEntityQuery;
         EntityQuery m_newTransformFromEntityQuery;
         EntityQuery m_deadTransformFromEntityQuery;
+        EntityQuery m_removeDontDestroyOnSceneChangeQuery;
 
         List<IInitializeGameObjectEntity> m_initCache = new List<IInitializeGameObjectEntity>();
 
         protected override void OnCreate()
         {
             m_clientsQuery              = Fluent.WithAll<GameObjectEntity.ExistComponent>(true).WithAll<GameObjectEntityBindClient>().IncludeDisabledEntities().Build();
-            m_hostsQuery                = Fluent.WithAll<GameObjectEntity.ExistComponent>(true).WithAll<GameObjectEntityHost>().IncludeDisabledEntities().Build();
+            m_hostsQuery                = Fluent.WithAll<GameObjectEntityHost>().IncludeDisabledEntities().Build();
             m_newTransformToEntityQuery =
                 Fluent.WithAll<GameObjectEntity.ExistComponent>(true).WithAll<CopyTransformToEntity>(true).Without<CopyTransformToEntityCleanupTag>().Build();
             m_deadTransformToEntityQuery  = Fluent.WithAll<CopyTransformToEntityCleanupTag>(true).Without<CopyTransformToEntity>().Build();
             m_newTransformFromEntityQuery =
                 Fluent.WithAll<GameObjectEntity.ExistComponent>(true).WithAll<CopyTransformFromEntityTag>(true).Without<CopyTransformFromEntityCleanupTag>().Build();
-            m_deadTransformFromEntityQuery = Fluent.WithAll<CopyTransformFromEntityCleanupTag>(true).Without<CopyTransformFromEntityTag>().Build();
+            m_deadTransformFromEntityQuery        = Fluent.WithAll<CopyTransformFromEntityCleanupTag>(true).Without<CopyTransformFromEntityTag>().Build();
+            m_removeDontDestroyOnSceneChangeQuery = Fluent.WithAll<DontDestroyOnSceneChangeTag>(true).WithAll<RemoveDontDestroyOnSceneChangeTag>().Build();
 
             worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new CopyTransformToEntityMapping
             {
@@ -53,6 +55,10 @@ namespace Latios.Transforms.Systems
 
             CompleteDependency();
 
+            EntityManager.RemoveComponent(m_removeDontDestroyOnSceneChangeQuery,
+                                          new ComponentTypeSet(ComponentType.ReadWrite<DontDestroyOnSceneChangeTag>(),
+                                                               ComponentType.ReadWrite<RemoveDontDestroyOnSceneChangeTag>()));
+
             if (!m_clientsQuery.IsEmptyIgnoreFilter && !m_hostsQuery.IsEmptyIgnoreFilter)
             {
                 var clientCount = m_clientsQuery.CalculateEntityCount();
@@ -71,8 +77,9 @@ namespace Latios.Transforms.Systems
                 foreach (var match in matches)
                 {
                     var transform = latiosWorldUnmanaged.GetManagedStructComponent<GameObjectEntity>(match.client);
-                    latiosWorldUnmanaged.SetManagedStructComponent(                  match.host,   transform);
+                    latiosWorldUnmanaged.AddManagedStructComponent( match.host, transform);
                     latiosWorldUnmanaged.SetManagedStructComponent<GameObjectEntity>(match.client, default);  // Prevent disposal when entity is destroyed
+                    EntityManager.AddComponent<CopyTransformFromEntityTag>(match.host);
 
                     transform.gameObjectTransform.GetComponent<GameObjectEntityAuthoring>().entity = match.host;
                     m_initCache.Clear();
@@ -216,7 +223,7 @@ namespace Latios.Transforms.Systems
 
             public void Execute()
             {
-                var clientByGuid = new NativeHashMap<uint4, Entity>(clientEntityCount, Allocator.Temp);
+                var clientByGuid = new NativeHashMap<Unity.Entities.Hash128, Entity>(clientEntityCount, Allocator.Temp);
                 foreach (var chunk in clientChunks)
                 {
                     var entities = chunk.GetNativeArray(entityHandle);

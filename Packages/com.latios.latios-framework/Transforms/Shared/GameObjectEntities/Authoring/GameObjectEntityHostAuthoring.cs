@@ -38,24 +38,24 @@ namespace Latios.Transforms
     [DefaultExecutionOrder(int.MinValue)]
     public partial class GameObjectEntityHostAuthoring : MonoBehaviour
     {
-        private static Dictionary<uint4, GameObjectEntityHostAuthoring> s_active = new Dictionary<uint4, GameObjectEntityHostAuthoring>();
+        private static Dictionary<Unity.Entities.Hash128, GameObjectEntityHostAuthoring> s_active = new Dictionary<Unity.Entities.Hash128, GameObjectEntityHostAuthoring>();
 
-        public static GameObjectEntityHostAuthoring Find(uint4 guid)
+        public static GameObjectEntityHostAuthoring Find(Unity.Entities.Hash128 guid)
         {
-            if (!guid.Equals(uint4.zero) && s_active.TryGetValue(guid, out var host) && host != null)
+            if (!guid.Equals(default) && s_active.TryGetValue(guid, out var host) && host != null)
                 return host;
 
             return null;
         }
 
-        public uint4 guid => m_guid;
+        public Unity.Entities.Hash128 guid => (Unity.Entities.Hash128)m_guid;
 
         [SerializeField]
-        uint4 m_guid;
+        UnityEngine.Hash128 m_guid;
 
-        void Awake() => s_active.TryAdd(guid, this);
+        void Awake() => s_active.TryAdd(m_guid, this);
 
-        void OnDestroy() => s_active.Remove(guid);
+        void OnDestroy() => s_active.Remove(m_guid);
     }
 
     public class GameObjectEntityHostAuthoringBaker : Baker<GameObjectEntityHostAuthoring>
@@ -71,7 +71,7 @@ namespace Latios.Transforms
     public partial class GameObjectEntityHostAuthoring
     {
         int m_editorInstanceId;
-        uint4 m_editorCachedGuid;
+        UnityEngine.Hash128 m_editorCachedGuid;
 
         void Reset() => OnValidate();
 
@@ -80,12 +80,12 @@ namespace Latios.Transforms
             if (IsInstance())
             {
                 if (IsDuplicate())
-                    m_guid = uint4.zero;
+                    m_guid = default;
 
                 if (IsReverted())
                     m_guid = m_editorCachedGuid;
 
-                if (guid.Equals(uint4.zero))
+                if (guid.Equals(default))
                 {
                     var managedGuid = Guid.NewGuid();
                     Span<byte> temp        = stackalloc byte[16];
@@ -94,31 +94,33 @@ namespace Latios.Transforms
                                            temp[4], temp[5], temp[6], temp[7],
                                            temp[8], temp[9], temp[10], temp[11],
                                            temp[12], temp[13], temp[14], temp[15]);
-                    m_guid.x = vector.UInt0;
-                    m_guid.y = vector.UInt1;
-                    m_guid.z = vector.UInt2;
-                    m_guid.w = vector.UInt3;
+                    m_guid = new Unity.Entities.Hash128(vector.UInt0, vector.UInt1, vector.UInt2, vector.UInt3);
                 }
 
-                s_active[guid] = this;
+                s_active[m_guid] = this;
             }
             else
-                m_guid = uint4.zero;
+            {
+                m_guid = default;
+            }
+
+            m_editorCachedGuid = m_guid;
+            m_editorInstanceId = GetInstanceID();
         }
 
         bool IsDuplicate()
         {
-            return gameObject.scene.isLoaded && !guid.Equals(uint4.zero) && m_editorInstanceId != GetInstanceID();
+            return gameObject.scene.isLoaded && !guid.Equals(default) && m_editorInstanceId != GetInstanceID();
         }
 
         bool IsReverted()
         {
-            return guid.Equals(uint4.zero) && !m_editorCachedGuid.Equals(uint4.zero);
+            return guid.Equals(default) && !m_editorCachedGuid.Equals(default);
         }
 
         bool IsInstance()
         {
-            return !string.IsNullOrEmpty(gameObject.scene.path);
+            return !UnityEditor.PrefabUtility.IsPartOfAnyPrefab(this);
         }
 
         [UnityEditor.CustomEditor(typeof(GameObjectEntityHostAuthoring))]
@@ -127,7 +129,7 @@ namespace Latios.Transforms
         {
             const string kGuidName   = nameof(m_guid);
             const string kGuidAccess = "guid";
-            const string kHelp       = "All instances of this prefab in a subscene will have a unique host GUID. Prefabs instantiated at runtime will not have a host GUID.";
+            const string kHelp       = "A Game Object Entity Host cannot be part of a prefab!";
 
             public override void OnInspectorGUI()
             {
@@ -143,7 +145,7 @@ namespace Latios.Transforms
                 }
 
                 if (isPrefab)
-                    UnityEditor.EditorGUILayout.HelpBox(kHelp, UnityEditor.MessageType.Info);
+                    UnityEditor.EditorGUILayout.HelpBox(kHelp, UnityEditor.MessageType.Error);
                 else
                 {
                     UnityEditor.EditorGUI.BeginDisabledGroup(true);
