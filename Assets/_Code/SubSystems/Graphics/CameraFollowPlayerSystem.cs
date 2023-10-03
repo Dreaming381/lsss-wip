@@ -8,6 +8,8 @@ using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
 
+// Todo: Change to use parenting.
+
 namespace Lsss
 {
     [BurstCompile]
