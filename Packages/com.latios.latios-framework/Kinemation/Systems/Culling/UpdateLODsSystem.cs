@@ -26,7 +26,7 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public unsafe partial struct UpdateLODsSystem : ISystem
+    public unsafe partial struct UpdateLODsSystem : ISystem, ISystemShouldUpdate
     {
         LODGroupExtensions.LODParams m_PrevLODParams;
         float3                       m_PrevCameraPos;
@@ -40,6 +40,7 @@ namespace Latios.Kinemation.Systems
 
         SelectLodEnabledJob                 m_job;
         CopyLodsToPerCameraVisisbilitiesJob m_copyJob;
+        int                                 m_maximumLODLevel;
 
         LatiosWorldUnmanaged latiosWorld;
 
@@ -64,6 +65,12 @@ namespace Latios.Kinemation.Systems
                 chunkInfoHandle     = state.GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
                 perCameraMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>()
             };
+        }
+
+        public bool ShouldUpdateSystem(ref SystemState state)
+        {
+            m_maximumLODLevel = UnityEngine.QualitySettings.maximumLODLevel;
+            return true;
         }
 
         [BurstCompile]
@@ -96,6 +103,7 @@ namespace Latios.Kinemation.Systems
                 m_job.CameraMoveDistanceFixed16 = Fixed16CamDistance.FromFloatCeil(cameraMoveDistance * lodParams.distanceScale);
                 m_job.DistanceScale             = lodParams.distanceScale;
                 m_job.DistanceScaleChanged      = lodDistanceScaleChanged;
+                m_job.MaximumLODLevelMask       = 1 << m_maximumLODLevel;
 
                 state.Dependency = m_job.ScheduleParallelByRef(m_query, state.Dependency);
 
@@ -131,6 +139,7 @@ namespace Latios.Kinemation.Systems
             public ushort                                                     CameraMoveDistanceFixed16;
             public float                                                      DistanceScale;
             public bool                                                       DistanceScaleChanged;
+            public int                                                        MaximumLODLevelMask;
 
             public ComponentTypeHandle<EntitiesGraphicsChunkInfo> EntitiesGraphicsChunkInfo;
             [ReadOnly] public ComponentTypeHandle<ChunkHeader>    ChunkHeader;
@@ -208,7 +217,16 @@ namespace Latios.Kinemation.Systems
 
                                 if (rootLodIntersect)
                                 {
-                                    var lodRange          = lodRanges[i];
+                                    var lodRange = lodRanges[i];
+                                    if (lodRange.LODMask < MaximumLODLevelMask)
+                                    {
+                                        continue;
+                                    }
+                                    if (lodRange.LODMask == MaximumLODLevelMask)
+                                    {
+                                        // Expand maximum LOD range to cover all higher LODs
+                                        lodRange.MinDist = 0.0f;
+                                    }
                                     var lodReferencePoint = lodReferencePoints[i];
 
                                     var instanceDistance =

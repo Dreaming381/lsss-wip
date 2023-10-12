@@ -107,19 +107,19 @@ namespace Latios.Kinemation.TextBackend.Systems
                     ref var mmi                                                                     = ref mmis[entity];
 
                     if (glyphBuffer.Length <= 8)
-                        mmi.Submesh = 0;
+                        mmi.SubMesh = 0;
                     else if (glyphBuffer.Length <= 64)
-                        mmi.Submesh = 1;
+                        mmi.SubMesh = 1;
                     else if (glyphBuffer.Length <= 512)
-                        mmi.Submesh = 2;
+                        mmi.SubMesh = 2;
                     else if (glyphBuffer.Length <= 4096)
-                        mmi.Submesh = 3;
+                        mmi.SubMesh = 3;
                     else if (glyphBuffer.Length <= 16384)
-                        mmi.Submesh = 4;
+                        mmi.SubMesh = 4;
                     else
                     {
                         UnityEngine.Debug.LogWarning("Glyphs in RenderGlyph buffer exceeds max capacity of 16384 and will be truncated.");
-                        mmi.Submesh = 4;
+                        mmi.SubMesh = 4;
                     }
                 }
             }

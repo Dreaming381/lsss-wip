@@ -8,6 +8,8 @@ using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
 
+// Todo: Switch to using MaterialMeshInfo
+
 namespace Latios.Kinemation
 {
     [RequireMatchingQueriesForUpdate]

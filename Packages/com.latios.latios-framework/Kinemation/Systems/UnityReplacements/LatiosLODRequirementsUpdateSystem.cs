@@ -140,6 +140,7 @@ namespace Latios.Kinemation
                     {
                         rootLod.LOD.MinDist = 0;
                         rootLod.LOD.MaxDist = 1048576.0f;
+                        rootLod.LOD.LODMask = 0;
                     }
                     else
                     {
