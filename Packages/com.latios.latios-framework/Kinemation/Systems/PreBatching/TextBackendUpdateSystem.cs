@@ -25,7 +25,7 @@ namespace Latios.Kinemation.TextBackend.Systems
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_query = state.Fluent().WithAll<RenderGlyph>(true).WithAll<RenderBounds>().WithAll<TextRenderControl>().WithAll<MaterialMeshInfo>().Build();
+            m_query = state.Fluent().With<RenderGlyph>(true).With<RenderBounds>().With<TextRenderControl>().With<MaterialMeshInfo>().Build();
 
             latiosWorld.worldBlackboardEntity.AddComponent<GlyphCountThisFrame>();
             m_skipChangeFilter = (state.WorldUnmanaged.Flags & WorldFlags.Editor) == WorldFlags.Editor;

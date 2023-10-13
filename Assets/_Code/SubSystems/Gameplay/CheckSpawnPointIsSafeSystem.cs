@@ -112,7 +112,7 @@ namespace Lsss
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_spawnerQuery = state.Fluent().WithAll<SafeToSpawn>().WithAll<SpawnTimes>(true).PatchQueryForBuildingCollisionLayer().Build();
+            m_spawnerQuery = state.Fluent().With<SafeToSpawn>().With<SpawnTimes>(true).PatchQueryForBuildingCollisionLayer().Build();
             state.RequireForUpdate(m_spawnerQuery);
         }
 

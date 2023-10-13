@@ -25,7 +25,7 @@ namespace Lsss.Authoring
             {
                 var renderMeshes = new List<RenderMesh>();
                 EntityManager.GetAllUniqueSharedComponentsManaged(renderMeshes);
-                EntityQuery query = EntityManager.Fluent().WithAll<RenderMesh>(true).Build();
+                EntityQuery query = EntityManager.Fluent().With<RenderMesh>(true).Build();
 
                 foreach (var renderMesh in renderMeshes)
                 {

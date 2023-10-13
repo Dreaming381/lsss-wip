@@ -20,12 +20,14 @@ namespace Latios.Kinemation.Systems
     {
         EntityQuery m_metaQuery;
 
-        LatiosWorldUnmanaged latiosWorld;
+        LatiosWorldUnmanaged       latiosWorld;
+        DynamicComponentTypeHandle m_materialMeshInfoHandle;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_metaQuery = state.Fluent().WithAll<ChunkPerFrameCullingMask>(false).WithAll<ChunkHeader>(true).WithAll<EntitiesGraphicsChunkInfo>(true).Build();
+            latiosWorld              = state.GetLatiosWorldUnmanaged();
+            m_metaQuery              = state.Fluent().With<ChunkPerCameraCullingMask>(false).With<ChunkHeader>(true).With<EntitiesGraphicsChunkInfo>(true).Build();
+            m_materialMeshInfoHandle = state.GetDynamicComponentTypeHandle(ComponentType.ReadOnly<MaterialMeshInfo>());
 
 #if UNITY_EDITOR
             m_dynamicEditorHandle = default;
@@ -49,15 +51,17 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            m_materialMeshInfoHandle.Update(ref state);
             var cullingContext = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
             state.Dependency   = new Job
             {
-                chunkInfoHandle = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
-                headerHandle    = GetComponentTypeHandle<ChunkHeader>(true),
-                maskHandle      = GetComponentTypeHandle<ChunkPerCameraCullingMask>(),
-                filterHandle    = GetSharedComponentTypeHandle<RenderFilterSettings>(),
-                lightMapsHandle = ManagedAPI.GetSharedComponentTypeHandle<LightMaps>(),
-                cullingContext  = cullingContext
+                chunkInfoHandle        = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
+                headerHandle           = GetComponentTypeHandle<ChunkHeader>(true),
+                maskHandle             = GetComponentTypeHandle<ChunkPerCameraCullingMask>(),
+                filterHandle           = GetSharedComponentTypeHandle<RenderFilterSettings>(),
+                lightMapsHandle        = ManagedAPI.GetSharedComponentTypeHandle<LightMaps>(),
+                materialMeshInfoHandle = m_materialMeshInfoHandle,
+                cullingContext         = cullingContext
             }.ScheduleParallel(m_metaQuery, state.Dependency);
 
 #if UNITY_EDITOR
@@ -90,6 +94,7 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<ChunkHeader>                headerHandle;
             [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo>  chunkInfoHandle;
             [ReadOnly] public SharedComponentTypeHandle<LightMaps>            lightMapsHandle;
+            [ReadOnly] public DynamicComponentTypeHandle                      materialMeshInfoHandle;
 
             public CullingContext cullingContext;
 
@@ -104,6 +109,8 @@ namespace Latios.Kinemation.Systems
                 var chunkInfos   = (EntitiesGraphicsChunkInfo*)metaChunk.GetComponentDataPtrRO(ref chunkInfoHandle);
                 for (int i = 0; i < metaChunk.Count; i++)
                 {
+                    chunkPerCameraMasks[i] = default;
+
                     if (!chunkInfos[i].Valid)
                         continue;
 
@@ -125,11 +132,9 @@ namespace Latios.Kinemation.Systems
 
                     // sceneCullingMask gets handled in a separate Editor-only job
 
-                    int lowBitCount  = math.min(64, chunk.Count);
-                    int highBitCount = chunk.Count - 64;
-                    chunkPerCameraMasks[i].lower.SetBits(0, true, lowBitCount);
-                    if (highBitCount > 0)
-                        chunkPerCameraMasks[i].upper.SetBits(0, true, highBitCount);
+                    var enabled                        = chunk.GetEnableableBits(ref materialMeshInfoHandle);
+                    chunkPerCameraMasks[i].lower.Value = enabled.ULong0;
+                    chunkPerCameraMasks[i].upper.Value = enabled.ULong1;
                 }
             }
         }
@@ -188,11 +193,8 @@ namespace Latios.Kinemation.Systems
                             upper |= math.select(0ul, 1ul, includeExcludeFilter.EntityPassesFilter(entities[j].Index)) << (j - 64);
                         }
 
-                        chunkPerCameraMasks[i] = new ChunkPerCameraCullingMask
-                        {
-                            lower = new BitField64(lower),
-                            upper = new BitField64(upper)
-                        };
+                        chunkPerCameraMasks[i].lower.Value &= lower;
+                        chunkPerCameraMasks[i].upper.Value &= upper;
                     }
                 }
             }

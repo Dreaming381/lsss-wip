@@ -45,7 +45,7 @@ using static Unity.Entities.SystemAPI;
                 prevPosCDFE = GetComponentLookup<BulletPreviousPosition>()
             };
 
-            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
+            var factionEntities = QueryBuilder().With<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
             foreach (var entity in factionEntities)
             {
                 var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;

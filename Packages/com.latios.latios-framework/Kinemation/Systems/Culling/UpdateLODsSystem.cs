@@ -47,7 +47,7 @@ namespace Latios.Kinemation.Systems
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().WithAll<ChunkHeader>(true).WithAll<EntitiesGraphicsChunkInfo>(false).WithAll<ChunkPerCameraCullingMask>(false).Build();
+            m_query     = state.Fluent().With<ChunkHeader>(true).With<EntitiesGraphicsChunkInfo>(false).With<ChunkPerCameraCullingMask>(false).Build();
             m_firstRun  = true;
 
             m_job = new SelectLodEnabledJob
@@ -285,19 +285,11 @@ namespace Latios.Kinemation.Systems
                         continue;
 
                     var lods = chunkInfoArray[i].CullingData.InstanceLodEnableds;
-#if UNITY_EDITOR
-                    // In the editor, picking and highlighting results in granular filtering in InitializeAndFilterPerCamerSystem.
-                    var mask = maskArray[i];
+
+                    var mask          = maskArray[i];
                     mask.lower.Value &= lods.Enabled[0];
                     mask.upper.Value &= lods.Enabled[1];
                     maskArray[i]      = mask;
-#else
-                    maskArray[i] = new ChunkPerCameraCullingMask
-                    {
-                        lower = new BitField64(lods.Enabled[0]),
-                        upper = new BitField64(lods.Enabled[1])
-                    };
-#endif
                 }
             }
         }

@@ -33,8 +33,8 @@ namespace Latios.Kinemation.Systems
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_metaQuery = state.Fluent().WithAll<ChunkHeader>(true).WithAll<ChunkPerCameraCullingMask>(true).WithAll<ChunkPerCameraCullingSplitsMask>(true)
-                          .WithAll<ChunkPerFrameCullingMask>(false).WithAll<EntitiesGraphicsChunkInfo>(true).Build();
+            m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkPerCameraCullingMask>(true).With<ChunkPerCameraCullingSplitsMask>(true)
+                          .With<ChunkPerFrameCullingMask>(false).With<EntitiesGraphicsChunkInfo>(true).Build();
 
             m_findJob = new FindChunksWithVisibleJob
             {

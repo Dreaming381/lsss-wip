@@ -20,7 +20,7 @@ namespace Lsss
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_query = state.Fluent().WithAll<SpawnPointTag>(true).PatchQueryForBuildingCollisionLayer().Build();
+            m_query = state.Fluent().With<SpawnPointTag>(true).PatchQueryForBuildingCollisionLayer().Build();
 
             m_handles = new BuildCollisionLayerTypeHandles(ref state);
 

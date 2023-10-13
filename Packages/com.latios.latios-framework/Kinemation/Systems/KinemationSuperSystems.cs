@@ -46,7 +46,6 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<FrustumCullExposedSkeletonsSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullOptimizedSkeletonsSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateLODsSystem>();
-            GetOrCreateAndAddUnmanagedSystem<RenderQuickToggleEnableFlagCullingSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullSkinnedEntitiesSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullSkinnedPostProcessEntitiesSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullUnskinnedEntitiesSystem>();

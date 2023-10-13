@@ -23,7 +23,7 @@ namespace Lsss
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_query   = state.Fluent().WithAll<ExplosionTag>(true).PatchQueryForBuildingCollisionLayer().Build();
+            m_query   = state.Fluent().With<ExplosionTag>(true).PatchQueryForBuildingCollisionLayer().Build();
             m_handles = new BuildCollisionLayerTypeHandles(ref state);
         }
 

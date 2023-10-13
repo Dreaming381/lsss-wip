@@ -23,7 +23,7 @@ namespace Lsss
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_query       = state.Fluent().WithAll<ShipTag>(true).WithAll<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
+            m_query       = state.Fluent().With<ShipTag>(true).With<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
             m_typeHandles = new BuildCollisionLayerTypeHandles(ref state);
 
             latiosWorld = state.GetLatiosWorldUnmanaged();
