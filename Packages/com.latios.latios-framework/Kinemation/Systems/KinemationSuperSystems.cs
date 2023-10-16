@@ -127,6 +127,9 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<UpdateSkinnedPostProcessMatrixBoundsSystem>();
             GetOrCreateAndAddUnmanagedSystem<ClearPerFrameCullingMasksSystem>();
             GetOrCreateAndAddUnmanagedSystem<InitializeAndClassifyPerFrameDeformMetadataSystem>();
+#if UNITY_EDITOR
+            GetOrCreateAndAddManagedSystem<KinemationCullingPassSystemExposerSuperSystem>();
+#endif
         }
     }
 
@@ -155,6 +158,20 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<LatiosUpdateEntitiesGraphicsChunkStructureSystem>();
             GetOrCreateAndAddUnmanagedSystem<LatiosAddWorldAndChunkRenderBoundsSystem>();
             GetOrCreateAndAddUnmanagedSystem<KinemationBindingReactiveSystem>();
+        }
+    }
+
+    [DisableAutoCreation]
+    public partial class KinemationCullingPassSystemExposerSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            GetOrCreateAndAddManagedSystem<KinemationCullingSuperSystem>();
+        }
+
+        // This is just for showing in the Editor.
+        protected override void OnUpdate()
+        {
         }
     }
 }
