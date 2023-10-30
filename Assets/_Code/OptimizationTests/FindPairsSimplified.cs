@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -2320,7 +2322,7 @@ namespace OptimizationAdventures
                         batchIndex = (batchFieldIndex << 6) + tz;
                         if (startBatchIndex == batchIndex)
                         {
-                            tz = math.tzcnt(set.zBits[batchIndex].Value & ~((2ul << (zStart & 0x3f)) - 1));
+                            tz = math.tzcnt(set.zBits[batchIndex].Value & ~((1ul << (zStart & 0x3f)) - 1));
                             if (tz == 64)
                             {
                                 var newMin = (batchIndex << 6) + tz;
@@ -2356,6 +2358,422 @@ namespace OptimizationAdventures
                     Hint.Assume(linkIndex >= 0);
                 }
                 public int Current => links[linkIndex].xIndex;
+            }
+        }
+    }
+
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+    public struct DualSweepLinkedX : IJob
+    {
+        // This array stores the sorted orders of z mins and z maxes.
+        // The integer at each index represents either of the following:
+        // For a z min, it is the index of the AABB sorted by x mins.
+        // For a z max, it is the index + AABB_count of the AABB sorted by x mins.
+        // Therefore, a z max can be differentiated from a z min by comparing it to
+        // the AABB count.
+        [ReadOnly] public NativeArray<uint> zToXMinsMaxes;
+        // This array stores the sorted orders of x mins and x maxes,
+        // using the same convention as the previous array.
+        // Integers still correlate to indices of AABBs sorted by x mins.
+        [ReadOnly] public NativeArray<uint> xs;
+
+        // This is the array we are used to, sorted by x mins.
+        [ReadOnly] public NativeArray<float4> minYZmaxYZsFlipped;
+        // Same for this.
+        [ReadOnly] public NativeArray<Entity> entities;
+        // This is our result.
+        public NativeList<EntityPair> overlaps;
+
+        struct ZRange
+        {
+            // This is the index sorted by z mins, not x mins.
+            public int index;
+            // This is the extreme backwards value using z axis indexing
+            public int min;
+            // This is the extreme forwards value using z axis indexing
+            public int max;
+        }
+
+        public unsafe void Execute()
+        {
+            Hint.Assume(zToXMinsMaxes.Length == xs.Length);
+            Hint.Assume(minYZmaxYZsFlipped.Length == entities.Length);
+            Hint.Assume(minYZmaxYZsFlipped.Length * 2 == xs.Length);
+
+            var zRanges = new NativeList<ZRange>(minYZmaxYZsFlipped.Length, Allocator.Temp);
+            zRanges.ResizeUninitialized(minYZmaxYZsFlipped.Length);
+
+            var zBits = new NativeList<BitField64>(minYZmaxYZsFlipped.Length / 64 + 2, Allocator.Temp);
+            zBits.Resize(minYZmaxYZsFlipped.Length / 64 + 2, NativeArrayOptions.ClearMemory);
+
+            var zToXs = new NativeArray<int>(minYZmaxYZsFlipped.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+
+            {
+                int minBit           = 0;
+                int zminRunningCount = 0;
+                for (int i = 0; i < zToXMinsMaxes.Length; i++)
+                {
+                    if (zToXMinsMaxes[i] < minYZmaxYZsFlipped.Length)
+                    {
+                        zToXs[zminRunningCount] = (int)zToXMinsMaxes[i];
+                        ref var range           = ref zRanges.ElementAt((int)zToXMinsMaxes[i]);
+                        range.index             = zminRunningCount;
+                        range.min               = minBit;
+                        ref var bitField        = ref zBits.ElementAt(zminRunningCount >> 6);
+                        bitField.SetBits(zminRunningCount & 0x3f, true);
+                        zminRunningCount++;
+                    }
+                    else
+                    {
+                        ref var range    = ref zRanges.ElementAt((int)(zToXMinsMaxes[i] - (uint)minYZmaxYZsFlipped.Length));
+                        range.max        = zminRunningCount;
+                        ref var bitField = ref zBits.ElementAt(range.index >> 6);
+                        bitField.SetBits(range.index & 0x3f, false);
+                        if (range.index == minBit)
+                        {
+                            while (minBit <= zminRunningCount)
+                            {
+                                var scanBits = zBits.ElementAt(minBit >> 6);
+                                var tzcnt    = scanBits.CountTrailingZeros();
+                                if (tzcnt < 64)
+                                {
+                                    minBit = (minBit & ~0x3f) + tzcnt;
+                                    break;
+                                }
+                                minBit = (minBit & ~0x3f) + 64;
+                            }
+                            minBit = math.min(minBit, zminRunningCount + 1);
+                        }
+                    }
+                }
+
+                //if (minBit >= minYZmaxYZsFlipped.Length)
+                //    return;
+            }
+
+            var intervalSet = new IntervalSet(zBits.AsArray(), zToXs);
+
+            for (int i = 0; i < xs.Length; i++)
+            {
+                if (xs[i] < minYZmaxYZsFlipped.Length)
+                {
+                    int currentIndex = (int)xs[i];
+                    var currentYZ    = -minYZmaxYZsFlipped[currentIndex].zwxy;
+                    var range        = zRanges[currentIndex];
+                    var enumerator   = new IntervalSet.Enumerator(in intervalSet, range.min, range.max - 1);
+
+                    while (enumerator.IsValid())
+                    {
+                        var otherIndex = enumerator.CurrentX2;
+                        EnsureDoubledIndexIsValid(otherIndex, minYZmaxYZsFlipped.Length);
+                        var flippedPtr = (float4*)((byte*)minYZmaxYZsFlipped.GetUnsafeReadOnlyPtr() + otherIndex * 8);
+                        if (Hint.Unlikely(math.bitmask(currentYZ < *flippedPtr) == 0))
+                        {
+                            var entitiesPtr = (Entity*)((byte*)entities.GetUnsafeReadOnlyPtr() + otherIndex * 4);
+                            overlaps.Add(new EntityPair(entities[currentIndex], entities[otherIndex / 2]));
+                        }
+                        enumerator.Advance();
+                    }
+
+                    intervalSet.Add(range.index, currentIndex);
+                }
+                else
+                {
+                    var range = zRanges[(int)(xs[i] - minYZmaxYZsFlipped.Length)];
+                    intervalSet.Remove(range.index, in zRanges);
+                }
+            }
+        }
+
+        struct IntervalSet
+        {
+            NativeArray<BitField64> zBits;
+            NativeArray<BitField64> zBitBatches;
+            NativeArray<int>        zToX;
+            NativeArray<int>        linksX2;
+
+            int zHeadIndex;
+
+            private struct Link
+            {
+                public int xIndex;
+                public int nextZ;
+            }
+
+            public IntervalSet(NativeArray<BitField64> zBits, NativeArray<int> zToX)
+            {
+                this.zBits  = zBits;
+                zBitBatches = new NativeArray<BitField64>(zBits.Length / 64 + 1, Allocator.Temp, NativeArrayOptions.ClearMemory);
+                this.zToX   = zToX;
+                linksX2     = new NativeArray<int>(zToX.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                zHeadIndex  = zToX.Length;
+            }
+
+            public void Add(int zIndex, int xIndex)
+            {
+                Hint.Assume(zIndex >= 0 && xIndex >= 0);
+
+                var batchIndex      = zIndex >> 6;
+                var batchFieldIndex = batchIndex >> 6;
+
+                if (zHeadIndex == linksX2.Length)
+                {
+                    linksX2[xIndex] = linksX2.Length * 2;
+                    zHeadIndex      = zIndex;
+                    var bits        = zBits[batchIndex];
+                    bits.SetBits(zIndex & 0x3f, true);
+                    zBits[batchIndex] = bits;
+                    var batchBits     = zBitBatches[batchFieldIndex];
+                    batchBits.SetBits(batchIndex & 0x3f, true);
+                    zBitBatches[batchFieldIndex] = batchBits;
+                    return;
+                }
+
+                var previousLinkZIndex = FindFirstBeforeZ(zIndex, linksX2.Length);
+                if (previousLinkZIndex < zHeadIndex || previousLinkZIndex == linksX2.Length)
+                {
+                    // This is first in the chain
+                    linksX2[xIndex] = 2 * (zHeadIndex == linksX2.Length ? linksX2.Length : zToX[zHeadIndex]);
+                    zHeadIndex      = zIndex;
+                    var bits        = zBits[batchIndex];
+                    bits.SetBits(zIndex & 0x3f, true);
+                    zBits[batchIndex] = bits;
+                    var batchBits     = zBitBatches[batchFieldIndex];
+                    batchBits.SetBits(batchIndex & 0x3f, true);
+                    zBitBatches[batchFieldIndex] = batchBits;
+                }
+                else
+                {
+                    var previousLinkXIndex      = zToX[previousLinkZIndex];
+                    var previousLink            = linksX2[previousLinkXIndex];
+                    linksX2[xIndex]             = previousLink;
+                    linksX2[previousLinkXIndex] = xIndex * 2;
+                    var bits                    = zBits[batchIndex];
+                    bits.SetBits(zIndex & 0x3f, true);
+                    zBits[batchIndex] = bits;
+                    var batchBits     = zBitBatches[batchFieldIndex];
+                    batchBits.SetBits(batchIndex & 0x3f, true);
+                    zBitBatches[batchFieldIndex] = batchBits;
+                }
+            }
+
+            public void Remove(int zIndex, in NativeList<ZRange> ranges)
+            {
+                Hint.Assume(zIndex >= 0);
+                var batchIndex      = zIndex >> 6;
+                var batchFieldIndex = batchIndex >> 6;
+                var bits            = zBits[batchIndex];
+                bits.SetBits(zIndex & 0x3f, false);
+                zBits[batchIndex] = bits;
+                if (bits.Value == 0)
+                {
+                    var batchBits = zBitBatches[batchFieldIndex];
+                    batchBits.SetBits(batchIndex & 0x3f, false);
+                    zBitBatches[batchFieldIndex] = batchBits;
+                }
+
+                if (zHeadIndex == zIndex)
+                {
+                    var xHeadIndex = linksX2[zToX[zIndex]] / 2;
+                    if (xHeadIndex == linksX2.Length)
+                        zHeadIndex = xHeadIndex;
+                    else
+                        zHeadIndex = ranges[xHeadIndex].index;
+                    return;
+                }
+                else
+                {
+                    // Find previous link
+                    var z                      = FindFirstBeforeZ(zIndex, linksX2.Length);
+                    var previousLinkIndex      = zToX[z];
+                    linksX2[previousLinkIndex] = linksX2[zToX[zIndex]];
+                    return;
+                }
+            }
+
+            int FindFirstBeforeZ(int searchBefore, int noFoundValue)
+            {
+                Hint.Assume(searchBefore >= 0 && noFoundValue >= 0);
+                var batchIndex = searchBefore >> 6;
+                if (zBitBatches[batchIndex >> 6].IsSet(batchIndex & 0x3f))
+                {
+                    var lz = math.lzcnt(zBits[batchIndex].Value & ((2ul << (searchBefore & 0x3f)) - 1));
+                    if (lz != 64)
+                        return (batchIndex << 6) + 63 - lz;
+                    batchIndex--;
+                    if (batchIndex < 0)
+                        return noFoundValue;
+                }
+                {
+                    var batchFieldIndex = batchIndex >> 6;
+                    var lz              = math.lzcnt(zBitBatches[batchFieldIndex].Value & ((2ul << (batchIndex & 0x3f)) - 1));
+                    while (lz == 64 && batchFieldIndex > 0)
+                    {
+                        batchFieldIndex--;
+                        lz = zBitBatches[batchFieldIndex].CountLeadingZeros();
+                    }
+
+                    if (lz == 64)
+                        return noFoundValue;
+                    batchIndex = (batchFieldIndex << 6) + 63 - lz;
+                    lz         = zBits[batchIndex].CountLeadingZeros();
+                    return (batchIndex << 6) + 63 - lz;
+                }
+            }
+
+            public struct Enumerator
+            {
+                NativeArray<int> linksX2;
+                int              linkIndexX2;
+                int              maxXIndexX2;
+
+                public Enumerator(in IntervalSet set, int zStart, int zEnd)
+                {
+                    linksX2 = set.linksX2;
+
+                    var firstZBefore = set.FindFirstBeforeZ(zEnd + 1, set.linksX2.Length);
+                    if (firstZBefore == set.linksX2.Length || firstZBefore < zStart)
+                    {
+                        maxXIndexX2 = 0;
+                        linkIndexX2 = 0;
+                    }
+                    else
+                    {
+                        // Find next link
+                        var startBatchIndex = zStart >> 6;
+                        var batchIndex      = startBatchIndex;
+                        var batchFieldIndex = batchIndex >> 6;
+
+                        var tz = math.tzcnt(set.zBitBatches[batchFieldIndex].Value & ~((1ul << (batchIndex & 0x3f)) - 1));
+                        while (tz == 64)
+                        {
+                            batchFieldIndex++;
+                            tz = set.zBitBatches[batchFieldIndex].CountTrailingZeros();
+                        }
+
+                        batchIndex = (batchFieldIndex << 6) + tz;
+                        if (startBatchIndex == batchIndex)
+                        {
+                            tz = math.tzcnt(set.zBits[batchIndex].Value & ~((1ul << (zStart & 0x3f)) - 1));
+                            if (tz == 64)
+                            {
+                                var temp    = new Enumerator(in set, (batchIndex << 6) + 64, firstZBefore);
+                                maxXIndexX2 = temp.maxXIndexX2;
+                                linkIndexX2 = temp.linkIndexX2;
+                                return;
+                            }
+                        }
+                        else
+                            tz      = set.zBits[batchIndex].CountTrailingZeros();
+                        linkIndexX2 = set.zToX[(batchIndex << 6) + tz] * 2;
+                        maxXIndexX2 = linksX2[set.zToX[firstZBefore]];
+                    }
+                }
+
+                public bool IsValid()
+                {
+                    Hint.Assume(linkIndexX2 >= 0 && linkIndexX2 % 2 == 0);
+                    return linkIndexX2 != maxXIndexX2;
+                }
+                public unsafe void Advance()
+                {
+                    EnsureDoubledIndexIsValid(linkIndexX2, linksX2.Length);
+                    Hint.Assume(linkIndexX2 >= 0 && linkIndexX2 % 2 == 0);
+                    var ptr     = (int*)((byte*)linksX2.GetUnsafeReadOnlyPtr() + linkIndexX2 * 2);
+                    linkIndexX2 = *ptr;
+                    //linkIndexX2 = linksX2[linkIndexX2 / 2];
+                    Hint.Assume(linkIndexX2 >= 0 && linkIndexX2 % 2 == 0);
+                }
+                public int CurrentX2 => linkIndexX2;
+            }
+        }
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void EnsureDoubledIndexIsValid(int indexX2, int length)
+        {
+            if (indexX2 >= length * 2)
+                throw new System.IndexOutOfRangeException($"Violated index out of range for doubled index {indexX2} and length {length}");
+        }
+    }
+
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+    public struct FlippedSweep2 : IJob
+    {
+        [ReadOnly] public NativeArray<float>  xmins;
+        [ReadOnly] public NativeArray<float>  xmaxs;
+        [ReadOnly] public NativeArray<float4> minYZmaxYZsFlipped;
+        [ReadOnly] public NativeArray<Entity> entities;
+        public NativeList<EntityPair>         overlaps;
+
+        public void Execute()
+        {
+            Hint.Assume(xmins.Length == xmaxs.Length);
+            Hint.Assume(xmins.Length == minYZmaxYZsFlipped.Length);
+
+            for (int i = 0; i < xmins.Length - 1; i++)
+            {
+                float4 current = -minYZmaxYZsFlipped[i].zwxy;
+                var    xmax    = xmaxs[i];
+
+                for (int j = i + 1; Hint.Likely(j < xmaxs.Length && xmins[j] <= xmax); j++)
+                {
+                    if (Hint.Unlikely(math.bitmask(current < minYZmaxYZsFlipped[j]) == 0))
+                    {
+                        overlaps.Add(new EntityPair(entities[i], entities[j]));
+                    }
+                }
+            }
+        }
+    }
+
+    [BurstCompile(OptimizeFor = OptimizeFor.Performance)]
+    public struct AVXSweep : IJob
+    {
+        [ReadOnly] public NativeArray<float>  xmins;
+        [ReadOnly] public NativeArray<float>  xmaxs;
+        [ReadOnly] public NativeArray<float4> minYZmaxYZsFlipped;
+        [ReadOnly] public NativeArray<Entity> entities;
+        public NativeList<EntityPair>         overlaps;
+
+        public unsafe void Execute()
+        {
+            Hint.Assume(xmins.Length == xmaxs.Length);
+            Hint.Assume(xmins.Length == minYZmaxYZsFlipped.Length);
+
+            if (!X86.Avx.IsAvxSupported)
+                return;
+
+            for (int i = 0; i < xmins.Length - 1; i++)
+            {
+                float4 current     = -minYZmaxYZsFlipped[i].zwxy;
+                v256   current256  = new v256(current.x, current.y, current.z, current.w, current.x, current.y, current.z, current.w);
+                float  xmax        = xmaxs[i];
+                var    xminsPtr    = (byte*)xmins.GetUnsafeReadOnlyPtr() + 4 * i + 4;
+                var    flippedPtr  = (byte*)minYZmaxYZsFlipped.GetUnsafeReadOnlyPtr() + 16 * i + 16;
+                var    entitiesPtr = (byte*)entities.GetUnsafeReadOnlyPtr() + 8 * i;
+                var    count       = 4 * (ulong)(xmaxs.Length - (i + 1));
+
+                ulong j = 0;
+                for (; Hint.Likely(j < (count & ~0x7ul) && *(float*)(xminsPtr + j + 4) <= xmax); j += 8)
+                {
+                    v256 otherPairs = X86.Avx.mm256_loadu_ps(flippedPtr + 4 * j);
+                    var  cmpBools   = X86.Avx.mm256_cmp_ps(current256, otherPairs, (int)X86.Avx.CMP.LT_OQ);
+                    var  cmpResult  = X86.Avx.mm256_movemask_ps(cmpBools);
+                    if (Hint.Unlikely((cmpResult & 0xf) == 0))
+                    {
+                        overlaps.Add(new EntityPair(*(Entity*)entitiesPtr, *(Entity*)(entitiesPtr + 2 * j + 8)));
+                    }
+                    if (Hint.Unlikely((cmpResult & 0xf0) == 0))
+                    {
+                        overlaps.Add(new EntityPair(*(Entity*)entitiesPtr, *(Entity*)(entitiesPtr + 2 * j + 16)));
+                    }
+                }
+                if (j < count && *(float*)(xminsPtr + j) <= xmax)
+                {
+                    if (Hint.Unlikely(math.bitmask(current < *(float4*)(flippedPtr + 4 * j)) == 0))
+                    {
+                        overlaps.Add(new EntityPair(*(Entity*)entitiesPtr, *(Entity*)(entitiesPtr + 2 * j + 8)));
+                    }
+                }
             }
         }
     }

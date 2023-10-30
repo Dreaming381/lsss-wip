@@ -279,61 +279,68 @@ namespace OptimizationAdventures
             NativeList<EntityPair> pairsUnrolled4      = new NativeList<EntityPair>(preallocate, Allocator.TempJob);
             NativeList<EntityPair> pairsDualBranchless = new NativeList<EntityPair>(preallocate, Allocator.TempJob);
             NativeList<EntityPair> pairsDualLinked     = new NativeList<EntityPair>(preallocate, Allocator.TempJob);
+            NativeList<EntityPair> pairsDualLinkedX    = new NativeList<EntityPair>(preallocate, Allocator.TempJob);
+            NativeList<EntityPair> pairsFlipped2       = new NativeList<EntityPair>(preallocate, Allocator.TempJob);
+            NativeList<EntityPair> pairsAVX            = new NativeList<EntityPair>(preallocate, Allocator.TempJob);
 
-            SampleUnit unit = count > 2000 ? SampleUnit.Millisecond : SampleUnit.Microsecond;
+            SampleUnit unit         = count > 2000 ? SampleUnit.Millisecond : SampleUnit.Microsecond;
+            int        warmup       = 2;
+            int        measureCount = 25;
 
-            Measure.Method(() => { new NaiveSweep { aabbs = randomAabbs, overlaps = pairsNaive }.Run(); })
+            Measure.Method(() => { pairsNaive.Clear(); new NaiveSweep { aabbs = randomAabbs, overlaps = pairsNaive }.Run(); })
             .SampleGroup(new SampleGroup("NaiveSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new Bool4Sweep { aabbs = randomAabbs, overlaps = pairsBool4 }.Run(); })
+            Measure.Method(() => { pairsBool4.Clear(); new Bool4Sweep { aabbs = randomAabbs, overlaps = pairsBool4 }.Run(); })
             .SampleGroup(new SampleGroup("Bool4Sweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new LessNaiveSweep { aabbs = randomAabbs, overlaps = pairsLessNaive }.Run(); })
+            Measure.Method(() => { pairsLessNaive.Clear(); new LessNaiveSweep { aabbs = randomAabbs, overlaps = pairsLessNaive }.Run(); })
             .SampleGroup(new SampleGroup("LessNaiveSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new FunnySweep { aabbs = randomAabbs, overlaps = pairsFunny }.Run(); })
+            Measure.Method(() => { pairsFunny.Clear(); new FunnySweep { aabbs = randomAabbs, overlaps = pairsFunny }.Run(); })
             .SampleGroup(new SampleGroup("FunnySweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new BetterSweep { aabbs = randomAabbs, overlaps = pairsBetter }.Run(); })
+            Measure.Method(() => { pairsBetter.Clear(); new BetterSweep { aabbs = randomAabbs, overlaps = pairsBetter }.Run(); })
             .SampleGroup(new SampleGroup("BetterSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new SimdSweep { aabbs = randomAabbs, overlaps = pairsSimd }.Run(); })
+            Measure.Method(() => { pairsSimd.Clear(); new SimdSweep { aabbs = randomAabbs, overlaps = pairsSimd }.Run(); })
             .SampleGroup(new SampleGroup("SimdSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new RearrangedSweep { aabbs = randomAabbsRearranged, overlaps = pairsRearrange }.Run(); })
+            Measure.Method(() => { pairsRearrange.Clear(); new RearrangedSweep { aabbs = randomAabbsRearranged, overlaps = pairsRearrange }.Run(); })
             .SampleGroup(new SampleGroup("RearrangedSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new SoaSweep { xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsSoa }.Run(); })
+            Measure.Method(() => { pairsSoa.Clear(); new SoaSweep { xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsSoa }.Run(); })
             .SampleGroup(new SampleGroup("SoaSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
-            Measure.Method(() => { new SoaShuffleSweep { xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsSoaShuffle }.Run(); })
+            Measure.Method(() => { pairsSoaShuffle.Clear(); new SoaShuffleSweep {
+                                       xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsSoaShuffle
+                                   }.Run(); })
             .SampleGroup(new SampleGroup("SoaShuffleSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
             Measure.Method(() => {
@@ -341,59 +348,70 @@ namespace OptimizationAdventures
                 new OptimalOrderSweep { xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsOptimalOrder }.Run();
             })
             .SampleGroup(new SampleGroup("OptimalOrderSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
-            .Run();
-
-            Measure.Method(() => { new FlippedSweep {
-                                       xmins = xmins, xmaxs = xmaxs, minYZmaxYZsFlipped = minYZmaxYZsFlipped, entities = entities, overlaps = pairsFlipped
-                                   }.Run(); })
-            .SampleGroup(new SampleGroup("FlippedSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
-            .Run();
-
-            Measure.Method(() => { new SentinelSweep {
-                                       xmins = xminsFull, xmaxs = xmaxsFull, minYZmaxYZsFlipped = minYZmaxYZsFlippedFull, entities = entities, overlaps = pairsSentinel
-                                   }.Run(); })
-            .SampleGroup(new SampleGroup("SentinelSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
-            .Run();
-
-            Measure.Method(() => { new MortonNaiveSweep { aabbs = randomAabbsMorton, overlaps = pairsMortonNaive }.Run(); })
-            .SampleGroup(new SampleGroup("MortonNaiveSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
-            .Run();
-
-            Measure.Method(() => { new BatchSweep {
-                                       xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, batchMinYZmaxYZs = batchMinYZmaxYZ, entities = entities, overlaps = pairsBatch
-                                   }.Run(); })
-            .SampleGroup(new SampleGroup("BatchSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
-            .Run();
-
-            Measure.Method(() => { new DualSweep { zToXMinsMaxes = zToXMinsMaxes, xs = xs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsDual }.Run(); })
-            .SampleGroup(new SampleGroup("DualSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
             Measure.Method(() => {
-                //pairsDualCondensed.Clear();
+                pairsFlipped.Clear();
+                new FlippedSweep {
+                    xmins = xmins, xmaxs = xmaxs, minYZmaxYZsFlipped = minYZmaxYZsFlipped, entities = entities, overlaps = pairsFlipped
+                }.Run();
+            })
+            .SampleGroup(new SampleGroup("FlippedSweep", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            .Run();
+
+            Measure.Method(() => {
+                pairsSentinel.Clear();
+                new SentinelSweep {
+                    xmins = xminsFull, xmaxs = xmaxsFull, minYZmaxYZsFlipped = minYZmaxYZsFlippedFull, entities = entities, overlaps = pairsSentinel
+                }.Run();
+            })
+            .SampleGroup(new SampleGroup("SentinelSweep", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            .Run();
+
+            Measure.Method(() => {pairsMortonNaive.Clear(); new MortonNaiveSweep { aabbs = randomAabbsMorton, overlaps = pairsMortonNaive }.Run(); })
+            .SampleGroup(new SampleGroup("MortonNaiveSweep", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            .Run();
+
+            Measure.Method(() => {
+                pairsBatch.Clear();
+                new BatchSweep {
+                    xmins = xmins, xmaxs = xmaxs, minYZmaxYZs = minYZmaxYZs, batchMinYZmaxYZs = batchMinYZmaxYZ, entities = entities, overlaps = pairsBatch
+                }.Run();
+            })
+            .SampleGroup(new SampleGroup("BatchSweep", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            .Run();
+
+            Measure.Method(() => { pairsDual.Clear(); new DualSweep {
+                                       zToXMinsMaxes = zToXMinsMaxes, xs = xs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsDual
+                                   }.Run(); })
+            .SampleGroup(new SampleGroup("DualSweep", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            .Run();
+
+            Measure.Method(() => {
+                pairsDualCondensed.Clear();
                 new DualSweepCondensed {
                     zToXMinsMaxes = zToXMinsMaxes, xs = xs, minYZmaxYZs = minYZmaxYZs, entities = entities, overlaps = pairsDualCondensed
                 }.Run();
             })
             .SampleGroup(new SampleGroup("DualSweepCondensed", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
             Measure.Method(() => {
-                //pairsDualOptimized.Clear();
+                pairsDualOptimized.Clear();
                 new DualSweepOptimized
                 {
                     zToXMinsMaxes = zToXMinsMaxes,
@@ -404,13 +422,13 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("DualSweepOptimized", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsUnrolled.Clear();
+                pairsUnrolledPoor.Clear();
                 new UnrolledSweepPoor
                 {
                     xmins              = xmins,
@@ -421,13 +439,13 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("UnrolledSweepPoor", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsUnrolled.Clear();
+                pairsUnrolled.Clear();
                 new UnrolledSweep
                 {
                     xmins              = xmins,
@@ -438,13 +456,13 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("UnrolledSweep", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsUnrolled2.Clear();
+                pairsUnrolled2.Clear();
                 new UnrolledSweep2
                 {
                     xmins              = xmins,
@@ -455,13 +473,13 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("UnrolledSweep2", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsUnrolled3.Clear();
+                pairsUnrolled3.Clear();
                 new UnrolledSweep3
                 {
                     xmins              = xmins,
@@ -472,13 +490,13 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("UnrolledSweep3", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsUnrolled4.Clear();
+                pairsUnrolled4.Clear();
                 new UnrolledSweep4
                 {
                     xmins              = xmins,
@@ -489,13 +507,13 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("UnrolledSweep4", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsDualBranchless.Clear();
+                pairsDualBranchless.Clear();
                 new DualSweepBranchless
                 {
                     zToXMinsMaxes      = zToXMinsMaxes,
@@ -506,26 +524,75 @@ namespace OptimizationAdventures
                 }.Run();
             })
             .SampleGroup(new SampleGroup("DualSweepBranchless", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
             .Run();
 
             Measure.Method(() => {
-                //pairsDualBranchless.Clear();
+                pairsDualLinked.Clear();
                 new DualSweepLinked
                 {
                     zToXMinsMaxes      = zToXMinsMaxes,
                     xs                 = xs,
                     minYZmaxYZsFlipped = minYZmaxYZsFlipped,
                     entities           = entities,
-                    overlaps           = pairsDualBranchless
+                    overlaps           = pairsDualLinked
                 }.Run();
             })
             .SampleGroup(new SampleGroup("DualSweepLinked", unit))
-            .WarmupCount(0)
-            .MeasurementCount(1)
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             //.MeasurementCount(count)
+            .Run();
+
+            Measure.Method(() => {
+                pairsDualLinkedX.Clear();
+                new DualSweepLinkedX
+                {
+                    zToXMinsMaxes      = zToXMinsMaxes,
+                    xs                 = xs,
+                    minYZmaxYZsFlipped = minYZmaxYZsFlipped,
+                    entities           = entities,
+                    overlaps           = pairsDualLinkedX
+                }.Run();
+            })
+            .SampleGroup(new SampleGroup("DualSweepLinkedX", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            //.MeasurementCount(count)
+            .Run();
+
+            Measure.Method(() => {
+                pairsFlipped2.Clear();
+                new FlippedSweep2
+                {
+                    xmins              = xmins,
+                    xmaxs              = xmaxs,
+                    minYZmaxYZsFlipped = minYZmaxYZsFlipped,
+                    entities           = entities,
+                    overlaps           = pairsFlipped2
+                }.Run();
+            })
+            .SampleGroup(new SampleGroup("FlippedSweep2", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
+            .Run();
+
+            Measure.Method(() => {
+                pairsAVX.Clear();
+                new AVXSweep
+                {
+                    xmins              = xmins,
+                    xmaxs              = xmaxs,
+                    minYZmaxYZsFlipped = minYZmaxYZsFlipped,
+                    entities           = entities,
+                    overlaps           = pairsAVX
+                }.Run();
+            })
+            .SampleGroup(new SampleGroup("AVXSweep", unit))
+            .WarmupCount(warmup)
+            .MeasurementCount(measureCount)
             .Run();
 
             //UnityEngine.Debug.Log("Pairs: " + pairsNaive.Length);
@@ -536,6 +603,8 @@ namespace OptimizationAdventures
             //UnityEngine.Debug.Log("Pairs: " + pairsDualBranchless.Length);
             //UnityEngine.Debug.Log("Pairs: " + pairsDualOptimized.Length);
             //UnityEngine.Debug.Log("Pairs: " + pairsUnrolled.Length);
+            //UnityEngine.Debug.Log("Pairs: " + pairsDualLinked.Length);
+            //UnityEngine.Debug.Log("Pairs: " + pairsDualLinkedX.Length);
 
             randomAabbs.Dispose();
             randomAabbsRearranged.Dispose();
@@ -572,6 +641,9 @@ namespace OptimizationAdventures
             pairsUnrolled4.Dispose();
             pairsDualBranchless.Dispose();
             pairsDualLinked.Dispose();
+            pairsDualLinkedX.Dispose();
+            pairsFlipped2.Dispose();
+            pairsAVX.Dispose();
         }
 
         [Test, Performance]
