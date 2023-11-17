@@ -133,6 +133,8 @@ namespace Latios.Psyshock
                 case 2:  // A point and B face
                 case 6:  // A edge and B face
                 {
+                    // For A edge, this can only happen due to some bizarre precision issues.
+                    // But we'll handle it anyways by just using the face normal of B.
                     var faceIndex       = distanceResult.featureCodeB & 0xff;
                     aLocalContactNormal = faceIndex switch
                     {
@@ -178,11 +180,11 @@ namespace Latios.Psyshock
                 var bLocalContactNormal = math.InverseRotateFast(bInATransform.rot, -aLocalContactNormal);
                 PointRayBox.BestFacePlanesAndVertices(in boxA, aLocalContactNormal, out var aEdgePlaneNormals, out var aEdgePlaneDistances, out var aPlane, out var aVertices);
                 PointRayBox.BestFacePlanesAndVertices(in boxB, bLocalContactNormal, out var bEdgePlaneNormals, out _,                       out var bPlane, out var bVertices);
-                bVertices                             = simd.transform(bInATransform, bVertices);
-                bEdgePlaneNormals                     = simd.mul(bInATransform.rot, bEdgePlaneNormals);
-                var  bEdgePlaneDistances              = simd.dot(bEdgePlaneNormals, bVertices.bcda);
-                bool needsClosestPoint                = true;
-                var  distanceScalarAlongContactNormal = math.rcp(math.dot(aLocalContactNormal, bPlane.normal));
+                bVertices                              = simd.transform(bInATransform, bVertices);
+                bEdgePlaneNormals                      = simd.mul(bInATransform.rot, bEdgePlaneNormals);
+                var  bEdgePlaneDistances               = simd.dot(bEdgePlaneNormals, bVertices.bcda);
+                bool needsClosestPoint                 = true;
+                var  distanceScalarAlongContactNormalB = math.rcp(math.dot(aLocalContactNormal, bPlane.normal));
 
                 // Project and clip edges of A onto the face of B.
                 for (int edgeIndex = 0; edgeIndex < 4; edgeIndex++)
@@ -205,14 +207,14 @@ namespace Latios.Psyshock
                     {
                         // Add the two contacts from the possibly clipped segment
                         var clippedSegmentA = rayStart + fractionA * rayDisplacement;
-                        var aDistance       = mathex.SignedDistance(bPlane, clippedSegmentA) * distanceScalarAlongContactNormal;
-                        result.Add(math.transform(aTransform, clippedSegmentA), aDistance);
+                        var aDistance       = mathex.SignedDistance(bPlane, clippedSegmentA) * distanceScalarAlongContactNormalB;
+                        result.Add(math.transform(aTransform, clippedSegmentA + aLocalContactNormal * aDistance), aDistance);
                         needsClosestPoint &= aDistance > distanceResult.distance + 1e-4f;
                         if (fractionB < 1f)  // Avoid duplication when vertex is not clipped
                         {
                             var clippedSegmentB = rayStart + fractionB * rayDisplacement;
-                            var bDistance       = mathex.SignedDistance(bPlane, clippedSegmentB) * distanceScalarAlongContactNormal;
-                            result.Add(math.transform(aTransform, clippedSegmentB), bDistance);
+                            var bDistance       = mathex.SignedDistance(bPlane, clippedSegmentB) * distanceScalarAlongContactNormalB;
+                            result.Add(math.transform(aTransform, clippedSegmentB + aLocalContactNormal * bDistance), bDistance);
                             needsClosestPoint &= bDistance > distanceResult.distance + 1e-4f;
                         }
                     }
@@ -220,12 +222,13 @@ namespace Latios.Psyshock
                 }
 
                 // Project vertices of B onto the face of A
+                var distanceScalarAlongContactNormalA = math.rcp(math.dot(aLocalContactNormal, aPlane.normal));
                 for (int i = 0; i < 4; i++)
                 {
                     var vertex = bVertices[i];
                     if (math.all(simd.dot(aEdgePlaneNormals, vertex) + aEdgePlaneDistances <= 0f))
                     {
-                        var distance = mathex.SignedDistance(aPlane, vertex) * distanceScalarAlongContactNormal;
+                        var distance = mathex.SignedDistance(aPlane, vertex) * distanceScalarAlongContactNormalA;
                         result.Add(math.transform(aTransform, vertex), distance);
                         needsClosestPoint &= distance > distanceResult.distance + 1e-4f;
                     }
