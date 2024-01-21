@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Unity.Burst;
 using Unity.Mathematics;
 
@@ -180,6 +179,7 @@ namespace Latios.Psyshock
                 var bLocalContactNormal = math.InverseRotateFast(bInATransform.rot, -aLocalContactNormal);
                 PointRayBox.BestFacePlanesAndVertices(in boxA, aLocalContactNormal, out var aEdgePlaneNormals, out var aEdgePlaneDistances, out var aPlane, out var aVertices);
                 PointRayBox.BestFacePlanesAndVertices(in boxB, bLocalContactNormal, out var bEdgePlaneNormals, out _,                       out var bPlane, out var bVertices);
+                bPlane                                 = mathex.TransformPlane(bInATransform, bPlane);
                 bVertices                              = simd.transform(bInATransform, bVertices);
                 bEdgePlaneNormals                      = simd.mul(bInATransform.rot, bEdgePlaneNormals);
                 var  bEdgePlaneDistances               = simd.dot(bEdgePlaneNormals, bVertices.bcda);

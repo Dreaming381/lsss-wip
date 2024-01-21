@@ -1,9 +1,10 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using Unity.Entities;
-using UnityEngine;
-
 using Latios.Kinemation.Authoring;
+using Unity.Entities;
+using Unity.Rendering;
+using UnityEngine;
 
 namespace Lsss.Authoring
 {
@@ -282,7 +283,47 @@ namespace Lsss.Authoring
 
             var mesh = authoring.ProcessMeshForBake();
 
-            this.BakeMeshAndMaterial(meshRenderer, mesh, m_materialsCache);
+            Span<MeshMaterialSubmeshSettings> mms = stackalloc MeshMaterialSubmeshSettings[m_materialsCache.Count];
+            RenderingBakingTools.ExtractMeshMaterialSubmeshes(mms, mesh, m_materialsCache);
+            var opaqueMaterialCount = RenderingBakingTools.GroupByDepthSorting(mms);
+
+            RenderingBakingTools.GetLOD(this, meshRenderer, out var lodGroupEntity, out var lodMask);
+
+            var rendererSettings = new MeshRendererBakeSettings
+            {
+                targetEntity                = GetEntity(TransformUsageFlags.Renderable),
+                renderMeshDescription       = new RenderMeshDescription(meshRenderer),
+                isDeforming                 = false,
+                suppressDeformationWarnings = false,
+                useLightmapsIfPossible      = true,
+                lightmapIndex               = meshRenderer.lightmapIndex,
+                lightmapScaleOffset         = meshRenderer.lightmapScaleOffset,
+                lodGroupEntity              = lodGroupEntity,
+                lodGroupMask                = lodMask,
+                isStatic                    = IsStatic(),
+                localBounds                 = mesh != null ? mesh.bounds : default,
+            };
+
+            if (opaqueMaterialCount == mms.Length || opaqueMaterialCount == 0)
+            {
+                Span<MeshRendererBakeSettings> renderers = stackalloc MeshRendererBakeSettings[1];
+                renderers[0]                             = rendererSettings;
+                Span<int> count                          = stackalloc int[1];
+                count[0]                                 = mms.Length;
+                this.BakeMeshAndMaterial(renderers, mms, count);
+            }
+            else
+            {
+                var                            additionalEntity = CreateAdditionalEntity(TransformUsageFlags.Renderable, false, $"{GetName()}-TransparentRenderEntity");
+                Span<MeshRendererBakeSettings> renderers        = stackalloc MeshRendererBakeSettings[2];
+                renderers[0]                                    = rendererSettings;
+                renderers[1]                                    = rendererSettings;
+                renderers[1].targetEntity                       = additionalEntity;
+                Span<int> counts                                = stackalloc int[2];
+                counts[0]                                       = opaqueMaterialCount;
+                counts[1]                                       = mms.Length - opaqueMaterialCount;
+                this.BakeMeshAndMaterial(renderers, mms, counts);
+            }
         }
     }
 }

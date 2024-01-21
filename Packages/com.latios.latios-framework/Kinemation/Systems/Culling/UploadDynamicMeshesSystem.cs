@@ -8,7 +8,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Latios.Kinemation
+namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
@@ -84,7 +84,7 @@ namespace Latios.Kinemation
                 }.Schedule(collectJh);
 
                 // Fetching this now because culling jobs are still running (hopefully).
-                var graphicsPool = worldBlackboardEntity.GetManagedStructComponent<GraphicsBufferManager>().pool;
+                var graphicsBroker = worldBlackboardEntity.GetManagedStructComponent<GraphicsBufferBrokerReference>().graphicsBufferBroker;
 
                 yield return true;
 
@@ -107,8 +107,8 @@ namespace Latios.Kinemation
                     continue;
                 }
 
-                var uploadBuffer = graphicsPool.GetMeshVerticesUploadBuffer(requiredUploadBufferSize.Value);
-                var metaBuffer   = graphicsPool.GetUploadMetaBuffer((uint)payloads.Length);
+                var uploadBuffer = graphicsBroker.GetMeshVerticesUploadBuffer(requiredUploadBufferSize.Value);
+                var metaBuffer   = graphicsBroker.GetMetaUint3UploadBuffer((uint)payloads.Length);
 
                 Dependency = new WriteUploadsToBuffersJob
                 {
@@ -128,7 +128,7 @@ namespace Latios.Kinemation
                 if (terminate)
                     break;
 
-                var persistentBuffer = graphicsPool.GetDeformBuffer(worldBlackboardEntity.GetComponentData<MaxRequiredDeformData>().maxRequiredDeformVertices);
+                var persistentBuffer = graphicsBroker.GetDeformBuffer(worldBlackboardEntity.GetComponentData<MaxRequiredDeformData>().maxRequiredDeformVertices);
                 m_uploadShader.SetBuffer(0, _dst,  persistentBuffer);
                 m_uploadShader.SetBuffer(0, _src,  uploadBuffer);
                 m_uploadShader.SetBuffer(0, _meta, metaBuffer);
@@ -201,7 +201,8 @@ namespace Latios.Kinemation
                 bool needsPrevious = (classification & DeformClassification.AnyPreviousDeform) != DeformClassification.None;
                 bool needsTwoAgo   = (classification & DeformClassification.TwoAgoDeform) != DeformClassification.None;
 
-                for (int i = 0; i < chunk.Count; i++)
+                var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
+                while (enumerator.NextEntityIndex(out int i))
                 {
                     var state            = states[i].state;
                     var mask             = state & DynamicMeshState.Flags.RotationMask;
@@ -216,12 +217,21 @@ namespace Latios.Kinemation
 
                     if (Unity.Burst.CompilerServices.Hint.Unlikely(verticesCount * 3 != buffer.Length))
                     {
-                        currentPtr  = blobs[i].meshBlob.Value.undeformedVertices.GetUnsafePtr();
-                        previousPtr = currentPtr;
-                        twoAgoPtr   = currentPtr;
+                        if (buffer.Length == verticesCount)
+                        {
+                            currentPtr  = buffer.AsNativeArray().GetSubArray(verticesCount * currentRotation, verticesCount).GetUnsafeReadOnlyPtr();
+                            previousPtr = currentPtr;
+                            twoAgoPtr   = currentPtr;
+                        }
+                        else
+                        {
+                            currentPtr  = blobs[i].meshBlob.Value.undeformedVertices.GetUnsafePtr();
+                            previousPtr = currentPtr;
+                            twoAgoPtr   = currentPtr;
 
-                        UnityEngine.Debug.LogError(
-                            $"Entity {entities[i]} has the wrong number of vertices ({buffer.Length / 3} vs expected {verticesCount}) in DynamicBuffer<DynamicMeshVertex>. Uploading default mesh instead.");
+                            UnityEngine.Debug.LogError(
+                                $"Entity {entities[i]} has the wrong number of vertices ({buffer.Length / 3} vs expected {verticesCount}) in DynamicBuffer<DynamicMeshVertex>. Uploading default mesh instead.");
+                        }
                     }
                     else
                     {

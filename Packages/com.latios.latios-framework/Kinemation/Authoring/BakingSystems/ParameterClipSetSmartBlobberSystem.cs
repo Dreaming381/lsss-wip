@@ -25,7 +25,7 @@ namespace Latios.Kinemation.Authoring
         /// The list of parameter names which should be baked into the clip set. The length of this array
         /// should either match the number of parameters in each and every clip or be left defaulted (unallocated).
         /// </summary>
-        public NativeArray<FixedString64Bytes> parameterNames;
+        public NativeArray<FixedString128Bytes> parameterNames;
     }
 
     /// <summary>
@@ -67,11 +67,11 @@ namespace Latios.Kinemation.Authoring
         public float sampleRate;
         /// <summary>
         /// Higher levels lead to longer compression time but more compressed clips.
-        /// Values range from 0 to 4. Typical default is 2.
+        /// Values range from 0 to 4 or 100 for automatic mode.
         /// </summary>
         public short compressionLevel;
 
-        public static readonly short defaultCompressionLevel = 2;
+        public static readonly short defaultCompressionLevel = 100;
         public static readonly float defaultMaxError         = 0.00001f;
 
         /// <summary>
@@ -110,8 +110,63 @@ namespace Latios.Kinemation.Authoring
             return baker.RequestCreateBlobAsset<ParameterClipSetBlob, ParameterClipSetBakeData>(new ParameterClipSetBakeData { config = config});
         }
     }
+
+    public static class ParameterClipBlobBuilderExtensions
+    {
+        /// <summary>
+        /// Creates a ParameterClip for a set of parameters, invoking AclUnity compression.
+        /// Use this when embedding ParameterClip instances inside of custom blob assets.
+        /// </summary>
+        /// <param name="destinationClip">This target clip within a blob asset being built</param>
+        /// <param name="config">The configuration containing all the input data that should go into the ParameterClip</param>
+        /// <param name="scratchCache">An optional scratch NativeList that can be passed in on repeated calls to speed up blob generation and reduce temporary memory usage</param>
+        /// <returns>True if the clip was successfully built, false if there was an error with the inputs</returns>
+        public static unsafe bool CreateParameterClip(this ref BlobBuilder builder,
+                                                      ref ParameterClip destinationClip,
+                                                      in ParameterClipConfig config,
+                                                      NativeList<float>      scratchCache = default)
+        {
+            if (config.sampleRate <= 0f)
+            {
+                Debug.LogError("Kinemation failed to bake the parameter clip. The clip had a sample rate less or equal to 0f. This is not allowed.");
+                return false;
+            }
+
+            var sampleCount      = config.parametersInClip[0].samples.Length;
+            var totalSampleCount = sampleCount * config.parametersInClip.Length;
+            if (!scratchCache.IsCreated)
+                scratchCache = new NativeList<float>(totalSampleCount, Allocator.Temp);
+            scratchCache.Clear();
+            foreach (var parameter in config.parametersInClip)
+            {
+                if (parameter.samples.Length != sampleCount)
+                {
+                    Debug.LogError("Kinemation failed to bake parameter clip. A clip does not contain the same number of samples for all parameters.");
+                    return false;
+                }
+                scratchCache.Add(parameter.maxError);
+            }
+            foreach (var parameter in config.parametersInClip)
+                scratchCache.AddRange(parameter.samples);
+            var scratchArray = scratchCache.AsArray();
+            var errors       = scratchArray.GetSubArray(0, config.parametersInClip.Length);
+            var samples      = scratchArray.GetSubArray(config.parametersInClip.Length, totalSampleCount);
+
+            destinationClip      = default;
+            destinationClip.name = config.name;
+            ClipEventsBlobHelpers.Convert(ref destinationClip.events, ref builder, config.events);
+
+            var compressedClip = AclUnity.Compression.CompressScalarsClip(samples, errors, config.sampleRate, config.compressionLevel);
+            var compressedData = builder.Allocate(ref destinationClip.compressedClipDataAligned16, compressedClip.sizeInBytes, 16);
+            compressedClip.CopyTo((byte*)compressedData.GetUnsafePtr());
+            compressedClip.Dispose();
+
+            return true;
+        }
+    }
+
     /// <summary>
-    /// Input for the SkeletonClipSetBlob Smart Blobber
+    /// Input for the ParameterClipSetBlob Smart Blobber
     /// </summary>
     public struct ParameterClipSetBakeData : ISmartBlobberRequestFilter<ParameterClipSetBlob>
     {
@@ -174,7 +229,7 @@ namespace Latios.Kinemation.Authoring
             events.EnsureCapacity(totalEventCount);
             if (config.parameterNames.IsCreated)
             {
-                var parameterNames = baker.AddBuffer<ParameterName>(blobBakingEntity).Reinterpret<FixedString64Bytes>();
+                var parameterNames = baker.AddBuffer<ParameterName>(blobBakingEntity).Reinterpret<FixedString128Bytes>();
                 parameterNames.AddRange(config.parameterNames);
             }
 
@@ -224,7 +279,7 @@ namespace Latios.Kinemation.Authoring
     [TemporaryBakingType]
     internal struct ParameterName : IBufferElementData
     {
-        public FixedString64Bytes name;
+        public FixedString128Bytes name;
     }
 }
 
@@ -298,7 +353,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     compressedClip.Dispose();
                 }
 
-                root.parameterCount = dstClips[0].parameterCount;
+                root.parameterCount = (short)parameterCount;
 
                 result.blob = UnsafeUntypedBlobAssetReference.Create(builder.CreateBlobAssetReference<ParameterClipSetBlob>(Allocator.Persistent));
             }
