@@ -439,6 +439,28 @@ namespace InternalSourceGen
         // The data is owned by a world or system rewindable allocator.
         public JobHandle TryDispose(JobHandle inputDeps) => inputDeps;
     }
+
+    internal partial struct LODCrossfadePtrMap : ICollectionComponent
+    {
+        public unsafe struct CrossfadePtr { public byte* ptr; }
+        public struct ChunkIdentifier : IEquatable<ChunkIdentifier>
+        {
+            public uint batchID;
+            public int  batchStartIndex;
+
+            bool IEquatable<ChunkIdentifier>.Equals(ChunkIdentifier other)
+            {
+                return batchID.Equals(other.batchID) && batchStartIndex.Equals(other.batchStartIndex);
+            }
+
+            public override int GetHashCode() => new int2(math.asint(batchID), batchStartIndex).GetHashCode();
+        }
+
+        public NativeHashMap<ChunkIdentifier, CrossfadePtr> chunkIdentifierToPtrMap;
+
+        // The data is owned by a world or system rewindable allocator.
+        public JobHandle TryDispose(JobHandle inputDeps) => inputDeps;
+    }
     #endregion
 }
 
