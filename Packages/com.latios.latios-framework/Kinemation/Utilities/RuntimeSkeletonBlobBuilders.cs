@@ -16,8 +16,8 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
     // Main thread only - no Burst
     public struct SkeletonClipSetSampler : IDisposable
     {
-        static Queue<(Transform, int)> s_breadthQueue;
-        static List<Transform>         s_transformsCache;
+        static Queue<(Transform, int)> s_breadthQueue    = new Queue<(Transform, int)>();
+        static List<Transform>         s_transformsCache = new List<Transform>();
 
         internal GameObject           shadowHierarchy;
         internal TransformAccessArray taa;
@@ -64,6 +64,7 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
             shadowHierarchy.SetActive(true);
             SkeletonClipSetSampleData result = default;
             result.clips                     = new UnsafeList<SkeletonClipToBake>(clips.Length, allocator);
+            result.clips.Length              = clips.Length;
 
             int totalRequiredTransforms = 0;
             int totalRequiredEvents     = 0;
@@ -87,6 +88,7 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
                     boneTransformCount = requiredTransforms
                 };
                 totalRequiredTransforms += requiredTransforms;
+                totalRequiredEvents     += clipConfig.events.Length;
             }
             result.boneSamplesBuffer        = new UnsafeList<TransformQvvs>(totalRequiredTransforms, allocator);
             result.boneSamplesBuffer.Length = totalRequiredTransforms;
@@ -99,10 +101,11 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
 
                 SampleClip(ref result.boneSamplesBuffer,
                            clipConfig.clip.Value,
-                           clip.boneTransformCount,
+                           clip.boneTransformStart,
                            clipConfig.settings.copyFirstKeyAtEnd,
                            clipConfig.settings.rootMotionOverrideMode);
-                result.events.AddRangeNoResize(clipConfig.events.GetUnsafeReadOnlyPtr(), clipConfig.events.Length);
+                if (clipConfig.events.IsCreated && clipConfig.events.Length > 0)
+                    result.events.AddRangeNoResize(clipConfig.events.GetUnsafeReadOnlyPtr(), clipConfig.events.Length);
             }
             result.parentIndices = new UnsafeList<short>(parentIndices.Length, allocator);
             result.parentIndices.AddRangeNoResize(*parentIndices.GetUnsafeList());
