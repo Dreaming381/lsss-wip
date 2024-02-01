@@ -210,21 +210,20 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
 
         public unsafe void BuildBlob(ref BlobBuilder builder, ref SkeletonClipSetBlob blob)
         {
-            var parents        = CollectionHelper.ConvertExistingDataToNativeArray<short>(clips.Ptr, clips.Length, Allocator.None, true);
             var boneTransforms = CollectionHelper.ConvertExistingDataToNativeArray<AclUnity.Qvvs>(boneSamplesBuffer.Ptr, boneSamplesBuffer.Length, Allocator.None, true);
             var eventsArray    = CollectionHelper.ConvertExistingDataToNativeArray<ClipEvent>(events.Ptr, events.Length, Allocator.None, true);
 
-            blob.boneCount = (short)parents.Length;
+            blob.boneCount = (short)parentIndices.Length;
             var blobClips  = builder.Allocate(ref blob.clips, clips.Length);
 
             // Step 1: Patch parent hierarchy for ACL
-            var parentIndices = new NativeArray<short>(parents.Length, Allocator.Temp);
-            for (short i = 0; i < parents.Length; i++)
+            var parents = new NativeArray<short>(parentIndices.Length, Allocator.Temp);
+            for (short i = 0; i < parentIndices.Length; i++)
             {
-                short index = parents[i];
+                short index = parentIndices[i];
                 if (index < 0)
-                    index        = i;
-                parentIndices[i] = index;
+                    index  = i;
+                parents[i] = index;
             }
 
             int clipIndex = 0;
@@ -243,7 +242,7 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
                 var qvvArray = boneTransforms.GetSubArray(srcClip.boneTransformStart, srcClip.boneTransformCount);
 
                 // Step 4: Compress
-                var compressedClip = AclUnity.Compression.CompressSkeletonClip(parentIndices, qvvArray, srcClip.sampleRate, aclSettings);
+                var compressedClip = AclUnity.Compression.CompressSkeletonClip(parents, qvvArray, srcClip.sampleRate, aclSettings);
 
                 // Step 5: Build blob clip
                 blobClips[clipIndex]      = default;
