@@ -25,7 +25,7 @@ namespace Lsss
             latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        public void OnNewScene(ref SystemState state) => state.EntityManager.AddComponentData(state.SystemHandle, new SystemRng("AiSearchAndDestroyInitializePersonalitySystem"));
+        public void OnNewScene(ref SystemState state) => state.InitSystemRng("AiSearchAndDestroyInitializePersonalitySystem");
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
@@ -34,7 +34,7 @@ namespace Lsss
 
             new Job
             {
-                rng = GetComponentRW<SystemRng>(state.SystemHandle).ValueRW.Shuffle(),
+                rng = state.GetJobRng(),
             }.ScheduleParallel(m_query);
 
             ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query, EntityQueryCaptureMode.AtRecord);

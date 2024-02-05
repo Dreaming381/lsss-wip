@@ -18,7 +18,6 @@ namespace Lsss
         EntityQuery m_query;
 
         LatiosWorldUnmanaged latiosWorld;
-        SystemRng            m_systemRng;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -28,7 +27,7 @@ namespace Lsss
                 QueryBuilder().WithAllRW<AiExplorePersonality, AiExploreState>().WithAll<AiExplorePersonalityInitializerValues, WorldTransform, AiTag>().Build();
         }
 
-        public void OnNewScene(ref SystemState state) => m_systemRng = new SystemRng("AiExploreInitializePersonalitySystem");
+        public void OnNewScene(ref SystemState state) => state.InitSystemRng("AiExploreInitializePersonalitySystem");
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
@@ -38,7 +37,7 @@ namespace Lsss
             float arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             new Job
             {
-                rng         = m_systemRng.Shuffle(),
+                rng         = state.GetJobRng(),
                 arenaRadius = arenaRadius
             }.ScheduleParallel(m_query);
 

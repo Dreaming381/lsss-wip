@@ -16,9 +16,8 @@ namespace Lsss
     public partial struct AiExploreSystem : ISystem, ISystemNewScene
     {
         LatiosWorldUnmanaged latiosWorld;
-        SystemRng            m_systemRng;
 
-        public void OnNewScene(ref SystemState state) => m_systemRng = new SystemRng("AiExploreSystem");
+        public void OnNewScene(ref SystemState state) => state.InitSystemRng("AiExploreSystem");
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -35,7 +34,7 @@ namespace Lsss
             new Job
             {
                 arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius,
-                rng         = m_systemRng.Shuffle(),
+                rng         = state.GetJobRng(),
             }.ScheduleParallel();
         }
 

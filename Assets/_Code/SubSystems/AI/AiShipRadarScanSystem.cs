@@ -97,14 +97,15 @@ namespace Lsss
                                                                                    collisionLayerSettings,
                                                                                    allocator,
                                                                                    out var radarLayer,
+                                                                                   out int radarLayerCount,
                                                                                    rootDependency);
 
-                var scanResultsArray = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(radarLayer.count, allocator, NativeArrayOptions.UninitializedMemory);
+                var scanResultsArray = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(radarLayerCount, allocator, NativeArrayOptions.UninitializedMemory);
                 m_scanResultsArrayListCache.Add(scanResultsArray);
                 scanFriendsProcessor.scanResultsArray = scanResultsArray;
                 scanEnemiesProcessor.scanResultsArray = scanResultsArray;
 
-                jh = new ClearArrayJob { scanResultsArray = scanResultsArray }.Schedule(jh);
+                jh = new ResizeScanResultsJob { scanResultsArray = scanResultsArray }.Schedule(jh);
 
                 var shipLayerA = m_factionsCache[i].layer;
 
@@ -147,7 +148,7 @@ namespace Lsss
         }
 
         [BurstCompile]
-        public struct ClearArrayJob : IJob
+        public struct ResizeScanResultsJob : IJob
         {
             public NativeArray<AiShipRadarScanResults> scanResultsArray;
 
@@ -178,10 +179,11 @@ namespace Lsss
                                           CollisionLayerSettings settings,
                                           Allocator allocator,
                                           out CollisionLayer layer,
+                                          out int count,
                                           JobHandle inputDeps)
         {
             m_radarsQuery.SetSharedComponentFilter(factionMember);
-            int count  = CalculateEntityCountBurst(ref m_radarsQuery);
+            count      = CalculateEntityCountBurst(ref m_radarsQuery);
             var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var jh     = new BuildRadarBodiesJob { bodies = bodies, aabbs = aabbs }.ScheduleParallel(m_radarsQuery, inputDeps);
