@@ -111,7 +111,7 @@ namespace Lsss
 
                 var marker = new Unity.Profiling.ProfilerMarker("Dispatch FindPairs");
                 marker.Begin();
-                jh = Physics.FindPairs(radarLayer, shipLayerA, scanFriendsProcessor).WithCrossCache().ScheduleParallel(jh);
+                jh = Physics.FindPairs(radarLayer, shipLayerA, scanFriendsProcessor).ScheduleParallelByA(jh);
 
                 for (int j = 0; j < factionEntities.Length; j++)
                 {
@@ -120,7 +120,7 @@ namespace Lsss
 
                     var shipLayerB = m_factionsCache[j].layer;
 
-                    jh = Physics.FindPairs(radarLayer, shipLayerB, scanEnemiesProcessor).WithCrossCache().ScheduleParallel(jh);
+                    jh = Physics.FindPairs(radarLayer, shipLayerB, scanEnemiesProcessor).ScheduleParallelByA(jh);
                 }
                 marker.End();
 
@@ -241,7 +241,7 @@ namespace Lsss
             }
         }
 
-        // Assumes A is radar, and B is friendly ship
+        // Assumes A is radar, and B is friendly ship. Safe to schedule by A.
         struct ScanFriendsProcessor : IFindPairsProcessor
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
@@ -271,7 +271,7 @@ namespace Lsss
             }
         }
 
-        // Assumes A is radar, and B is enemy ship
+        // Assumes A is radar, and B is enemy ship. Safe to schedule by A.
         struct ScanEnemiesProcessor : IFindPairsProcessor
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;

@@ -113,26 +113,8 @@ namespace Latios.Psyshock
         {
             public void Init()
             {
-                IJobExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfSingle>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfPart1>();
-                IJobExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfPart2>();
-                IJobForExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfParallelUnsafe>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerSelfWithCrossCacheConfig<T>.FindPairsInternal.LayerSelfPart1>();
-                IJobExtensions.EarlyJobInit<FindPairsLayerSelfWithCrossCacheConfig<T>.FindPairsInternal.LayerSelfPart2>();
-
-                IJobExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerSingle>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerPart1>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerPart2>();
-                IJobForExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerParallelUnsafe>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerLayerWithCrossCacheConfig<T>.FindPairsInternal.LayerLayerPart1>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerLayerWithCrossCacheConfig<T>.FindPairsInternal.LayerLayerPart2>();
-
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                IJobForExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfPart2_WithSafety>();
-                IJobForExtensions.EarlyJobInit<FindPairsLayerSelfWithCrossCacheConfig<T>.FindPairsInternal.LayerSelfPart2_WithSafety>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerPart2_WithSafety>();
-                IJobParallelForExtensions.EarlyJobInit<FindPairsLayerLayerWithCrossCacheConfig<T>.FindPairsInternal.LayerLayerPart2_WithSafety>();
-#endif
+                IJobForExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfJob>();
+                IJobForExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerJob>();
             }
         }
 

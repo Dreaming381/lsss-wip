@@ -108,7 +108,8 @@ namespace Latios.Psyshock
         private int            m_bodyAIndex;
         private int            m_bodyBIndex;
         private int            m_jobIndex;
-        private bool           m_isThreadSafe;
+        private bool           m_isAThreadSafe;
+        private bool           m_isBThreadSafe;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         /// <summary>
@@ -119,7 +120,7 @@ namespace Latios.Psyshock
         {
             entity = new Entity
             {
-                Index   = math.select(-bodyA.entity.Index - 1, bodyA.entity.Index, m_isThreadSafe),
+                Index   = math.select(-bodyA.entity.Index - 1, bodyA.entity.Index, m_isAThreadSafe),
                 Version = bodyA.entity.Version
             }
         };
@@ -131,7 +132,7 @@ namespace Latios.Psyshock
         {
             entity = new Entity
             {
-                Index   = math.select(-bodyB.entity.Index - 1, bodyB.entity.Index, m_isThreadSafe),
+                Index   = math.select(-bodyB.entity.Index - 1, bodyB.entity.Index, m_isBThreadSafe),
                 Version = bodyB.entity.Version
             }
         };
@@ -167,30 +168,38 @@ namespace Latios.Psyshock
             }
         }
 
-        internal FindPairsResult(in CollisionLayer layerA, in CollisionLayer layerB, in BucketSlices bucketA, in BucketSlices bucketB, int jobIndex, bool isThreadSafe)
+        internal FindPairsResult(in CollisionLayer layerA,
+                                 in CollisionLayer layerB,
+                                 in BucketSlices bucketA,
+                                 in BucketSlices bucketB,
+                                 int jobIndex,
+                                 bool isAThreadSafe,
+                                 bool isBThreadSafe)
         {
-            m_layerA       = layerA;
-            m_layerB       = layerB;
-            m_bucketStartA = bucketA.bucketGlobalStart;
-            m_bucketStartB = bucketB.bucketGlobalStart;
-            m_jobIndex     = jobIndex;
-            m_isThreadSafe = isThreadSafe;
-            m_bodyAIndex   = 0;
-            m_bodyBIndex   = 0;
+            m_layerA        = layerA;
+            m_layerB        = layerB;
+            m_bucketStartA  = bucketA.bucketGlobalStart;
+            m_bucketStartB  = bucketB.bucketGlobalStart;
+            m_jobIndex      = jobIndex;
+            m_isAThreadSafe = isAThreadSafe;
+            m_isBThreadSafe = isBThreadSafe;
+            m_bodyAIndex    = 0;
+            m_bodyBIndex    = 0;
         }
 
-        internal static FindPairsResult CreateGlobalResult(in CollisionLayer layerA, in CollisionLayer layerB, int jobIndex, bool isThreadSafe)
+        internal static FindPairsResult CreateGlobalResult(in CollisionLayer layerA, in CollisionLayer layerB, int jobIndex, bool isAThreadSafe, bool isBThreadSafe)
         {
             return new FindPairsResult
             {
-                m_layerA       = layerA,
-                m_layerB       = layerB,
-                m_bucketStartA = 0,
-                m_bucketStartB = 0,
-                m_jobIndex     = jobIndex,
-                m_isThreadSafe = isThreadSafe,
-                m_bodyAIndex   = 0,
-                m_bodyBIndex   = 0,
+                m_layerA        = layerA,
+                m_layerB        = layerB,
+                m_bucketStartA  = 0,
+                m_bucketStartB  = 0,
+                m_jobIndex      = jobIndex,
+                m_isAThreadSafe = isAThreadSafe,
+                m_isBThreadSafe = isBThreadSafe,
+                m_bodyAIndex    = 0,
+                m_bodyBIndex    = 0,
             };
         }
 
@@ -256,7 +265,7 @@ namespace Latios.Psyshock
             {
                 entity = new Entity
                 {
-                    Index   = math.select(-entity.Index - 1, entity.Index, m_isThreadSafe),
+                    Index   = math.select(-entity.Index - 1, entity.Index, m_isAThreadSafe),
                     Version = entity.Version
                 }
             };
@@ -281,7 +290,7 @@ namespace Latios.Psyshock
             {
                 entity = new Entity
                 {
-                    Index   = math.select(-entity.Index - 1, entity.Index, m_isThreadSafe),
+                    Index   = math.select(-entity.Index - 1, entity.Index, m_isAThreadSafe),
                     Version = entity.Version
                 }
             };
@@ -299,18 +308,28 @@ namespace Latios.Psyshock
         private int            m_bucketCountA;
         private int            m_bucketCountB;
         private int            m_jobIndex;
-        private bool           m_isThreadSafe;
+        private bool           m_isAThreadSafe;
+        private bool           m_isBThreadSafe;
 
-        internal FindPairsBucketContext(in CollisionLayer layerA, in CollisionLayer layerB, int startA, int countA, int startB, int countB, int jobIndex, bool isThreadSafe)
+        internal FindPairsBucketContext(in CollisionLayer layerA,
+                                        in CollisionLayer layerB,
+                                        int startA,
+                                        int countA,
+                                        int startB,
+                                        int countB,
+                                        int jobIndex,
+                                        bool isAThreadSafe,
+                                        bool isBThreadSafe)
         {
-            m_layerA       = layerA;
-            m_layerB       = layerB;
-            m_bucketStartA = startA;
-            m_bucketCountA = countA;
-            m_bucketStartB = startB;
-            m_bucketCountB = countB;
-            m_jobIndex     = jobIndex;
-            m_isThreadSafe = isThreadSafe;
+            m_layerA        = layerA;
+            m_layerB        = layerB;
+            m_bucketStartA  = startA;
+            m_bucketCountA  = countA;
+            m_bucketStartB  = startB;
+            m_bucketCountB  = countB;
+            m_jobIndex      = jobIndex;
+            m_isAThreadSafe = isAThreadSafe;
+            m_isBThreadSafe = isBThreadSafe;
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -380,42 +399,8 @@ namespace Latios.Psyshock
         /// Every jobIndex will be less than this value.</returns>
         public static int FindPairsJobIndexCount(in CollisionLayer layerA, in CollisionLayer layerB) => 3 * layerA.bucketCount - 2;
 
-        /// <summary>
-        /// Request a FindPairs broadphase operation to report pairs within the layer.
-        /// This is the start of a fluent expression.
-        /// </summary>
-        /// <param name="layer">The layer in which pairs should be detected</param>
-        /// <param name="processor">The job-like struct which should process each pair found</param>
-        internal static FindPairsLayerSelfConfigUnrolled<T> FindPairsUnrolled<T>(in CollisionLayer layer, in T processor) where T : struct, IFindPairsProcessor
-        {
-            return new FindPairsLayerSelfConfigUnrolled<T>
-            {
-                processor                = processor,
-                layer                    = layer,
-                disableEntityAliasChecks = false
-            };
-        }
-
-        /// <summary>
-        /// Request a FindPairs broadphase operation to report pairs between the two layers.
-        /// Only pairs containing one element from layerA and one element from layerB will be reported.
-        /// This is the start of a fluent expression.
-        /// </summary>
-        /// <param name="layerA">The first layer in which pairs should be detected</param>
-        /// <param name="layerB">The second layer in which pairs should be detected</param>
-        /// <param name="processor">The job-like struct which should process each pair found</param>
-        internal static FindPairsLayerLayerConfigUnrolled<T> FindPairsUnrolled<T>(in CollisionLayer layerA, in CollisionLayer layerB, in T processor) where T : struct,
-        IFindPairsProcessor
-        {
-            CheckLayersAreCompatible(layerA, layerB);
-            return new FindPairsLayerLayerConfigUnrolled<T>
-            {
-                processor                = processor,
-                layerA                   = layerA,
-                layerB                   = layerB,
-                disableEntityAliasChecks = false
-            };
-        }
+        internal static readonly Unity.Profiling.ProfilerMarker kCellMarker  = new Unity.Profiling.ProfilerMarker("Cell");
+        internal static readonly Unity.Profiling.ProfilerMarker kCrossMarker = new Unity.Profiling.ProfilerMarker("Cross");
 
         #region SafetyChecks
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -450,23 +435,6 @@ namespace Latios.Psyshock
             disableEntityAliasChecks = true;
             return this;
         }
-
-        /// <summary>
-        /// Enables usage of a cache for pairs involving the cross bucket.
-        /// This increases processing time and memory usage, but may decrease latency.
-        /// This may only be used with ScheduleParallel().
-        /// </summary>
-        /// <param name="cacheAllocator">The type of allocator to use for the cache</param>
-        public FindPairsLayerSelfWithCrossCacheConfig<T> WithCrossCache(Allocator cacheAllocator = Allocator.TempJob)
-        {
-            return new FindPairsLayerSelfWithCrossCacheConfig<T>
-            {
-                layer                    = layer,
-                disableEntityAliasChecks = disableEntityAliasChecks,
-                processor                = processor,
-                allocator                = cacheAllocator
-            };
-        }
         #endregion
 
         #region Schedulers
@@ -483,11 +451,7 @@ namespace Latios.Psyshock
         /// </summary>
         public void Run()
         {
-            new FindPairsInternal.LayerSelfSingle
-            {
-                layer     = layer,
-                processor = processor
-            }.Run();
+            new FindPairsInternal.LayerSelfJob(in layer, in processor).Run();
         }
 
         /// <summary>
@@ -497,11 +461,7 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleSingle(JobHandle inputDeps = default)
         {
-            return new FindPairsInternal.LayerSelfSingle
-            {
-                layer     = layer,
-                processor = processor
-            }.Schedule(inputDeps);
+            return new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleSingle(inputDeps);
         }
 
         /// <summary>
@@ -511,36 +471,10 @@ namespace Latios.Psyshock
         /// <returns>The final JobHandle for the scheduled jobs</returns>
         public JobHandle ScheduleParallel(JobHandle inputDeps = default)
         {
-            JobHandle jh = new FindPairsInternal.LayerSelfPart1
-            {
-                layer     = layer,
-                processor = processor
-            }.Schedule(layer.bucketCount, 1, inputDeps);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (disableEntityAliasChecks)
-            {
-                jh = new FindPairsInternal.LayerSelfPart2
-                {
-                    layer     = layer,
-                    processor = processor
-                }.Schedule(jh);
-            }
-            else
-            {
-                jh = new FindPairsInternal.LayerSelfPart2_WithSafety
-                {
-                    layer     = layer,
-                    processor = processor
-                }.ScheduleParallel(2, 1, jh);
-            }
-#else
-            jh = new FindPairsInternal.LayerSelfPart2
-            {
-                layer     = layer,
-                processor = processor
-            }.Schedule(jh);
-#endif
-            return jh;
+            var scheduleMode = disableEntityAliasChecks ? ScheduleMode.ParallelPart1AllowEntityAliasing : ScheduleMode.ParallelPart1;
+            var jh           = new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleParallel(inputDeps, scheduleMode);
+            scheduleMode     = disableEntityAliasChecks ? ScheduleMode.ParallelPart2AllowEntityAliasing : ScheduleMode.ParallelPart2;
+            return new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleParallel(jh, scheduleMode);
         }
 
         /// <summary>
@@ -550,82 +484,9 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
         {
-            return new FindPairsInternal.LayerSelfParallelUnsafe
-            {
-                layer     = layer,
-                processor = processor
-            }.ScheduleParallel(2 * layer.bucketCount - 1, 1, inputDeps);
+            return new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleParallel(inputDeps, ScheduleMode.ParallelUnsafe);
         }
         #endregion Schedulers
-    }
-
-    public partial struct FindPairsLayerSelfWithCrossCacheConfig<T>
-    {
-        internal T processor;
-
-        internal CollisionLayer layer;
-
-        internal bool disableEntityAliasChecks;
-
-        internal Allocator allocator;
-
-        #region Settings
-        /// <summary>
-        /// Disables entity aliasing checks on parallel jobs when safety checks are enabled. Use this only when entities can be aliased but body indices must be thread-safe.
-        /// </summary>
-        public FindPairsLayerSelfWithCrossCacheConfig<T> WithoutEntityAliasingChecks()
-        {
-            disableEntityAliasChecks = true;
-            return this;
-        }
-        #endregion
-
-        #region Schedulers
-        /// <summary>
-        /// Run the FindPairs operation using multiple worker threads in multiple phases.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>The final JobHandle for the scheduled jobs</returns>
-        public JobHandle ScheduleParallel(JobHandle inputDeps = default)
-        {
-            var       cache = new NativeStream(layer.bucketCount - 1, allocator);
-            JobHandle jh    = new FindPairsInternal.LayerSelfPart1
-            {
-                layer     = layer,
-                processor = processor,
-                cache     = cache.AsWriter()
-            }.Schedule(2 * layer.bucketCount - 1, 1, inputDeps);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (disableEntityAliasChecks)
-            {
-                jh = new FindPairsInternal.LayerSelfPart2
-                {
-                    layer     = layer,
-                    processor = processor,
-                    cache     = cache.AsReader()
-                }.Schedule(jh);
-            }
-            else
-            {
-                jh = new FindPairsInternal.LayerSelfPart2_WithSafety
-                {
-                    layer     = layer,
-                    processor = processor,
-                    cache     = cache.AsReader()
-                }.ScheduleParallel(2, 1, jh);
-            }
-#else
-            jh = new FindPairsInternal.LayerSelfPart2
-            {
-                layer     = layer,
-                processor = processor,
-                cache     = cache.AsReader()
-            }.Schedule(jh);
-#endif
-            jh = cache.Dispose(jh);
-            return jh;
-        }
-        #endregion
     }
 
     public partial struct FindPairsLayerLayerConfig<T> where T : struct, IFindPairsProcessor
@@ -646,24 +507,6 @@ namespace Latios.Psyshock
             disableEntityAliasChecks = true;
             return this;
         }
-
-        /// <summary>
-        /// Enables usage of a cache for pairs involving the cross bucket.
-        /// This increases processing time and memory usage, but may decrease latency.
-        /// This may only be used with ScheduleParallel().
-        /// </summary>
-        /// <param name="cacheAllocator">The type of allocator to use for the cache</param>
-        public FindPairsLayerLayerWithCrossCacheConfig<T> WithCrossCache(Allocator cacheAllocator = Allocator.TempJob)
-        {
-            return new FindPairsLayerLayerWithCrossCacheConfig<T>
-            {
-                layerA                   = layerA,
-                layerB                   = layerB,
-                disableEntityAliasChecks = disableEntityAliasChecks,
-                processor                = processor,
-                allocator                = cacheAllocator
-            };
-        }
         #endregion
 
         #region Schedulers
@@ -680,12 +523,7 @@ namespace Latios.Psyshock
         /// </summary>
         public void Run()
         {
-            new FindPairsInternal.LayerLayerSingle
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Run();
+            new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).Run();
         }
 
         /// <summary>
@@ -695,12 +533,7 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleSingle(JobHandle inputDeps = default)
         {
-            return new FindPairsInternal.LayerLayerSingle
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Schedule(inputDeps);
+            return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleSingle(inputDeps);
         }
 
         /// <summary>
@@ -710,40 +543,21 @@ namespace Latios.Psyshock
         /// <returns>The final JobHandle for the scheduled jobs</returns>
         public JobHandle ScheduleParallel(JobHandle inputDeps = default)
         {
-            JobHandle jh = new FindPairsInternal.LayerLayerPart1
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Schedule(layerB.bucketCount, 1, inputDeps);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (disableEntityAliasChecks)
-            {
-                jh = new FindPairsInternal.LayerLayerPart2
-                {
-                    layerA    = layerA,
-                    layerB    = layerB,
-                    processor = processor
-                }.Schedule(2, 1, jh);
-            }
-            else
-            {
-                jh = new FindPairsInternal.LayerLayerPart2_WithSafety
-                {
-                    layerA    = layerA,
-                    layerB    = layerB,
-                    processor = processor
-                }.Schedule(3, 1, jh);
-            }
-#else
-            jh = new FindPairsInternal.LayerLayerPart2
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Schedule(2, 1, jh);
-#endif
-            return jh;
+            var scheduleMode = disableEntityAliasChecks ? ScheduleMode.ParallelPart1AllowEntityAliasing : ScheduleMode.ParallelPart1;
+            var jh           = new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, scheduleMode);
+            scheduleMode     = disableEntityAliasChecks ? ScheduleMode.ParallelPart2AllowEntityAliasing : ScheduleMode.ParallelPart2;
+            return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(jh, scheduleMode);
+        }
+
+        /// <summary>
+        /// Run the FindPairs operation using multiple worker threads in a single phase, without safe write access to the second layer.
+        /// </summary>
+        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
+        /// <returns>A JobHandle for the scheduled job</returns>
+        public JobHandle ScheduleParallelByA(JobHandle inputDeps = default)
+        {
+            var scheduleMode = disableEntityAliasChecks ? ScheduleMode.ParallelByAAllowEntityAliasing : ScheduleMode.ParallelByA;
+            return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, scheduleMode);
         }
 
         /// <summary>
@@ -753,313 +567,7 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
         {
-            return new FindPairsInternal.LayerLayerParallelUnsafe
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.ScheduleParallel(3 * layerA.bucketCount - 2, 1, inputDeps);
-        }
-        #endregion Schedulers
-    }
-
-    public partial struct FindPairsLayerLayerWithCrossCacheConfig<T> where T : struct, IFindPairsProcessor
-    {
-        internal T processor;
-
-        internal CollisionLayer layerA;
-        internal CollisionLayer layerB;
-
-        internal bool disableEntityAliasChecks;
-
-        internal Allocator allocator;
-
-        #region Settings
-        /// <summary>
-        /// Disables entity aliasing checks on parallel jobs when safety checks are enabled. Use this only when entities can be aliased but body indices must be thread-safe.
-        /// </summary>
-        public FindPairsLayerLayerWithCrossCacheConfig<T> WithoutEntityAliasingChecks()
-        {
-            disableEntityAliasChecks = true;
-            return this;
-        }
-        #endregion
-
-        #region Schedulers
-        /// <summary>
-        /// Run the FindPairs operation using multiple worker threads in multiple phases.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>The final JobHandle for the scheduled jobs</returns>
-        public JobHandle ScheduleParallel(JobHandle inputDeps = default)
-        {
-            var cache = new NativeStream(layerA.bucketCount * 2 - 2, allocator);
-
-            JobHandle jh = new FindPairsInternal.LayerLayerPart1
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor,
-                cache     = cache.AsWriter()
-            }.Schedule(3 * layerB.bucketCount - 2, 1, inputDeps);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (disableEntityAliasChecks)
-            {
-                jh = new FindPairsInternal.LayerLayerPart2
-                {
-                    layerA    = layerA,
-                    layerB    = layerB,
-                    processor = processor,
-                    cache     = cache.AsReader()
-                }.Schedule(2, 1, jh);
-            }
-            else
-            {
-                jh = new FindPairsInternal.LayerLayerPart2_WithSafety
-                {
-                    layerA    = layerA,
-                    layerB    = layerB,
-                    processor = processor,
-                    cache     = cache.AsReader()
-                }.Schedule(3, 1, jh);
-            }
-#else
-            jh = new FindPairsInternal.LayerLayerPart2
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor,
-                cache     = cache.AsReader()
-            }.Schedule(2, 1, jh);
-#endif
-            jh = cache.Dispose(jh);
-            return jh;
-        }
-        #endregion
-    }
-
-    internal partial struct FindPairsLayerSelfConfigUnrolled<T> where T : struct, IFindPairsProcessor
-    {
-        internal T processor;
-
-        internal CollisionLayer layer;
-
-        internal bool disableEntityAliasChecks;
-
-        #region Settings
-        /// <summary>
-        /// Disables entity aliasing checks on parallel jobs when safety checks are enabled. Use this only when entities can be aliased but body indices must be thread-safe.
-        /// </summary>
-        public FindPairsLayerSelfConfigUnrolled<T> WithoutEntityAliasingChecks()
-        {
-            disableEntityAliasChecks = true;
-            return this;
-        }
-        #endregion
-
-        #region Schedulers
-        /// <summary>
-        /// Run the FindPairs operation without using a job. This method can be invoked from inside a job.
-        /// </summary>
-        public void RunImmediate()
-        {
-            FindPairsInternalUnrolled.RunImmediate(layer, processor);
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation on the main thread using a Bursted job.
-        /// </summary>
-        public void Run()
-        {
-            new FindPairsInternalUnrolled.LayerSelfSingle
-            {
-                layer     = layer,
-                processor = processor
-            }.Run();
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation on a single worker thread.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>A JobHandle for the scheduled job</returns>
-        public JobHandle ScheduleSingle(JobHandle inputDeps = default)
-        {
-            return new FindPairsInternalUnrolled.LayerSelfSingle
-            {
-                layer     = layer,
-                processor = processor
-            }.Schedule(inputDeps);
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation using multiple worker threads in multiple phases.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>The final JobHandle for the scheduled jobs</returns>
-        public JobHandle ScheduleParallel(JobHandle inputDeps = default)
-        {
-            JobHandle jh = new FindPairsInternalUnrolled.LayerSelfPart1
-            {
-                layer     = layer,
-                processor = processor
-            }.Schedule(layer.bucketCount, 1, inputDeps);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (disableEntityAliasChecks)
-            {
-                jh = new FindPairsInternalUnrolled.LayerSelfPart2
-                {
-                    layer     = layer,
-                    processor = processor
-                }.Schedule(jh);
-            }
-            else
-            {
-                jh = new FindPairsInternalUnrolled.LayerSelfPart2_WithSafety
-                {
-                    layer     = layer,
-                    processor = processor
-                }.ScheduleParallel(2, 1, jh);
-            }
-#else
-            jh = new FindPairsInternalUnrolled.LayerSelfPart2
-            {
-                layer     = layer,
-                processor = processor
-            }.Schedule(jh);
-#endif
-            return jh;
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation using multiple worker threads all at once without entity or body index thread-safety.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>A JobHandle for the scheduled job</returns>
-        public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
-        {
-            return new FindPairsInternalUnrolled.LayerSelfParallelUnsafe
-            {
-                layer     = layer,
-                processor = processor
-            }.ScheduleParallel(2 * layer.bucketCount - 1, 1, inputDeps);
-        }
-        #endregion Schedulers
-    }
-
-    internal partial struct FindPairsLayerLayerConfigUnrolled<T> where T : struct, IFindPairsProcessor
-    {
-        internal T processor;
-
-        internal CollisionLayer layerA;
-        internal CollisionLayer layerB;
-
-        internal bool disableEntityAliasChecks;
-
-        #region Settings
-        /// <summary>
-        /// Disables entity aliasing checks on parallel jobs when safety checks are enabled. Use this only when entities can be aliased but body indices must be thread-safe.
-        /// </summary>
-        public FindPairsLayerLayerConfigUnrolled<T> WithoutEntityAliasingChecks()
-        {
-            disableEntityAliasChecks = true;
-            return this;
-        }
-        #endregion
-
-        #region Schedulers
-        /// <summary>
-        /// Run the FindPairs operation without using a job. This method can be invoked from inside a job.
-        /// </summary>
-        public void RunImmediate()
-        {
-            FindPairsInternalUnrolled.RunImmediate(layerA, layerB, processor);
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation on the main thread using a Bursted job.
-        /// </summary>
-        public void Run()
-        {
-            new FindPairsInternalUnrolled.LayerLayerSingle
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Run();
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation on a single worker thread.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>A JobHandle for the scheduled job</returns>
-        public JobHandle ScheduleSingle(JobHandle inputDeps = default)
-        {
-            return new FindPairsInternalUnrolled.LayerLayerSingle
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Schedule(inputDeps);
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation using multiple worker threads in multiple phases.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>The final JobHandle for the scheduled jobs</returns>
-        public JobHandle ScheduleParallel(JobHandle inputDeps = default)
-        {
-            JobHandle jh = new FindPairsInternalUnrolled.LayerLayerPart1
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Schedule(layerB.bucketCount, 1, inputDeps);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (disableEntityAliasChecks)
-            {
-                jh = new FindPairsInternalUnrolled.LayerLayerPart2
-                {
-                    layerA    = layerA,
-                    layerB    = layerB,
-                    processor = processor
-                }.Schedule(2, 1, jh);
-            }
-            else
-            {
-                jh = new FindPairsInternalUnrolled.LayerLayerPart2_WithSafety
-                {
-                    layerA    = layerA,
-                    layerB    = layerB,
-                    processor = processor
-                }.Schedule(3, 1, jh);
-            }
-#else
-            jh = new FindPairsInternalUnrolled.LayerLayerPart2
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.Schedule(2, 1, jh);
-#endif
-            return jh;
-        }
-
-        /// <summary>
-        /// Run the FindPairs operation using multiple worker threads all at once without entity or body index thread-safety.
-        /// </summary>
-        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
-        /// <returns>A JobHandle for the scheduled job</returns>
-        public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
-        {
-            return new FindPairsInternalUnrolled.LayerLayerParallelUnsafe
-            {
-                layerA    = layerA,
-                layerB    = layerB,
-                processor = processor
-            }.ScheduleParallel(3 * layerA.bucketCount - 2, 1, inputDeps);
+            return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, ScheduleMode.ParallelUnsafe);
         }
         #endregion Schedulers
     }

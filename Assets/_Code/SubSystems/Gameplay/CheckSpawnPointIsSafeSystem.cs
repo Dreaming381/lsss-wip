@@ -79,7 +79,7 @@ namespace Lsss
         //Assumes A is SpawnPoint
         struct SpawnPointIsNotSafeProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<SafeToSpawn> safeToSpawnLookup;
 
             public void Execute(in FindPairsResult result)
             {
@@ -90,7 +90,7 @@ namespace Lsss
 
         struct SpawnPointsAreTooCloseProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<SafeToSpawn> safeToSpawnLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<SafeToSpawn> safeToSpawnLookup;
 
             public void Execute(in FindPairsResult result)
             {
