@@ -30,8 +30,7 @@ namespace Lsss.Authoring
                 aiPrefab                = GetEntity(authoring.aiShipPrefab, TransformUsageFlags.None),
                 playerPrefab            = GetEntity(authoring.playerShipPrefab, TransformUsageFlags.None)  // This method handles null correctly
             });
-            AddComponent<FactionTag>(                               entity);
-            AddComponent<FactionShipsCollisionLayer.ExistComponent>(entity);
+            AddComponent<FactionTag>( entity);
         }
     }
 }

@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Diagnostics;
+using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 
 //Todo: FilteredCache playback and inflations
 namespace Latios.Psyshock
@@ -287,14 +289,13 @@ namespace Latios.Psyshock
     {
         internal enum ScheduleMode
         {
-            Single,
-            ParallelPart1,
-            ParallelPart1AllowEntityAliasing,
-            ParallelPart2,
-            ParallelPart2AllowEntityAliasing,
-            ParallelByA,
-            ParallelByAAllowEntityAliasing,
-            ParallelUnsafe
+            Single = 0x0,
+            ParallelPart1 = 0x1,
+            ParallelPart2 = 0x2,
+            ParallelByA = 0x3,
+            ParallelUnsafe = 0x4,
+            UseCrossCache = 0x40,
+            AllowEntityAliasing = 0x80,
         }
 
         internal static class FindPairsInternal
@@ -305,7 +306,8 @@ namespace Latios.Psyshock
                 [ReadOnly] CollisionLayer      layerA;
                 [ReadOnly] CollisionLayer      layerB;
                 T                              processor;
-                ScheduleMode                   scheduleMode;
+                UnsafeIndexedBlockList         blockList;
+                ScheduleMode                   m_scheduleMode;
                 Unity.Profiling.ProfilerMarker modeAndTMarker;
 
                 #region Construction and Scheduling
@@ -314,7 +316,8 @@ namespace Latios.Psyshock
                     this.layerA    = layerA;
                     this.layerB    = layerB;
                     this.processor = processor;
-                    scheduleMode   = default;
+                    blockList      = default;
+                    m_scheduleMode = default;
                     modeAndTMarker = default;
                 }
 
@@ -333,24 +336,43 @@ namespace Latios.Psyshock
                 public JobHandle ScheduleParallel(JobHandle inputDeps, ScheduleMode scheduleMode)
                 {
                     SetScheduleMode(scheduleMode);
-                    if (scheduleMode == ScheduleMode.ParallelPart1 || scheduleMode == ScheduleMode.ParallelPart1AllowEntityAliasing)
+                    scheduleMode = ExtractEnum(scheduleMode, out var useCrossCache, out var allowEntityAliasing);
+
+                    if (scheduleMode == ScheduleMode.ParallelPart1)
+                    {
                         return this.ScheduleParallel(layerA.bucketCount, 1, inputDeps);
+                    }
+                    if (scheduleMode == ScheduleMode.ParallelPart2 && allowEntityAliasing)
+                        return this.ScheduleParallel(2, 1, inputDeps);
                     if (scheduleMode == ScheduleMode.ParallelPart2)
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                         return this.ScheduleParallel(3, 1, inputDeps);
 #else
                         return this.ScheduleParallel(2, 1, inputDeps);
 #endif
-                    if (scheduleMode == ScheduleMode.ParallelPart2AllowEntityAliasing)
-                        return this.ScheduleParallel(2, 1, inputDeps);
                     if (scheduleMode == ScheduleMode.ParallelByA)
+                    {
+                        if (useCrossCache)
+                        {
+                            blockList = new UnsafeIndexedBlockList(8, 1024, layerA.bucketCount - 1, Allocator.TempJob);
+                            inputDeps = new FindPairsParallelByACrossCacheJob { layerA = layerA, layerB = layerB, cache = blockList }.ScheduleParallel(layerA.bucketCount - 1,
+                                                                                                                                                       1,
+                                                                                                                                                       inputDeps);
+                            scheduleMode |= ScheduleMode.UseCrossCache;
+                        }
+
+                        if (allowEntityAliasing)
+                            inputDeps = this.ScheduleParallel(layerA.bucketCount, 1, inputDeps);
+                        else
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-                        return this.ScheduleParallel(layerA.bucketCount + 1, 1, inputDeps);
+                            inputDeps = this.ScheduleParallel(layerA.bucketCount + 1, 1, inputDeps);
 #else
-                        return this.ScheduleParallel(layerA.bucketCount, 1, inputDeps);
+                            inputDeps = this.ScheduleParallel(layerA.bucketCount, 1, inputDeps);
 #endif
-                    if (scheduleMode == ScheduleMode.ParallelByAAllowEntityAliasing)
-                        return this.ScheduleParallel(layerA.bucketCount, 1, inputDeps);
+                        if (useCrossCache)
+                            return blockList.Dispose(inputDeps);
+                        return inputDeps;
+                    }
                     if (scheduleMode == ScheduleMode.ParallelUnsafe)
                         return this.ScheduleParallel(layerA.bucketCount * 3 - 2, 1, inputDeps);
                     return inputDeps;
@@ -358,24 +380,31 @@ namespace Latios.Psyshock
 
                 void SetScheduleMode(ScheduleMode scheduleMode)
                 {
-                    this.scheduleMode             = scheduleMode;
-                    FixedString32Bytes modeString = default;
+                    m_scheduleMode                = scheduleMode;
+                    scheduleMode                  = ExtractEnum(scheduleMode, out var useCrossCache, out var allowEntityAliasing);
+                    FixedString64Bytes modeString = default;
                     if (scheduleMode == ScheduleMode.Single)
                         modeString = "Single";
                     else if (scheduleMode == ScheduleMode.ParallelPart1)
                         modeString = "ParallelPart1";
-                    else if (scheduleMode == ScheduleMode.ParallelPart1AllowEntityAliasing)
-                        modeString = "ParallelPart1_EntityAliasing";
                     else if (scheduleMode == ScheduleMode.ParallelPart2)
                         modeString = "ParallelPart2";
-                    else if (scheduleMode == ScheduleMode.ParallelPart2AllowEntityAliasing)
-                        modeString = "ParallelPart2_EntityAliasing";
                     else if (scheduleMode == ScheduleMode.ParallelByA)
                         modeString = "ParallelByA";
-                    else if (scheduleMode == ScheduleMode.ParallelByAAllowEntityAliasing)
-                        modeString = "ParallelByA_EntityAliasing";
                     else if (scheduleMode == ScheduleMode.ParallelUnsafe)
                         modeString = "ParallelUnsafe";
+
+                    FixedString32Bytes appendString;
+                    if (useCrossCache)
+                    {
+                        appendString = "_CrossCache";
+                        modeString.Append(appendString);
+                    }
+                    if (allowEntityAliasing)
+                    {
+                        appendString = "_EntityAliasing";
+                        modeString.Append(appendString);
+                    }
 
                     bool isBurst = true;
                     IsBurst(ref isBurst);
@@ -391,6 +420,13 @@ namespace Latios.Psyshock
                     }
                 }
 
+                ScheduleMode ExtractEnum(ScheduleMode mode, out bool useCrossCache, out bool allowEntityAliasing)
+                {
+                    allowEntityAliasing = (mode & ScheduleMode.AllowEntityAliasing) == ScheduleMode.AllowEntityAliasing;
+                    useCrossCache       = (mode & ScheduleMode.UseCrossCache) == ScheduleMode.UseCrossCache;
+                    return mode & ~(ScheduleMode.AllowEntityAliasing | ScheduleMode.UseCrossCache);
+                }
+
                 [BurstDiscard]
                 static void IsBurst(ref bool isBurst) => isBurst = false;
 
@@ -404,16 +440,16 @@ namespace Latios.Psyshock
                 #region Job Processing
                 public void Execute(int index)
                 {
-                    using var jobName = modeAndTMarker.Auto();
+                    using var jobName      = modeAndTMarker.Auto();
+                    var       scheduleMode = ExtractEnum(m_scheduleMode, out var useCrossCache, out var allowEntityAliasing);
                     if (scheduleMode == ScheduleMode.Single)
                     {
-                        UnityEngine.Debug.Log("Schedule mode is single");
                         RunImmediate(in layerA, layerB, ref processor, true);
                         return;
                     }
-                    if (scheduleMode == ScheduleMode.ParallelPart1 || scheduleMode == ScheduleMode.ParallelPart1AllowEntityAliasing)
+                    if (scheduleMode == ScheduleMode.ParallelPart1)
                     {
-                        bool isThreadSafe = scheduleMode == ScheduleMode.ParallelPart1;
+                        bool isThreadSafe = !allowEntityAliasing;
                         Physics.kCellMarker.Begin();
                         var bucketA = layerA.GetBucketSlices(index);
                         var bucketB = layerB.GetBucketSlices(index);
@@ -435,7 +471,7 @@ namespace Latios.Psyshock
                         Physics.kCellMarker.End();
                         return;
                     }
-                    if (scheduleMode == ScheduleMode.ParallelPart2 || scheduleMode == ScheduleMode.ParallelPart2AllowEntityAliasing)
+                    if (scheduleMode == ScheduleMode.ParallelPart2)
                     {
                         if (index == 2)
                         {
@@ -443,7 +479,7 @@ namespace Latios.Psyshock
                             return;
                         }
 
-                        bool isThreadSafe = scheduleMode == ScheduleMode.ParallelPart2;
+                        bool isThreadSafe = !allowEntityAliasing;
                         Physics.kCrossMarker.Begin();
                         if (index == 0)
                         {
@@ -496,7 +532,7 @@ namespace Latios.Psyshock
                         Physics.kCrossMarker.End();
                         return;
                     }
-                    if (scheduleMode == ScheduleMode.ParallelByA || scheduleMode == ScheduleMode.ParallelByAAllowEntityAliasing)
+                    if (scheduleMode == ScheduleMode.ParallelByA)
                     {
                         if (index == layerA.bucketCount)
                         {
@@ -504,7 +540,7 @@ namespace Latios.Psyshock
                             return;
                         }
 
-                        bool isThreadSafe = scheduleMode == ScheduleMode.ParallelByA;
+                        bool isThreadSafe = !allowEntityAliasing;
                         Physics.kCellMarker.Begin();
                         var bucketA = layerA.GetBucketSlices(index);
                         var bucketB = layerB.GetBucketSlices(index);
@@ -548,6 +584,39 @@ namespace Latios.Psyshock
                                                                           isThreadSafe,
                                                                           false);
                             processor.EndBucket(in context);
+                        }
+                        else if (useCrossCache)
+                        {
+                            var crossBucket = layerA.GetBucketSlices(layerA.bucketCount - 1);
+                            for (int i = 0; i < layerB.bucketCount - 1; i++)
+                            {
+                                var bucket = layerB.GetBucketSlices(i);
+                                context    = new FindPairsBucketContext(in layerA,
+                                                                        in layerB,
+                                                                        crossBucket.bucketGlobalStart,
+                                                                        crossBucket.count,
+                                                                        bucket.bucketGlobalStart,
+                                                                        bucket.count,
+                                                                        layerA.bucketCount + i,
+                                                                        isThreadSafe,
+                                                                        isThreadSafe);
+                                processor.BeginBucket(in context);
+                                var enumerator = blockList.GetEnumerator(i);
+                                //var tempMarker = new ProfilerMarker($"Cache_{i}");
+                                //tempMarker.Begin();
+                                var count = FindPairsSweepMethods.BipartiteSweepPlayCache(enumerator,
+                                                                                          in layerA,
+                                                                                          in layerB,
+                                                                                          layerA.bucketCount + i,
+                                                                                          ref processor,
+                                                                                          isThreadSafe,
+                                                                                          false);
+                                //tempMarker.End();
+                                processor.EndBucket(in context);
+
+                                //if (count > 0)
+                                //    UnityEngine.Debug.Log($"Bucket cache had count {count}");
+                            }
                         }
                         else
                         {
@@ -731,6 +800,33 @@ namespace Latios.Psyshock
                     processor.EndBucket(in context);
                     jobIndex++;
                 }
+            }
+        }
+    }
+
+    [BurstCompile]
+    internal struct FindPairsParallelByACrossCacheJob : IJobFor
+    {
+        [ReadOnly] public CollisionLayer layerA;
+        [ReadOnly] public CollisionLayer layerB;
+        public UnsafeIndexedBlockList    cache;
+
+        public void Execute(int index)
+        {
+            var a      = layerA.GetBucketSlices(layerA.bucketCount - 1);
+            var b      = layerB.GetBucketSlices(index);
+            var cacher = new Cacher { cache = cache, writeIndex = index };
+            FindPairsSweepMethods.BipartiteSweepCrossCell(in layerA, in layerB, in a, in b, index, ref cacher, false, false);
+        }
+
+        struct Cacher : IFindPairsProcessor
+        {
+            public UnsafeIndexedBlockList cache;
+            public int                    writeIndex;
+
+            public void Execute(in FindPairsResult result)
+            {
+                cache.Write(new int2(result.bodyIndexA, result.bodyIndexB), writeIndex);
             }
         }
     }

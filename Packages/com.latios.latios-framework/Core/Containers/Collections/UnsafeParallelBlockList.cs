@@ -17,14 +17,10 @@ namespace Latios.Unsafe
     /// Alignment is 1 byte aligned so any pointer must use UnsafeUtility.CopyStructureToPtr
     /// and UnsafeUtility.CopyPtrToStructure when operating directly on pointers.
     /// </summary>
+    ///
     public unsafe struct UnsafeParallelBlockList : INativeDisposable
     {
-        public readonly int                      m_elementSize;
-        private readonly int                     m_blockSize;
-        private readonly int                     m_elementsPerBlock;
-        private AllocatorManager.AllocatorHandle m_allocator;
-
-        [NativeDisableUnsafePtrRestriction] private PerThreadBlockList* m_perThreadBlockLists;
+        private UnsafeIndexedBlockList m_blockList;
 
         /// <summary>
         /// Construct a new UnsafeParallelBlockList using a UnityEngine allocator
@@ -37,20 +33,13 @@ namespace Latios.Unsafe
         /// <param name="allocator">The allocator to use for allocations</param>
         public UnsafeParallelBlockList(int elementSize, int elementsPerBlock, AllocatorManager.AllocatorHandle allocator)
         {
-            m_elementSize      = elementSize;
-            m_elementsPerBlock = elementsPerBlock;
-            m_blockSize        = elementSize * elementsPerBlock;
-            m_allocator        = allocator;
-
-            m_perThreadBlockLists = AllocatorManager.Allocate<PerThreadBlockList>(allocator, JobsUtility.MaxJobThreadCount);
-            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
-            {
-                m_perThreadBlockLists[i].lastByteAddressInBlock = null;
-                m_perThreadBlockLists[i].nextWriteAddress       = null;
-                m_perThreadBlockLists[i].nextWriteAddress++;
-                m_perThreadBlockLists[i].elementCount = 0;
-            }
+            m_blockList = new UnsafeIndexedBlockList(elementSize, elementsPerBlock, JobsUtility.MaxJobThreadCount, allocator);
         }
+
+        /// <summary>
+        /// The size of each element as defined when this instance was constructed.
+        /// </summary>
+        public int elementSize => m_blockList.elementSize;
 
         //The thread index is passed in because otherwise job reflection can't inject it through a pointer.
         /// <summary>
@@ -58,10 +47,174 @@ namespace Latios.Unsafe
         /// </summary>
         /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
         /// <param name="value">The value to write</param>
-        /// <param name="threadIndex">The thread index to use when writing. This should come from [NativeSetThreadIndex].</param>
+        /// <param name="threadIndex">The thread index to use when writing. This should come from [NativeSetThreadIndex] or JobsUtility.ThreadIndex.</param>
         public void Write<T>(T value, int threadIndex) where T : unmanaged
         {
-            var blockList = m_perThreadBlockLists + threadIndex;
+            m_blockList.Write(value, threadIndex);
+        }
+
+        /// <summary>
+        /// Reserve memory for an element and return the fixed memory address.
+        /// </summary>
+        /// <param name="threadIndex">The thread index to use when allocating. This should come from [NativeSetThreadIndex] or JobsUtility.ThreadIndex.</param>
+        /// <returns>A pointer where an element can be copied to</returns>
+        public void* Allocate(int threadIndex)
+        {
+            return m_blockList.Allocate(threadIndex);
+        }
+
+        /// <summary>
+        /// Count the number of elements. Do this once and cache the result.
+        /// </summary>
+        /// <returns>The number of elements stored</returns>
+        public int Count()
+        {
+            return m_blockList.Count();
+        }
+
+        /// <summary>
+        /// Returns true if the struct is not in a default uninitialized state.
+        /// This may report true incorrectly if the memory where this instance
+        /// exists was left uninitialized rather than cleared.
+        /// </summary>
+        public bool isCreated => m_blockList.isCreated;
+
+        /// <summary>
+        /// Gets all the pointers for all elements stored.
+        /// This does not actually traverse the memory but instead calculates memory addresses from metadata,
+        /// which is often faster, especially for large elements.
+        /// </summary>
+        /// <param name="ptrs">An array in which the pointers should be stored. Its Length should be equal to Count().</param>
+        public void GetElementPtrs(NativeArray<UnsafeIndexedBlockList.ElementPtr> ptrs)
+        {
+            m_blockList.GetElementPtrs(ptrs);
+        }
+
+        /// <summary>
+        /// Copies all the elements stored into values.
+        /// </summary>
+        /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+        /// <param name="values">An array where the elements should be copied to. Its Length should be equal to Count().</param>
+        public void GetElementValues<T>(NativeArray<T> values) where T : struct
+        {
+            m_blockList.GetElementValues(values);
+        }
+
+        /// <summary>
+        /// Copies all the elements from the blocklists into the contiguous memory region beginning at ptr.
+        /// </summary>
+        /// <param name="dstPtr">The first address of a contiguous memory region large enough to store all values in the blocklists</param>
+        public void CopyElementsRaw(void* dstPtr)
+        {
+            m_blockList.CopyElementsRaw(dstPtr);
+        }
+
+        /// <summary>
+        /// Uses a job to dispose this container
+        /// </summary>
+        /// <param name="inputDeps">A JobHandle for all jobs which should finish before disposal.</param>
+        /// <returns>A JobHandle for the disposal job.</returns>
+        public JobHandle Dispose(JobHandle inputDeps)
+        {
+            return m_blockList.Dispose(inputDeps);
+        }
+
+        /// <summary>
+        /// Disposes the container immediately. It is legal to call this from within a job,
+        /// as long as no other jobs or threads are using it.
+        /// </summary>
+        public void Dispose()
+        {
+            m_blockList.Dispose();
+        }
+
+        /// <summary>
+        /// Gets an enumerator for one of the thread indices in the job.
+        /// </summary>
+        /// <param name="nativeThreadIndex">
+        /// The thread index that was used when the elements were written.
+        /// This does not have to be the thread index of the reader.
+        /// In fact, you usually want to iterate through all threads.
+        /// </param>
+        /// <returns></returns>
+        public UnsafeIndexedBlockList.Enumerator GetEnumerator(int nativeThreadIndex)
+        {
+            return m_blockList.GetEnumerator(nativeThreadIndex);
+        }
+
+        /// <summary>
+        /// Gets an enumerator for all thread indices
+        /// </summary>
+        public UnsafeIndexedBlockList.AllIndicesEnumerator GetEnumerator()
+        {
+            return m_blockList.GetEnumerator();
+        }
+    }
+
+    public unsafe struct UnsafeIndexedBlockList : INativeDisposable
+    {
+        [NativeDisableUnsafePtrRestriction] private PerIndexBlockList* m_perIndexBlockList;
+
+        private readonly int                     m_elementSize;
+        private readonly int                     m_blockSize;
+        private readonly int                     m_elementsPerBlock;
+        private readonly int                     m_indexCount;
+        private AllocatorManager.AllocatorHandle m_allocator;
+
+        /// <summary>
+        /// Construct a new UnsafeIndexedBlockList using a UnityEngine allocator
+        /// </summary>
+        /// <param name="elementSize">The size of each element in bytes that will be stored</param>
+        /// <param name="elementsPerBlock">
+        /// The number of elements stored per native thread index before needing to perform an additional allocation.
+        /// Higher values may allocate more memory that is left unused. Lower values may perform more allocations.
+        /// </param>
+        /// <param name="indexCount">The number of stream indicecs in the block list.</param>
+        /// <param name="allocator">The allocator to use for allocations</param>
+        public UnsafeIndexedBlockList(int elementSize, int elementsPerBlock, int indexCount, AllocatorManager.AllocatorHandle allocator)
+        {
+            m_elementSize      = elementSize;
+            m_elementsPerBlock = elementsPerBlock;
+            m_blockSize        = elementSize * elementsPerBlock;
+            m_indexCount       = indexCount;
+            m_allocator        = allocator;
+
+            m_perIndexBlockList = AllocatorManager.Allocate<PerIndexBlockList>(allocator, m_indexCount);
+            for (int i = 0; i < m_indexCount; i++)
+            {
+                m_perIndexBlockList[i].lastByteAddressInBlock = null;
+                m_perIndexBlockList[i].nextWriteAddress       = null;
+                m_perIndexBlockList[i].nextWriteAddress++;
+                m_perIndexBlockList[i].elementCount = 0;
+            }
+        }
+
+        /// <summary>
+        /// The size of each element as defined when this instance was constructed.
+        /// </summary>
+        public int elementSize => m_elementSize;
+
+        /// <summary>
+        /// The number of index streams in this instance.
+        /// </summary>
+        public int indexCount => m_indexCount;
+
+        /// <summary>
+        /// Returns true if the struct is not in a default uninitialized state.
+        /// This may report true incorrectly if the memory where this instance
+        /// exists was left uninitialized rather than cleared.
+        /// </summary>
+        public bool isCreated => m_perIndexBlockList != null;
+
+        /// <summary>
+        /// Write an element for a given index
+        /// </summary>
+        /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+        /// <param name="value">The value to write</param>
+        /// <param name="index">The index to use when writing.</param>
+        public void Write<T>(T value, int index) where T : unmanaged
+        {
+            var blockList = m_perIndexBlockList + index;
             if (blockList->nextWriteAddress > blockList->lastByteAddressInBlock)
             {
                 if (blockList->elementCount == 0)
@@ -85,11 +238,11 @@ namespace Latios.Unsafe
         /// <summary>
         /// Reserve memory for an element and return the fixed memory address.
         /// </summary>
-        /// <param name="threadIndex">The thread index to use when allocating. This should come from [NativeSetThreadIndex].</param>
+        /// <param name="index">The index to use when allocating.</param>
         /// <returns>A pointer where an element can be copied to</returns>
-        public void* Allocate(int threadIndex)
+        public void* Allocate(int index)
         {
-            var blockList = m_perThreadBlockLists + threadIndex;
+            var blockList = m_perIndexBlockList + index;
             if (blockList->nextWriteAddress > blockList->lastByteAddressInBlock)
             {
                 if (blockList->elementCount == 0)
@@ -112,25 +265,18 @@ namespace Latios.Unsafe
         }
 
         /// <summary>
-        /// Count the number of elements. Do this once and cache the result.
+        /// Count the total number of elements across all indices. Do this once and cache the result.
         /// </summary>
         /// <returns>The number of elements stored</returns>
         public int Count()
         {
             int result = 0;
-            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+            for (int i = 0; i < m_indexCount; i++)
             {
-                result += m_perThreadBlockLists[i].elementCount;
+                result += m_perIndexBlockList[i].elementCount;
             }
             return result;
         }
-
-        /// <summary>
-        /// Returns true if the struct is not in a default uninitialized state.
-        /// This may report true incorrectly if the memory where this instance
-        /// exists was left uninitialized rather than cleared.
-        /// </summary>
-        public bool isCreated => m_perThreadBlockLists != null;
 
         /// <summary>
         /// A pointer to an element stored
@@ -150,9 +296,9 @@ namespace Latios.Unsafe
         {
             int dst = 0;
 
-            for (int threadBlockId = 0; threadBlockId < JobsUtility.MaxJobThreadCount; threadBlockId++)
+            for (int threadBlockId = 0; threadBlockId < m_indexCount; threadBlockId++)
             {
-                var blockList = m_perThreadBlockLists + threadBlockId;
+                var blockList = m_perIndexBlockList + threadBlockId;
                 if (blockList->elementCount > 0)
                 {
                     int src = 0;
@@ -190,9 +336,9 @@ namespace Latios.Unsafe
         {
             int dst = 0;
 
-            for (int threadBlockId = 0; threadBlockId < JobsUtility.MaxJobThreadCount; threadBlockId++)
+            for (int threadBlockId = 0; threadBlockId < m_indexCount; threadBlockId++)
             {
-                var blockList = m_perThreadBlockLists + threadBlockId;
+                var blockList = m_perIndexBlockList + threadBlockId;
                 if (blockList->elementCount > 0)
                 {
                     int src = 0;
@@ -232,9 +378,9 @@ namespace Latios.Unsafe
         {
             byte* dst = (byte*)dstPtr;
 
-            for (int threadBlockId = 0; threadBlockId < JobsUtility.MaxJobThreadCount; threadBlockId++)
+            for (int threadBlockId = 0; threadBlockId < m_indexCount; threadBlockId++)
             {
-                var blockList = m_perThreadBlockLists + threadBlockId;
+                var blockList = m_perIndexBlockList + threadBlockId;
                 if (blockList->elementCount > 0)
                 {
                     int src = 0;
@@ -269,11 +415,11 @@ namespace Latios.Unsafe
         [BurstCompile]
         struct DisposeJob : IJob
         {
-            public UnsafeParallelBlockList upbl;
+            public UnsafeIndexedBlockList uibl;
 
             public void Execute()
             {
-                upbl.Dispose();
+                uibl.Dispose();
             }
         }
 
@@ -284,8 +430,8 @@ namespace Latios.Unsafe
         /// <returns>A JobHandle for the disposal job.</returns>
         public JobHandle Dispose(JobHandle inputDeps)
         {
-            var jh = new DisposeJob { upbl = this }.Schedule(inputDeps);
-            m_perThreadBlockLists          = null;
+            var jh = new DisposeJob { uibl = this }.Schedule(inputDeps);
+            m_perIndexBlockList            = null;
             return jh;
         }
 
@@ -295,19 +441,19 @@ namespace Latios.Unsafe
         /// </summary>
         public void Dispose()
         {
-            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+            for (int i = 0; i < m_indexCount; i++)
             {
-                if (m_perThreadBlockLists[i].elementCount > 0)
+                if (m_perIndexBlockList[i].elementCount > 0)
                 {
-                    for (int j = 0; j < m_perThreadBlockLists[i].blocks.Length; j++)
+                    for (int j = 0; j < m_perIndexBlockList[i].blocks.Length; j++)
                     {
-                        var block = m_perThreadBlockLists[i].blocks[j];
+                        var block = m_perIndexBlockList[i].blocks[j];
                         AllocatorManager.Free(m_allocator, block.ptr, m_blockSize);
                     }
-                    m_perThreadBlockLists[i].blocks.Dispose();
+                    m_perIndexBlockList[i].blocks.Dispose();
                 }
             }
-            AllocatorManager.Free(m_allocator, m_perThreadBlockLists, JobsUtility.MaxJobThreadCount);
+            AllocatorManager.Free(m_allocator, m_perIndexBlockList, m_indexCount);
         }
 
         private struct BlockPtr
@@ -316,7 +462,7 @@ namespace Latios.Unsafe
         }
 
         [StructLayout(LayoutKind.Sequential, Size = 64)]
-        private struct PerThreadBlockList
+        private struct PerIndexBlockList
         {
             public UnsafeList<BlockPtr> blocks;
             public byte*                nextWriteAddress;
@@ -325,35 +471,32 @@ namespace Latios.Unsafe
         }
 
         /// <summary>
-        /// Gets an enumerator for one of the thread indices in the job.
+        /// Gets an enumerator for one of the indices in the job.
         /// </summary>
-        /// <param name="nativeThreadIndex">
-        /// The thread index that was used when the elements were written.
-        /// This does not have to be the thread index of the reader.
-        /// In fact, you usually want to iterate through all threads.
+        /// <param name="index">
+        /// The index that was used when the elements were written.
         /// </param>
-        /// <returns></returns>
-        public Enumerator GetEnumerator(int nativeThreadIndex)
+        public Enumerator GetEnumerator(int index)
         {
-            return new Enumerator(m_perThreadBlockLists + nativeThreadIndex, m_elementSize, m_elementsPerBlock);
+            return new Enumerator(m_perIndexBlockList + index, m_elementSize, m_elementsPerBlock);
         }
 
         /// <summary>
-        /// An enumerator which can be used for iterating over the elements written by a single thread index.
+        /// An enumerator which can be used for iterating over the elements written by a single index.
         /// It is allowed to have multiple enumerators for the same thread index.
         /// </summary>
         public struct Enumerator
         {
-            private PerThreadBlockList* m_perThreadBlockList;
-            private byte*               m_readAddress;
-            private byte*               m_lastByteAddressInBlock;
-            private int                 m_blockIndex;
-            private int                 m_elementSize;
-            private int                 m_elementsPerBlock;
+            private PerIndexBlockList* m_perThreadBlockList;
+            private byte*              m_readAddress;
+            private byte*              m_lastByteAddressInBlock;
+            private int                m_blockIndex;
+            private int                m_elementSize;
+            private int                m_elementsPerBlock;
 
             internal Enumerator(void* perThreadBlockList, int elementSize, int elementsPerBlock)
             {
-                m_perThreadBlockList = (PerThreadBlockList*)perThreadBlockList;
+                m_perThreadBlockList = (PerIndexBlockList*)perThreadBlockList;
                 m_readAddress        = null;
                 m_readAddress++;
                 m_lastByteAddressInBlock = null;
@@ -394,40 +537,57 @@ namespace Latios.Unsafe
                 return t;
             }
 
-            internal Enumerator GetNextThreadEnumerator()
+            internal Enumerator GetNextIndexEnumerator()
             {
                 return new Enumerator(m_perThreadBlockList + 1, m_elementSize, m_elementsPerBlock);
             }
         }
 
-        public AllThreadsEnumerator GetEnumerator()
+        /// <summary>
+        /// Gets an enumerator for all indices.
+        /// </summary>
+        public AllIndicesEnumerator GetEnumerator()
         {
-            return new AllThreadsEnumerator(new Enumerator(m_perThreadBlockLists, m_elementSize, m_elementsPerBlock));
+            return new AllIndicesEnumerator(new Enumerator(m_perIndexBlockList, m_elementSize, m_elementsPerBlock), m_indexCount);
         }
 
-        public struct AllThreadsEnumerator
+        /// <summary>
+        /// An enumerator which can be used for iterating over the elements written by all indices.
+        /// </summary>
+        public struct AllIndicesEnumerator
         {
             Enumerator m_enumerator;
-            int        m_threadIndex;
+            int        m_index;
+            int        m_indexCount;
 
-            internal AllThreadsEnumerator(Enumerator thread0Enumerator)
+            internal AllIndicesEnumerator(Enumerator thread0Enumerator, int indexCount)
             {
-                m_enumerator  = thread0Enumerator;
-                m_threadIndex = 0;
+                m_enumerator = thread0Enumerator;
+                m_index      = 0;
+                m_indexCount = indexCount;
             }
 
+            /// <summary>
+            /// Advance to the next element
+            /// </summary>
+            /// <returns>Returns false if the previous element was the last, true otherwise</returns>
             public bool MoveNext()
             {
                 while (!m_enumerator.MoveNext())
                 {
-                    m_threadIndex++;
-                    if (m_threadIndex >= JobsUtility.MaxJobThreadCount)
+                    m_index++;
+                    if (m_index >= m_indexCount)
                         return false;
-                    m_enumerator = m_enumerator.GetNextThreadEnumerator();
+                    m_enumerator = m_enumerator.GetNextIndexEnumerator();
                 }
                 return true;
             }
 
+            /// <summary>
+            /// Retrieves the current element, copying it to a variable of the specified type.
+            /// </summary>
+            /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+            /// <returns>A value containing a copy of the element stored, reinterpreted with the strong type</returns>
             public T GetCurrent<T>() where T : struct => m_enumerator.GetCurrent<T>();
         }
     }

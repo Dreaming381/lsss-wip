@@ -32,6 +32,7 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var shipLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
             var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
@@ -50,12 +51,7 @@ namespace Lsss
                 frameId                   = m_frameId
             };
 
-            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
-            foreach (var entity in factionEntities)
-            {
-                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                state.Dependency = Physics.FindPairs(bulletLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
-            }
+            state.Dependency = Physics.FindPairs(bulletLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
 
             m_frameId++;
         }

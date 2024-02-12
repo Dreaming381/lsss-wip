@@ -1,6 +1,8 @@
 ﻿using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -62,12 +64,9 @@ namespace Lsss
             var wormholeLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             state.Dependency  = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
-            foreach (var entity in factionEntities)
-            {
-                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                state.Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallelUnsafe(state.Dependency);
-            }
+            var shipLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+
+            state.Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallelUnsafe(state.Dependency);
         }
 
         [BurstCompile]
@@ -156,12 +155,8 @@ namespace Lsss
             queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
-            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
-            foreach (var entity in factionEntities)
-            {
-                queryJob.otherLayer = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
-            }
+            queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
             //state.Dependency = new LogPreBulletsCandidatesJob { hitArray = hits }.Schedule(state.Dependency);
 

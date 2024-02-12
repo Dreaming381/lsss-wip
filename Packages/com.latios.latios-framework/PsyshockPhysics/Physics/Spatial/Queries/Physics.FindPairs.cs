@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using Latios.Transforms;
+using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -415,6 +416,18 @@ namespace Latios.Psyshock
 #endif
             }
         }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        internal static void WarnEntityAliasingUnchecked()
+        {
+            UnityEngine.Debug.LogWarning("IgnoreEntityAliasing is unchecked for this schedule mode.");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        internal static void WarnCrossCacheUnused()
+        {
+            UnityEngine.Debug.LogWarning("Cross-caching is unsupported for this schedule mode at this time. The setting is being ignored.");
+        }
         #endregion
     }
 
@@ -425,6 +438,7 @@ namespace Latios.Psyshock
         internal CollisionLayer layer;
 
         internal bool disableEntityAliasChecks;
+        internal bool useCrossCache;
 
         #region Settings
         /// <summary>
@@ -443,6 +457,14 @@ namespace Latios.Psyshock
         /// </summary>
         public void RunImmediate()
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             FindPairsInternal.RunImmediate(layer, ref processor, false);
         }
 
@@ -451,6 +473,14 @@ namespace Latios.Psyshock
         /// </summary>
         public void Run()
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             new FindPairsInternal.LayerSelfJob(in layer, in processor).Run();
         }
 
@@ -461,6 +491,14 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleSingle(JobHandle inputDeps = default)
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             return new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleSingle(inputDeps);
         }
 
@@ -471,6 +509,10 @@ namespace Latios.Psyshock
         /// <returns>The final JobHandle for the scheduled jobs</returns>
         public JobHandle ScheduleParallel(JobHandle inputDeps = default)
         {
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             var scheduleMode = disableEntityAliasChecks ? ScheduleMode.ParallelPart1AllowEntityAliasing : ScheduleMode.ParallelPart1;
             var jh           = new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleParallel(inputDeps, scheduleMode);
             scheduleMode     = disableEntityAliasChecks ? ScheduleMode.ParallelPart2AllowEntityAliasing : ScheduleMode.ParallelPart2;
@@ -484,6 +526,14 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             return new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleParallel(inputDeps, ScheduleMode.ParallelUnsafe);
         }
         #endregion Schedulers
@@ -497,6 +547,7 @@ namespace Latios.Psyshock
         internal CollisionLayer layerB;
 
         internal bool disableEntityAliasChecks;
+        internal bool useCrossCache;
 
         #region Settings
         /// <summary>
@@ -507,6 +558,16 @@ namespace Latios.Psyshock
             disableEntityAliasChecks = true;
             return this;
         }
+
+        /// <summary>
+        /// Enables a cross-cache to increase parallelism and reduce latency at the cost of some extra overhead for allocations and cached writing and reading.
+        /// Currently, this is only supported when using ScheduleParallelByA().
+        /// </summary>
+        public FindPairsLayerLayerConfig<T> WithCrossCache()
+        {
+            useCrossCache = true;
+            return this;
+        }
         #endregion
 
         #region Schedulers
@@ -515,6 +576,14 @@ namespace Latios.Psyshock
         /// </summary>
         public void RunImmediate()
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             FindPairsInternal.RunImmediate(in layerA, in layerB, ref processor, false);
         }
 
@@ -523,6 +592,14 @@ namespace Latios.Psyshock
         /// </summary>
         public void Run()
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).Run();
         }
 
@@ -533,6 +610,14 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleSingle(JobHandle inputDeps = default)
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleSingle(inputDeps);
         }
 
@@ -543,9 +628,17 @@ namespace Latios.Psyshock
         /// <returns>The final JobHandle for the scheduled jobs</returns>
         public JobHandle ScheduleParallel(JobHandle inputDeps = default)
         {
-            var scheduleMode = disableEntityAliasChecks ? ScheduleMode.ParallelPart1AllowEntityAliasing : ScheduleMode.ParallelPart1;
-            var jh           = new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, scheduleMode);
-            scheduleMode     = disableEntityAliasChecks ? ScheduleMode.ParallelPart2AllowEntityAliasing : ScheduleMode.ParallelPart2;
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
+            var scheduleMode = ScheduleMode.ParallelPart1;
+            if (disableEntityAliasChecks)
+                scheduleMode |= ScheduleMode.AllowEntityAliasing;
+            var jh            = new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, scheduleMode);
+            scheduleMode      = ScheduleMode.ParallelPart2;
+            if (disableEntityAliasChecks)
+                scheduleMode |= ScheduleMode.AllowEntityAliasing;
             return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(jh, scheduleMode);
         }
 
@@ -556,7 +649,11 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleParallelByA(JobHandle inputDeps = default)
         {
-            var scheduleMode = disableEntityAliasChecks ? ScheduleMode.ParallelByAAllowEntityAliasing : ScheduleMode.ParallelByA;
+            var scheduleMode = ScheduleMode.ParallelByA;
+            if (disableEntityAliasChecks)
+                scheduleMode |= ScheduleMode.AllowEntityAliasing;
+            if (useCrossCache)
+                scheduleMode |= ScheduleMode.UseCrossCache;
             return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, scheduleMode);
         }
 
@@ -567,6 +664,14 @@ namespace Latios.Psyshock
         /// <returns>A JobHandle for the scheduled job</returns>
         public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
         {
+            if (disableEntityAliasChecks)
+            {
+                Physics.WarnEntityAliasingUnchecked();
+            }
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
             return new FindPairsInternal.LayerLayerJob(in layerA, in layerB, in processor).ScheduleParallel(inputDeps, ScheduleMode.ParallelUnsafe);
         }
         #endregion Schedulers

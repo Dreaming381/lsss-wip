@@ -33,13 +33,6 @@ namespace Lsss
         public EntityWith<Prefab> playerPrefab;
     }
 
-    public partial struct FactionShipsCollisionLayer : ICollectionComponent
-    {
-        public CollisionLayer layer;
-
-        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
-    }
-
     public struct FactionMember : ISharedComponentData
     {
         public EntityWith<Faction> factionEntity;
@@ -53,6 +46,13 @@ namespace Lsss
     }
 
     public struct ShipTag : IComponentData { }
+
+    public partial struct ShipsCollisionLayer : ICollectionComponent
+    {
+        public CollisionLayer layer;
+
+        public JobHandle TryDispose(JobHandle inputDeps) => layer.IsCreated ? layer.Dispose(inputDeps) : inputDeps;
+    }
 
     //Todo: Blob this if chunk utilization gets low
     public struct ShipSpeedStats : IComponentData

@@ -124,6 +124,31 @@ namespace Latios.Psyshock
         {
             BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isAThreadSafe, isBThreadSafe);
         }
+
+        public static int BipartiteSweepPlayCache<T>(UnsafeIndexedBlockList.Enumerator enumerator,
+                                                     in CollisionLayer layerA,
+                                                     in CollisionLayer layerB,
+                                                     int jobIndex,
+                                                     ref T processor,
+                                                     bool isAThreadSafe,
+                                                     bool isBThreadSafe) where T : struct, IFindPairsProcessor
+        {
+            if (!enumerator.MoveNext())
+                return 0;
+
+            var result = FindPairsResult.CreateGlobalResult(in layerA, in layerB, jobIndex, isAThreadSafe, isBThreadSafe);
+            int count  = 0;
+
+            do
+            {
+                var indices = enumerator.GetCurrent<int2>();
+                result.SetBucketRelativePairIndices(indices.x, indices.y);
+                processor.Execute(in result);
+                count++;
+            }
+            while (enumerator.MoveNext());
+            return count;
+        }
         #endregion
 
         #region Utilities
@@ -467,12 +492,12 @@ namespace Latios.Psyshock
                 }
             }
 
-            //Check for a starting in b's x range
+            // Check for a starting in b's x range
             int astart = 0;
             for (int i = 0; i < crossCount; i++)
             {
-                //Advance to a.xmin > b.xmin
-                //Exclude equals case this time by continuing if equal
+                // Advance to a.xmin > b.xmin
+                // Exclude equals case this time by continuing if equal
                 while (astart < countA && bucketA.xmins[astart] <= crossXMins[i])
                     astart++;
                 if (astart >= countA)
@@ -551,23 +576,18 @@ namespace Latios.Psyshock
                 {
                     if (math.bitmask(current < bucketB.yzminmaxs[j]) == 0)
                     {
-                        //if (crossIndices[i] < 0 || crossIndices[i] > countA)
-                        //{
-                        //    UnityEngine.Debug.Log($"cross indices bad. i = {i}, crossIndices[i] = {crossIndices[i]}, crossCount = {crossCount}, countA = {countA}");
-                        //    return;
-                        //}
                         result.SetBucketRelativePairIndices(crossIndices[i], j);
                         processor.Execute(in result);
                     }
                 }
             }
 
-            //Check for a starting in b's x range
+            // Check for a starting in b's x range
             int astart = 0;
             for (int i = 0; i < countB; i++)
             {
-                //Advance to a.xmin > b.xmin
-                //Exclude equals case this time by continuing if equal
+                // Advance to a.xmin > b.xmin
+                // Exclude equals case this time by continuing if equal
                 while (astart < crossCount && crossXMins[astart] <= bucketB.xmins[i])
                     astart++;
                 if (astart >= crossCount)
@@ -579,11 +599,6 @@ namespace Latios.Psyshock
                 {
                     if (math.bitmask(current < crossYzMinMaxs[j]) == 0)
                     {
-                        //if (crossIndices[j] < 0 || crossIndices[j] > countA)
-                        //{
-                        //    UnityEngine.Debug.Log($"cross indices bad. j = {j}, crossIndices[i] = {crossIndices[j]}, crossCount = {crossCount}, countA = {countA}");
-                        //    return;
-                        //}
                         result.SetBucketRelativePairIndices(crossIndices[j], i);
                         processor.Execute(in result);
                     }

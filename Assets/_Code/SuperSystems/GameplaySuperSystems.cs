@@ -39,7 +39,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddUnmanagedSystem<BuildFactionShipsCollisionLayersSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BuildShipsCollisionLayersSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildBulletsCollisionLayerSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildExplosionsCollisionLayerSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildWallsCollisionLayerSystem>();

@@ -22,13 +22,9 @@ namespace Lsss
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var shipLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
             var wallLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var processor = new DamageHitShipsProcessor
@@ -37,12 +33,7 @@ namespace Lsss
                 shipHealthLookup = GetComponentLookup<ShipHealth>(),
             };
 
-            var factionEntities = QueryBuilder().WithAll<Faction, FactionTag>().Build().ToEntityArray(Allocator.Temp);
-            foreach (var entity in factionEntities)
-            {
-                var shipLayer    = latiosWorld.GetCollectionComponent<FactionShipsCollisionLayer>(entity, true).layer;
-                state.Dependency = Physics.FindPairs(wallLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
-            }
+            state.Dependency = Physics.FindPairs(wallLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
         }
 
         //Assumes A is wall and B is ship.
