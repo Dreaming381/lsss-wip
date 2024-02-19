@@ -389,7 +389,7 @@ namespace InternalSourceGen
         public NativeList<AABB>  batchedAabbs;
         public NativeList<AABB>  allAabbsPreOffset;
         public NativeList<float> meshOffsets;
-        public const int         kCountPerBatch = 1 << 32;  // Todo: Is there a better size?
+        public const int         kCountPerBatch = 32;  // Todo: Is there a better size?
 
         public JobHandle TryDispose(JobHandle inputDeps)
         {
