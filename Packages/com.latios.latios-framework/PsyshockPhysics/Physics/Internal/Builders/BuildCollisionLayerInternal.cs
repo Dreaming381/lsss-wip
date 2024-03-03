@@ -622,6 +622,7 @@ namespace Latios.Psyshock
             var p4 = new Part4Job
             {
                 bucketStartAndCounts = layer.bucketStartsAndCounts.AsArray(),
+                trees                = layer.intervalTrees.AsArray(),
                 unsortedSrcIndices   = layer.srcIndices.AsArray(),
                 xMinMaxs             = xMinMaxs
             };
@@ -666,6 +667,7 @@ namespace Latios.Psyshock
             var p4 = new Part4Job
             {
                 bucketStartAndCounts = layer.bucketStartsAndCounts.AsArray(),
+                trees                = layer.intervalTrees.AsArray(),
                 unsortedSrcIndices   = layer.srcIndices.AsArray(),
                 xMinMaxs             = xMinMaxs
             };
