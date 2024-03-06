@@ -42,6 +42,8 @@ namespace Latios.Psyshock
             float3 cross    = math.cross(v, dir);
             perpendicularB  = cross * invLength;
         }
+
+        public static float cproduct(float3 v) => v.x * v.y * v.z;
     }
 }
 
