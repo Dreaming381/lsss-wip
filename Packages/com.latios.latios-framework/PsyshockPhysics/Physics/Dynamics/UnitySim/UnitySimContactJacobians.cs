@@ -8,18 +8,6 @@ namespace Latios.Psyshock
 {
     public static partial class UnitySim
     {
-        public struct Velocity
-        {
-            public float3 linear;
-            public float3 angular;
-        }
-
-        public struct Mass
-        {
-            public float  inverseMass;
-            public float3 inverseInertia;
-        }
-
         /// <summary>   A contact jacobian angular. </summary>
         public struct ContactJacobianAngular
         {
@@ -99,22 +87,23 @@ namespace Latios.Psyshock
         public const float kMaxPenetrationVelocityDynamicStatic  = float.MaxValue;
         public const float kMaxPenetrationVelocityDynamicDynamic = 3f;
 
-        // Notes: In Unity Physics, centerOfMassWorldTransformA/B is identity if the body is static.
+        // Notes: In Unity Physics, inertialPoseWorldTransformA/B is identity if the body is static.
         // perContactParameters can be uninitialized.
         // gravityAgainstContactNormal uses the magnitude of global gravity. Would a dot product with the contact normal be more appropriate?
         public static void BuildJacobian(Span<ContactJacobianContactParameters> perContactParameters, out ContactJacobianBodyParameters bodyParameters,
-                                         RigidTransform centerOfMassWorldTransformA, in Velocity velocityA, in Mass massA,
-                                         RigidTransform centerOfMassWorldTransformB, in Velocity velocityB, in Mass massB,
+                                         RigidTransform inertialPoseWorldTransformA, in Velocity velocityA, in Mass massA,
+                                         RigidTransform inertialPoseWorldTransformB, in Velocity velocityB, in Mass massB,
                                          float3 contactNormal, ReadOnlySpan<ContactsBetweenResult.ContactOnB> contacts,
-                                         float coefficientOfRestitution, float maxDepenetrationVelocity, float gravityAgainstContactNormal,
+                                         float coefficientOfRestitution, float coefficientOfFriction,
+                                         float maxDepenetrationVelocity, float gravityAgainstContactNormal,
                                          float deltaTime, float inverseDeltaTime)
         {
             CheckContactAndJacobianSpanLengthsEqual(perContactParameters.Length, contacts.Length);
 
             var    negContactRestingVelocity = -gravityAgainstContactNormal * deltaTime;
             var    sumInverseMasses          = massA.inverseMass + massB.inverseMass;
-            var    inverseRotationA          = math.conjugate(centerOfMassWorldTransformA.rot);
-            var    inverseRotationB          = math.conjugate(centerOfMassWorldTransformB.rot);
+            var    inverseRotationA          = math.conjugate(inertialPoseWorldTransformA.rot);
+            var    inverseRotationB          = math.conjugate(inertialPoseWorldTransformB.rot);
             float3 centerA                   = 0f;
             float3 centerB                   = 0f;
 
@@ -129,8 +118,8 @@ namespace Latios.Psyshock
                 var     contact    = contacts[i];
                 float3  pointOnB   = contact.location;
                 float3  pointOnA   = contact.location + contactNormal * contact.distanceToA;
-                float3  armA       = pointOnA - centerOfMassWorldTransformA.pos;
-                float3  armB       = pointOnB - centerOfMassWorldTransformB.pos;
+                float3  armA       = pointOnA - inertialPoseWorldTransformA.pos;
+                float3  armB       = pointOnB - inertialPoseWorldTransformB.pos;
                 BuildJacobianAngular(inverseRotationA, inverseRotationB, contactNormal, armA, armB, massA.inverseInertia, massB.inverseInertia, sumInverseMasses,
                                      out jacAngular.jacobianAngular.angularA, out jacAngular.jacobianAngular.angularB, out float invEffectiveMass);
                 jacAngular.jacobianAngular.effectiveMass = 1.0f / invEffectiveMass;
@@ -192,7 +181,9 @@ namespace Latios.Psyshock
             // Build friction jacobians
             {
                 // Clear accumulated impulse
-                bodyParameters = default;
+                bodyParameters                       = default;
+                bodyParameters.coefficientOfFriction = coefficientOfFriction;
+                bodyParameters.contactNormal         = contactNormal;
 
                 // Calculate average position
                 float invNumContacts  = math.rcp(contacts.Length);
@@ -201,6 +192,8 @@ namespace Latios.Psyshock
 
                 // Choose friction axes
                 mathex.GetDualPerpendicularNormalized(contactNormal, out float3 frictionDir0, out float3 frictionDir1);
+                bodyParameters.frictionDirection0 = frictionDir0;
+                bodyParameters.frictionDirection1 = frictionDir1;
 
                 // Build linear jacobian
                 float invEffectiveMass0, invEffectiveMass1;

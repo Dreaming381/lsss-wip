@@ -371,7 +371,14 @@ namespace Latios.Psyshock.Authoring.Systems
                     runningCount               += fibvsac[vertexIndex].count;
                 }
 
-                blobRoot.localAabb = aabb;
+                if (convexHullBuilder.hullMassProperties.volume == 0f)
+                    convexHullBuilder.UpdateHullMassProperties();
+
+                blobRoot.localAabb     = aabb;
+                blobRoot.centerOfMass  = convexHullBuilder.hullMassProperties.centerOfMass;
+                blobRoot.inertiaTensor = convexHullBuilder.hullMassProperties.inertiaTensor;
+                mathex.DiagonalizeSymmetricApproximation(blobRoot.inertiaTensor, out var inertiaTensorOrientation, out blobRoot.unscaledInertiaTensorDiagonal);
+                blobRoot.unscaledInertiaTensorOrientation = new quaternion(inertiaTensorOrientation);
 
                 var fibv       = builder.Allocate(ref blobRoot.faceIndicesByVertex, runningCount);
                 var fibvCounts = new NativeArray<byte>(vertices.Length, Allocator.Temp, NativeArrayOptions.ClearMemory);

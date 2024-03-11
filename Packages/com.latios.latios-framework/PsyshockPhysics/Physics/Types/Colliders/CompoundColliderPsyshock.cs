@@ -155,6 +155,11 @@ namespace Latios.Psyshock
         /// </summary>
         public Aabb localAabb;
 
+        public float3     centerOfMass;
+        public float3x3   inertiaTensor;
+        public quaternion unscaledInertiaTensorOrientation;
+        public float3     unscaledInertiaTensorDiagonal;
+
         /// <summary>
         /// The array of subcolliders
         /// </summary>
