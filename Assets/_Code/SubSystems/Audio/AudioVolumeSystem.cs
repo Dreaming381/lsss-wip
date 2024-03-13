@@ -28,7 +28,7 @@ namespace Lsss
             var volumes = latiosWorld.worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
 
             foreach (var listener in SystemAPI.Query<RefRW<AudioListener> >())
-                listener.ValueRW.volume = volumes.sfxVolume;
+                listener.ValueRW.volume = volumes.sfxVolume * 0.5f; // Myri used to have a bug where everything would play at half volume.
 
             //Todo: Music
         }

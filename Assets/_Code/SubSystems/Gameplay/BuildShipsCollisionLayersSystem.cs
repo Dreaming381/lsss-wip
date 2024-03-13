@@ -35,7 +35,11 @@ namespace Lsss
         {
             m_typeHandles.Update(ref state);
 
-            var settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            CollisionLayerSettings settings;
+            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            else
+                settings = BuildCollisionLayerConfig.defaultSettings;
 
             state.Dependency = Physics.BuildCollisionLayer(m_query, in m_typeHandles).WithSettings(settings)
                                .ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);

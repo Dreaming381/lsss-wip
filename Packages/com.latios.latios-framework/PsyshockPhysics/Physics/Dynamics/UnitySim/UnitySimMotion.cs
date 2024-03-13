@@ -40,11 +40,13 @@ namespace Latios.Psyshock
                 return aabb;
             }
 
+            // Dynamic vs static
             public static float GetMaxDistance(in MotionExpansion motionExpansion)
             {
                 return math.length(motionExpansion.uniformXlinearYzw.yzw) + motionExpansion.uniformXlinearYzw.x + 0.05f;
             }
 
+            // Dynamic vs dynamic
             public static float GetMaxDistance(in MotionExpansion motionExpansionA, in MotionExpansion motionExpansionB)
             {
                 var tempB        = motionExpansionB.uniformXlinearYzw;
@@ -90,15 +92,14 @@ namespace Latios.Psyshock
             };
         }
 
-        public static void ApplyWorldTransformFromInertialPoses(ref TransformQvvs worldTransform,
-                                                                in RigidTransform inertialPoseWorldTransform,
-                                                                quaternion localTensorOrientation,
-                                                                float3 localCenterOfMassUnscaled)
+        public static TransformQvvs ApplyWorldTransformFromInertialPoses(in TransformQvvs oldWorldTransform,
+                                                                         in RigidTransform inertialPoseWorldTransform,
+                                                                         quaternion localTensorOrientation,
+                                                                         float3 localCenterOfMassUnscaled)
         {
-            var localInertial       = new RigidTransform(localTensorOrientation, localCenterOfMassUnscaled * worldTransform.stretch * worldTransform.scale);
-            var newWorldTransform   = math.mul(inertialPoseWorldTransform, math.inverse(localInertial));
-            worldTransform.position = newWorldTransform.pos;
-            worldTransform.rotation = newWorldTransform.rot;
+            var localInertial     = new RigidTransform(localTensorOrientation, localCenterOfMassUnscaled * oldWorldTransform.stretch * oldWorldTransform.scale);
+            var newWorldTransform = math.mul(inertialPoseWorldTransform, math.inverse(localInertial));
+            return new TransformQvvs(newWorldTransform.pos, newWorldTransform.rot, oldWorldTransform.scale, oldWorldTransform.stretch, oldWorldTransform.worldIndex);
         }
     }
 }
