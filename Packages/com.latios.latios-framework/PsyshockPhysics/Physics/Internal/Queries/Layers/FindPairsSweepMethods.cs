@@ -128,6 +128,8 @@ namespace Latios.Psyshock
         public static int BipartiteSweepPlayCache<T>(UnsafeIndexedBlockList.Enumerator enumerator,
                                                      in CollisionLayer layerA,
                                                      in CollisionLayer layerB,
+                                                     int bucketIndexA,
+                                                     int bucketIndexB,
                                                      int jobIndex,
                                                      ref T processor,
                                                      bool isAThreadSafe,
@@ -136,7 +138,7 @@ namespace Latios.Psyshock
             if (!enumerator.MoveNext())
                 return 0;
 
-            var result = FindPairsResult.CreateGlobalResult(in layerA, in layerB, jobIndex, isAThreadSafe, isBThreadSafe);
+            var result = FindPairsResult.CreateGlobalResult(in layerA, in layerB, bucketIndexA, bucketIndexB, jobIndex, isAThreadSafe, isBThreadSafe);
             int count  = 0;
 
             do

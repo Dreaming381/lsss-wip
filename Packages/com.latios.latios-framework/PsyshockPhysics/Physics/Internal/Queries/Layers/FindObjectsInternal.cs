@@ -6,6 +6,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine.Scripting;
 
 //Todo: Stream types, single schedulers, scratchlists, and inflations
 namespace Latios.Psyshock
@@ -25,6 +26,12 @@ namespace Latios.Psyshock
                 public void Execute()
                 {
                     LayerQuerySweepMethods.AabbSweep(in aabb, in layer, ref processor);
+                }
+
+                [Preserve]
+                void RequireEarlyJobInit()
+                {
+                    IJobExtensions.EarlyJobInit<Single>();
                 }
             }
             #endregion

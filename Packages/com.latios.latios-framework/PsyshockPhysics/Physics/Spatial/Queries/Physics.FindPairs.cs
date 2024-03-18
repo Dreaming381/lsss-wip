@@ -24,8 +24,11 @@ namespace Latios.Psyshock
         /// An optional callback prior to processing a bucket (single layer) or bucket combination (two layers).
         /// Each invocation of this callback will have a different jobIndex.
         /// </summary>
-        void BeginBucket(in FindPairsBucketContext context)
+        /// <returns>Returns true if the Execute() and EndBucket() methods should be called. Otherwise, further
+        /// processing of the bucket is skipped.</returns>
+        bool BeginBucket(in FindPairsBucketContext context)
         {
+            return true;
         }
         /// <summary>
         /// An optional callback following processing a bucket (single layer) or bucket combination (two layers).
@@ -102,15 +105,57 @@ namespace Latios.Psyshock
         /// </summary>
         public int jobIndex => m_jobIndex;
 
-        private CollisionLayer m_layerA;
-        private CollisionLayer m_layerB;
-        private int            m_bucketStartA;
-        private int            m_bucketStartB;
-        private int            m_bodyAIndex;
-        private int            m_bodyBIndex;
-        private int            m_jobIndex;
-        private bool           m_isAThreadSafe;
-        private bool           m_isBThreadSafe;
+        /// <summary>
+        /// The Aabb of the first collider in the pair
+        /// </summary>
+        public Aabb aabbA
+        {
+            get
+            {
+                var yzminmax = m_layerA.yzminmaxs[m_bodyAIndex];
+                var xmin     = m_layerA.xmins[m_bodyAIndex];
+                var xmax     = m_layerA.xmaxs[m_bodyAIndex];
+                return new Aabb(new float3(xmin, yzminmax.xy), new float3(xmax, -yzminmax.zw));
+            }
+        }
+
+        /// <summary>
+        /// The Aabb of the second collider in the pair
+        /// </summary>
+        public Aabb aabbB
+        {
+            get
+            {
+                var yzminmax = m_layerB.yzminmaxs[m_bodyBIndex];
+                var xmin     = m_layerB.xmins[m_bodyBIndex];
+                var xmax     = m_layerB.xmaxs[m_bodyBIndex];
+                return new Aabb(new float3(xmin, yzminmax.xy), new float3(xmax, -yzminmax.zw));
+            }
+        }
+
+        /// <summary>
+        /// A key that can be used in a PairStream.ParallelWriter
+        /// </summary>
+        public PairStream.ParallelWriteKey pairStreamKey
+        {
+            get
+            {
+                int factor = 1;
+                if (jobIndex >= layerA.bucketCount)
+                    factor++;
+                if (jobIndex >= 2 * layerA.bucketCount - 1)
+                    factor++;
+                return new PairStream.ParallelWriteKey
+                {
+                    entityA             = bodyA.entity,
+                    entityB             = bodyB.entity,
+                    streamIndexA        = m_bucketIndexA * factor,
+                    streamIndexB        = m_bucketIndexB * factor,
+                    streamIndexCombined = 2 * layerA.bucketCount + jobIndex,
+                    expectedBucketCount = layerA.bucketCount
+                };
+            }
+        }
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         /// <summary>
@@ -142,32 +187,17 @@ namespace Latios.Psyshock
         public SafeEntity entityB => new SafeEntity { entity = bodyB.entity };
 #endif
 
-        /// <summary>
-        /// The Aabb of the first collider in the pair
-        /// </summary>
-        public Aabb aabbA
-        {
-            get {
-                var yzminmax = m_layerA.yzminmaxs[m_bodyAIndex];
-                var xmin     = m_layerA.xmins[    m_bodyAIndex];
-                var xmax     = m_layerA.xmaxs[    m_bodyAIndex];
-                return new Aabb(new float3(xmin, yzminmax.xy), new float3(xmax, -yzminmax.zw));
-            }
-        }
-
-        /// <summary>
-        /// The Aabb of the second collider in the pair
-        /// </summary>
-        public Aabb aabbB
-        {
-            get
-            {
-                var yzminmax = m_layerB.yzminmaxs[m_bodyBIndex];
-                var xmin     = m_layerB.xmins[    m_bodyBIndex];
-                var xmax     = m_layerB.xmaxs[    m_bodyBIndex];
-                return new Aabb(new float3(xmin, yzminmax.xy), new float3(xmax, -yzminmax.zw));
-            }
-        }
+        private CollisionLayer m_layerA;
+        private CollisionLayer m_layerB;
+        private int            m_bucketStartA;
+        private int            m_bucketStartB;
+        private int            m_bodyAIndex;
+        private int            m_bodyBIndex;
+        private int            m_bucketIndexA;
+        private int            m_bucketIndexB;
+        private int            m_jobIndex;
+        private bool           m_isAThreadSafe;
+        private bool           m_isBThreadSafe;
 
         internal FindPairsResult(in CollisionLayer layerA,
                                  in CollisionLayer layerB,
@@ -181,6 +211,8 @@ namespace Latios.Psyshock
             m_layerB        = layerB;
             m_bucketStartA  = bucketA.bucketGlobalStart;
             m_bucketStartB  = bucketB.bucketGlobalStart;
+            m_bucketIndexA  = bucketA.bucketIndex;
+            m_bucketIndexB  = bucketB.bucketIndex;
             m_jobIndex      = jobIndex;
             m_isAThreadSafe = isAThreadSafe;
             m_isBThreadSafe = isBThreadSafe;
@@ -188,7 +220,13 @@ namespace Latios.Psyshock
             m_bodyBIndex    = 0;
         }
 
-        internal static FindPairsResult CreateGlobalResult(in CollisionLayer layerA, in CollisionLayer layerB, int jobIndex, bool isAThreadSafe, bool isBThreadSafe)
+        internal static FindPairsResult CreateGlobalResult(in CollisionLayer layerA,
+                                                           in CollisionLayer layerB,
+                                                           int bucketIndexA,
+                                                           int bucketIndexB,
+                                                           int jobIndex,
+                                                           bool isAThreadSafe,
+                                                           bool isBThreadSafe)
         {
             return new FindPairsResult
             {
@@ -196,6 +234,8 @@ namespace Latios.Psyshock
                 m_layerB        = layerB,
                 m_bucketStartA  = 0,
                 m_bucketStartB  = 0,
+                m_bucketIndexA  = bucketIndexA,
+                m_bucketIndexB  = bucketIndexB,
                 m_jobIndex      = jobIndex,
                 m_isAThreadSafe = isAThreadSafe,
                 m_isBThreadSafe = isBThreadSafe,
@@ -253,6 +293,30 @@ namespace Latios.Psyshock
         public int jobIndex => m_jobIndex;
 
         /// <summary>
+        /// A key that can be used in a PairStream.ParallelWriter
+        /// </summary>
+        public PairStream.ParallelWriteKey CreatePairStreamKey(int aIndex, int bIndex)
+        {
+            CheckSafeEntityInRange(aIndex, bucketStartA, bucketCountA);
+            CheckSafeEntityInRange(bIndex, bucketStartB, bucketCountB);
+
+            int factor = 1;
+            if (jobIndex >= layerA.bucketCount)
+                factor++;
+            if (jobIndex >= 2 * layerA.bucketCount - 1)
+                factor++;
+            return new PairStream.ParallelWriteKey
+            {
+                entityA             = layerA.bodies[aIndex].entity,
+                entityB             = layerB.bodies[bIndex].entity,
+                streamIndexA        = m_bucketIndexA * factor,
+                streamIndexB        = m_bucketIndexB * factor,
+                streamIndexCombined = 2 * layerA.bucketCount + jobIndex,
+                expectedBucketCount = layerA.bucketCount
+            };
+        }
+
+        /// <summary>
         /// Obtains a safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
         /// owning entity of the first collider in any pair in this bucket for layerA. It can also be implicitly casted and used as a normal
         /// entity reference.
@@ -308,26 +372,28 @@ namespace Latios.Psyshock
         private int            m_bucketStartB;
         private int            m_bucketCountA;
         private int            m_bucketCountB;
+        private int            m_bucketIndexA;
+        private int            m_bucketIndexB;
         private int            m_jobIndex;
         private bool           m_isAThreadSafe;
         private bool           m_isBThreadSafe;
 
         internal FindPairsBucketContext(in CollisionLayer layerA,
                                         in CollisionLayer layerB,
-                                        int startA,
-                                        int countA,
-                                        int startB,
-                                        int countB,
+                                        in BucketSlices bucketA,
+                                        in BucketSlices bucketB,
                                         int jobIndex,
                                         bool isAThreadSafe,
                                         bool isBThreadSafe)
         {
             m_layerA        = layerA;
             m_layerB        = layerB;
-            m_bucketStartA  = startA;
-            m_bucketCountA  = countA;
-            m_bucketStartB  = startB;
-            m_bucketCountB  = countB;
+            m_bucketStartA  = bucketA.bucketGlobalStart;
+            m_bucketCountA  = bucketA.count;
+            m_bucketIndexA  = bucketA.bucketIndex;
+            m_bucketStartB  = bucketB.bucketGlobalStart;
+            m_bucketCountB  = bucketB.count;
+            m_bucketIndexB  = bucketB.bucketIndex;
             m_jobIndex      = jobIndex;
             m_isAThreadSafe = isAThreadSafe;
             m_isBThreadSafe = isBThreadSafe;

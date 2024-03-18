@@ -22,7 +22,7 @@ namespace Latios.Myri
         /// </summary>
         public int lookaheadAudioFrames;
         /// <summary>
-        /// If listenerEnabled, warnings will be logged when the audio thread runs out of samples to process.
+        /// If enabled, warnings will be logged when the audio thread runs out of samples to process.
         /// </summary>
         public bool logWarningIfBuffersAreStarved;
     }

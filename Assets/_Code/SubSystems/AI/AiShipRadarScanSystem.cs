@@ -220,12 +220,13 @@ namespace Lsss
 
             int radarFactionIndex;
 
-            public void BeginBucket(in FindPairsBucketContext context)
+            public bool BeginBucket(in FindPairsBucketContext context)
             {
                 if (context.bucketCountA == 0 || context.bucketCountB == 0)
-                    return;
+                    return false;
                 var radar         = context.layerA.colliderBodies[context.bucketStartA].entity;
                 radarFactionIndex = entityStorageInfoLookup[radar].Chunk.GetSharedComponentIndex(ref factionMemberHandle);
+                return true;
             }
 
             public void Execute(in FindPairsResult result)

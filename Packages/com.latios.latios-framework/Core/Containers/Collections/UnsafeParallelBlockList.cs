@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -14,10 +15,8 @@ namespace Latios.Unsafe
     /// Items written in the same thread in the same job will be read back in the same order.
     /// This container is type-erased, but all elements are expected to be of the same size.
     /// Unlike Unity's Unsafe* containers, it is safe to copy this type by value.
-    /// Alignment is 1 byte aligned so any pointer must use UnsafeUtility.CopyStructureToPtr
-    /// and UnsafeUtility.CopyPtrToStructure when operating directly on pointers.
+    /// Alignment is guaranteed to be the greatest common factor of the element size and 16.
     /// </summary>
-    ///
     public unsafe struct UnsafeParallelBlockList : INativeDisposable
     {
         private UnsafeIndexedBlockList m_blockList;
@@ -182,6 +181,7 @@ namespace Latios.Unsafe
             m_perIndexBlockList = AllocatorManager.Allocate<PerIndexBlockList>(allocator, m_indexCount);
             for (int i = 0; i < m_indexCount; i++)
             {
+                m_perIndexBlockList[i].blocks                 = default;
                 m_perIndexBlockList[i].lastByteAddressInBlock = null;
                 m_perIndexBlockList[i].nextWriteAddress       = null;
                 m_perIndexBlockList[i].nextWriteAddress++;
@@ -217,7 +217,7 @@ namespace Latios.Unsafe
             var blockList = m_perIndexBlockList + index;
             if (blockList->nextWriteAddress > blockList->lastByteAddressInBlock)
             {
-                if (blockList->elementCount == 0)
+                if (!blockList->blocks.IsCreated)
                 {
                     blockList->blocks = new UnsafeList<BlockPtr>(8, m_allocator);
                 }
@@ -225,6 +225,7 @@ namespace Latios.Unsafe
                 {
                     ptr = AllocatorManager.Allocate<byte>(m_allocator, m_blockSize)
                 };
+                UnityEngine.Debug.Assert(CollectionHelper.IsAligned(newBlockPtr.ptr, 16));
                 blockList->nextWriteAddress       = newBlockPtr.ptr;
                 blockList->lastByteAddressInBlock = newBlockPtr.ptr + m_blockSize - 1;
                 blockList->blocks.Add(newBlockPtr);
@@ -245,7 +246,7 @@ namespace Latios.Unsafe
             var blockList = m_perIndexBlockList + index;
             if (blockList->nextWriteAddress > blockList->lastByteAddressInBlock)
             {
-                if (blockList->elementCount == 0)
+                if (!blockList->blocks.IsCreated)
                 {
                     blockList->blocks = new UnsafeList<BlockPtr>(8, m_allocator);
                 }
@@ -253,6 +254,7 @@ namespace Latios.Unsafe
                 {
                     ptr = AllocatorManager.Allocate<byte>(m_allocator, m_blockSize),
                 };
+                UnityEngine.Debug.Assert(CollectionHelper.IsAligned(newBlockPtr.ptr, 16));
                 blockList->nextWriteAddress       = newBlockPtr.ptr;
                 blockList->lastByteAddressInBlock = newBlockPtr.ptr + m_blockSize - 1;
                 blockList->blocks.Add(newBlockPtr);
@@ -331,7 +333,6 @@ namespace Latios.Unsafe
         /// </summary>
         /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
         /// <param name="values">An array where the elements should be copied to. Its Length should be equal to Count().</param>
-        [Unity.Burst.CompilerServices.IgnoreWarning(1371)]
         public void GetElementValues<T>(NativeArray<T> values) where T : struct
         {
             int dst = 0;
@@ -373,7 +374,6 @@ namespace Latios.Unsafe
         /// Copies all the elements from the blocklists into the contiguous memory region beginning at ptr.
         /// </summary>
         /// <param name="dstPtr">The first address of a contiguous memory region large enough to store all values in the blocklists</param>
-        [Unity.Burst.CompilerServices.IgnoreWarning(1371)]
         public void CopyElementsRaw(void* dstPtr)
         {
             byte* dst = (byte*)dstPtr;
@@ -401,8 +401,113 @@ namespace Latios.Unsafe
             }
         }
 
+        /// <summary>
+        /// Steals elements from the other UnsafeIndexedBlockList with the same block sizes and allocator and
+        /// adds them to this instance at the same indices. Relative ordering of elements and memory addresses
+        /// in the other UnsafeIndexedBlockList may not be preserved.
+        /// </summary>
+        /// <param name="other">The other UnsafeIndexedBlockList to steal from</param>
+        public void ConcatenateAndStealFromUnordered(ref UnsafeIndexedBlockList other)
+        {
+            CheckBlockListsMatch(ref other);
+            for (int threadBlockId = 0; threadBlockId < m_indexCount; threadBlockId++)
+            {
+                var blockList      = m_perIndexBlockList + threadBlockId;
+                var otherBlockList = other.m_perIndexBlockList + threadBlockId;
+
+                ConcatenateBlockList(blockList, otherBlockList, m_allocator);
+            }
+        }
+
+        /// <summary>
+        /// Moves elements from one index into another. Relative ordering of elements and memory addresses
+        /// from the source index may not be preserved.
+        /// </summary>
+        /// <param name="sourceIndex">The index where elements should be moved away from</param>
+        /// <param name="destinationIndex">The index where elements should be moved to</param>
+        public void MoveIndexToOtherIndexUnordered(int sourceIndex, int destinationIndex)
+        {
+            ConcatenateBlockList(m_perIndexBlockList + destinationIndex, m_perIndexBlockList + sourceIndex, m_allocator);
+        }
+
+        /// <summary>
+        /// Removes all elements from an index
+        /// </summary>
+        /// <param name="index"></param>
+        public void ClearIndex(int index)
+        {
+            var blockList = m_perIndexBlockList + index;
+            if (blockList->blocks.IsCreated)
+            {
+                foreach (var block in blockList->blocks)
+                {
+                    AllocatorManager.Free(m_allocator, block.ptr, m_blockSize);
+                }
+
+                blockList->blocks.Clear();
+                blockList->elementCount           = 0;
+                blockList->lastByteAddressInBlock = null;
+                blockList->nextWriteAddress       = null;
+                blockList->nextWriteAddress++;
+            }
+        }
+
+        void ConcatenateBlockList(PerIndexBlockList* blockList, PerIndexBlockList* otherBlockList, AllocatorManager.AllocatorHandle otherAllocator)
+        {
+            if (otherBlockList->elementCount == 0)
+                return;
+
+            if (blockList->elementCount == 0)
+            {
+                (*blockList, *otherBlockList) = (*otherBlockList, *blockList);
+                return;
+            }
+
+            var elementsInLastBlock        = blockList->elementCount % m_elementsPerBlock;
+            var elementsStillNeededInBlock = math.select(m_elementsPerBlock - elementsInLastBlock, 0, elementsInLastBlock == 0);
+            var elementsInOtherLastBlock   = otherBlockList->elementCount % m_elementsPerBlock;
+            if (elementsInOtherLastBlock <= elementsStillNeededInBlock)
+            {
+                var otherBlock    = otherBlockList->blocks[otherBlockList->blocks.Length - 1];
+                var src           = otherBlock.ptr;
+                var blockToAppend = blockList->blocks[blockList->blocks.Length - 1];
+                var dst           = blockToAppend.ptr + elementsInLastBlock * m_elementSize;
+                UnsafeUtility.MemCpy(dst, src, elementsInOtherLastBlock * m_elementSize);
+                AllocatorManager.Free(otherAllocator, otherBlock.ptr, m_blockSize);
+                elementsStillNeededInBlock -= elementsInOtherLastBlock;
+                otherBlockList->blocks.Length--;
+                blockList->nextWriteAddress += elementsInOtherLastBlock * m_elementSize;
+                elementsInOtherLastBlock     = math.select(m_elementsPerBlock, 0, otherBlockList->blocks.Length == 0);
+            }
+            if (elementsInOtherLastBlock > elementsStillNeededInBlock)
+            {
+                var indexToStealFrom = elementsInOtherLastBlock - elementsStillNeededInBlock;
+                var otherBlock       = otherBlockList->blocks[otherBlockList->blocks.Length - 1];
+                var src              = otherBlock.ptr + indexToStealFrom * m_elementSize;
+                var blockToAppend    = blockList->blocks[blockList->blocks.Length - 1];
+                var dst              = blockToAppend.ptr + elementsInLastBlock * m_elementSize;
+                if (elementsStillNeededInBlock > 0)
+                    UnsafeUtility.MemCpy(dst, src, elementsStillNeededInBlock * m_elementSize);
+                otherBlockList->nextWriteAddress       = src;
+                otherBlockList->lastByteAddressInBlock = otherBlock.ptr + m_blockSize - 1;
+            }
+            if (otherBlockList->blocks.Length > 0)
+            {
+                blockList->blocks.AddRange(otherBlockList->blocks);
+                blockList->nextWriteAddress       = otherBlockList->nextWriteAddress;
+                blockList->lastByteAddressInBlock = otherBlockList->lastByteAddressInBlock;
+            }
+            blockList->elementCount += otherBlockList->elementCount;
+
+            otherBlockList->blocks.Clear();
+            otherBlockList->elementCount           = 0;
+            otherBlockList->lastByteAddressInBlock = null;
+            otherBlockList->nextWriteAddress       = null;
+            otherBlockList->nextWriteAddress++;
+        }
+
         //This catches race conditions if I accidentally pass in 0 for thread index in the parallel writer because copy and paste.
-        [BurstDiscard]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckBlockCountMatchesCount(int count, int blockCount)
         {
             int expectedBlocks = count / m_elementsPerBlock;
@@ -410,6 +515,13 @@ namespace Latios.Unsafe
                 expectedBlocks++;
             if (blockCount != expectedBlocks)
                 throw new System.InvalidOperationException($"Block count: {blockCount} does not match element count: {count}");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckBlockListsMatch(ref UnsafeIndexedBlockList other)
+        {
+            if (m_blockSize != other.m_blockSize || m_elementSize != other.m_elementSize || m_indexCount != other.m_indexCount || m_allocator != other.m_allocator)
+                throw new System.InvalidOperationException("UnsafeIndexedBlockLists do not match.");
         }
 
         [BurstCompile]
@@ -531,10 +643,20 @@ namespace Latios.Unsafe
             /// </summary>
             /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
             /// <returns>A value containing a copy of the element stored, reinterpreted with the strong type</returns>
-            public T GetCurrent<T>() where T : struct
+            public T GetCurrent<T>() where T : unmanaged
             {
                 UnsafeUtility.CopyPtrToStructure(m_readAddress, out T t);
                 return t;
+            }
+
+            /// <summary>
+            /// Retrieves the current element by ref of the specified type.
+            /// </summary>
+            /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+            /// <returns>A ref of the element stored, reinterpreted with the strong type</returns>
+            public ref T GetCurrentAsRef<T>() where T : unmanaged
+            {
+                return ref UnsafeUtility.AsRef<T>(m_readAddress);
             }
 
             internal Enumerator GetNextIndexEnumerator()
@@ -588,7 +710,14 @@ namespace Latios.Unsafe
             /// </summary>
             /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
             /// <returns>A value containing a copy of the element stored, reinterpreted with the strong type</returns>
-            public T GetCurrent<T>() where T : struct => m_enumerator.GetCurrent<T>();
+            public T GetCurrent<T>() where T : unmanaged => m_enumerator.GetCurrent<T>();
+
+            /// <summary>
+            /// Retrieves the current element by ref of the specified type.
+            /// </summary>
+            /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
+            /// <returns>A ref of the element stored, reinterpreted with the strong type</returns>
+            public ref T GetCurrentAsRef<T>() where T : unmanaged => ref m_enumerator.GetCurrentAsRef<T>();
         }
     }
 
