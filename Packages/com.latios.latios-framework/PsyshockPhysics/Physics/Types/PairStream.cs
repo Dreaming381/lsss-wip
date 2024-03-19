@@ -114,7 +114,7 @@ namespace Latios.Psyshock
         #endregion
 
         #region Public API
-        public ref T AddPairAndGetRef<T>(Entity entityA, int bucketA, bool aIsRW, Entity entityB, int bucketB, bool bIsRW, out PairAllocator pairAllocator) where T : unmanaged
+        public ref T AddPairAndGetRef<T>(Entity entityA, int bucketA, bool aIsRW, Entity entityB, int bucketB, bool bIsRW, out Pair pair) where T : unmanaged
         {
             var root = AddPairImpl(entityA,
                                    bucketA,
@@ -126,15 +126,38 @@ namespace Latios.Psyshock
                                    UnsafeUtility.AlignOf<T>(),
                                    BurstRuntime.GetHashCode32<T>(),
                                    false,
-                                   out pairAllocator);
-            pairAllocator.header->rootPtr = root;
+                                   out pair);
+            pair.header->rootPtr = root;
             return ref UnsafeUtility.AsRef<T>(root);
         }
 
-        public void* AddPairRaw(Entity entityA, int bucketA, bool aIsRW, Entity entityB, int bucketB, bool bIsRW, int sizeInBytes, int alignInBytes,
-                                out PairAllocator pairAllocator)
+        public void* AddPairRaw(Entity entityA, int bucketA, bool aIsRW, Entity entityB, int bucketB, bool bIsRW, int sizeInBytes, int alignInBytes, out Pair pair)
         {
-            return AddPairImpl(entityA, bucketA, aIsRW, entityB, bucketB, bIsRW, sizeInBytes, alignInBytes, 0, true, out pairAllocator);
+            return AddPairImpl(entityA, bucketA, aIsRW, entityB, bucketB, bIsRW, sizeInBytes, alignInBytes, 0, true, out pair);
+        }
+
+        public ref T AddPairFromOtherStreamAndGetRef<T>(in Pair pairFromOtherStream, out Pair pairInThisStream) where T : unmanaged
+        {
+            return ref AddPairAndGetRef<T>(pairFromOtherStream.entityA,
+                                           pairFromOtherStream.index,
+                                           pairFromOtherStream.aIsRW,
+                                           pairFromOtherStream.entityB,
+                                           pairFromOtherStream.index,
+                                           pairFromOtherStream.bIsRW,
+                                           out pairInThisStream);
+        }
+
+        public void* AddPairFromOtherStreamRaw(in Pair pairFromOtherStream, int sizeInBytes, int alignInBytes, out Pair pairInThisStream)
+        {
+            return AddPairRaw(pairFromOtherStream.entityA,
+                              pairFromOtherStream.index,
+                              pairFromOtherStream.aIsRW,
+                              pairFromOtherStream.entityB,
+                              pairFromOtherStream.index,
+                              pairFromOtherStream.bIsRW,
+                              sizeInBytes,
+                              alignInBytes,
+                              out pairInThisStream);
         }
 
         public void ConcatenateFrom(ref PairStream pairStreamToStealFrom)
@@ -145,6 +168,8 @@ namespace Latios.Psyshock
 
             data.state->enumeratorVersion++;
             data.state->pairPtrVersion++;
+            pairStreamToStealFrom.data.state->enumeratorVersion++;
+            pairStreamToStealFrom.data.state->pairPtrVersion++;
 
             data.pairHeaders.ConcatenateAndStealFromUnordered(ref pairStreamToStealFrom.data.pairHeaders);
             for (int i = 0; i < data.pairHeaders.indexCount; i++)
@@ -185,7 +210,7 @@ namespace Latios.Psyshock
 
         #region Public Types
         [NativeContainer]
-        public partial struct PairAllocator
+        public partial struct Pair
         {
             public StreamSpan<T> Allocate<T>(int count) where T : unmanaged
             {
@@ -200,21 +225,89 @@ namespace Latios.Psyshock
             {
                 CheckWriteAccess();
                 CheckPairPtrVersionMatches(data.state, version);
+                if (sizeInBytes == 0)
+                    return null;
                 ref var blocks = ref data.blockStreamArray[index];
                 return blocks.Allocate(sizeInBytes, alignInBytes, data.allocator);
             }
 
+            public ref T ReplaceRef<T>() where T : unmanaged
+            {
+                WriteHeader().flags  &= (~PairHeader.kRootPtrIsRaw) & 0xff;
+                header->rootPtr       = AllocateRaw(UnsafeUtility.SizeOf<T>(), UnsafeUtility.AlignOf<T>());
+                header->rootTypeHash  = BurstRuntime.GetHashCode32<T>();
+                return ref UnsafeUtility.AsRef<T>(header->rootPtr);
+            }
+
+            public void* ReplaceRaw(int sizeInBytes, int alignInBytes)
+            {
+                WriteHeader().flags  |= PairHeader.kRootPtrIsRaw;
+                header->rootPtr       = AllocateRaw(sizeInBytes, alignInBytes);
+                header->rootTypeHash  = 0;
+                return header->rootPtr;
+            }
+
+            public ref T GetRef<T>() where T : unmanaged
+            {
+                var root = GetRaw();
+                CheckTypeHash<T>();
+                return ref UnsafeUtility.AsRef<T>(root);
+            }
+
+            public void* GetRaw() => WriteHeader().rootPtr;
+
             public ushort userUShort
             {
-                get => header->userUshort;
-                set => header->userUshort = value;
+                get => ReadHeader().userUshort;
+                set => WriteHeader().userUshort = value;
             }
 
             public byte userByte
             {
-                get => header->userByte;
-                set => header->userByte = value;
+                get => ReadHeader().userByte;
+                set => WriteHeader().userByte = value;
             }
+
+            public bool enabled
+            {
+                get => (ReadHeader().flags & PairHeader.kEnabled) == PairHeader.kEnabled;
+                set => WriteHeader().flags |= PairHeader.kEnabled;
+            }
+
+            public bool isRaw => (ReadHeader().flags & PairHeader.kRootPtrIsRaw) == PairHeader.kRootPtrIsRaw;
+
+            public bool aIsRW => (ReadHeader().flags & PairHeader.kWritableA) == PairHeader.kWritableA;
+            public bool bIsRW => (ReadHeader().flags & PairHeader.kWritableB) == PairHeader.kWritableB;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            /// <summary>
+            /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
+            /// owning entity of the first collider in the pair. It can also be implicitly casted and used as a normal entity reference.
+            /// </summary>
+            public SafeEntity entityA => new SafeEntity
+            {
+                m_entity = new Entity
+                {
+                    Index   = math.select(-header->entityA.Index - 1, header->entityA.Index, aIsRW && areEntitiesSafeInContext),
+                    Version = header->entityA.Version
+                }
+            };
+            /// <summary>
+            /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
+            /// owning entity of the second collider in the pair. It can also be implicitly casted and used as a normal entity reference.
+            /// </summary>
+            public SafeEntity entityB => new SafeEntity
+            {
+                m_entity = new Entity
+                {
+                    Index   = math.select(-header->entityB.Index - 1, header->entityB.Index, bIsRW && areEntitiesSafeInContext),
+                    Version = header->entityB.Version
+                }
+            };
+#else
+            public SafeEntity entityA => new SafeEntity { m_entity = header->entityA };
+            public SafeEntity entityB => new SafeEntity { m_entity = header->entityB };
+#endif
         }
 
         [NativeContainer]  // Similar to FindPairsResult, keep this from escaping the local context
@@ -232,7 +325,8 @@ namespace Latios.Psyshock
         [NativeContainerIsAtomicWriteOnly]
         public partial struct ParallelWriter
         {
-            public ref T AddPairAndGetRef<T>(in ParallelWriteKey key, bool aIsRW, bool bIsRW, out PairAllocator pairAllocator) where T : unmanaged
+            // Todo: Passing the key as an in parameter confuses the compiler.
+            public ref T AddPairAndGetRef<T>(ParallelWriteKey key, bool aIsRW, bool bIsRW, out Pair pair) where T : unmanaged
             {
                 var root = AddPairImpl(in key,
                                        aIsRW,
@@ -241,25 +335,71 @@ namespace Latios.Psyshock
                                        UnsafeUtility.AlignOf<T>(),
                                        BurstRuntime.GetHashCode32<T>(),
                                        false,
-                                       out pairAllocator);
-                pairAllocator.header->rootPtr = root;
+                                       out pair);
+                pair.header->rootPtr = root;
                 return ref UnsafeUtility.AsRef<T>(root);
             }
 
-            public void* AddPairRaw(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, out PairAllocator pairAllocator)
+            public void* AddPairRaw(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, out Pair pair)
             {
-                return AddPairImpl(in key, aIsRW, bIsRW, sizeInBytes, alignInBytes, 0, true, out pairAllocator);
+                return AddPairImpl(in key, aIsRW, bIsRW, sizeInBytes, alignInBytes, 0, true, out pair);
+            }
+
+            public ref T AddPairFromOtherStreamAndGetRef<T>(in Pair pairFromOtherStream, out Pair pairInThisStream) where T : unmanaged
+            {
+                CheckPairCanBeAddedInParallel(in pairFromOtherStream);
+                var key = new ParallelWriteKey
+                {
+                    entityA             = pairFromOtherStream.entityA,
+                    entityB             = pairFromOtherStream.entityB,
+                    streamIndexA        = pairFromOtherStream.index,
+                    streamIndexB        = pairFromOtherStream.index,
+                    streamIndexCombined = pairFromOtherStream.index,
+                    expectedBucketCount = pairFromOtherStream.data.expectedBucketCount
+                };
+                return ref AddPairAndGetRef<T>(key, pairFromOtherStream.aIsRW, pairFromOtherStream.bIsRW, out pairInThisStream);
+            }
+
+            public void* AddPairFromOtherStreamRaw(in Pair pairFromOtherStream, int sizeInBytes, int alignInBytes, out Pair pairInThisStream)
+            {
+                CheckPairCanBeAddedInParallel(in pairFromOtherStream);
+                var key = new ParallelWriteKey
+                {
+                    entityA             = pairFromOtherStream.entityA,
+                    entityB             = pairFromOtherStream.entityB,
+                    streamIndexA        = pairFromOtherStream.index,
+                    streamIndexB        = pairFromOtherStream.index,
+                    streamIndexCombined = pairFromOtherStream.index,
+                    expectedBucketCount = pairFromOtherStream.data.expectedBucketCount
+                };
+                return AddPairRaw(in key, pairFromOtherStream.aIsRW, pairFromOtherStream.bIsRW, sizeInBytes, alignInBytes, out pairInThisStream);
             }
         }
         #endregion
 
         #region Public Types Internal Members
-        partial struct PairAllocator
+        partial struct Pair
         {
             internal SharedContainerData data;
             internal int                 index;
             internal int                 version;
             internal PairHeader*         header;
+            internal bool                isParallelKeySafe;
+            internal bool                areEntitiesSafeInContext;
+
+            ref PairHeader ReadHeader()
+            {
+                CheckReadAccess();
+                CheckPairPtrVersionMatches(data.state, version);
+                return ref *header;
+            }
+
+            ref PairHeader WriteHeader()
+            {
+                CheckWriteAccess();
+                CheckPairPtrVersionMatches(data.state, version);
+                return ref *header;
+            }
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             //Unfortunately this name is hardcoded into Unity. No idea how EntityCommandBuffer gets away with multiple safety handles.
@@ -272,6 +412,24 @@ namespace Latios.Psyshock
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
 #endif
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            void CheckReadAccess()
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            void CheckTypeHash<T>() where T : unmanaged
+            {
+                if ((header->flags & PairHeader.kRootPtrIsRaw) == PairHeader.kRootPtrIsRaw)
+                    throw new InvalidOperationException(
+                        $"Attempted to access a raw allocation using an explicit type. If this is intended, use GetRaw in combination with UnsafeUtility.AsRef.");
+                if (header->rootTypeHash != BurstRuntime.GetHashCode32<T>())
+                    throw new InvalidOperationException($"Attempted to access an allocation of a pair using the wrong type.");
             }
         }
 
@@ -292,7 +450,7 @@ namespace Latios.Psyshock
             internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
-            void* AddPairImpl(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, int typeHash, bool isRaw, out PairAllocator pairAllocator)
+            void* AddPairImpl(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, int typeHash, bool isRaw, out Pair pairAllocator)
             {
                 CheckWriteAccess();
                 CheckKeyCompatible(in key);
@@ -336,12 +494,14 @@ namespace Latios.Psyshock
                                (isRaw ? PairHeader.kRootPtrIsRaw : default))
                 };
 
-                pairAllocator = new PairAllocator
+                pairAllocator = new Pair
                 {
-                    data    = data,
-                    header  = headerPtr,
-                    index   = targetStream,
-                    version = data.state->pairPtrVersion,
+                    data                     = data,
+                    header                   = headerPtr,
+                    index                    = targetStream,
+                    version                  = data.state->pairPtrVersion,
+                    isParallelKeySafe        = true,
+                    areEntitiesSafeInContext = false,
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                     m_Safety = m_Safety,
 #endif
@@ -366,6 +526,14 @@ namespace Latios.Psyshock
                 if (key.expectedBucketCount != data.expectedBucketCount)
                     throw new InvalidOperationException(
                         $"The key is generated from a different base bucket count {key.expectedBucketCount} from what the PairStream was constructed with {data.expectedBucketCount}");
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            void CheckPairCanBeAddedInParallel(in Pair pairFromOtherStream)
+            {
+                if (!pairFromOtherStream.isParallelKeySafe)
+                    throw new InvalidOperationException(
+                        $"The pair cannot be safely added to the ParallelWriter because the pair was created from an immediate operation. Add directly to the PairStream instead of the ParallelWriter.");
             }
         }
         #endregion
@@ -491,7 +659,7 @@ namespace Latios.Psyshock
                           int alignInBytes,
                           int typeHash,
                           bool isRaw,
-                          out PairAllocator pairAllocator)
+                          out Pair pair)
         {
             CheckWriteAccess();
             CheckTargetBucketIsValid(bucketA);
@@ -525,18 +693,20 @@ namespace Latios.Psyshock
                            (isRaw ? PairHeader.kRootPtrIsRaw : default))
             };
 
-            pairAllocator = new PairAllocator
+            pair = new Pair
             {
-                data    = data,
-                header  = headerPtr,
-                index   = targetStream,
-                version = data.state->pairPtrVersion,
+                data                     = data,
+                header                   = headerPtr,
+                index                    = targetStream,
+                version                  = data.state->pairPtrVersion,
+                isParallelKeySafe        = false,
+                areEntitiesSafeInContext = false,
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 m_Safety = m_Safety,
 #endif
             };
 
-            var root           = pairAllocator.AllocateRaw(sizeInBytes, alignInBytes);
+            var root           = pair.AllocateRaw(sizeInBytes, alignInBytes);
             headerPtr->rootPtr = root;
             return root;
         }

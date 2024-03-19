@@ -258,13 +258,14 @@ namespace Latios.Psyshock
                                                              in bucket,
                                                              jobIndex,
                                                              isThreadSafe,
-                                                             isThreadSafe);
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
                     if (processor.BeginBucket(in context))
                     {
                         if (i != layer.bucketCount - 1)
-                            FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                            FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe, !isThreadSafe);
                         else
-                            FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                            FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe, !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;
@@ -280,10 +281,19 @@ namespace Latios.Psyshock
                                                              in crossBucket,
                                                              jobIndex,
                                                              isThreadSafe,
-                                                             isThreadSafe);
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
                     if (processor.BeginBucket(in context))
                     {
-                        FindPairsSweepMethods.BipartiteSweepCellCross(in layer, in layer, in bucket, in crossBucket, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                        FindPairsSweepMethods.BipartiteSweepCellCross(in layer,
+                                                                      in layer,
+                                                                      in bucket,
+                                                                      in crossBucket,
+                                                                      jobIndex,
+                                                                      ref processor,
+                                                                      isThreadSafe,
+                                                                      isThreadSafe,
+                                                                      !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;
@@ -773,13 +783,30 @@ namespace Latios.Psyshock
                                                              in bucketB,
                                                              jobIndex,
                                                              isThreadSafe,
-                                                             isThreadSafe);
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
                     if (processor.BeginBucket(in context))
                     {
                         if (i != layerA.bucketCount - 1)
-                            FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                            FindPairsSweepMethods.BipartiteSweepCellCell(in layerA,
+                                                                         in layerB,
+                                                                         in bucketA,
+                                                                         in bucketB,
+                                                                         jobIndex,
+                                                                         ref processor,
+                                                                         isThreadSafe,
+                                                                         isThreadSafe,
+                                                                         !isThreadSafe);
                         else
-                            FindPairsSweepMethods.BipartiteSweepCrossCross(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                            FindPairsSweepMethods.BipartiteSweepCrossCross(in layerA,
+                                                                           in layerB,
+                                                                           in bucketA,
+                                                                           in bucketB,
+                                                                           jobIndex,
+                                                                           ref processor,
+                                                                           isThreadSafe,
+                                                                           isThreadSafe,
+                                                                           !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;
@@ -795,10 +822,19 @@ namespace Latios.Psyshock
                                                              in bucket,
                                                              jobIndex,
                                                              isThreadSafe,
-                                                             isThreadSafe);
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
                     if (processor.BeginBucket(in context))
                     {
-                        FindPairsSweepMethods.BipartiteSweepCrossCell(in layerA, in layerB, in crossBucketA, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                        FindPairsSweepMethods.BipartiteSweepCrossCell(in layerA,
+                                                                      in layerB,
+                                                                      in crossBucketA,
+                                                                      in bucket,
+                                                                      jobIndex,
+                                                                      ref processor,
+                                                                      isThreadSafe,
+                                                                      isThreadSafe,
+                                                                      !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;
@@ -814,10 +850,19 @@ namespace Latios.Psyshock
                                                              in crossBucketB,
                                                              jobIndex,
                                                              isThreadSafe,
-                                                             isThreadSafe);
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
                     if (processor.BeginBucket(in context))
                     {
-                        FindPairsSweepMethods.BipartiteSweepCellCross(in layerA, in layerB, in bucket, in crossBucketB, jobIndex, ref processor, isThreadSafe, isThreadSafe);
+                        FindPairsSweepMethods.BipartiteSweepCellCross(in layerA,
+                                                                      in layerB,
+                                                                      in bucket,
+                                                                      in crossBucketB,
+                                                                      jobIndex,
+                                                                      ref processor,
+                                                                      isThreadSafe,
+                                                                      isThreadSafe,
+                                                                      !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;

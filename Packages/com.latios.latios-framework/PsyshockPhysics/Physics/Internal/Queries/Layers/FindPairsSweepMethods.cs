@@ -16,12 +16,13 @@ namespace Latios.Psyshock
                                             int jobIndex,
                                             ref T processor,
                                             bool isAThreadSafe,
-                                            bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                            bool isBThreadSafe,
+                                            bool isImmediateContext = false) where T : struct, IFindPairsProcessor
         {
             if (bucket.count < 2)
                 return;
 
-            var result = new FindPairsResult(in layer, in layer, in bucket, in bucket, jobIndex, isAThreadSafe, isBThreadSafe);
+            var result = new FindPairsResult(in layer, in layer, in bucket, in bucket, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
 
             if (X86.Avx.IsAvxSupported)
             {
@@ -38,9 +39,10 @@ namespace Latios.Psyshock
                                              int jobIndex,
                                              ref T processor,
                                              bool isAThreadSafe,
-                                             bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                             bool isBThreadSafe,
+                                             bool isImmediateContext = false) where T : struct, IFindPairsProcessor
         {
-            SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isAThreadSafe, isBThreadSafe);
+            SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isAThreadSafe, isBThreadSafe, isImmediateContext);
         }
 
         public static void BipartiteSweepCellCell<T>(in CollisionLayer layerA,
@@ -50,14 +52,15 @@ namespace Latios.Psyshock
                                                      int jobIndex,
                                                      ref T processor,
                                                      bool isAThreadSafe,
-                                                     bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                                     bool isBThreadSafe,
+                                                     bool isImmediateContext = false) where T : struct, IFindPairsProcessor
         {
             int countA = bucketA.xmins.Length;
             int countB = bucketB.xmins.Length;
             if (countA == 0 || countB == 0)
                 return;
 
-            var result = new FindPairsResult(in layerA, in layerB, in bucketA, in bucketB, jobIndex, isAThreadSafe, isBThreadSafe);
+            var result = new FindPairsResult(in layerA, in layerB, in bucketA, in bucketB, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
 
             if (X86.Avx.IsAvxSupported)
             {
@@ -76,14 +79,15 @@ namespace Latios.Psyshock
                                                       int jobIndex,
                                                       ref T processor,
                                                       bool isAThreadSafe,
-                                                      bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                                      bool isBThreadSafe,
+                                                      bool isImmediateContext = false) where T : struct, IFindPairsProcessor
         {
             int countA = bucketA.xmins.Length;
             int countB = bucketB.xmins.Length;
             if (countA == 0 || countB == 0)
                 return;
 
-            var result = new FindPairsResult(in layerA, in layerB, in bucketA, in bucketB, jobIndex, isAThreadSafe, isBThreadSafe);
+            var result = new FindPairsResult(in layerA, in layerB, in bucketA, in bucketB, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
 
             if (bucketB.count < 32)
                 BipartiteSweepWholeBucket(ref result, in bucketA, in bucketB, ref processor);
@@ -98,14 +102,15 @@ namespace Latios.Psyshock
                                                       int jobIndex,
                                                       ref T processor,
                                                       bool isAThreadSafe,
-                                                      bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                                      bool isBThreadSafe,
+                                                      bool isImmediateContext = false) where T : struct, IFindPairsProcessor
         {
             int countA = bucketA.xmins.Length;
             int countB = bucketB.xmins.Length;
             if (countA == 0 || countB == 0)
                 return;
 
-            var result = new FindPairsResult(in layerA, in layerB, in bucketA, in bucketB, jobIndex, isAThreadSafe, isBThreadSafe);
+            var result = new FindPairsResult(in layerA, in layerB, in bucketA, in bucketB, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
 
             if (bucketA.count < 32)
                 BipartiteSweepWholeBucket(ref result, in bucketA, in bucketB, ref processor);
@@ -120,9 +125,10 @@ namespace Latios.Psyshock
                                                        int jobIndex,
                                                        ref T processor,
                                                        bool isAThreadSafe,
-                                                       bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                                       bool isBThreadSafe,
+                                                       bool isImmediateContext = false) where T : struct, IFindPairsProcessor
         {
-            BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isAThreadSafe, isBThreadSafe);
+            BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isAThreadSafe, isBThreadSafe, isImmediateContext);
         }
 
         public static int BipartiteSweepPlayCache<T>(UnsafeIndexedBlockList.Enumerator enumerator,

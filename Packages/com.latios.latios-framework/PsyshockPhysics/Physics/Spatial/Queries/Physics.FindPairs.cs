@@ -164,7 +164,7 @@ namespace Latios.Psyshock
         /// </summary>
         public SafeEntity entityA => new SafeEntity
         {
-            entity = new Entity
+            m_entity = new Entity
             {
                 Index   = math.select(-bodyA.entity.Index - 1, bodyA.entity.Index, m_isAThreadSafe),
                 Version = bodyA.entity.Version
@@ -176,15 +176,15 @@ namespace Latios.Psyshock
         /// </summary>
         public SafeEntity entityB => new SafeEntity
         {
-            entity = new Entity
+            m_entity = new Entity
             {
                 Index   = math.select(-bodyB.entity.Index - 1, bodyB.entity.Index, m_isBThreadSafe),
                 Version = bodyB.entity.Version
             }
         };
 #else
-        public SafeEntity entityA => new SafeEntity { entity = bodyA.entity };
-        public SafeEntity entityB => new SafeEntity { entity = bodyB.entity };
+        public SafeEntity entityA => new SafeEntity { m_entity = bodyA.entity };
+        public SafeEntity entityB => new SafeEntity { m_entity = bodyB.entity };
 #endif
 
         private CollisionLayer m_layerA;
@@ -198,6 +198,7 @@ namespace Latios.Psyshock
         private int            m_jobIndex;
         private bool           m_isAThreadSafe;
         private bool           m_isBThreadSafe;
+        private bool           m_isImmediateContext;
 
         internal FindPairsResult(in CollisionLayer layerA,
                                  in CollisionLayer layerB,
@@ -205,19 +206,21 @@ namespace Latios.Psyshock
                                  in BucketSlices bucketB,
                                  int jobIndex,
                                  bool isAThreadSafe,
-                                 bool isBThreadSafe)
+                                 bool isBThreadSafe,
+                                 bool isImmediateContext = false)
         {
-            m_layerA        = layerA;
-            m_layerB        = layerB;
-            m_bucketStartA  = bucketA.bucketGlobalStart;
-            m_bucketStartB  = bucketB.bucketGlobalStart;
-            m_bucketIndexA  = bucketA.bucketIndex;
-            m_bucketIndexB  = bucketB.bucketIndex;
-            m_jobIndex      = jobIndex;
-            m_isAThreadSafe = isAThreadSafe;
-            m_isBThreadSafe = isBThreadSafe;
-            m_bodyAIndex    = 0;
-            m_bodyBIndex    = 0;
+            m_layerA             = layerA;
+            m_layerB             = layerB;
+            m_bucketStartA       = bucketA.bucketGlobalStart;
+            m_bucketStartB       = bucketB.bucketGlobalStart;
+            m_bucketIndexA       = bucketA.bucketIndex;
+            m_bucketIndexB       = bucketB.bucketIndex;
+            m_jobIndex           = jobIndex;
+            m_isAThreadSafe      = isAThreadSafe;
+            m_isBThreadSafe      = isBThreadSafe;
+            m_isImmediateContext = isImmediateContext;
+            m_bodyAIndex         = 0;
+            m_bodyBIndex         = 0;
         }
 
         internal static FindPairsResult CreateGlobalResult(in CollisionLayer layerA,
@@ -226,21 +229,23 @@ namespace Latios.Psyshock
                                                            int bucketIndexB,
                                                            int jobIndex,
                                                            bool isAThreadSafe,
-                                                           bool isBThreadSafe)
+                                                           bool isBThreadSafe,
+                                                           bool isImmediateContext = false)
         {
             return new FindPairsResult
             {
-                m_layerA        = layerA,
-                m_layerB        = layerB,
-                m_bucketStartA  = 0,
-                m_bucketStartB  = 0,
-                m_bucketIndexA  = bucketIndexA,
-                m_bucketIndexB  = bucketIndexB,
-                m_jobIndex      = jobIndex,
-                m_isAThreadSafe = isAThreadSafe,
-                m_isBThreadSafe = isBThreadSafe,
-                m_bodyAIndex    = 0,
-                m_bodyBIndex    = 0,
+                m_layerA             = layerA,
+                m_layerB             = layerB,
+                m_bucketStartA       = 0,
+                m_bucketStartB       = 0,
+                m_bucketIndexA       = bucketIndexA,
+                m_bucketIndexB       = bucketIndexB,
+                m_jobIndex           = jobIndex,
+                m_isAThreadSafe      = isAThreadSafe,
+                m_isBThreadSafe      = isBThreadSafe,
+                m_isImmediateContext = isImmediateContext,
+                m_bodyAIndex         = 0,
+                m_bodyBIndex         = 0,
             };
         }
 
@@ -250,6 +255,13 @@ namespace Latios.Psyshock
             m_bodyBIndex = bIndex + m_bucketStartB;
         }
         //Todo: Shorthands for calling narrow phase distance and manifold queries
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckCanGenerateParallelPairKey()
+        {
+            if (m_isImmediateContext)
+                throw new InvalidOperationException($"Cannot generate a ParallelWriteKey in a FindPairs.RunImmediate() context.");
+        }
     }
 
     /// <summary>
@@ -299,6 +311,7 @@ namespace Latios.Psyshock
         {
             CheckSafeEntityInRange(aIndex, bucketStartA, bucketCountA);
             CheckSafeEntityInRange(bIndex, bucketStartB, bucketCountB);
+            CheckCanGenerateParallelPairKey();
 
             int factor = 1;
             if (jobIndex >= layerA.bucketCount)
@@ -328,15 +341,16 @@ namespace Latios.Psyshock
             var entity = layerA.bodies[aIndex].entity;
             return new SafeEntity
             {
-                entity = new Entity
+                m_entity = new Entity
                 {
                     Index   = math.select(-entity.Index - 1, entity.Index, m_isAThreadSafe),
                     Version = entity.Version
                 }
             };
 #else
-            return new SafeEntity {
-                entity = layerA.bodies[aIndex].entity
+            return new SafeEntity
+            {
+                m_entity = layerA.bodies[aIndex].entity
             };
 #endif
         }
@@ -353,15 +367,16 @@ namespace Latios.Psyshock
             var entity = layerB.bodies[bIndex].entity;
             return new SafeEntity
             {
-                entity = new Entity
+                m_entity = new Entity
                 {
-                    Index   = math.select(-entity.Index - 1, entity.Index, m_isAThreadSafe),
+                    Index   = math.select(-entity.Index - 1, entity.Index, m_isBThreadSafe),
                     Version = entity.Version
                 }
             };
 #else
-            return new SafeEntity {
-                entity = layerB.bodies[bIndex].entity
+            return new SafeEntity
+            {
+                m_entity = layerB.bodies[bIndex].entity
             };
 #endif
         }
@@ -377,6 +392,7 @@ namespace Latios.Psyshock
         private int            m_jobIndex;
         private bool           m_isAThreadSafe;
         private bool           m_isBThreadSafe;
+        private bool           m_isImmediateContext;
 
         internal FindPairsBucketContext(in CollisionLayer layerA,
                                         in CollisionLayer layerB,
@@ -384,19 +400,21 @@ namespace Latios.Psyshock
                                         in BucketSlices bucketB,
                                         int jobIndex,
                                         bool isAThreadSafe,
-                                        bool isBThreadSafe)
+                                        bool isBThreadSafe,
+                                        bool isImmediateContext = false)
         {
-            m_layerA        = layerA;
-            m_layerB        = layerB;
-            m_bucketStartA  = bucketA.bucketGlobalStart;
-            m_bucketCountA  = bucketA.count;
-            m_bucketIndexA  = bucketA.bucketIndex;
-            m_bucketStartB  = bucketB.bucketGlobalStart;
-            m_bucketCountB  = bucketB.count;
-            m_bucketIndexB  = bucketB.bucketIndex;
-            m_jobIndex      = jobIndex;
-            m_isAThreadSafe = isAThreadSafe;
-            m_isBThreadSafe = isBThreadSafe;
+            m_layerA             = layerA;
+            m_layerB             = layerB;
+            m_bucketStartA       = bucketA.bucketGlobalStart;
+            m_bucketCountA       = bucketA.count;
+            m_bucketIndexA       = bucketA.bucketIndex;
+            m_bucketStartB       = bucketB.bucketGlobalStart;
+            m_bucketCountB       = bucketB.count;
+            m_bucketIndexB       = bucketB.bucketIndex;
+            m_jobIndex           = jobIndex;
+            m_isAThreadSafe      = isAThreadSafe;
+            m_isBThreadSafe      = isBThreadSafe;
+            m_isImmediateContext = isImmediateContext;
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -405,6 +423,13 @@ namespace Latios.Psyshock
             var clampedIndex = math.clamp(index, start, start + count);
             if (clampedIndex != index)
                 throw new ArgumentOutOfRangeException($"Index {index} is outside the bucket range of [{start}, {start + count - 1}].");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckCanGenerateParallelPairKey()
+        {
+            if (m_isImmediateContext)
+                throw new InvalidOperationException($"Cannot generate a ParallelWriteKey in a FindPairs.RunImmediate() context.");
         }
     }
 
