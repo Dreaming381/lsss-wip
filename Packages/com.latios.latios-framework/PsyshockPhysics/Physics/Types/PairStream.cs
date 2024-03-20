@@ -206,6 +206,29 @@ namespace Latios.Psyshock
 #endif
             };
         }
+
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator
+            {
+                pair = new Pair
+                {
+                    areEntitiesSafeInContext = false,
+                    data                     = data,
+                    header                   = null,
+                    index                    = 0,
+                    isParallelKeySafe        = false,
+                    version                  = data.state->pairPtrVersion,
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                    m_Safety = m_Safety,
+#endif
+                },
+                currentHeader          = null,
+                enumerator             = data.pairHeaders.GetEnumerator(0),
+                enumeratorVersion      = data.state->enumeratorVersion,
+                onePastLastStreamIndex = mixedIslandAggregateStream,
+            };
+        }
         #endregion
 
         #region Public Types
@@ -375,6 +398,38 @@ namespace Latios.Psyshock
                 return AddPairRaw(in key, pairFromOtherStream.aIsRW, pairFromOtherStream.bIsRW, sizeInBytes, alignInBytes, out pairInThisStream);
             }
         }
+
+        public partial struct Enumerator
+        {
+            public Pair Current
+            {
+                get
+                {
+                    pair.CheckReadAccess();
+                    CheckSafeToEnumerate();
+                    CheckValid();
+                    return pair;
+                }
+            }
+
+            public bool MoveNext()
+            {
+                pair.CheckReadAccess();
+                CheckSafeToEnumerate();
+                while (pair.index < onePastLastStreamIndex)
+                {
+                    if (enumerator.MoveNext())
+                    {
+                        currentHeader = (PairHeader*)UnsafeUtility.AddressOf(ref enumerator.GetCurrentAsRef<PairHeader>());
+                        pair.header   = currentHeader;
+                        return true;
+                    }
+                    pair.index++;
+                    enumerator = pair.data.pairHeaders.GetEnumerator(pair.index);
+                }
+                return false;
+            }
+        }
         #endregion
 
         #region Public Types Internal Members
@@ -415,7 +470,7 @@ namespace Latios.Psyshock
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            void CheckReadAccess()
+            internal void CheckReadAccess()
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
@@ -450,7 +505,7 @@ namespace Latios.Psyshock
             internal static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<ParallelWriter>();
 #endif
 
-            void* AddPairImpl(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, int typeHash, bool isRaw, out Pair pairAllocator)
+            void* AddPairImpl(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, int typeHash, bool isRaw, out Pair pair)
             {
                 CheckWriteAccess();
                 CheckKeyCompatible(in key);
@@ -494,7 +549,7 @@ namespace Latios.Psyshock
                                (isRaw ? PairHeader.kRootPtrIsRaw : default))
                 };
 
-                pairAllocator = new Pair
+                pair = new Pair
                 {
                     data                     = data,
                     header                   = headerPtr,
@@ -507,7 +562,7 @@ namespace Latios.Psyshock
 #endif
                 };
 
-                var root           = pairAllocator.AllocateRaw(sizeInBytes, alignInBytes);
+                var root           = pair.AllocateRaw(sizeInBytes, alignInBytes);
                 headerPtr->rootPtr = root;
                 return root;
             }
@@ -534,6 +589,32 @@ namespace Latios.Psyshock
                 if (!pairFromOtherStream.isParallelKeySafe)
                     throw new InvalidOperationException(
                         $"The pair cannot be safely added to the ParallelWriter because the pair was created from an immediate operation. Add directly to the PairStream instead of the ParallelWriter.");
+            }
+        }
+
+        partial struct Enumerator
+        {
+            internal Pair                              pair;
+            internal UnsafeIndexedBlockList.Enumerator enumerator;
+            internal PairHeader*                       currentHeader;
+            internal int                               onePastLastStreamIndex;
+            internal int                               enumeratorVersion;
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            void CheckSafeToEnumerate()
+            {
+                if (pair.data.state->enumeratorVersion != enumeratorVersion)
+                    throw new InvalidOperationException($"The PairStream Enumerator has been invalidated.");
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            void CheckValid()
+            {
+                if (pair.header == null)
+                    throw new InvalidOperationException("Attempted to read the Current value when there is none, either because MoveNext() has not been called or returned false.");
+                if (pair.header != currentHeader)
+                    throw new InvalidOperationException(
+                        "The Pair value in the enumerator was overwritten. Do not directly assign a different Pair instance to the ref returned by Current.");
             }
         }
         #endregion
