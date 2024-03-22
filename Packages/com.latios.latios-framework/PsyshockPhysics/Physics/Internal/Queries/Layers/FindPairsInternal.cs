@@ -242,7 +242,7 @@ namespace Latios.Psyshock
                 [Preserve]
                 void RequireEarlyJobInit()
                 {
-                    IJobForExtensions.EarlyJobInit<LayerSelfJob>();
+                    new InitJobsForProcessors.FindPairsIniter<T>().Init();
                 }
             }
 
@@ -766,7 +766,7 @@ namespace Latios.Psyshock
                 [Preserve]
                 void RequireEarlyJobInit()
                 {
-                    IJobForExtensions.EarlyJobInit<LayerLayerJob>();
+                    new InitJobsForProcessors.FindPairsIniter<T>().Init();
                 }
             }
 

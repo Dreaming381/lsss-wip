@@ -13,38 +13,93 @@ using Unity.Mathematics;
 
 namespace Latios.Psyshock
 {
+    /// <summary>
+    /// A span of memory which can be stored as a field inside of any object stored within a PairStream.
+    /// These can be nested.
+    /// </summary>
+    /// <typeparam name="T">The type of element stored within the span</typeparam>
     public unsafe struct StreamSpan<T> where T : unmanaged
     {
+        /// <summary>
+        /// The number of elements in the span
+        /// </summary>
         public int length => m_length;
+        /// <summary>
+        /// Gets the pointer to the raw memory of the span
+        /// </summary>
+        /// <returns></returns>
         public T* GetUnsafePtr() => m_ptr;
-
+        /// <summary>
+        /// Gets an element of the span by ref
+        /// </summary>
+        /// <param name="index">The index of the element to fetch</param>
+        /// <returns>The element at the specified index</returns>
         public ref T this[int index] => ref AsSpan()[index];
-
+        /// <summary>
+        /// Gets an enumerator over the span
+        /// </summary>
+        /// <returns></returns>
         public Span<T>.Enumerator GetEnumerator() => AsSpan().GetEnumerator();
-
+        /// <summary>
+        /// Returns the StreamSpan as a .NET Span
+        /// </summary>
+        /// <returns></returns>
         public Span<T> AsSpan() => new Span<T>(m_ptr, length);
 
         internal T*  m_ptr;
         internal int m_length;
     }
 
+    /// <summary>
+    /// A NativeContainer which stores multiple "streams" of pairs and per-pair user-allocated data
+    /// grouped by the multi-box mechanism of FindPairs. Instances can be concatenated to agregate
+    /// the products of multiple FindPairs operations.
+    /// </summary>
+    /// <remarks>
+    /// The streams are allocated to allow for full addition of pairs from FindPairs operations
+    /// (including ParallelUnsafe variants) deterministically. The streams can the be combined
+    /// using the same allocator, and then be iterated over in parallel using Physics.ForEachPair().
+    /// While iterating, pair data can be modified, and new allocations can be performed safely.
+    /// Pairs that are composed of entities from different buckets in the multi-box can be further
+    /// parallelized via an islanding algorithm.
+    /// </remarks>
     [NativeContainer]
     public unsafe struct PairStream : INativeDisposable
     {
         #region Create and Destroy
+        /// <summary>
+        /// Creates a PairStream using a multi-box with the specified number of cells per axis
+        /// </summary>
+        /// <param name="worldSubdivisionsPerAxis">The number of cells per axis</param>
+        /// <param name="allocator">The allocator to use for the PairStream</param>
         public PairStream(int3 worldSubdivisionsPerAxis,
                           AllocatorManager.AllocatorHandle allocator) : this(worldSubdivisionsPerAxis.x * worldSubdivisionsPerAxis.y * worldSubdivisionsPerAxis.z + 1, allocator)
         {
         }
-
+        /// <summary>
+        /// Creates a PairStream using the multi-box from the CollisionLayerSettings
+        /// </summary>
+        /// <param name="settings">The settings that specify the multi-box pairs will conform to</param>
+        /// <param name="allocator">The allocator to use for the PairStream</param>
         public PairStream(in CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator) : this(settings.worldSubdivisionsPerAxis + 1, allocator)
         {
         }
-
+        /// <summary>
+        /// Creates a PairStream using the multi-box from the CollisionLayer.
+        /// It is safe to pass in a CollisionLayer currently being used in a job.
+        /// </summary>
+        /// <param name="layerWithSettings">A CollisionLayer with the desired multi-box configuration</param>
+        /// <param name="allocator">The allocator to use for the PairStream</param>
         public PairStream(in CollisionLayer layerWithSettings, AllocatorManager.AllocatorHandle allocator) : this(layerWithSettings.bucketCount, allocator)
         {
         }
-
+        /// <summary>
+        /// Creates a PairStream using a multi-box that has the specified number of buckets.
+        /// The cross-bucket is included in this count, but the NaN bucket is excluded.
+        /// </summary>
+        /// <param name="bucketCountExcludingNan">The number of buckets to use.
+        /// PairStreams will allocate 5n - 1 streams that may be iterated by the enumerator.</param>
+        /// <param name="allocator">The allocator to use for the PairStream</param>
         public PairStream(int bucketCountExcludingNan, AllocatorManager.AllocatorHandle allocator)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -101,7 +156,7 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
-        /// Disposes the EntityOperationCommandBuffer
+        /// Disposes the PairStream
         /// </summary>
         public void Dispose()
         {
@@ -114,6 +169,20 @@ namespace Latios.Psyshock
         #endregion
 
         #region Public API
+        /// <summary>
+        /// Adds a Pair and allocates memory in the stream for a single instance of type T. Returns a ref to T.
+        /// The pair will save the reference to T for later lookup.
+        /// </summary>
+        /// <typeparam name="T">Any unmanaged type that contains data that should be associated with the pair.
+        /// This type may contain StreamSpan instances.</typeparam>
+        /// <param name="entityA">The first entity in the pair</param>
+        /// <param name="bucketA">The bucket index from the multi-box the first entity belongs to</param>
+        /// <param name="aIsRW">If true, the first entity is given read-write access in a parallel ForEachPair operation</param>
+        /// <param name="entityB">The second entity in the pair</param>
+        /// <param name="bucketB">The bucket index from the multi-box the second entity belongs to</param>
+        /// <param name="bIsRW">If true, the second entity is given read-write access in a parallel ForEachPair operation</param>
+        /// <param name="pair">The pair instance, which can store additional settings and perform additional allocations</param>
+        /// <returns>The reference to the allocated instance of type T</returns>
         public ref T AddPairAndGetRef<T>(Entity entityA, int bucketA, bool aIsRW, Entity entityB, int bucketB, bool bIsRW, out Pair pair) where T : unmanaged
         {
             var root = AddPairImpl(entityA,
@@ -131,11 +200,34 @@ namespace Latios.Psyshock
             return ref UnsafeUtility.AsRef<T>(root);
         }
 
+        /// <summary>
+        /// Adds a Pair and allocates raw memory in the stream. Returns the pointer to the raw memory.
+        /// The pair will save the pointer for later lookup.
+        /// </summary>
+        /// <param name="entityA">The first entity in the pair</param>
+        /// <param name="bucketA">The bucket index from the multi-box the first entity belongs to</param>
+        /// <param name="aIsRW">If true, the first entity is given read-write access in a parallel ForEachPair operation</param>
+        /// <param name="entityB">The second entity in the pair</param>
+        /// <param name="bucketB">The bucket index from the multi-box the second entity belongs to</param>
+        /// <param name="bIsRW">If true, the second entity is given read-write access in a parallel ForEachPair operation</param>
+        /// <param name="sizeInBytes">Specifies the size in bytes to allocate</param>
+        /// <param name="alignInBytes">Specifies the required alignment of the allocation</param>
+        /// <param name="pair">The pair instance, which can store additional settings and perform additional allocations</param>
+        /// <returns>The pointer to the allocated data</returns>
         public void* AddPairRaw(Entity entityA, int bucketA, bool aIsRW, Entity entityB, int bucketB, bool bIsRW, int sizeInBytes, int alignInBytes, out Pair pair)
         {
             return AddPairImpl(entityA, bucketA, aIsRW, entityB, bucketB, bIsRW, sizeInBytes, alignInBytes, 0, true, out pair);
         }
 
+        /// <summary>
+        /// Clone's a pair's entities, buckets, and read-write statuses from another PairStream.
+        /// All other pair data is reset for the new Pair instance.
+        /// A new object of type T is allocated for this clone and returned.
+        /// </summary>
+        /// <typeparam name="T">Any unmanaged type that contains data that should be associated with the pair</typeparam>
+        /// <param name="pairFromOtherStream">A pair instance from another stream</param>
+        /// <param name="pairInThisStream">The newly cloned pair that belongs to this PairStream</param>
+        /// <returns>The reference to the allocated instance of type T</returns>
         public ref T AddPairFromOtherStreamAndGetRef<T>(in Pair pairFromOtherStream, out Pair pairInThisStream) where T : unmanaged
         {
             return ref AddPairAndGetRef<T>(pairFromOtherStream.entityA,
@@ -147,6 +239,14 @@ namespace Latios.Psyshock
                                            out pairInThisStream);
         }
 
+        /// <summary>
+        /// Clone's a pair's entities, buckets, and read-write statuses from another PairStream.
+        /// All other pair data is reset for the new Pair instance.
+        /// New raw memory is allocated for this clone and returned.
+        /// </summary>
+        /// <param name="pairFromOtherStream">A pair instance from another stream</param>
+        /// <param name="pairInThisStream">The newly cloned pair that belongs to this PairStream</param>
+        /// <returns>The pointer to the allocated data</returns>
         public void* AddPairFromOtherStreamRaw(in Pair pairFromOtherStream, int sizeInBytes, int alignInBytes, out Pair pairInThisStream)
         {
             return AddPairRaw(pairFromOtherStream.entityA,
@@ -160,6 +260,16 @@ namespace Latios.Psyshock
                               out pairInThisStream);
         }
 
+        /// <summary>
+        /// Concatenates another PairStream to this PairStream, stealing all allocated memory.
+        /// Pointers to allocated data associated with pairs (to any level of nesting) are preserved
+        /// within this PairStream, but will no longer be associated with the old PairStream.
+        /// This method only works if both this PairStream and the other PairStream have been allocated
+        /// with the same allocator and use the same multi-box layout.
+        /// </summary>
+        /// <param name="pairStreamToStealFrom">Another PairStream with the same allocator and multi-box configuration,
+        /// whose pairs and memory should be transfered. After the transfer, the old PairStream is empty of elements
+        /// but is otherwise in a valid state to collect new pairs using the same multi-box configuration.</param>
         public void ConcatenateFrom(ref PairStream pairStreamToStealFrom)
         {
             CheckWriteAccess();
@@ -191,6 +301,9 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Gets a ParallelWriter of this PairStream, which can be used inside FindPairs and ForEachPair operations
+        /// </summary>
         public ParallelWriter AsParallelWriter()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
@@ -207,8 +320,12 @@ namespace Latios.Psyshock
             };
         }
 
+        /// <summary>
+        /// Gets an enumerator to enumerate all pairs in the PairStream. Disabled pairs are included.
+        /// </summary>
         public Enumerator GetEnumerator()
         {
+            CheckAllocatedAccess();
             return new Enumerator
             {
                 pair = new Pair
@@ -232,9 +349,19 @@ namespace Latios.Psyshock
         #endregion
 
         #region Public Types
+        /// <summary>
+        /// A pair which contains pair metadata, user-assignable metadata, and a pointer
+        /// to allocated data associated with the pair and owned by the PairStream.
+        /// </summary>
         [NativeContainer]
         public partial struct Pair
         {
+            /// <summary>
+            /// Allocates multiple contiguous elements of T that will be owned by the PairStream.
+            /// </summary>
+            /// <typeparam name="T">Any unmanaged type that should be associated with the pair</typeparam>
+            /// <param name="count">The number of elements to allocate</param>
+            /// <returns>The span of elements allocated</returns>
             public StreamSpan<T> Allocate<T>(int count) where T : unmanaged
             {
                 CheckWriteAccess();
@@ -243,7 +370,12 @@ namespace Latios.Psyshock
                 var     ptr                      = blocks.Allocate<T>(count, data.allocator);
                 return new StreamSpan<T> { m_ptr = ptr, m_length = count };
             }
-
+            /// <summary>
+            /// Allocates raw memory that will be owned by the PairStream
+            /// </summary>
+            /// <param name="sizeInBytes">The number of bytes to allocate</param>
+            /// <param name="alignInBytes">The alignment of the allocation</param>
+            /// <returns>A pointer to the raw allocated memory</returns>
             public void* AllocateRaw(int sizeInBytes, int alignInBytes)
             {
                 CheckWriteAccess();
@@ -253,7 +385,12 @@ namespace Latios.Psyshock
                 ref var blocks = ref data.blockStreamArray[index];
                 return blocks.Allocate(sizeInBytes, alignInBytes, data.allocator);
             }
-
+            /// <summary>
+            /// Replaces the top-level ref associated with the pair with a new allocation of type T.
+            /// The old data is still retained but no longer directly referenced by the pair itself.
+            /// </summary>
+            /// <typeparam name="T">Any unmanaged type that should be associated with the pair.</typeparam>
+            /// <returns>A reference to the allocated instance of type T</returns>
             public ref T ReplaceRef<T>() where T : unmanaged
             {
                 WriteHeader().flags  &= (~PairHeader.kRootPtrIsRaw) & 0xff;
@@ -261,7 +398,13 @@ namespace Latios.Psyshock
                 header->rootTypeHash  = BurstRuntime.GetHashCode32<T>();
                 return ref UnsafeUtility.AsRef<T>(header->rootPtr);
             }
-
+            /// <summary>
+            /// Replaces the top-level pointer associated with the pair with a new raw allocation.
+            /// The old data is still retained but no longer directly referenced by the pair itself.
+            /// </summary>
+            /// <param name="sizeInBytes">The number of bytes to allocate</param>
+            /// <param name="alignInBytes">The alignment of the allocation</param>
+            /// <returns>A pointer to the new allocation</returns>
             public void* ReplaceRaw(int sizeInBytes, int alignInBytes)
             {
                 WriteHeader().flags  |= PairHeader.kRootPtrIsRaw;
@@ -269,43 +412,85 @@ namespace Latios.Psyshock
                 header->rootTypeHash  = 0;
                 return header->rootPtr;
             }
-
+            /// <summary>
+            /// Gets a reference to the top-level object associated with the pair.
+            /// When safety checks are enabled, the type is checked with the type allocated for the pair.
+            /// </summary>
+            /// <typeparam name="T">The unmanaged type that was allocated for the pair</typeparam>
+            /// <returns>A reference to the data that was allocated for this pair</returns>
             public ref T GetRef<T>() where T : unmanaged
             {
                 var root = GetRaw();
                 CheckTypeHash<T>();
                 return ref UnsafeUtility.AsRef<T>(root);
             }
-
+            /// <summary>
+            /// Gets the raw top-level pointer associated with the pair. If the top-level object
+            /// was allocated with a specific type, this gets the raw pointer to that object.
+            /// </summary>
+            /// <returns>The raw pointer of the object associated with the pair</returns>
             public void* GetRaw() => WriteHeader().rootPtr;
 
+            /// <summary>
+            /// A ushort value stored with the pair that may serve any purpose of the user.
+            /// </summary>
             public ushort userUShort
             {
                 get => ReadHeader().userUshort;
                 set => WriteHeader().userUshort = value;
             }
-
+            /// <summary>
+            /// A byte value stored with the pair that may serve any purpose of the user.
+            /// A common use for this is to encode an enum specifying the type of object
+            /// associated with the pair.
+            /// </summary>
             public byte userByte
             {
                 get => ReadHeader().userByte;
                 set => WriteHeader().userByte = value;
             }
-
+            /// <summary>
+            /// Whether or not the pair is enabled. Disabled pairs may be skipped in a ForEachPair operation.
+            /// </summary>
             public bool enabled
             {
                 get => (ReadHeader().flags & PairHeader.kEnabled) == PairHeader.kEnabled;
                 set => WriteHeader().flags |= PairHeader.kEnabled;
             }
 
+            /// <summary>
+            /// If true, the pair's associated object was allocated as a raw pointer.
+            /// </summary>
             public bool isRaw => (ReadHeader().flags & PairHeader.kRootPtrIsRaw) == PairHeader.kRootPtrIsRaw;
-
+            /// <summary>
+            /// If true, the first entity in the pair was granted read-write access upon creation.
+            /// However, read-write access may still not be permitted depending on the context
+            /// (it is disallowed for immediate contexts).
+            /// </summary>
             public bool aIsRW => (ReadHeader().flags & PairHeader.kWritableA) == PairHeader.kWritableA;
+            /// <summary>
+            /// If true, the second entity in the pair was granted read-write access upon creation.
+            /// However, read-write access may still not be permitted depending on the context
+            /// (it is disallowed for immediate contexts).
+            /// </summary>
             public bool bIsRW => (ReadHeader().flags & PairHeader.kWritableB) == PairHeader.kWritableB;
+            /// <summary>
+            /// The index of the stream this pair resides in
+            /// </summary>
+            public int streamIndex
+            {
+                get
+                {
+                    CheckReadAccess();
+                    CheckPairPtrVersionMatches(data.state, version);
+                    return index;
+                }
+            }
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             /// <summary>
             /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
-            /// owning entity of the first collider in the pair. It can also be implicitly casted and used as a normal entity reference.
+            /// owning entity of the first entity in the pair. It can also be implicitly casted and used as a normal entity reference.
             /// </summary>
             public SafeEntity entityA => new SafeEntity
             {
@@ -317,7 +502,7 @@ namespace Latios.Psyshock
             };
             /// <summary>
             /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
-            /// owning entity of the second collider in the pair. It can also be implicitly casted and used as a normal entity reference.
+            /// owning entity of the second entity in the pair. It can also be implicitly casted and used as a normal entity reference.
             /// </summary>
             public SafeEntity entityB => new SafeEntity
             {
@@ -333,6 +518,9 @@ namespace Latios.Psyshock
 #endif
         }
 
+        /// <summary>
+        /// A key generated via FindPairs that can be used to populate a pair's base data for a ParallelWriter
+        /// </summary>
         [NativeContainer]  // Similar to FindPairsResult, keep this from escaping the local context
         public struct ParallelWriteKey
         {
@@ -348,9 +536,19 @@ namespace Latios.Psyshock
         [NativeContainerIsAtomicWriteOnly]
         public partial struct ParallelWriter
         {
-            // Todo: Passing the key as an in parameter confuses the compiler.
+            /// <summary>
+            /// Adds a Pair from within a FindPairs operation and allocate memory in the stream for a single instance of type T.
+            /// Returns a ref to T. The pair will save the reference to T for later lookup.
+            /// </summary>
+            /// <typeparam name="T">Any unmanaged type that contains data that should be associated with the pair.
+            /// This type may contain StreamSpan instances.</typeparam>
+            /// <param name="key">A key obtained from a FindPairs operation</param>
+            /// <param name="aIsRW">If true, the first entity is given read-write access in a parallel ForEachPair operation</param>
+            /// <param name="bIsRW">If true, the second entity is given read-write access in a parallel ForEachPair operation</param>
+            /// <param name="pair">The pair instance, which can store additional settings and perform additional allocations</param>
+            /// <returns>The reference to the allocated instance of type T</returns>
             public ref T AddPairAndGetRef<T>(ParallelWriteKey key, bool aIsRW, bool bIsRW, out Pair pair) where T : unmanaged
-            {
+            {  // Todo: Passing the key as an in parameter confuses the compiler.
                 var root = AddPairImpl(in key,
                                        aIsRW,
                                        bIsRW,
@@ -363,11 +561,31 @@ namespace Latios.Psyshock
                 return ref UnsafeUtility.AsRef<T>(root);
             }
 
+            /// <summary>
+            /// Adds a Pair from within a FindPairs operation and allocate raw memory in the stream.
+            /// Returns the pointer to the raw memory. The pair will save the pointer for later lookup.
+            /// </summary>
+            /// <param name="key">A key obtained from a FindPairs operation</param>
+            /// <param name="aIsRW">If true, the first entity is given read-write access in a parallel ForEachPair operation</param>
+            /// <param name="bIsRW">If true, the second entity is given read-write access in a parallel ForEachPair operation</param>
+            /// <param name="sizeInBytes">Specifies the size in bytes to allocate</param>
+            /// <param name="alignInBytes">Specifies the required alignment of the allocation</param>
+            /// <param name="pair">The pair instance, which can store additional settings and perform additional allocations</param>
+            /// <returns>The pointer to the allocated data</returns>
             public void* AddPairRaw(in ParallelWriteKey key, bool aIsRW, bool bIsRW, int sizeInBytes, int alignInBytes, out Pair pair)
             {
                 return AddPairImpl(in key, aIsRW, bIsRW, sizeInBytes, alignInBytes, 0, true, out pair);
             }
 
+            /// <summary>
+            /// Clone's a pair's entities, buckets, and read-write statuses from within a ForEachPair operation on another PairStream.
+            /// All other pair data is reset for the new Pair instance.
+            /// A new object of type T is allocated for this clone and returned.
+            /// </summary>
+            /// <typeparam name="T">Any unmanaged type that contains data that should be associated with the pair</typeparam>
+            /// <param name="pairFromOtherStream">A pair instance from another stream</param>
+            /// <param name="pairInThisStream">The newly cloned pair that belongs to this PairStream</param>
+            /// <returns>The reference to the allocated instance of type T</returns>
             public ref T AddPairFromOtherStreamAndGetRef<T>(in Pair pairFromOtherStream, out Pair pairInThisStream) where T : unmanaged
             {
                 CheckPairCanBeAddedInParallel(in pairFromOtherStream);
@@ -382,7 +600,14 @@ namespace Latios.Psyshock
                 };
                 return ref AddPairAndGetRef<T>(key, pairFromOtherStream.aIsRW, pairFromOtherStream.bIsRW, out pairInThisStream);
             }
-
+            /// <summary>
+            /// Clone's a pair's entities, buckets, and read-write statuses from within a ForEachPair operation on another PairStream.
+            /// All other pair data is reset for the new Pair instance.
+            /// New raw memory is allocated for this clone and returned.
+            /// </summary>
+            /// <param name="pairFromOtherStream">A pair instance from another stream</param>
+            /// <param name="pairInThisStream">The newly cloned pair that belongs to this PairStream</param>
+            /// <returns>The pointer to the allocated data</returns>
             public void* AddPairFromOtherStreamRaw(in Pair pairFromOtherStream, int sizeInBytes, int alignInBytes, out Pair pairInThisStream)
             {
                 CheckPairCanBeAddedInParallel(in pairFromOtherStream);
@@ -399,8 +624,15 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// An enumerator over all pairs in the PairStream, or a batch if obtained from a ForEachPair operation.
+        /// This includes disabled pairs.
+        /// </summary>
         public partial struct Enumerator
         {
+            /// <summary>
+            /// The current Pair
+            /// </summary>
             public Pair Current
             {
                 get
@@ -412,6 +644,10 @@ namespace Latios.Psyshock
                 }
             }
 
+            /// <summary>
+            /// Advance to the next Pair
+            /// </summary>
+            /// <returns>false if no more pairs are left</returns>
             public bool MoveNext()
             {
                 pair.CheckReadAccess();
@@ -614,7 +850,7 @@ namespace Latios.Psyshock
                     throw new InvalidOperationException("Attempted to read the Current value when there is none, either because MoveNext() has not been called or returned false.");
                 if (pair.header != currentHeader)
                     throw new InvalidOperationException(
-                        "The Pair value in the enumerator was overwritten. Do not directly assign a different Pair instance to the ref returned by Current.");
+                        "The Pair value in the enumerator was overwritten. Do not directly assign a different Pair instance to the ref passed into the processor.");
             }
         }
         #endregion
@@ -761,7 +997,13 @@ namespace Latios.Psyshock
             if (targetStream == firstMixedBucketStream)
                 data.state->needsIslanding = true;
             else
+            {
                 data.state->needsAliasChecks = true;
+                if (targetStream == data.expectedBucketCount)
+                    targetStream = nanBucketStream;
+                else
+                    targetStream *= 3;
+            }
 
             var headerPtr = (PairHeader*)data.pairHeaders.Allocate(targetStream);
             *headerPtr    = new PairHeader
@@ -836,10 +1078,18 @@ namespace Latios.Psyshock
 
         #region Safety Checks
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        void CheckWriteAccess()
+        internal void CheckWriteAccess()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckAllocatedAccess()
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
 #endif
         }
 

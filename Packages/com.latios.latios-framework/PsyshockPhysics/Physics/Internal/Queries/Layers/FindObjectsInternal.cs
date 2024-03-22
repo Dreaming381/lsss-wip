@@ -17,7 +17,7 @@ namespace Latios.Psyshock
         {
             #region Jobs
             [BurstCompile]
-            public struct Single : IJob
+            public struct SingleJob : IJob
             {
                 [ReadOnly] public CollisionLayer layer;
                 public T                         processor;
@@ -31,7 +31,7 @@ namespace Latios.Psyshock
                 [Preserve]
                 void RequireEarlyJobInit()
                 {
-                    IJobExtensions.EarlyJobInit<Single>();
+                    new InitJobsForProcessors.FindObjectsIniter<T>().Init();
                 }
             }
             #endregion

@@ -183,7 +183,7 @@ namespace Latios.Psyshock
         /// </summary>
         public void Run()
         {
-            new FindObjectsInternal.Single
+            new FindObjectsInternal.SingleJob
             {
                 layer     = layer,
                 processor = processor,
@@ -198,7 +198,7 @@ namespace Latios.Psyshock
         /// <returns>The JobHandle of the scheduled job</returns>
         public JobHandle ScheduleSingle(JobHandle inputDeps = default)
         {
-            return new FindObjectsInternal.Single
+            return new FindObjectsInternal.SingleJob
             {
                 layer     = layer,
                 processor = processor,

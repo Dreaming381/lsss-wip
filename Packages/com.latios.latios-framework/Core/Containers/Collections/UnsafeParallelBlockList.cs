@@ -281,6 +281,16 @@ namespace Latios.Unsafe
         }
 
         /// <summary>
+        /// Count the number of elements for a specific index.
+        /// </summary>
+        /// <param name="index">The index at which to count the number of elements within</param>
+        /// <returns>The number of elements added to the specified index</returns>
+        public int CountForIndex(int index)
+        {
+            return m_perIndexBlockList[index].elementCount;
+        }
+
+        /// <summary>
         /// A pointer to an element stored
         /// </summary>
         public struct ElementPtr

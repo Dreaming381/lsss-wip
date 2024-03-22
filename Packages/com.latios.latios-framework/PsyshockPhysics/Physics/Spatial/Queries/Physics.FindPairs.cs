@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 using Latios.Transforms;
-using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-//Todo: FilteredCache playback and inflations
 namespace Latios.Psyshock
 {
     /// <summary>
