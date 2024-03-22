@@ -105,7 +105,7 @@ namespace Latios.Psyshock
                     name = nameof(T);
                 }
 
-                public void Execute(int jobIndex)
+                public unsafe void Execute(int jobIndex)
                 {
                     using var jobName = modeAndTMarker.Auto();
                     if (mode == ScheduleMode.Single)
@@ -124,11 +124,13 @@ namespace Latios.Psyshock
                         }
                         else if (jobIndex == pairStream.data.expectedBucketCount + 1)
                         {
-                            ForEachPairMethods.CreateIslands(ref pairStream);
+                            if (pairStream.data.state->needsIslanding)
+                                ForEachPairMethods.CreateIslands(ref pairStream);
                         }
                         else if (jobIndex == pairStream.data.expectedBucketCount + 2)
                         {
-                            ForEachPairMethods.CheckAliasing(pairStream);
+                            if (pairStream.data.state->needsAliasChecks)
+                                ForEachPairMethods.CheckAliasing(pairStream);
                         }
                     }
                     else if (mode == ScheduleMode.ParallelPart2)
