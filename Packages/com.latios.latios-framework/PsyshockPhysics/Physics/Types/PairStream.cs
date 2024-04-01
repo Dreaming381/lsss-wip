@@ -197,7 +197,9 @@ namespace Latios.Psyshock
                                    false,
                                    out pair);
             pair.header->rootPtr = root;
-            return ref UnsafeUtility.AsRef<T>(root);
+            ref var result       = ref UnsafeUtility.AsRef<T>(root);
+            result               = default;
+            return ref result;
         }
 
         /// <summary>
@@ -362,13 +364,16 @@ namespace Latios.Psyshock
             /// <typeparam name="T">Any unmanaged type that should be associated with the pair</typeparam>
             /// <param name="count">The number of elements to allocate</param>
             /// <returns>The span of elements allocated</returns>
-            public StreamSpan<T> Allocate<T>(int count) where T : unmanaged
+            public StreamSpan<T> Allocate<T>(int count, NativeArrayOptions options = NativeArrayOptions.ClearMemory) where T : unmanaged
             {
                 CheckWriteAccess();
                 CheckPairPtrVersionMatches(data.state, version);
-                ref var blocks                   = ref data.blockStreamArray[index];
-                var     ptr                      = blocks.Allocate<T>(count, data.allocator);
-                return new StreamSpan<T> { m_ptr = ptr, m_length = count };
+                ref var blocks = ref data.blockStreamArray[index];
+                var     ptr    = blocks.Allocate<T>(count, data.allocator);
+                var     result = new StreamSpan<T> { m_ptr = ptr, m_length = count };
+                if (options == NativeArrayOptions.ClearMemory)
+                    result.AsSpan().Clear();
+                return result;
             }
             /// <summary>
             /// Allocates raw memory that will be owned by the PairStream
@@ -396,7 +401,9 @@ namespace Latios.Psyshock
                 WriteHeader().flags  &= (~PairHeader.kRootPtrIsRaw) & 0xff;
                 header->rootPtr       = AllocateRaw(UnsafeUtility.SizeOf<T>(), UnsafeUtility.AlignOf<T>());
                 header->rootTypeHash  = BurstRuntime.GetHashCode32<T>();
-                return ref UnsafeUtility.AsRef<T>(header->rootPtr);
+                ref var result        = ref UnsafeUtility.AsRef<T>(header->rootPtr);
+                result                = default;
+                return ref result;
             }
             /// <summary>
             /// Replaces the top-level pointer associated with the pair with a new raw allocation.
@@ -558,7 +565,9 @@ namespace Latios.Psyshock
                                        false,
                                        out pair);
                 pair.header->rootPtr = root;
-                return ref UnsafeUtility.AsRef<T>(root);
+                ref var result       = ref UnsafeUtility.AsRef<T>(root);
+                result               = default;
+                return ref result;
             }
 
             /// <summary>
@@ -955,7 +964,7 @@ namespace Latios.Psyshock
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         //Unfortunately this name is hardcoded into Unity. No idea how EntityCommandBuffer gets away with multiple safety handles.
-        public AtomicSafetyHandle m_Safety;
+        internal AtomicSafetyHandle m_Safety;
 
         static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<PairStream>();
 #endif

@@ -252,7 +252,7 @@ namespace Latios.Psyshock
 
             // Collapse any ranks not yet collapsed and identify unique islands
             var uniqueIslandIndices = new NativeList<int>(ranks.Length, Allocator.Temp);
-            for (int i = 1; i < ranks.Length; i++)
+            for (int i = 0; i < ranks.Length; i++)
             {
                 var parent = ranks[i];
                 if (parent != i)

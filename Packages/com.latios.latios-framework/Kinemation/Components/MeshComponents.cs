@@ -170,7 +170,7 @@ namespace Latios.Kinemation
     /// Usage: Add to an entity to make it use Dual Quaternion Skinning. Remove to return
     /// to matrix skinning.
     /// </summary>
-    internal struct DualQuaternionSkinningDeformTag : IComponentData { }
+    public struct DualQuaternionSkinningDeformTag : IComponentData { }
 
     #endregion
 

@@ -298,7 +298,7 @@ namespace Latios.Psyshock.Authoring.Systems
                     facePlaneX[faceIndex]    = plane.normal.x;
                     facePlaneY[faceIndex]    = plane.normal.y;
                     facePlaneZ[faceIndex]    = plane.normal.z;
-                    facePlaneDist[faceIndex] = plane.distanceFromOrigin;
+                    facePlaneDist[faceIndex] = plane.distanceToOrigin;
 
                     var edgeIndicesStartAndCount = edgeIndicesInFacesStartsAndCounts[faceIndex];
 

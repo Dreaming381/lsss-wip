@@ -7,11 +7,23 @@ namespace Latios.Psyshock
 {
     public static partial class UnitySim
     {
+        /// <summary>
+        /// A local-space inertia tensor diagonal matrix and orientation.
+        /// The diagonal should have any stretch already applied to the collider
+        /// it was derived from. The diagonal is used to compute the inverse inertia
+        /// in a Mass instance while the orientation is transformed into the
+        /// inertialPoseWorldTransform. The inertia tensor diagonal is normalized to
+        /// be independent of the object's mass.
+        /// </summary>
         public struct LocalInertiaTensorDiagonal
         {
             public quaternion tensorOrientation;
             public float3     inertiaDiagonal;
 
+            /// <summary>
+            /// Converts the inertia diagonal and orientation back into a singular matrix.
+            /// This can be useful when combining inertia tensors.
+            /// </summary>
             public float3x3 ToMatrix()
             {
                 var r  = new float3x3(tensorOrientation);
@@ -20,6 +32,17 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Computes the Mass properties and inertialPoseWorldTransform from the results
+        /// of calls to LocalCenterOfMassFrom() and LocalInertiaTensorFrom() transformed
+        /// by the worldTransform.
+        /// </summary>
+        /// <param name="worldTransform">The world transform of the body entity</param>
+        /// <param name="localInertiaTensorDiagonal">The local inertia tensor diagonal, already stretched by the worldTransform stretch value</param>
+        /// <param name="localCenterOfMassUnscaled">The center of mass relative to the body entity in the body entity's local space</param>
+        /// <param name="inverseMass">The reciprocal of the mass, where 0 makes the object immovable</param>
+        /// <param name="massOut">The Mass containing the inverse mass and inverse inertia</param>
+        /// <param name="inertialPoseWorldTransform">A world transform centered around the body's center of mass and oriented relative to the inertia tensor diagonal</param>
         public static void ConvertToWorldMassInertia(in TransformQvvs worldTransform,
                                                      in LocalInertiaTensorDiagonal localInertiaTensorDiagonal,
                                                      float3 localCenterOfMassUnscaled,
@@ -36,6 +59,9 @@ namespace Latios.Psyshock
             };
         }
 
+        /// <summary>
+        /// Gets the default center of mass computed for the type of collider, in the collider's local space
+        /// </summary>
         public static float3 LocalCenterOfMassFrom(in Collider collider)
         {
             switch (collider.type)
@@ -51,13 +77,21 @@ namespace Latios.Psyshock
                 case ColliderType.Convex:
                     return collider.m_convex.scale * collider.m_convex.convexColliderBlob.Value.centerOfMass;
                 case ColliderType.TriMesh:
-                    return (collider.m_triMesh.triMeshColliderBlob.Value.localAabb.min + collider.m_triMesh.triMeshColliderBlob.Value.localAabb.max) / 2f;
+                    return (collider.m_triMesh().triMeshColliderBlob.Value.localAabb.min + collider.m_triMesh().triMeshColliderBlob.Value.localAabb.max) / 2f;
                 case ColliderType.Compound:
-                    return collider.m_compound.scale * collider.m_compound.compoundColliderBlob.Value.centerOfMass;
+                    return collider.m_compound().scale * collider.m_compound().compoundColliderBlob.Value.centerOfMass;
                 default: return default;
             }
         }
 
+        /// <summary>
+        /// Gets the default local center-of-mass-relative-space inertia tensor diagonal from the collider,
+        /// after stretching the collider. This method can be somewhat expensive, especially for blob-based
+        /// collider types when scaled, though this cost is independent of the blob size.
+        /// </summary>
+        /// <param name="collider">The collider to compute the local inertia tensor from</param>
+        /// <param name="stretch">How much the collider should be stretched by. Use 1f for no stretching.</param>
+        /// <returns>A local space inertia tensor matrix diagonal and orientation</returns>
         public static LocalInertiaTensorDiagonal LocalInertiaTensorFrom(in Collider collider, float3 stretch)
         {
             if (stretch.Equals(new float3(1f)))
@@ -66,6 +100,9 @@ namespace Latios.Psyshock
             return LocalInertiaTensorFrom(in scaled);
         }
 
+        /// <summary>
+        /// Gets the default angular expansion factor of the collider, used in MotionExpansion
+        /// </summary>
         public static float AngularExpansionFactorFrom(in Collider collider)
         {
             switch (collider.type)
@@ -96,18 +133,18 @@ namespace Latios.Psyshock
                 }
                 case ColliderType.TriMesh:
                 {
-                    var aabb  = collider.m_triMesh.triMeshColliderBlob.Value.localAabb;
-                    aabb.min *= collider.m_triMesh.scale;
-                    aabb.max *= collider.m_triMesh.scale;
+                    var aabb  = collider.m_triMesh().triMeshColliderBlob.Value.localAabb;
+                    aabb.min *= collider.m_triMesh().scale;
+                    aabb.max *= collider.m_triMesh().scale;
                     Physics.GetCenterExtents(aabb, out _, out var extents);
                     return math.length(extents);
                 }
                 case ColliderType.Compound:
                 {
-                    ref var blob      = ref collider.m_compound.compoundColliderBlob.Value;
+                    ref var blob      = ref collider.m_compound().compoundColliderBlob.Value;
                     var     aabb      = blob.localAabb;
-                    aabb.min         *= collider.m_compound.scale;
-                    aabb.max         *= collider.m_compound.scale;
+                    aabb.min         *= collider.m_compound().scale;
+                    aabb.max         *= collider.m_compound().scale;
                     var centerOfMass  = blob.centerOfMass;
                     Physics.GetCenterExtents(aabb, out var aabbCenter, out var aabbExtents);
                     var delta        = centerOfMass - aabbCenter;
@@ -194,12 +231,19 @@ namespace Latios.Psyshock
                             tensorOrientation = blob.unscaledInertiaTensorOrientation
                         };
                     }
+                    if (math.abs(math.cmax(collider.m_convex.scale) - math.cmin(collider.m_convex.scale)) < math.abs(math.cmax(collider.m_convex.scale)) * math.EPSILON)
+                    {
+                        // Kinda fast path
+                        var absScale = math.abs(collider.m_convex.scale);
+                        return new LocalInertiaTensorDiagonal
+                        {
+                            inertiaDiagonal   = blob.unscaledInertiaTensorDiagonal * absScale * absScale,
+                            tensorOrientation = blob.unscaledInertiaTensorOrientation
+                        };
+                    }
 
                     // Todo: Is there a faster way to do this when we already have the unscaled orientation and diagonal?
-                    var scaledTensor   = blob.inertiaTensor;
-                    scaledTensor.c0.x *= scale.x;
-                    scaledTensor.c1.y *= scale.y;
-                    scaledTensor.c2.z *= scale.z;
+                    var scaledTensor = StretchInertiaTensor(blob.inertiaTensor, scale);
                     mathex.DiagonalizeSymmetricApproximation(scaledTensor, out var orientation, out var diagonal);
                     return new LocalInertiaTensorDiagonal
                     {
@@ -209,9 +253,9 @@ namespace Latios.Psyshock
                 }
                 case ColliderType.TriMesh:
                 {
-                    var aabb  = collider.m_triMesh.triMeshColliderBlob.Value.localAabb;
-                    aabb.min *= collider.m_triMesh.scale;
-                    aabb.max *= collider.m_triMesh.scale;
+                    var aabb  = collider.m_triMesh().triMeshColliderBlob.Value.localAabb;
+                    aabb.min *= collider.m_triMesh().scale;
+                    aabb.max *= collider.m_triMesh().scale;
                     Physics.GetCenterExtents(aabb, out _, out var extents);
                     var    halfSq    = extents * extents;
                     float3 tensorNum = new float3(halfSq.y + halfSq.z, halfSq.x + halfSq.z, halfSq.x + halfSq.y);
@@ -223,8 +267,8 @@ namespace Latios.Psyshock
                 }
                 case ColliderType.Compound:
                 {
-                    ref var blob  = ref collider.m_compound.compoundColliderBlob.Value;
-                    var     scale = collider.m_compound.scale * collider.m_compound.stretch;
+                    ref var blob  = ref collider.m_compound().compoundColliderBlob.Value;
+                    var     scale = collider.m_compound().scale * collider.m_compound().stretch;
                     if (scale.Equals(new float3(1f, 1f, 1f)))
                     {
                         // Fast path
@@ -234,12 +278,19 @@ namespace Latios.Psyshock
                             tensorOrientation = blob.unscaledInertiaTensorOrientation
                         };
                     }
+                    if (collider.m_compound().stretch.Equals(new float3(1f, 1f, 1f)))
+                    {
+                        // Kinda fast path
+                        var absScale = math.abs(collider.m_compound().scale);
+                        return new LocalInertiaTensorDiagonal
+                        {
+                            inertiaDiagonal   = blob.unscaledInertiaTensorDiagonal * absScale * absScale,
+                            tensorOrientation = blob.unscaledInertiaTensorOrientation
+                        };
+                    }
 
                     // Todo: Is there a faster way to do this when we already have the unscaled orientation and diagonal?
-                    var scaledTensor   = blob.inertiaTensor;
-                    scaledTensor.c0.x *= scale.x;
-                    scaledTensor.c1.y *= scale.y;
-                    scaledTensor.c2.z *= scale.z;
+                    var scaledTensor = StretchInertiaTensor(blob.inertiaTensor, scale);
                     mathex.DiagonalizeSymmetricApproximation(scaledTensor, out var orientation, out var diagonal);
                     return new LocalInertiaTensorDiagonal
                     {
@@ -249,6 +300,41 @@ namespace Latios.Psyshock
                 }
                 default: return default;
             }
+        }
+
+        static float3x3 StretchInertiaTensor(float3x3 original, float3 stretch)
+        {
+            // The inertia tensor matrix diagonal components (not necessarily a diagonalized inertia tensor) are defined as follows:
+            // diagonal.x = sum_1_k(mass_k * (y_k^2 + z_k^2)) = sum_1_k(mass_k * y_k^2) + sum_1_k(mass_k * z_k^2)
+            // And for uniform density, m_k is constant, so:
+            // diagonal.x = mass * sum_1_k(y_k^2) + sum_1_k(z_k^2)
+            // diagonal.y = mass * sum_1_k(x_k^2) + sum_1_k(z_k^2)
+            // diagonal.z = mass * sum_1_k(x_k^2) + sum_1_k(y_k^2)
+            // The base inertia diagonal has mass divided out to be 1f, so we can drop it from our expression.
+            //
+            // We can define a property s as the sum of diagonals.
+            // diagonal.x + diagonal.y + diagonal.z = sum_1_k(y_k^2) + sum_1_k(z_k^2) + sum_1_k(x_k^2) + sum_1_k(z_k^2) + sum_1_k(x_k^2) + sum_1_k(y_k^2)
+            // diagonal.x + diagonal.y + diagonal.z = 2 * ( sum_1_k(x_k^2) + sum_1_k(y_k^2) + sum_1_k(z_k^2) )
+            //
+            // And with this, we can write this expression:
+            // (diagonal.x + diagonal.y + diagonal.z) / 2 - diagonal.x = sum_1_k(x_k^2)
+            // And we can do similar for the other two axes.
+            //
+            // Applying stretch changes the expression of sum_1_k(x_k^2) to sum_1_k( (x_k * stretch.x)^2 ) = sum_1_k(x_k^2 * stretch.x^2) = stretch.x^2 * sum_1_k(x_k^2)
+            // And with that, we have all the data we need to reassemble the inertia tensor.
+            var diagonal        = new float3(original.c0.x, original.c1.y, original.c2.z);
+            var diagonalHalfSum = math.csum(diagonal) / 2f;
+            var xSqySqzSq       = diagonalHalfSum - diagonal;
+            var newDiagonal     = stretch * stretch * xSqySqzSq;
+
+            // The off diagonals are just products, so we can actually just scale those.
+            var scaleMatrix =
+                new float3x3(new float3(0f, stretch.x * stretch.yz), new float3(stretch.x * stretch.y, 0f, stretch.x * stretch.z), new float3(stretch.z * stretch.xy, 0f));
+            var result  = original * scaleMatrix;
+            result.c0.x = newDiagonal.x;
+            result.c1.y = newDiagonal.y;
+            result.c2.z = newDiagonal.z;
+            return result;
         }
     }
 }

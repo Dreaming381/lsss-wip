@@ -134,7 +134,7 @@ namespace Latios.Psyshock
     internal struct BlobCollider
     {
 #pragma warning disable CS0649
-        internal float4x4 storage;
+        internal float3x4 storage;
 #pragma warning restore CS0649
     }
 
