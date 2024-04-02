@@ -18,7 +18,7 @@ namespace Latios.Calligraphics.Authoring
     [AddComponentMenu("Latios/Calligraphics/Text Renderer")]
     public class TextRendererAuthoring : MonoBehaviour
     {
-        [Multiline]
+        [TextArea(3, 10)]
         public string text;
 
         public float               fontSize            = 12f;
