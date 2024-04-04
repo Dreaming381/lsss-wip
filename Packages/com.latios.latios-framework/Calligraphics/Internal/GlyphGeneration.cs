@@ -4,20 +4,22 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
-using UnityEngine;
 
 namespace Latios.Calligraphics
 {
-    public static class GlyphGeneration
+    internal static class GlyphGeneration
     {
         internal static unsafe void CreateRenderGlyphs(ref DynamicBuffer<RenderGlyph> renderGlyphs,
                                                        ref GlyphMappingWriter mappingWriter,
-                                                       ref FontBlob font,
+                                                       ref FontMaterialSet fontMaterialSet,
                                                        in DynamicBuffer<CalliByte>    calliBytes,
-                                                       in TextBaseConfiguration baseConfiguration,
-                                                       ref NativeList<RichTextTag>    tags)
+                                                       in TextBaseConfiguration baseConfiguration)
         {
             renderGlyphs.Clear();
+
+            //initialized textConfiguration which stores all fields that are modified by RichText Tags
+            var richTextTagIdentifiers = new FixedList512Bytes<RichTextTagIdentifier>();
+            var textConfiguration      = new TextConfiguration(baseConfiguration);
 
             float2                 cumulativeOffset                                = new float2();  // Tracks text progression and word wrap
             float2                 adjustmentOffset                                = new float2();  //Tracks placement adjustments
@@ -29,14 +31,28 @@ namespace Latios.Calligraphics
             bool                   prevWasSpace                                    = false;
             int                    lineCount                                       = 0;
             bool                   isLineStart                                     = true;
+            ref FontBlob           font                                            = ref fontMaterialSet[0];
 
             var calliString         = new CalliString(calliBytes);
-            var characterEnumerator = new RichTextInfluenceCharEnumerator(tags, calliString);
-
+            var characterEnumerator = calliString.GetEnumerator();
             while (characterEnumerator.MoveNext())
             {
-                var unicode = characterEnumerator.Current.character;
+                var unicode = characterEnumerator.Current;
                 characterCount++;
+
+                // Parse Rich Text Tag
+                #region Parse Rich Text Tag
+                if (unicode == '<')  // '<'
+                {
+                    textConfiguration.m_isParsingText = true;
+                    // Check if Tag is valid. If valid, skip to the end of the validated tag.
+                    if (RichTextParser.ValidateHtmlTag(in calliString, ref characterEnumerator, ref font, in baseConfiguration, ref textConfiguration, ref richTextTagIdentifiers))
+                    {
+                        // Continue to next character
+                        continue;
+                    }
+                }
+                #endregion
 
                 if (isLineStart)
                 {
@@ -52,12 +68,11 @@ namespace Latios.Calligraphics
                 if (unicode.value == 10)  //Line feed
                 {
                     var glyphsLine   = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
-                    var overrideMode = baseConfiguration.alignMode;
-                    if ((overrideMode & AlignMode.HorizontalMask) == AlignMode.Justified)
+                    var overrideMode = textConfiguration.m_lineJustification;
+                    if ((overrideMode) == HorizontalAlignmentOptions.Justified)
                     {
                         // Don't perform justified spacing for the last line in the paragraph.
-                        overrideMode &= ~AlignMode.HorizontalMask;
-                        overrideMode |= AlignMode.Left;
+                        overrideMode = HorizontalAlignmentOptions.Left;
                     }
                     ApplyHorizontalAlignmentToGlyphs(ref glyphsLine,
                                                      ref characterGlyphIndicesWithPreceedingSpacesInLine,
@@ -71,14 +86,14 @@ namespace Latios.Calligraphics
                     continue;
                 }
 
-                if (font.characters.TryGetGlyph(math.asuint(unicode.value), out var glyphIndex))
+                if (font.TryGetGlyphIndex(math.asuint(unicode.value), out var glyphIndex))
                 {
                     ref var glyphBlob   = ref font.characters[glyphIndex];
                     var     renderGlyph = new RenderGlyph
                     {
-                        blPosition = GetBottomLeftPosition(ref font, ref glyphBlob, baseConfiguration.fontSize,
+                        blPosition = GetBottomLeftPosition(ref font, ref glyphBlob, textConfiguration.m_currentFontSize,
                                                            adjustmentOffset + cumulativeOffset, false, false),
-                        trPosition = GetTopRightPosition(ref font, ref glyphBlob, baseConfiguration.fontSize,
+                        trPosition = GetTopRightPosition(ref font, ref glyphBlob, textConfiguration.m_currentFontSize,
                                                          adjustmentOffset + cumulativeOffset, false, false),
                         blUVA   = glyphBlob.bottomLeftUV,
                         trUVA   = glyphBlob.topRightUV,
@@ -86,17 +101,17 @@ namespace Latios.Calligraphics
                         tlUVB   = glyphBlob.topLeftUV2,
                         trUVB   = glyphBlob.topRightUV2,
                         brUVB   = glyphBlob.bottomRightUV2,
-                        blColor = baseConfiguration.color,
-                        tlColor = baseConfiguration.color,
-                        trColor = baseConfiguration.color,
-                        brColor = baseConfiguration.color,
+                        blColor = textConfiguration.m_htmlColor,
+                        tlColor = textConfiguration.m_htmlColor,
+                        trColor = textConfiguration.m_htmlColor,
+                        brColor = textConfiguration.m_htmlColor,
                         unicode = glyphBlob.unicode,
-                        scale   = baseConfiguration.fontSize,
+                        scale   = textConfiguration.m_currentFontSize,
                     };
 
                     var baseScale = font.baseScale;
-                    ApplyTags(ref renderGlyph, ref font, ref glyphBlob, ref baseScale, characterEnumerator.Current);
                     renderGlyphs.Add(renderGlyph);
+                    fontMaterialSet.WriteFontMaterialIndexForGlyph(0);
                     mappingWriter.AddCharNoTags(characterCount - 1, true);
                     mappingWriter.AddCharWithTags(characterEnumerator.CurrentCharIndex, true);
                     mappingWriter.AddBytes(characterEnumerator.CurrentByteIndex, unicode.LengthInUtf8Bytes(), true);
@@ -111,7 +126,7 @@ namespace Latios.Calligraphics
                     var peekEnumerator = characterEnumerator;
                     if (peekEnumerator.MoveNext())
                     {
-                        var peekChar = peekEnumerator.Current.character;
+                        var peekChar = peekEnumerator.Current;
                         for (int k = 0; k < glyphBlob.glyphAdjustments.Length; k++)
                         {
                             var glyphAdjustment = glyphBlob.glyphAdjustments[k];
@@ -162,7 +177,7 @@ namespace Latios.Calligraphics
                             ApplyHorizontalAlignmentToGlyphs(ref glyphsLine,
                                                              ref characterGlyphIndicesWithPreceedingSpacesInLine,
                                                              baseConfiguration.maxLineWidth,
-                                                             baseConfiguration.alignMode);
+                                                             textConfiguration.m_lineJustification);
                             startOfLineGlyphIndex = lastWordStartCharacterGlyphIndex;
                             lineCount++;
 
@@ -208,130 +223,16 @@ namespace Latios.Calligraphics
 
             var finalGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
             {
-                var overrideMode = baseConfiguration.alignMode;
-                if ((overrideMode & AlignMode.HorizontalMask) == AlignMode.Justified)
+                var overrideMode = textConfiguration.m_lineJustification;
+                if ((overrideMode) == HorizontalAlignmentOptions.Justified)
                 {
                     // Don't perform justified spacing for the last line.
-                    overrideMode &= ~AlignMode.HorizontalMask;
-                    overrideMode |= AlignMode.Left;
+                    overrideMode = HorizontalAlignmentOptions.Left;
                 }
                 ApplyHorizontalAlignmentToGlyphs(ref finalGlyphsLine, ref characterGlyphIndicesWithPreceedingSpacesInLine, baseConfiguration.maxLineWidth, overrideMode);
             }
             lineCount++;
-            ApplyVerticalAlignmentToGlyphs(ref renderGlyphs, lineCount, baseConfiguration.alignMode, ref font, baseConfiguration.fontSize);
-        }
-
-        //TODO:  Modify advances and placements based on tags
-        static void ApplyTags(ref RenderGlyph renderGlyph, ref FontBlob font, ref GlyphBlob glyph,  ref float baseScale, RichTextInfluenceContext enumerable)
-        {
-            //for (int i = 0; i < tags.Length; i++)
-            foreach (var tag in enumerable)
-            {
-                switch (tag.tagType)
-                {
-                    case RichTextTagType.Align:
-                        break;
-                    case RichTextTagType.Alpha:
-                        renderGlyph.blColor.a = tag.alpha;
-                        renderGlyph.tlColor.a = tag.alpha;
-                        renderGlyph.trColor.a = tag.alpha;
-                        renderGlyph.brColor.a = tag.alpha;
-                        break;
-                    case RichTextTagType.Anchor:
-                        break;
-                    case RichTextTagType.Bold:
-                        break;
-                    case RichTextTagType.Color:
-                    {
-                        Color32 blColor       = renderGlyph.blColor;
-                        renderGlyph.blColor   = tag.color;
-                        renderGlyph.blColor.a = blColor.a;
-                        Color32 tlColor       = renderGlyph.tlColor;
-                        renderGlyph.tlColor   = tag.color;
-                        renderGlyph.tlColor.a = tlColor.a;
-                        Color32 trColor       = renderGlyph.trColor;
-                        renderGlyph.trColor   = tag.color;
-                        renderGlyph.trColor.a = trColor.a;
-                        Color32 brColor       = renderGlyph.brColor;
-                        renderGlyph.brColor   = tag.color;
-                        renderGlyph.brColor.a = brColor.a;
-                        break;
-                    }
-                    case RichTextTagType.Font:
-                        break;
-                    case RichTextTagType.Gradient:
-                    {
-                        Color32 blColor       = renderGlyph.blColor;
-                        renderGlyph.blColor   = tag.blColor;
-                        renderGlyph.blColor.a = blColor.a;
-                        Color32 tlColor       = renderGlyph.tlColor;
-                        renderGlyph.tlColor   = tag.tlColor;
-                        renderGlyph.tlColor.a = tlColor.a;
-                        Color32 trColor       = renderGlyph.trColor;
-                        renderGlyph.trColor   = tag.trColor;
-                        renderGlyph.trColor.a = trColor.a;
-                        Color32 brColor       = renderGlyph.brColor;
-                        renderGlyph.brColor   = tag.brColor;
-                        renderGlyph.brColor.a = brColor.a;
-                        break;
-                    }
-                    case RichTextTagType.Indent:
-                        break;
-                    case RichTextTagType.Italic:
-                        break;
-                    case RichTextTagType.Margin:
-                        break;
-                    case RichTextTagType.Mark:
-                        break;
-                    case RichTextTagType.Position:
-                        break;
-                    case RichTextTagType.Rotate:
-                        break;
-                    case RichTextTagType.Size:
-                        renderGlyph.scale = tag.fontSize;
-                        break;
-                    case RichTextTagType.Space:
-                        break;
-                    case RichTextTagType.Sprite:
-                        break;
-                    case RichTextTagType.Style:
-                        break;
-                    case RichTextTagType.Subscript:
-                        break;
-                    case RichTextTagType.Superscript:
-                        break;
-                    case RichTextTagType.Underline:
-                        break;
-                    case RichTextTagType.Width:
-                        break;
-                    case RichTextTagType.AllCaps:
-                        break;
-                    case RichTextTagType.CharacterSpacing:
-                        break;
-                    case RichTextTagType.FontWeight:
-                        break;
-                    case RichTextTagType.LineBreak:
-                        break;
-                    case RichTextTagType.LineHeight:
-                        break;
-                    case RichTextTagType.LineIndent:
-                        break;
-                    case RichTextTagType.LowerCase:
-                        break;
-                    case RichTextTagType.MonoSpace:
-                        break;
-                    case RichTextTagType.NoBreak:
-                        break;
-                    case RichTextTagType.SmallCaps:
-                        break;
-                    case RichTextTagType.StrikeThrough:
-                        break;
-                    case RichTextTagType.UpperCase:
-                        break;
-                    case RichTextTagType.VerticalOffset:
-                        break;
-                }
-            }
+            ApplyVerticalAlignmentToGlyphs(ref renderGlyphs, lineCount, baseConfiguration.verticalAlignment, ref font, baseConfiguration.fontSize);
         }
 
         static float2 GetBottomLeftPosition(ref FontBlob font, ref GlyphBlob glyph, float scale, float2 offset, bool isItalics, bool isBold)
@@ -399,16 +300,16 @@ namespace Latios.Calligraphics
         static unsafe void ApplyHorizontalAlignmentToGlyphs(ref NativeArray<RenderGlyph> glyphs,
                                                             ref FixedList512Bytes<int>   characterGlyphIndicesWithPreceedingSpacesInLine,
                                                             float width,
-                                                            AlignMode alignMode)
+                                                            HorizontalAlignmentOptions alignMode)
         {
-            if ((alignMode & AlignMode.HorizontalMask) == AlignMode.Left)
+            if ((alignMode) == HorizontalAlignmentOptions.Left)
             {
                 characterGlyphIndicesWithPreceedingSpacesInLine.Clear();
                 return;
             }
 
             var glyphsPtr = (RenderGlyph*)glyphs.GetUnsafePtr();
-            if ((alignMode & AlignMode.HorizontalMask) == AlignMode.Center)
+            if ((alignMode) == HorizontalAlignmentOptions.Center)
             {
                 float offset = glyphsPtr[glyphs.Length - 1].trPosition.x / 2f;
                 for (int i = 0; i < glyphs.Length; i++)
@@ -417,7 +318,7 @@ namespace Latios.Calligraphics
                     glyphsPtr[i].trPosition.x -= offset;
                 }
             }
-            else if ((alignMode & AlignMode.HorizontalMask) == AlignMode.Right)
+            else if ((alignMode) == HorizontalAlignmentOptions.Right)
             {
                 float offset = glyphsPtr[glyphs.Length - 1].trPosition.x;
                 for (int i = 0; i < glyphs.Length; i++)
@@ -447,10 +348,14 @@ namespace Latios.Calligraphics
             characterGlyphIndicesWithPreceedingSpacesInLine.Clear();
         }
 
-        static unsafe void ApplyVerticalAlignmentToGlyphs(ref DynamicBuffer<RenderGlyph> glyphs, int fullLineCount, AlignMode alignMode, ref FontBlob font, float fontSize)
+        static unsafe void ApplyVerticalAlignmentToGlyphs(ref DynamicBuffer<RenderGlyph> glyphs,
+                                                          int fullLineCount,
+                                                          VerticalAlignmentOptions alignMode,
+                                                          ref FontBlob font,
+                                                          float fontSize)
         {
             var glyphsPtr = (RenderGlyph*)glyphs.GetUnsafePtr();
-            if ((alignMode & AlignMode.VerticalMask) == AlignMode.Top)
+            if ((alignMode) == VerticalAlignmentOptions.Top)
             {
                 // Positions were calculated relative to the baseline.
                 // Shift everything down so that y = 0 is on the ascent line.
@@ -462,7 +367,7 @@ namespace Latios.Calligraphics
                     glyphsPtr[i].trPosition.y -= offset;
                 }
             }
-            else if ((alignMode & AlignMode.VerticalMask) == AlignMode.Middle)
+            else if ((alignMode) == VerticalAlignmentOptions.Middle)
             {
                 float newlineSpace = (fullLineCount - 1) * font.lineHeight * font.baseScale * fontSize;
                 float fullHeight   = newlineSpace + (font.ascentLine - font.baseLine) * font.baseScale * fontSize;

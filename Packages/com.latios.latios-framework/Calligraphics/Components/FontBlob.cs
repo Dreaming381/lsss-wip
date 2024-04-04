@@ -1,17 +1,20 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine.TextCore.LowLevel;
 
 namespace Latios.Calligraphics
 {
     //TODO: Underlay, Bold, Smallcaps
     public struct FontBlob
     {
-        public BlobArray<GlyphBlob> characters;
-        public float                        ascentLine;
-        public float                        descentLine;
-        public float                        lineHeight;
-        public float                        pointSize;
-        public float                        scale;
+        public BlobArray<GlyphBlob>               characters;
+        public BlobArray<BlobArray<GlyphLookup> > glyphLookupMap;
+        public float                              ascentLine;
+        public float                              descentLine;
+        public float                              lineHeight;
+        public float                              pointSize;
+        public float                              scale;
 
         public float baseLine;
         public float atlasWidth;
@@ -21,9 +24,16 @@ namespace Latios.Calligraphics
         public float regularStyleWeight;
         public float boldStyleSpacing;
         public float boldStyleWeight;
-        public float italicsStyleSlant;
+        public byte  italicsStyleSlant;
 
         public float capLine;
+
+        public float subscriptOffset;
+        public float subscriptSize;
+        public float superscriptOffset;
+        public float superscriptSize;
+
+        //public float underlineOffset;
 
         /// <summary>
         /// Padding that is read from material properties
@@ -38,6 +48,7 @@ namespace Latios.Calligraphics
 
     public struct GlyphBlob
     {
+        public uint              glyphIndex;
         public uint              unicode;
         public BlobArray<float2> vertices;
         public BlobArray<float2> uv;
@@ -74,8 +85,9 @@ namespace Latios.Calligraphics
 
         public struct AdjustmentPair
         {
-            public GlyphAdjustment firstAdjustment;
-            public GlyphAdjustment secondAdjustment;
+            public FontFeatureLookupFlags fontFeatureLookupFlags;
+            public GlyphAdjustment        firstAdjustment;
+            public GlyphAdjustment        secondAdjustment;
         }
 
         public struct GlyphAdjustment
@@ -85,25 +97,45 @@ namespace Latios.Calligraphics
             public float yPlacement;
             public float xAdvance;
             public float yAdvance;
+            public static GlyphAdjustment operator +(GlyphAdjustment a, GlyphAdjustment b)
+            => new GlyphAdjustment
+            {
+                xPlacement = a.xPlacement + b.xPlacement,
+                yPlacement = a.yPlacement + b.yPlacement,
+                xAdvance   = a.xAdvance + b.xAdvance,
+                yAdvance   = a.yAdvance + b.yAdvance,
+            };
         }
+    }
+
+    public struct GlyphLookup
+    {
+        public uint unicode;
+        public int  index;
     }
 
     public static class BlobTextMeshGlyphExtensions
     {
-        public static bool TryGetGlyph(ref this BlobArray<GlyphBlob> glyphs, uint character, out int index)
+        public static bool TryGetGlyphIndex(ref this FontBlob font, uint character, out int index)
         {
-            index = -1;
+            ref var hashArray = ref font.glyphLookupMap[GetGlyphHash(character)];
+            index             = -1;
 
-            for (int i = 0; i < glyphs.Length; i++)
+            for (int i = 0; i < hashArray.Length; i++)
             {
-                if (glyphs[i].unicode == character)
+                if (hashArray[i].unicode == character)
                 {
-                    index = i;
+                    index = hashArray[i].index;
                     return true;
                 }
             }
 
             return false;
+        }
+
+        public static int GetGlyphHash(uint unicode)
+        {
+            return (int)(unicode & 0x3f);
         }
     }
 }

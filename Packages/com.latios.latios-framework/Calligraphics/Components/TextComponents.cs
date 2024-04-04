@@ -1,7 +1,7 @@
-using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 namespace Latios.Calligraphics
 {
@@ -34,29 +34,39 @@ namespace Latios.Calligraphics
         /// </summary>
         public Color32 color;
         /// <summary>
-        /// The horizontal and vertical alignment modes of the text
+        /// The horizontal alignment mode of the text
         /// </summary>
-        public AlignMode alignMode;
-    }
+        public HorizontalAlignmentOptions lineJustification
+        {
+            get => (HorizontalAlignmentOptions)((m_alignmentWeightOrtho & 0x70) >> 4);
+            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & ~0x70) | ((ushort)value << 4));
+        }
+        /// <summary>
+        /// The vertical alignment mode of the text
+        /// </summary>
+        public VerticalAlignmentOptions verticalAlignment
+        {
+            get => (VerticalAlignmentOptions)((m_alignmentWeightOrtho & 0x380) >> 7);
+            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & ~0x380) | ((ushort)value << 7));
+        }
+        public FontWeight fontWeight
+        {
+            get => (FontWeight)(m_alignmentWeightOrtho & 0x0f);
+            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & ~0x0f) | (ushort)value);
+        }
+        public FontStyles fontStyle
+        {
+            get => (FontStyles)m_fontStyleFlags;
+            set => m_fontStyleFlags = (ushort)value;
+        }
+        public bool isOrthographic
+        {
+            get => (m_alignmentWeightOrtho & 0x8000) != 0;
+            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & 0x7fff) | (value ? 0x8000 : 0));
+        }
 
-    /// <summary>
-    /// An additional rendered text entity containing a different font and material.
-    /// Currently unsupported.
-    /// </summary>
-    [InternalBufferCapacity(0)]
-    public struct AdditionalFontMaterialEntity : IBufferElementData
-    {
-        public EntityWith<FontBlobReference> entity;
-    }
-
-    /// <summary>
-    /// A per-glyph index into the font and material that should be used to render it.
-    /// Currently unsupported.
-    /// </summary>
-    [InternalBufferCapacity(0)]
-    public struct FontMaterialSelectorForGlyph : IBufferElementData
-    {
-        public byte fontMaterialIndex;
+        private ushort m_fontStyleFlags;  // 6 bits unused, but Unity may add more.
+        ushort         m_alignmentWeightOrtho;  // 5 bits unused.
     }
 
     /// <summary>
@@ -102,21 +112,42 @@ namespace Latios.Calligraphics
     }
 
     /// <summary>
-    /// The packed alignment modes for both horizontal and vertical directions.
+    /// Horizontal text alignment options.
     /// </summary>
-    public enum AlignMode : byte
+    public enum HorizontalAlignmentOptions : byte
     {
-        Left = 0x0,
-        Right = 0x1,
-        Center = 0x2,
-        Justified = 0x3,
-        //
-        Top = 0x0,
-        Middle = 0x1 << 2,
-        Bottom = 0x2 << 2,
-        //
-        HorizontalMask = 0x3,
-        VerticalMask = 0xc,
+        Left,
+        Center,
+        Right,
+        Justified,
+        Flush,
+        Geometry
     }
+
+    /// <summary>
+    /// Vertical text alignment options.
+    /// </summary>
+    public enum VerticalAlignmentOptions : byte
+    {
+        Top,
+        Middle,
+        Bottom,
+        Baseline,
+        Geometry,
+        Capline,
+    }
+
+    public enum FontWeight
+    {
+        Thin,
+        ExtraLight,
+        Light,
+        Regular,
+        Medium,
+        SemiBold,
+        Bold,
+        Heavy,
+        Black
+    };
 }
 
