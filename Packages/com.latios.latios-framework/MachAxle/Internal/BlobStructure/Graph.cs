@@ -7,6 +7,8 @@ namespace Latios.MachAxle
 {
     struct Graph
     {
+        public int                      baseInputCount;
+        public int                      easyLayerCount;
         public BlobArray<Layer>         layers;
         public BlobArray<byte>          curveStream;
         public BlobArray<Port>          sourcePorts;

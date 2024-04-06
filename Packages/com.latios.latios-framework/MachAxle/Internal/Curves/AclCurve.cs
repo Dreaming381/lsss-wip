@@ -20,14 +20,41 @@ namespace Latios.MachAxle
             ref var clip             = ref graph.parameterClips[clipIndex];
             var     sourcePorts      = graph.sourcePorts.AsSpan().Slice(sourcePortsStart, sourcePortsCount);
             var     destinationPorts = graph.destinationPortSpans.AsSpan().Slice(destinationPortSpansStart, destinationPortSpansCount);
-            for (int i = 0; i < sourcePortsCount; i++)
+            int     instanceCount    = bus.InstanceCount();
+
+            if (bus.HasFilters())
             {
-                bus.SetJournalCurveLocalIndex(i);
-                bus.SetPortIndex(0);
-                float input  = bus.Import(sourcePorts[i]);
-                float output = clip.SampleParameter(i, input);
-                bus.SetPortIndex(1);
-                bus.Export(destinationPorts[i], output);
+                var bitfieldArray = bus.GetFilter();
+                for (int i = 0; i < sourcePortsCount; i++)
+                {
+                    var bitfield = bitfieldArray[(i + journalBaseIndex) >> 6];
+                    if (!bitfield.IsSet((i + journalBaseIndex) & 0x3f))
+                        continue;
+                    bus.SetJournalCurveLocalIndex(i);
+                    for (int j = 0; j < instanceCount; j++)
+                    {
+                        bus.SetJournalPortIndex(0);
+                        float input  = bus.Import(sourcePorts[i], j);
+                        float output = clip.SampleParameter(i, input);
+                        bus.SetJournalPortIndex(1);
+                        bus.Export(destinationPorts[i], j, output);
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < sourcePortsCount; i++)
+                {
+                    bus.SetJournalCurveLocalIndex(i);
+                    for (int j = 0; j < instanceCount; j++)
+                    {
+                        bus.SetJournalPortIndex(0);
+                        float input  = bus.Import(sourcePorts[i], j);
+                        float output = clip.SampleParameter(i, input);
+                        bus.SetJournalPortIndex(1);
+                        bus.Export(destinationPorts[i], j, output);
+                    }
+                }
             }
         }
     }
