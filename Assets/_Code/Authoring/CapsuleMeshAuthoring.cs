@@ -287,7 +287,7 @@ namespace Lsss.Authoring
             RenderingBakingTools.ExtractMeshMaterialSubmeshes(mms, mesh, m_materialsCache);
             var opaqueMaterialCount = RenderingBakingTools.GroupByDepthSorting(mms);
 
-            RenderingBakingTools.GetLOD(this, meshRenderer, out var lodGroupEntity, out var lodMask);
+            RenderingBakingTools.GetLOD(this, meshRenderer, out var lodSettings);
 
             var rendererSettings = new MeshRendererBakeSettings
             {
@@ -298,8 +298,7 @@ namespace Lsss.Authoring
                 useLightmapsIfPossible      = true,
                 lightmapIndex               = meshRenderer.lightmapIndex,
                 lightmapScaleOffset         = meshRenderer.lightmapScaleOffset,
-                lodGroupEntity              = lodGroupEntity,
-                lodGroupMask                = lodMask,
+                lodSettings                 = lodSettings,
                 isStatic                    = IsStatic(),
                 localBounds                 = mesh != null ? mesh.bounds : default,
             };
