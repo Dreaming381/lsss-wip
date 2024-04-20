@@ -24,8 +24,7 @@ namespace Lsss.SuperSystems
 
             GetOrCreateAndAddManagedSystem<Latios.Transforms.Systems.TransformSuperSystem>();
 
-            // Todo: Namespace is wrong. Fix in 0.9.
-            m_gameObjectEntitySystemToTemporarilyDisable = World.GetExistingSystem<Latios.Transforms.CopyGameObjectTransformFromEntitySystem>();
+            m_gameObjectEntitySystemToTemporarilyDisable = World.GetExistingSystem<Latios.Transforms.Systems.CopyGameObjectTransformFromEntitySystem>();
         }
 
         protected override void OnUpdate()
