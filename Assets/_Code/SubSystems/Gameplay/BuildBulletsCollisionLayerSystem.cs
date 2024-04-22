@@ -22,11 +22,6 @@ namespace Lsss
             latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
         public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new BulletCollisionLayer());
 
         [BurstCompile]
@@ -66,7 +61,7 @@ namespace Lsss
                 CapsuleCollider capsule     = collider;
                 float           tailLength  = math.distance(worldTransform.position, previousPosition.position);
                 capsule.pointA              = capsule.pointB;
-                capsule.pointA.z           -= math.max(tailLength, 1.1920928955078125e-7f);  //Todo: Use math version of this once released.
+                capsule.pointA.z           -= math.max(tailLength, math.EPSILON);
 
                 bodies[entityInQueryIndex] = new ColliderBody
                 {
