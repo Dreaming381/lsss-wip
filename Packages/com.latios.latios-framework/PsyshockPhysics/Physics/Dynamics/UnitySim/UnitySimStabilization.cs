@@ -44,7 +44,7 @@ namespace Latios.Psyshock
         /// <param name="timestepScaledGravity">Gravity applied to this body multiplied by the timestep</param>
         /// <param name="gravityDirection">The normalized gravity vector, or float3.zero if no gravity</param>
         /// <param name="stabilizationVelocityClippingFactor">A heuristic factor [0, 5] for when to clip velocity to zero. Higher is more aggressive clipping. Typically 1f</param>
-        /// <param name="stabilizationInertiaScalingFactor">A heuristic factor [0, 5] for when to scale inertia to compensate for compression. Higher is more aggressive scaling. Typically 1f</param>
+        /// <param name="stabilizationInertiaScalingFactor">A heuristic factor [0, 5] for when to scale inertia to reduce motion. Higher is more aggressive scaling. Typically 1f</param>
         /// <param name="isFirstIteration">True if this is the first time being called this simulation update.</param>
         public static void UpdateStabilizationAfterSolverIteration(ref MotionStabilizer motionStabilizer,
                                                                    ref Velocity velocity,
