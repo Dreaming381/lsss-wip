@@ -11,14 +11,14 @@ namespace Latios.Psyshock
             public float3 jointPositionInInertialPoseASpace;
             public float3 jointPositionInInertialPoseBSpace;
 
-            // Pivot distance limits
-            public float minDistance;
-            public float maxDistance;
-
             // If the constraint limits 1 DOF, this is the constrained axis.
             // If the constraint limits 2 DOF, this is the free axis.
             // If the constraint limits 3 DOF, this is unused and set to float3.zero
             public float3 axisInB;
+
+            // Pivot distance limits
+            public float minDistance;
+            public float maxDistance;
 
             // Position error at the beginning of the step
             public float initialError;
@@ -80,10 +80,10 @@ namespace Latios.Psyshock
             }
 
             // Calculate the current error
-            parameters.initialError = CalculatePositionConstraintError(in parameters, in inertialPoseWorldTransformA, parameters.jointPositionInInertialPoseASpace,
-                                                                       in inertialPoseWorldTransformB, parameters.jointPositionInInertialPoseBSpace, out _);
+            parameters.initialError = CalculatePositionConstraintError(in parameters, in inertialPoseWorldTransformA, in inertialPoseWorldTransformB, out _);
         }
 
+        // Returns the world-space impulse applied to A. The world-space impulse applied to B is simply the negative of this value.
         public static float3 SolveJacobian(ref Velocity velocityA, in RigidTransform inertialPoseWorldTransformA, in Mass massA,
                                            ref Velocity velocityB, in RigidTransform inertialPoseWorldTransformB, in Mass massB,
                                            in PositionConstraintJacobianParameters parameters, float deltaTime, float inverseDeltaTime)
@@ -119,9 +119,7 @@ namespace Latios.Psyshock
                 // Find the difference between the future distance and the limit range, then apply tau and damping
                 float futureDistanceError = CalculatePositionConstraintError(in parameters,
                                                                              futureTransformA,
-                                                                             parameters.jointPositionInInertialPoseASpace,
                                                                              futureTransformB,
-                                                                             parameters.jointPositionInInertialPoseBSpace,
                                                                              out float3 futureDirection);
                 float solveDistanceError = CalculateCorrection(futureDistanceError, parameters.initialError, parameters.tau, parameters.damping);
 
@@ -154,13 +152,13 @@ namespace Latios.Psyshock
         }
 
         static float CalculatePositionConstraintError(in PositionConstraintJacobianParameters parameters,
-                                                      in RigidTransform inertialPoseWorldTransformA, float3 jointPositionInInertialPoseASpace,
-                                                      in RigidTransform inertialPoseWorldTransformB, float3 jointPositionInInertialPoseBSpace,
+                                                      in RigidTransform inertialPoseWorldTransformA,
+                                                      in RigidTransform inertialPoseWorldTransformB,
                                                       out float3 direction)
         {
             // Find the direction from pivot A to B and the distance between them
-            float3 pivotA = math.transform(inertialPoseWorldTransformA, jointPositionInInertialPoseASpace);
-            float3 pivotB = math.transform(inertialPoseWorldTransformB, jointPositionInInertialPoseBSpace);
+            float3 pivotA = math.transform(inertialPoseWorldTransformA, parameters.jointPositionInInertialPoseASpace);
+            float3 pivotB = math.transform(inertialPoseWorldTransformB, parameters.jointPositionInInertialPoseBSpace);
             float3 axis   = math.mul(inertialPoseWorldTransformB.rot, parameters.axisInB);
             direction     = pivotB - pivotA;
             float dot     = math.dot(direction, axis);

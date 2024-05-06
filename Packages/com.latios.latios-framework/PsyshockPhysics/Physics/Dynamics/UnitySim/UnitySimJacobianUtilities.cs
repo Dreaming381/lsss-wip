@@ -6,6 +6,15 @@ namespace Latios.Psyshock
 {
     public static partial class UnitySim
     {
+        // Integrate the relative orientation of a pair of bodies, faster and less memory than storing both bodies' orientations and integrating them separately
+        static quaternion IntegrateOrientationBFromA(quaternion bFromA, float3 angularVelocityA, float3 angularVelocityB, float timestep)
+        {
+            var halfDeltaTime = timestep * 0.5f;
+            var dqA           = new quaternion(new float4(angularVelocityA * halfDeltaTime, 1f));
+            var invDqB        = new quaternion(new float4(angularVelocityB * -halfDeltaTime, 1f));
+            return math.normalize(math.mul(math.mul(invDqB, bFromA), dqA));
+        }
+
         // Calculate the inverse effective mass of a linear jacobian
         static float CalculateInvEffectiveMassDiag(float3 angA, float3 invInertiaA, float invMassA,
                                                    float3 angB, float3 invInertiaB, float invMassB)
@@ -45,10 +54,34 @@ namespace Latios.Psyshock
         // Returns the amount of error for the solver to correct, where initialError is the pre-integration error and predictedError is the expected post-integration error
         // If (predicted > initial) HAVE overshot target = (Predicted - initial)*damping + initial*tau
         // If (predicted < initial) HAVE NOT met target = predicted * tau (ie: damping not used if target not met)
-        public static float CalculateCorrection(float predictedError, float initialError, float tau, float damping)
+        static float CalculateCorrection(float predictedError, float initialError, float tau, float damping)
         {
             return math.max(predictedError - initialError, 0.0f) * damping + math.min(predictedError, initialError) * tau;
         }
+
+        /// <summary>
+        /// Returns the twist angle of the swing-twist decomposition of q about i, j, or k corresponding
+        /// to index = 0, 1, or 2 respectively. Full calculation for readability:
+        ///      float invLength = RSqrtSafe(dot * dot + w * w);
+        ///      float sinHalfAngle = dot * invLength;
+        ///      float cosHalfAngle = w * invLength;
+        /// Observe: invLength cancels in the tan^-1(sin / cos) calc, so avoid unnecessary calculations.
+        /// </summary>
+        ///
+        /// <param name="q">                A quaternion to process. </param>
+        /// <param name="twistAxisIndex">   Zero-based index of the twist axis. </param>
+        ///
+        /// <returns>   The calculated twist angle. </returns>
+        static float CalculateTwistAngle(quaternion q, int twistAxisIndex)
+        {
+            // q = swing * twist, twist = normalize(twistAxis * twistAxis dot q.xyz, q.w)
+            float dot       = q.value[twistAxisIndex];
+            float w         = q.value.w;
+            float halfAngle = math.atan2(dot, w);
+            return halfAngle + halfAngle;
+        }
+
+        static float RSqrtSafe(float v) => math.select(math.rsqrt(v), 0.0f, math.abs(v) < 1e-10f);
     }
 }
 
