@@ -30,7 +30,7 @@ namespace Lsss
             var processor = new DamageCollidingShipsProcessor
             {
                 shipHealthLookup = GetComponentLookup<ShipHealth>(),
-                shipDamageLookup = GetComponentLookup<Damage>()
+                shipDamageLookup = GetComponentLookup<Damage>(true)
             };
             state.Dependency = Physics.FindPairs(shipLayer, processor).ScheduleParallel(state.Dependency);
         }
@@ -42,26 +42,17 @@ namespace Lsss
 
             public void Execute(in FindPairsResult result)
             {
-                //if (math.distance(result.bodyA.transform.pos, result.bodyB.transform.pos) > 250f)
-                //    UnityEngine.Debug.LogWarning("Corrupted AABB pair");
-
-                //var marker = new Unity.Profiling.ProfilerMarker("Process pair");
-                //marker.Begin();
-
-                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
+                if (Physics.DistanceBetween(result.colliderA, result.transformA, result.colliderA, result.transformA, 0f, out _))
                 {
-                    var healthA = shipHealthLookup[result.entityA];
-                    var healthB = shipHealthLookup[result.entityB];
+                    ref var healthA = ref shipHealthLookup.GetRW(result.entityA).ValueRW;
+                    ref var healthB = ref shipHealthLookup.GetRW(result.entityB).ValueRW;
+
                     var damageA = shipDamageLookup[result.entityA];
                     var damageB = shipDamageLookup[result.entityB];
 
                     healthA.health -= damageB.damage;
                     healthB.health -= damageA.damage;
-
-                    shipHealthLookup[result.entityA] = healthA;
-                    shipHealthLookup[result.entityB] = healthB;
                 }
-                //marker.End();
             }
         }
     }
