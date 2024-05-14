@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Latios.Calligraphics.Rendering;
 using Latios.Calligraphics.RichText;
 using Unity.Collections;
@@ -6,7 +5,6 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.TextCore;
 using UnityEngine.TextCore.LowLevel;
 using UnityEngine.TextCore.Text;
 
@@ -14,21 +12,24 @@ namespace Latios.Calligraphics
 {
     internal static class GlyphGeneration
     {
+        /// <summary> This function logic follows TMPro_Private.GenerateTextMesh() </summary>
         internal static unsafe void CreateRenderGlyphs(ref DynamicBuffer<RenderGlyph> renderGlyphs,
                                                        ref GlyphMappingWriter mappingWriter,
                                                        ref FontMaterialSet fontMaterialSet,
+                                                       ref TextConfigurationStack textConfigurationStack,
                                                        in DynamicBuffer<CalliByte>    calliBytes,
                                                        in TextBaseConfiguration baseConfiguration)
         {
             renderGlyphs.Clear();
 
-            //initialized textConfiguration which stores all fields that are modified by RichText Tags
-            var          richTextTagIdentifiers = new FixedList512Bytes<RichTextTagIdentifier>();
-            var          textConfiguration      = new TextConfiguration(baseConfiguration);
-            ref FontBlob font                   = ref fontMaterialSet[textConfiguration.m_currentFontMaterialIndex];
+            // Initialize textConfiguration which stores all fields that are modified by RichText Tags
+            textConfigurationStack.Reset(baseConfiguration);
+            var calliString = new CalliString(calliBytes);
 
-            float2                 cumulativeOffset                                = default;  // Tracks text progression and word wrap
-            float2                 adjustmentOffset                                = default;  //Tracks placement adjustments
+            var          textConfiguration = textConfigurationStack.GetActiveConfiguration();
+            ref FontBlob font              = ref fontMaterialSet[textConfiguration.m_currentFontMaterialIndex];
+
+            int                    characterCount                                  = 0;
             int                    lastWordStartCharacterGlyphIndex                = 0;
             FixedList512Bytes<int> characterGlyphIndicesWithPreceedingSpacesInLine = default;
             int                    accumulatedSpaces                               = 0;
@@ -38,12 +39,13 @@ namespace Latios.Calligraphics
             int                    lineCount                                       = 0;
             bool                   isLineStart                                     = true;
             float                  currentLineHeight                               = 0f;
+            float                  ascentLineDelta                                 = 0;
+            float                  decentLineDelta                                 = 0;
             float                  accumulatedVerticalOffset                       = 0f;
             float                  maxLineAscender                                 = float.MinValue;
             float                  maxLineDescender                                = float.MaxValue;
-            float                  startOfLineAscender                             = font.ascentLine;
             float                  lineGap                                         = font.lineHeight - (font.ascentLine - font.descentLine);
-            float                  lastVisibleAscender                             = 0;
+            float                  xAdvance                                        = 0f;
 
             // Calculate the scale of the font based on selected font size and sampling point size.
             // baseScale is calculated using the font asset assigned to the text object.
@@ -54,87 +56,338 @@ namespace Latios.Calligraphics
             float topAnchor    = GetTopAnchorForConfig(ref fontMaterialSet[0], baseConfiguration.verticalAlignment, baseScale);
             float bottomAnchor = GetBottomAnchorForConfig(ref fontMaterialSet[0], baseConfiguration.verticalAlignment, baseScale);
 
-            var         calliString         = new CalliString(calliBytes);
-            var         characterEnumerator = calliString.GetEnumerator();
-            PrevCurNext prevCurNext         = new PrevCurNext { prev = Unicode.BadRune, current = Unicode.BadRune, next = Unicode.BadRune};
-            while (characterEnumerator.MoveNext())
-            {
-                var currentRune = characterEnumerator.Current;
-                textConfiguration.m_characterCount++;
+            PrevCurNext                 prevCurNext                 = new PrevCurNext(calliString.GetEnumerator());
+            TextGenerationStateCommands textGenerationStateCommands = default;
+            textGenerationStateCommands.Reset();
+            bool needsActiveConfigurationUpdate = false;
+            bool firstIteration                 = true;
 
-                // Parse Rich Text Tag
-                #region Parse Rich Text Tag
-                if (currentRune == '<')
+            while (prevCurNext.nextIsValid)
+            {
+                // On the first iteration, we need to queue up the first character, which could be rich text.
+                // So we process the first character, do rich text analysis, then skip to the second iteration
+                // where we shift everything. Because from the second iteration on, we want to do rich text parsing
+                // after advancing the prevCurNext.
+                if (!firstIteration)
                 {
-                    textConfiguration.m_isParsingText = true;
+                    // We update the count now so that RichTextParser receives the actual character count.
+                    characterCount++;
+                    prevCurNext.MoveNext();
+                }
+
+                // If on the previous iteration we detected a new Html tag, we need to update the active configuration.
+                if (needsActiveConfigurationUpdate)
+                {
+                    textConfiguration = textConfigurationStack.GetActiveConfiguration();
+                    if (textGenerationStateCommands.xAdvanceIsOverwrite)
+                        xAdvance = textGenerationStateCommands.xAdvanceChange;
+                    else
+                        xAdvance += textGenerationStateCommands.xAdvanceChange;
+                    textGenerationStateCommands.Reset();
+                }
+
+                while (prevCurNext.nextIsValid && prevCurNext.next.Current == '<')
+                {
+                    textConfigurationStack.m_isParsingText = true;
                     // Check if Tag is valid. If valid, skip to the end of the validated tag.
-                    if (RichTextParser.ValidateHtmlTag(in calliString, ref characterEnumerator, ref fontMaterialSet, in baseConfiguration, ref textConfiguration,
-                                                       ref richTextTagIdentifiers))
+                    var nextEnumerator = prevCurNext.next;
+                    if (RichTextParser.ValidateHtmlTag(in calliString, ref nextEnumerator, ref fontMaterialSet, in baseConfiguration, ref textConfigurationStack,
+                                                       ref textGenerationStateCommands, characterCount))
                     {
+                        prevCurNext.next               = nextEnumerator;
+                        needsActiveConfigurationUpdate = true;
                         // Continue to next character
+                        prevCurNext.nextIsValid = prevCurNext.next.MoveNext();
                         continue;
                     }
+                    // We failed to parse something. We want to render the '<' instead.
+                    break;
                 }
-                #endregion
-                UpdateCharacterWindow(ref prevCurNext, ref characterEnumerator, baseConfiguration.enableKerning);
-                font                              = ref fontMaterialSet[textConfiguration.m_currentFontMaterialIndex];
-                textConfiguration.m_isParsingText = false;
-                //currentLineHeight = 0 - m_maxLineDescender + lastVisibleAscender + (lineGap + m_lineSpacingDelta) * baseScale + (m_lineSpacing + (currentRune.value == 10 || currentRune.value == 0x2029 ? m_paragraphSpacing : 0)) * currentEmScale;
-                currentLineHeight = font.lineHeight * baseScale + (maxLineAscender - font.ascentLine * baseScale);
+
+                if (firstIteration)
+                {
+                    firstIteration = false;
+                    continue;
+                }
+
+                var currentRune                        = prevCurNext.current.Current;
+                font                                   = ref fontMaterialSet[textConfiguration.m_currentFontMaterialIndex];
+                textConfigurationStack.m_isParsingText = false;
                 if (lineCount == 0)
                     topAnchor = GetTopAnchorForConfig(ref font, baseConfiguration.verticalAlignment, baseScale, topAnchor);
                 bottomAnchor  = GetBottomAnchorForConfig(ref font, baseConfiguration.verticalAlignment, baseScale, bottomAnchor);
 
                 // Handle Font Styles like LowerCase, UpperCase and SmallCaps.
-                #region Handling of LowerCase, UpperCase and SmallCaps Font Styles
+                SwapRune(ref currentRune, ref textConfiguration, out float smallCapsMultiplier);
 
-                float smallCapsMultiplier = 1.0f;
+                // Look up Character Data. TMP uses a backing array,
+                // we pull character directly from FontBlob and continue when not found
+                #region Look up Character Data
+                if (!font.TryGetCharacterIndex(currentRune, out var currentCharIndex))
+                    continue;
 
-                // Todo: Burst does not support language methods, and char only supports the UTF-16 subset
-                // of characters. We should encode upper and lower cross-references into the font blobs or
-                // figure out the formulas for all other languages. Right now only ascii is supported.
-                if ((textConfiguration.m_fontStyleInternal & FontStyles.UpperCase) == FontStyles.UpperCase)
+                ref var glyphBlob = ref font.characters[currentCharIndex];
+
+                float adjustedScale      = textConfiguration.m_currentFontSize * smallCapsMultiplier / font.pointSize * font.scale * (baseConfiguration.isOrthographic ? 1 : 0.1f);
+                float elementAscentLine  = font.ascentLine;
+                float elementDescentLine = font.descentLine;
+
+                currentElementScale  = adjustedScale * textConfiguration.m_fontScaleMultiplier * glyphBlob.glyphScale;  //* m_cached_TextElement.m_Scale
+                float baselineOffset = font.baseLine * adjustedScale * textConfiguration.m_fontScaleMultiplier * font.scale;
+                #endregion
+
+                // Handle Soft Hyphen
+                #region Handle Soft Hyphen
+                float currentElementUnmodifiedScale = currentElementScale;
+                if (currentRune.value == 0xAD || currentRune.value == 0x03)
+                    currentElementScale = 0;
+                #endregion
+
+                // Cache glyph metrics
+                var currentGlyphMetrics = glyphBlob.glyphMetrics;
+
+                // Optimization to avoid calling this more than once per character.
+                bool isWhiteSpace = currentRune.value <= 0xFFFF && currentRune.IsWhiteSpace();
+
+                // Handle Kerning if Enabled.
+                #region Handle Kerning
+                GlyphAdjustment glyphAdjustments           = new();
+                float           characterSpacingAdjustment = 0;  //consider exposing initial characterSpacing in TextRenderer as characterSpacing;
+                if (baseConfiguration.enableKerning)
                 {
-                    // If this character is lowercase, switch to uppercase.
-                    prevCurNext.current = currentRune.ToUpper();
-                    currentRune         = prevCurNext.current;
-                    if (prevCurNext.next != Unicode.BadRune)
-                        prevCurNext.next = prevCurNext.next.ToUpper();
-                }
-                else if ((textConfiguration.m_fontStyleInternal & FontStyles.LowerCase) == FontStyles.LowerCase)
-                {
-                    // If this character is uppercase, switch to lowercase.
-                    prevCurNext.current = currentRune.ToLower();
-                    currentRune         = prevCurNext.current;
-                    if (prevCurNext.next != Unicode.BadRune)
-                        prevCurNext.next = prevCurNext.next.ToLower();
-                }
-                else if ((textConfiguration.m_fontStyleInternal & FontStyles.SmallCaps) == FontStyles.SmallCaps)
-                {
-                    var oldUnicode      = currentRune;
-                    prevCurNext.current = currentRune.ToUpper();
-                    currentRune         = prevCurNext.current;
-                    if (prevCurNext.current != oldUnicode)
+                    // Todo: If the active configuration changes between glyphs, we may want to cancel out of kerning.
+                    if (prevCurNext.nextIsValid)
                     {
-                        smallCapsMultiplier = 0.8f;
+                        var nextRune = prevCurNext.next.Current;
+                        SwapRune(ref nextRune, ref textConfiguration, out _);
+                        if (glyphBlob.glyphAdjustmentsLookup.TryGetAdjustmentPairIndexForUnicodeAfter(nextRune.value, out var adjustmentIndex))
+                        {
+                            var adjustmentPair         = font.adjustmentPairs[adjustmentIndex];
+                            glyphAdjustments           = adjustmentPair.firstAdjustment;
+                            characterSpacingAdjustment = (adjustmentPair.fontFeatureLookupFlags & FontFeatureLookupFlags.IgnoreSpacingAdjustments) ==
+                                                         FontFeatureLookupFlags.IgnoreSpacingAdjustments ? 0 : characterSpacingAdjustment;
+                        }
                     }
-                    if (prevCurNext.next != Unicode.BadRune)
-                        prevCurNext.next = prevCurNext.next.ToUpper();
+
+                    if (prevCurNext.previousIsValid)
+                    {
+                        var prevRune = prevCurNext.prev.Current;
+                        SwapRune(ref prevRune, ref textConfiguration, out _);
+                        if (glyphBlob.glyphAdjustmentsLookup.TryGetAdjustmentPairIndexForUnicodeBefore(prevRune.value, out var adjustmentIndex))
+                        {
+                            var adjustmentPair          = font.adjustmentPairs[adjustmentIndex];
+                            glyphAdjustments           += adjustmentPair.secondAdjustment;
+                            characterSpacingAdjustment  = (adjustmentPair.fontFeatureLookupFlags & FontFeatureLookupFlags.IgnoreSpacingAdjustments) ==
+                                                          FontFeatureLookupFlags.IgnoreSpacingAdjustments ? 0 : characterSpacingAdjustment;
+                        }
+                    }
                 }
                 #endregion
 
+                // Handle Mono Spacing
+                #region Handle Mono Spacing
+                float monoAdvance = 0;
+                if (textConfiguration.m_monoSpacing != 0)
+                {
+                    monoAdvance =
+                        (textConfiguration.m_monoSpacing / 2 - (currentGlyphMetrics.width / 2 + currentGlyphMetrics.horizontalBearingX) * currentElementScale);  // * (1 - charWidthAdjDelta);
+                    xAdvance += monoAdvance;
+                }
+                #endregion
+
+                // Set Padding based on selected font style
+                #region Handle Style Padding
+                float boldSpacingAdjustment = 0;
+                float style_padding         = 0;
+                if ((textConfiguration.m_fontStyleInternal & FontStyles.Bold) == FontStyles.Bold)
+                {
+                    style_padding         = 0;
+                    boldSpacingAdjustment = font.boldStyleSpacing;
+                }
+                #endregion Handle Style Padding
+
+                // Determine the position of the vertices of the Character or Sprite.
+                #region Calculate Vertices Position
+                var renderGlyph = new RenderGlyph { unicode = glyphBlob.unicode };
+
+                // top left is used to position bottom left and top right
+                float2 topLeft;
+                topLeft.x = xAdvance +
+                            ((currentGlyphMetrics.horizontalBearingX * textConfiguration.m_fxScale.x - font.materialPadding - style_padding + glyphAdjustments.xPlacement) *
+                             currentElementScale);  // * (1 - m_charWidthAdjDelta));
+                topLeft.y = baselineOffset + (currentGlyphMetrics.horizontalBearingY + font.materialPadding + glyphAdjustments.yPlacement) * currentElementScale -
+                            textConfiguration.m_lineOffset + textConfiguration.m_baselineOffset;
+
+                float2 bottomLeft;
+                bottomLeft.x = topLeft.x;
+                bottomLeft.y = topLeft.y - ((currentGlyphMetrics.height + font.materialPadding * 2) * currentElementScale);
+
+                float2 topRight;
+                topRight.x = bottomLeft.x + (currentGlyphMetrics.width * textConfiguration.m_fxScale.x + font.materialPadding * 2 + style_padding * 2) * currentElementScale;
+                topRight.y = topLeft.y;
+
+                // Bottom right unused
+                #endregion
+
+                #region Setup UVA
+                var    glyphRect = glyphBlob.glyphRect;
+                float2 blUVA, tlUVA, trUVA, brUVA;
+                blUVA.x = (glyphRect.x - font.materialPadding - style_padding) / font.atlasWidth;
+                blUVA.y = (glyphRect.y - font.materialPadding - style_padding) / font.atlasHeight;
+
+                tlUVA.x = blUVA.x;
+                tlUVA.y = (glyphRect.y + font.materialPadding + style_padding + glyphRect.height) / font.atlasHeight;
+
+                trUVA.x = (glyphRect.x + font.materialPadding + style_padding + glyphRect.width) / font.atlasWidth;
+                trUVA.y = tlUVA.y;
+
+                brUVA.x = trUVA.x;
+                brUVA.y = blUVA.y;
+
+                renderGlyph.blUVA = blUVA;
+                renderGlyph.trUVA = trUVA;
+                #endregion
+
+                #region Setup UVB
+                //Setup UV2 based on Character Mapping Options Selected
+                //m_horizontalMapping case TextureMappingOptions.Character
+                float2 blUVC, tlUVC, trUVC, brUVC;
+                blUVC.x = 0;
+                tlUVC.x = 0;
+                trUVC.x = 1;
+                brUVC.x = 1;
+
+                //m_verticalMapping case case TextureMappingOptions.Character
+                blUVC.y = 0;
+                tlUVC.y = 1;
+                trUVC.y = 1;
+                brUVC.y = 0;
+
+                renderGlyph.blUVB = blUVC;
+                renderGlyph.tlUVB = tlUVA;
+                renderGlyph.trUVB = trUVC;
+                renderGlyph.brUVB = brUVA;
+                #endregion
+
+                #region Setup Color
+                renderGlyph.blColor = textConfiguration.m_htmlColor;
+                renderGlyph.tlColor = textConfiguration.m_htmlColor;
+                renderGlyph.trColor = textConfiguration.m_htmlColor;
+                renderGlyph.brColor = textConfiguration.m_htmlColor;
+                #endregion
+
+                #region Pack Scale into renderGlyph.scale
+                var xScale = textConfiguration.m_currentFontSize;  // * math.abs(lossyScale) * (1 - m_charWidthAdjDelta);
+                if ((textConfiguration.m_fontStyleInternal & FontStyles.Bold) == FontStyles.Bold)
+                    xScale *= -1;
+
+                renderGlyph.scale = xScale;
+                #endregion
+
+                // Check if we need to Shear the rectangles for Italic styles
+                #region Handle Italic & Shearing
+                float bottomShear = 0f;
+                if ((textConfiguration.m_fontStyleInternal & FontStyles.Italic) == FontStyles.Italic)
+                {
+                    // Shift Top vertices forward by half (Shear Value * height of character) and Bottom vertices back by same amount.
+                    float shear_value = textConfiguration.m_italicAngle * 0.01f;
+                    float midPoint    = ((font.capLine - (font.baseLine + textConfiguration.m_baselineOffset)) / 2) * textConfiguration.m_fontScaleMultiplier * font.scale;
+                    float topShear    = shear_value * ((currentGlyphMetrics.horizontalBearingY + font.materialPadding + style_padding - midPoint) * currentElementScale);
+                    bottomShear       = shear_value *
+                                        ((currentGlyphMetrics.horizontalBearingY - currentGlyphMetrics.height - font.materialPadding - style_padding - midPoint) *
+                                         currentElementScale);
+
+                    topLeft.x    += topShear;
+                    bottomLeft.x += bottomShear;
+                    topRight.x   += topShear;
+
+                    renderGlyph.shear = topLeft.x - bottomLeft.x;
+                }
+                #endregion Handle Italics & Shearing
+
+                // Handle Character FX Rotation
+                #region Handle Character FX Rotation
+                renderGlyph.rotationCCW = textConfiguration.m_fxRotationAngleCCW;
+                #endregion
+
+                #region Store vertex information for the character or sprite.
                 if (isLineStart)
                 {
-                    isLineStart = false;
                     mappingWriter.AddLineStart(renderGlyphs.Length);
                     if (!prevWasSpace)
                     {
                         mappingWriter.AddWordStart(renderGlyphs.Length);
                     }
                 }
+                renderGlyph.trPosition = topRight;
+                renderGlyph.blPosition = bottomLeft;
+                renderGlyphs.Add(renderGlyph);
+                fontMaterialSet.WriteFontMaterialIndexForGlyph(textConfiguration.m_currentFontMaterialIndex);
+                mappingWriter.AddCharNoTags(characterCount - 1, true);
+                mappingWriter.AddCharWithTags(prevCurNext.current.CurrentCharIndex, true);
+                mappingWriter.AddBytes(prevCurNext.current.CurrentByteIndex, currentRune.LengthInUtf8Bytes(), true);
+                #endregion
 
-                //Handle line break
-                if (currentRune.value == 10)  //Line feed
+                // Compute text metrics
+                #region Compute Ascender & Descender values
+                // Element Ascender in line space
+                float elementAscender = elementAscentLine * currentElementScale / smallCapsMultiplier + textConfiguration.m_baselineOffset;
+
+                // Element Descender in line space
+                float elementDescender = elementDescentLine * currentElementScale / smallCapsMultiplier + textConfiguration.m_baselineOffset;
+
+                float adjustedAscender  = elementAscender;
+                float adjustedDescender = elementDescender;
+
+                // Max line ascender and descender in line space
+                if (isLineStart || isWhiteSpace == false)
+                {
+                    // Special handling for Superscript and Subscript where we use the unadjusted line ascender and descender
+                    if (textConfiguration.m_baselineOffset != 0)
+                    {
+                        adjustedAscender  = math.max((elementAscender - textConfiguration.m_baselineOffset) / textConfiguration.m_fontScaleMultiplier, adjustedAscender);
+                        adjustedDescender = math.min((elementDescender - textConfiguration.m_baselineOffset) / textConfiguration.m_fontScaleMultiplier, adjustedDescender);
+                    }
+                    maxLineAscender  = math.max(adjustedAscender, maxLineAscender);
+                    maxLineDescender = math.min(adjustedDescender, maxLineDescender);
+                }
+                #endregion
+
+                // Handle xAdvance & Tabulation Stops. Tab stops at every 25% of Font Size.
+                #region XAdvance, Tabulation & Stops
+                if (currentRune.value == 9)
+                {
+                    float tabSize = font.tabWidth * font.tabMultiple * currentElementScale;
+                    float tabs    = math.ceil(xAdvance / tabSize) * tabSize;
+                    xAdvance      = tabs > xAdvance ? tabs : xAdvance + tabSize;
+                }
+                else if (textConfiguration.m_monoSpacing != 0)
+                {
+                    float monoAdjustment  = textConfiguration.m_monoSpacing - monoAdvance;
+                    xAdvance             += (monoAdjustment + ((font.regularStyleSpacing + characterSpacingAdjustment) * currentEmScale) + textConfiguration.m_cSpacing);  // * (1 - m_charWidthAdjDelta);
+                    if (isWhiteSpace || currentRune.value == 0x200B)
+                        xAdvance += baseConfiguration.wordSpacing * currentEmScale;
+                }
+                else
+                {
+                    xAdvance +=
+                        ((currentGlyphMetrics.horizontalAdvance * textConfiguration.m_fxScale.x + glyphAdjustments.xAdvance) * currentElementScale +
+                         (font.regularStyleSpacing + characterSpacingAdjustment + boldSpacingAdjustment) * currentEmScale + textConfiguration.m_cSpacing);  // * (1 - m_charWidthAdjDelta);
+
+                    if (isWhiteSpace || currentRune.value == 0x200B)
+                        xAdvance += baseConfiguration.wordSpacing * currentEmScale;
+                }
+                #endregion XAdvance, Tabulation & Stops
+
+                #region Check for Line Feed and Last Character
+                if (isLineStart)
+                    isLineStart   = false;
+                currentLineHeight = font.lineHeight * baseScale;  //why not (font.ascentLine-font.baseLine) * baseScale ?
+                ascentLineDelta   = maxLineAscender - font.ascentLine * baseScale;
+                decentLineDelta   = font.descentLine * baseScale - maxLineDescender;
+                //if (currentRune.value == 10 || currentRune.value == 11 || currentRune.value == 0x03 || currentRune.value == 0x2028 ||
+                //    currentRune.value == 0x2029 || textConfiguration.m_characterCount == calliString.Length - 1)
+                if (currentRune.value == 10)
                 {
                     var glyphsLine   = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
                     var overrideMode = textConfiguration.m_lineJustification;
@@ -150,13 +403,13 @@ namespace Latios.Calligraphics
                     startOfLineGlyphIndex = renderGlyphs.Length;
                     if (lineCount > 0)
                     {
-                        accumulatedVerticalOffset += currentLineHeight;
+                        accumulatedVerticalOffset += currentLineHeight + ascentLineDelta;
                         if (lastCommittedStartOfLineGlyphIndex != startOfLineGlyphIndex)
                         {
                             ApplyVerticalOffsetToGlyphs(ref glyphsLine, accumulatedVerticalOffset);
                             lastCommittedStartOfLineGlyphIndex = startOfLineGlyphIndex;
                         }
-                        accumulatedVerticalOffset += (font.descentLine * baseScale - maxLineDescender);
+                        accumulatedVerticalOffset += decentLineDelta;
 
                         //apply user configurable line and paragraph spacing
                         accumulatedVerticalOffset +=
@@ -165,345 +418,117 @@ namespace Latios.Calligraphics
                     else
                     {
                         //ensure we apply the descenderDelta also for a manual line break right after the first line
-                        accumulatedVerticalOffset += (font.descentLine * baseScale - maxLineDescender);
+                        accumulatedVerticalOffset += decentLineDelta;
                         //apply user configurable line and paragraph spacing
                         accumulatedVerticalOffset +=
                             (baseConfiguration.lineSpacing + (currentRune.value == 10 || currentRune.value == 0x2029 ? baseConfiguration.paragraphSpacing : 0)) * currentEmScale;
                     }
-                    //reset line status. As manual line feed will skip the line metrics region, mimic here what it would do
-                    maxLineAscender     = font.ascentLine * baseScale;
-                    maxLineDescender    = font.descentLine * baseScale;
-                    startOfLineAscender = lastVisibleAscender;
+                    //reset line status
+                    maxLineAscender  = float.MinValue;
+                    maxLineDescender = float.MaxValue;
 
                     lineCount++;
                     isLineStart  = true;
                     bottomAnchor = GetBottomAnchorForConfig(ref font, baseConfiguration.verticalAlignment, baseScale);
 
-                    cumulativeOffset.x = 0;
-                    cumulativeOffset.y = 0;
+                    xAdvance = 0;
                     continue;
                 }
+                #endregion
 
-                if (font.TryGetCharacterIndex(currentRune, out var currentCharIndex))
+                #region Word Wrapping
+                // Handle word wrap
+                if (baseConfiguration.maxLineWidth < float.MaxValue &&
+                    baseConfiguration.maxLineWidth > 0 &&
+                    xAdvance > baseConfiguration.maxLineWidth)
                 {
-                    ref var glyphBlob   = ref font.characters[currentCharIndex];
-                    var     renderGlyph = new RenderGlyph
+                    bool dropSpace = false;
+                    if (currentRune.value == 32 && !prevWasSpace)
                     {
-                        unicode = glyphBlob.unicode,
-                        blColor = textConfiguration.m_htmlColor,
-                        tlColor = textConfiguration.m_htmlColor,
-                        trColor = textConfiguration.m_htmlColor,
-                        brColor = textConfiguration.m_htmlColor,
-                    };
-
-                    // Set Padding based on selected font style
-                    #region Handle Style Padding
-                    float boldSpacingAdjustment = 0;
-                    float style_padding         = 0;
-                    if ((textConfiguration.m_fontStyleInternal & FontStyles.Bold) == FontStyles.Bold)
-                    {
-                        style_padding         = 0;
-                        boldSpacingAdjustment = font.boldStyleSpacing;
-                    }
-                    #endregion Handle Style Padding
-
-                    var adjustedScale = textConfiguration.m_currentFontSize * smallCapsMultiplier / font.pointSize * font.scale *
-                                        (baseConfiguration.isOrthographic ? 1 : 0.1f);
-                    currentElementScale = adjustedScale * textConfiguration.m_fontScaleMultiplier * glyphBlob.glyphScale;  //* m_cached_TextElement.m_Scale
-
-                    // Determine the position of the vertices of the Character
-                    #region Calculate Vertices Position
-                    var    currentGlyphMetrics = glyphBlob.glyphMetrics;
-                    float2 topLeft;
-                    topLeft.x = (currentGlyphMetrics.horizontalBearingX * textConfiguration.m_FXScale.x - font.materialPadding - style_padding) * currentElementScale;
-                    topLeft.y = (currentGlyphMetrics.horizontalBearingY + font.materialPadding) * currentElementScale - textConfiguration.m_lineOffset +
-                                textConfiguration.m_baselineOffset;
-
-                    float2 bottomLeft;
-                    bottomLeft.x = topLeft.x;
-                    bottomLeft.y = topLeft.y - ((currentGlyphMetrics.height + font.materialPadding * 2) * currentElementScale);
-
-                    float2 topRight;
-                    topRight.x = bottomLeft.x + (currentGlyphMetrics.width * textConfiguration.m_FXScale.x + font.materialPadding * 2 + style_padding * 2) * currentElementScale;
-                    topRight.y = topLeft.y;
-
-                    float2 bottomRight;
-                    bottomRight.x = topRight.x;
-                    bottomRight.y = bottomLeft.y;
-                    #endregion
-
-                    #region Setup UVA
-                    var    glyphRect = glyphBlob.glyphRect;
-                    float2 blUVA, tlUVA, trUVA, brUVA;
-                    blUVA.x = (glyphRect.x - font.materialPadding - style_padding) / font.atlasWidth;
-                    blUVA.y = (glyphRect.y - font.materialPadding - style_padding) / font.atlasHeight;
-
-                    tlUVA.x = blUVA.x;
-                    tlUVA.y = (glyphRect.y + font.materialPadding + style_padding + glyphRect.height) / font.atlasHeight;
-
-                    trUVA.x = (glyphRect.x + font.materialPadding + style_padding + glyphRect.width) / font.atlasWidth;
-                    trUVA.y = tlUVA.y;
-
-                    brUVA.x = trUVA.x;
-                    brUVA.y = blUVA.y;
-
-                    renderGlyph.blUVA = blUVA;
-                    renderGlyph.trUVA = trUVA;
-                    #endregion
-
-                    #region Setup UVB
-                    //Setup UV2 based on Character Mapping Options Selected
-                    //m_horizontalMapping case TextureMappingOptions.Character
-                    float2 blUVC, tlUVC, trUVC, brUVC;
-                    blUVC.x = 0;
-                    tlUVC.x = 0;
-                    trUVC.x = 1;
-                    brUVC.x = 1;
-
-                    //m_verticalMapping case case TextureMappingOptions.Character
-                    blUVC.y = 0;
-                    tlUVC.y = 1;
-                    trUVC.y = 1;
-                    brUVC.y = 0;
-
-                    renderGlyph.blUVB = blUVC;
-                    renderGlyph.tlUVB = tlUVA;
-                    renderGlyph.trUVB = trUVC;
-                    renderGlyph.brUVB = brUVA;
-                    #endregion
-
-                    // Check if we need to Shear the rectangles for Italic styles
-                    #region Handle Italic & Shearing
-                    if (((textConfiguration.m_fontStyleInternal & FontStyles.Italic) == FontStyles.Italic))
-                    {
-                        // Shift Top vertices forward by half (Shear Value * height of character) and Bottom vertices back by same amount.
-                        float  shear_value = textConfiguration.m_italicAngle * 0.01f;
-                        float  midPoint    = ((font.capLine - (font.baseLine + textConfiguration.m_baselineOffset)) / 2) * textConfiguration.m_fontScaleMultiplier * font.scale;
-                        float2 topShear    =
-                            new float2(shear_value * ((currentGlyphMetrics.horizontalBearingY + font.materialPadding + style_padding - midPoint) * currentElementScale), 0);
-                        float2 bottomShear =
-                            new float2(shear_value *
-                                       (((currentGlyphMetrics.horizontalBearingY - currentGlyphMetrics.height - font.materialPadding - style_padding - midPoint)) *
-                                        currentElementScale), 0);
-                        float2 shearAdjustment = (topShear - bottomShear) * 0.5f;
-
-                        topShear    -= shearAdjustment;
-                        bottomShear -= shearAdjustment;
-
-                        topLeft     += topShear;
-                        bottomLeft  += bottomShear;
-                        topRight    += topShear;
-                        bottomRight += bottomShear;
-
-                        renderGlyph.shear = (topLeft.x - bottomLeft.x);
-                    }
-                    #endregion Handle Italics & Shearing
-
-                    // Handle Character FX Rotation
-                    #region Handle Character FX Rotation
-                    renderGlyph.rotationCCW = textConfiguration.m_FXRotationAngle;
-                    #endregion
-
-                    #region handle bold
-                    var xScale = textConfiguration.m_currentFontSize;  // * math.abs(lossyScale) * (1 - m_charWidthAdjDelta);
-                    if ((textConfiguration.m_fontStyleInternal & FontStyles.Bold) == FontStyles.Bold)
-                        xScale *= -1;
-
-                    renderGlyph.scale = xScale;
-                    #endregion
-
-                    #region apply offsets
-                    var offset   = adjustmentOffset + cumulativeOffset;
-                    topLeft     += offset;
-                    bottomLeft  += offset;
-                    topRight    += offset;
-                    bottomRight += offset;
-                    #endregion
-
-                    renderGlyph.trPosition = topRight;
-                    renderGlyph.blPosition = bottomLeft;
-
-                    renderGlyphs.Add(renderGlyph);
-                    fontMaterialSet.WriteFontMaterialIndexForGlyph(textConfiguration.m_currentFontMaterialIndex);
-                    mappingWriter.AddCharNoTags(textConfiguration.m_characterCount - 1, true);
-                    mappingWriter.AddCharWithTags(characterEnumerator.CurrentCharIndex, true);
-                    mappingWriter.AddBytes(characterEnumerator.CurrentByteIndex, currentRune.LengthInUtf8Bytes(), true);
-
-                    // Handle Kerning if Enabled.
-                    #region Handle Kerning
-                    adjustmentOffset                                   = float2.zero;
-                    float           m_characterSpacing                 = 0;
-                    GlyphAdjustment glyphAdjustments                   = new();
-                    float           characterSpacingAdjustment         = m_characterSpacing;
-                    float           m_GlyphHorizontalAdvanceAdjustment = 0;
-                    if (baseConfiguration.enableKerning)
-                    {
-                        if (prevCurNext.next != Unicode.BadRune)
-                        {
-                            if (glyphBlob.glyphAdjustmentsLookup.TryGetAdjustmentPairIndexForUnicodeAfter(prevCurNext.next.value, out var adjustmentIndex))
-                            {
-                                var adjustmentPair         = font.adjustmentPairs[adjustmentIndex];
-                                glyphAdjustments           = adjustmentPair.firstAdjustment;
-                                characterSpacingAdjustment = (adjustmentPair.fontFeatureLookupFlags & FontFeatureLookupFlags.IgnoreSpacingAdjustments) ==
-                                                             FontFeatureLookupFlags.IgnoreSpacingAdjustments ? 0 : characterSpacingAdjustment;
-                            }
-                        }
-
-                        if (textConfiguration.m_characterCount >= 1)
-                        {
-                            if (glyphBlob.glyphAdjustmentsLookup.TryGetAdjustmentPairIndexForUnicodeBefore(prevCurNext.prev.value, out var adjustmentIndex))
-                            {
-                                var adjustmentPair          = font.adjustmentPairs[adjustmentIndex];
-                                glyphAdjustments           += adjustmentPair.secondAdjustment;
-                                characterSpacingAdjustment  = (adjustmentPair.fontFeatureLookupFlags & FontFeatureLookupFlags.IgnoreSpacingAdjustments) ==
-                                                              FontFeatureLookupFlags.IgnoreSpacingAdjustments ? 0 : characterSpacingAdjustment;
-                            }
-                        }
-                    }
-
-                    m_GlyphHorizontalAdvanceAdjustment = glyphAdjustments.xAdvance;
-
-                    adjustmentOffset.x = glyphAdjustments.xPlacement * currentElementScale;
-                    adjustmentOffset.y = glyphAdjustments.yPlacement * currentElementScale;
-
-                    cumulativeOffset.x +=
-                        ((currentGlyphMetrics.horizontalAdvance * textConfiguration.m_FXScale.x + glyphAdjustments.xAdvance) * currentElementScale +
-                         (font.regularStyleSpacing + characterSpacingAdjustment + boldSpacingAdjustment) * currentEmScale + textConfiguration.m_cSpacing);  // * (1 - m_charWidthAdjDelta);
-                    cumulativeOffset.y += glyphAdjustments.yAdvance * currentElementScale;
-                    #endregion
-
-                    #region Word Wrapping
-                    // Apply accumulated spaces to non-space character
-                    while (currentRune.value != 32 && accumulatedSpaces > 0)
-                    {
-                        // We add the glyph entry for each proceeding whitespace, so that the justified offset is
-                        // "weighted" by the preceeding number of spaces.
-                        characterGlyphIndicesWithPreceedingSpacesInLine.Add(renderGlyphs.Length - 1 - startOfLineGlyphIndex);
+                        // What pushed us past the line width was a space character.
+                        // The previous character was not a space, and we don't
+                        // want to render this character at the start of the next line.
+                        // We drop this space character instead and allow the next
+                        // character to line-wrap, space or not.
+                        dropSpace = true;
                         accumulatedSpaces--;
                     }
 
-                    // Handle word wrap
-                    if (baseConfiguration.maxLineWidth < float.MaxValue &&
-                        baseConfiguration.maxLineWidth > 0 &&
-                        cumulativeOffset.x > baseConfiguration.maxLineWidth)
+                    var yOffsetChange = 0f;  //font.lineHeight * currentElementScale;
+                    var xOffsetChange = renderGlyphs[lastWordStartCharacterGlyphIndex].blPosition.x - bottomShear;
+                    if (xOffsetChange > 0 && !dropSpace)  // Always allow one visible character
                     {
-                        bool dropSpace = false;
-                        if (currentRune.value == 32 && !prevWasSpace)
+                        // Finish line based on alignment
+                        var glyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex,
+                                                                                  lastWordStartCharacterGlyphIndex - startOfLineGlyphIndex);
+                        ApplyHorizontalAlignmentToGlyphs(ref glyphsLine,
+                                                         ref characterGlyphIndicesWithPreceedingSpacesInLine,
+                                                         baseConfiguration.maxLineWidth,
+                                                         textConfiguration.m_lineJustification);
+
+                        if (lineCount > 0)
                         {
-                            // What pushed us past the line width was a space character.
-                            // The previous character was not a space, and we don't
-                            // want to render this character at the start of the next line.
-                            // We drop this space character instead and allow the next
-                            // character to line-wrap, space or not.
-                            dropSpace = true;
-                            accumulatedSpaces--;
+                            accumulatedVerticalOffset += currentLineHeight + ascentLineDelta;
+                            ApplyVerticalOffsetToGlyphs(ref glyphsLine, accumulatedVerticalOffset);
+                            lastCommittedStartOfLineGlyphIndex = startOfLineGlyphIndex;
                         }
+                        accumulatedVerticalOffset += decentLineDelta;  // Todo: Delta should be computed per glyph
+                        //apply user configurable line and paragraph spacing
+                        accumulatedVerticalOffset +=
+                            (baseConfiguration.lineSpacing +
+                             (currentRune.value == 10 || currentRune.value == 0x2029 ? baseConfiguration.paragraphSpacing : 0)) * currentEmScale;
 
-                        var yOffsetChange = 0f;  //font.lineHeight * currentElementScale;
-                        var xOffsetChange = renderGlyphs[lastWordStartCharacterGlyphIndex].blPosition.x;
-                        if (xOffsetChange > 0 && !dropSpace)  // Always allow one visible character
+                        //reset line status
+                        maxLineAscender  = float.MinValue;
+                        maxLineDescender = float.MaxValue;
+
+                        startOfLineGlyphIndex = lastWordStartCharacterGlyphIndex;
+                        isLineStart           = true;
+                        lineCount++;
+
+                        xAdvance -= xOffsetChange;
+
+                        // Adjust the vertices of the previous render glyphs in the word
+                        var glyphPtr = (RenderGlyph*)renderGlyphs.GetUnsafePtr();
+                        for (int i = lastWordStartCharacterGlyphIndex; i < renderGlyphs.Length; i++)
                         {
-                            // Finish line based on alignment
-                            var glyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex,
-                                                                                      lastWordStartCharacterGlyphIndex - startOfLineGlyphIndex);
-                            ApplyHorizontalAlignmentToGlyphs(ref glyphsLine,
-                                                             ref characterGlyphIndicesWithPreceedingSpacesInLine,
-                                                             baseConfiguration.maxLineWidth,
-                                                             textConfiguration.m_lineJustification);
-
-                            if (lineCount > 0)
-                            {
-                                accumulatedVerticalOffset += currentLineHeight;
-                                ApplyVerticalOffsetToGlyphs(ref glyphsLine, accumulatedVerticalOffset);
-                                lastCommittedStartOfLineGlyphIndex = startOfLineGlyphIndex;
-                            }
-                            accumulatedVerticalOffset += (font.descentLine * baseScale - maxLineDescender);  // Todo: Delta should be computed per glyph
-                            //apply user configurable line and paragraph spacing
-                            accumulatedVerticalOffset +=
-                                (baseConfiguration.lineSpacing +
-                                 (currentRune.value == 10 || currentRune.value == 0x2029 ? baseConfiguration.paragraphSpacing : 0)) * currentEmScale;
-
-                            //reset line status
-                            maxLineAscender     = float.MinValue;
-                            maxLineDescender    = float.MaxValue;
-                            startOfLineAscender = lastVisibleAscender;
-
-                            startOfLineGlyphIndex = lastWordStartCharacterGlyphIndex;
-                            lineCount++;
-
-                            cumulativeOffset.x -= xOffsetChange;
-                            cumulativeOffset.y -= yOffsetChange;
-
-                            // Adjust the vertices of the previous render glyphs in the word
-                            var glyphPtr = (RenderGlyph*)renderGlyphs.GetUnsafePtr();
-                            for (int i = lastWordStartCharacterGlyphIndex; i < renderGlyphs.Length; i++)
-                            {
-                                glyphPtr[i].blPosition.y -= yOffsetChange;
-                                glyphPtr[i].blPosition.x -= xOffsetChange;
-                                glyphPtr[i].trPosition.y -= yOffsetChange;
-                                glyphPtr[i].trPosition.x -= xOffsetChange;
-                            }
+                            glyphPtr[i].blPosition.y -= yOffsetChange;
+                            glyphPtr[i].blPosition.x -= xOffsetChange;
+                            glyphPtr[i].trPosition.y -= yOffsetChange;
+                            glyphPtr[i].trPosition.x -= xOffsetChange;
                         }
                     }
-
-                    //Detect start of word
-                    if (currentRune.value == 32 ||  //Space
-                        currentRune.value == 9 ||  //Tab
-                        currentRune.value == 45 ||  //Hyphen Minus
-                        currentRune.value == 173 ||  //Soft hyphen
-                        currentRune.value == 8203 ||  //Zero width space
-                        currentRune.value == 8204 ||  //Zero width non-joiner
-                        currentRune.value == 8205)  //Zero width joiner
-                    {
-                        lastWordStartCharacterGlyphIndex = renderGlyphs.Length;
-                        mappingWriter.AddWordStart(renderGlyphs.Length);
-                    }
-
-                    if (currentRune.value == 32)
-                    {
-                        accumulatedSpaces++;
-                        prevWasSpace = true;
-                    }
-                    else if (prevWasSpace)
-                    {
-                        prevWasSpace = false;
-                    }
-                    #endregion
-
-                    // Compute line metrics
-                    #region Compute Ascender & Descender values
-                    // Element Ascender in line space
-                    float elementAscentLine  = font.ascentLine;
-                    float elementDescentLine = font.descentLine;
-                    float elementAscender    = elementAscentLine * currentElementScale / smallCapsMultiplier + textConfiguration.m_baselineOffset;
-
-                    // Element Descender in line space
-                    float elementDescender = elementDescentLine * currentElementScale / smallCapsMultiplier + textConfiguration.m_baselineOffset;
-
-                    float adjustedAscender  = elementAscender;
-                    float adjustedDescender = elementDescender;
-                    // Max line ascender and descender in line space
-                    if (isLineStart || currentRune.IsWhiteSpace() == false)
-                    {
-                        // Special handling for Superscript and Subscript where we use the unadjusted line ascender and descender
-                        if (textConfiguration.m_baselineOffset != 0)
-                        {
-                            adjustedAscender  = Mathf.Max((elementAscender - textConfiguration.m_baselineOffset) / textConfiguration.m_fontScaleMultiplier, adjustedAscender);
-                            adjustedDescender = Mathf.Min((elementDescender - textConfiguration.m_baselineOffset) / textConfiguration.m_fontScaleMultiplier, adjustedDescender);
-                        }
-                        maxLineAscender  = Mathf.Max(adjustedAscender, maxLineAscender);
-                        maxLineDescender = Mathf.Min(adjustedDescender, maxLineDescender);
-                    }
-                    lastVisibleAscender = adjustedAscender;
-
-                    #endregion
                 }
+
+                //Detect start of word
+                if (currentRune.value == 32 ||  //Space
+                    currentRune.value == 9 ||  //Tab
+                    currentRune.value == 45 ||  //Hyphen Minus
+                    currentRune.value == 173 ||  //Soft hyphen
+                    currentRune.value == 8203 ||  //Zero width space
+                    currentRune.value == 8204 ||  //Zero width non-joiner
+                    currentRune.value == 8205)  //Zero width joiner
+                {
+                    lastWordStartCharacterGlyphIndex = renderGlyphs.Length;
+                    mappingWriter.AddWordStart(renderGlyphs.Length);
+                }
+
+                if (currentRune.value == 32)
+                {
+                    accumulatedSpaces++;
+                    prevWasSpace = true;
+                }
+                else if (prevWasSpace)
+                {
+                    prevWasSpace = false;
+                }
+                #endregion
             }
 
             var finalGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
             {
                 var overrideMode = textConfiguration.m_lineJustification;
-                if ((overrideMode) == HorizontalAlignmentOptions.Justified)
+                if (overrideMode == HorizontalAlignmentOptions.Justified)
                 {
                     // Don't perform justified spacing for the last line.
                     overrideMode = HorizontalAlignmentOptions.Left;
@@ -512,12 +537,41 @@ namespace Latios.Calligraphics
                 if (lineCount > 0)
                 {
                     accumulatedVerticalOffset += currentLineHeight;
-                    if (lastCommittedStartOfLineGlyphIndex != startOfLineGlyphIndex)
-                        ApplyVerticalOffsetToGlyphs(ref finalGlyphsLine, accumulatedVerticalOffset);
+                    ApplyVerticalOffsetToGlyphs(ref finalGlyphsLine, accumulatedVerticalOffset);
                 }
             }
             lineCount++;
             ApplyVerticalAlignmentToGlyphs(ref renderGlyphs, topAnchor, bottomAnchor, accumulatedVerticalOffset, baseConfiguration.verticalAlignment);
+        }
+
+        public struct PrevCurNext
+        {
+            public CalliString.Enumerator prev;
+            public CalliString.Enumerator current;
+            public CalliString.Enumerator next;
+
+            public bool previousIsValid;
+            public bool currentIsValid;
+            public bool nextIsValid;
+
+            public PrevCurNext(CalliString.Enumerator enumerator)
+            {
+                previousIsValid = false;
+                prev            = default;
+                currentIsValid  = false;
+                current         = default;
+                nextIsValid     = enumerator.MoveNext();
+                next            = enumerator;
+            }
+
+            public void MoveNext()
+            {
+                prev            = current;
+                current         = next;
+                previousIsValid = currentIsValid;
+                currentIsValid  = nextIsValid;
+                nextIsValid     = next.MoveNext();
+            }
         }
 
         static float GetTopAnchorForConfig(ref FontBlob font, VerticalAlignmentOptions verticalMode, float baseScale, float oldValue = float.PositiveInfinity)
@@ -664,28 +718,33 @@ namespace Latios.Calligraphics
                 }
             }
         }
-        static void UpdateCharacterWindow(ref PrevCurNext prevCurNext, ref CalliString.Enumerator characterEnumerator, bool kerningEnabled)
+
+        static unsafe void SwapRune(ref Unicode.Rune rune, ref ActiveTextConfiguration textConfiguration, out float smallCapsMultiplier)
         {
-            prevCurNext.prev    = prevCurNext.current;
-            prevCurNext.current = characterEnumerator.Current;
-            if (kerningEnabled)
+            smallCapsMultiplier = 1f;
+
+            // Todo: Burst does not support language methods, and char only supports the UTF-16 subset
+            // of characters. We should encode upper and lower cross-references into the font blobs or
+            // figure out the formulas for all other languages. Right now only ascii is supported.
+            if ((textConfiguration.m_fontStyleInternal & FontStyles.UpperCase) == FontStyles.UpperCase)
             {
-                if (characterEnumerator.MoveNext())
-                {
-                    //could return rich text opening tag `<` but only in
-                    //the very unlikly case of having exactly 1 valid text char between 2 tags
-                    prevCurNext.next = characterEnumerator.Current;
-                    characterEnumerator.MovePrevious();
-                }
-                else
-                    prevCurNext.next = Unicode.BadRune;
+                // If this character is lowercase, switch to uppercase.
+                rune = rune.ToUpper();
             }
-        }
-        public struct PrevCurNext
-        {
-            public Unicode.Rune prev;
-            public Unicode.Rune current;
-            public Unicode.Rune next;
+            else if ((textConfiguration.m_fontStyleInternal & FontStyles.LowerCase) == FontStyles.LowerCase)
+            {
+                // If this character is uppercase, switch to lowercase.
+                rune = rune.ToLower();
+            }
+            else if ((textConfiguration.m_fontStyleInternal & FontStyles.SmallCaps) == FontStyles.SmallCaps)
+            {
+                var oldUnicode = rune;
+                rune           = rune.ToUpper();
+                if (rune != oldUnicode)
+                {
+                    smallCapsMultiplier = 0.8f;
+                }
+            }
         }
     }
 }

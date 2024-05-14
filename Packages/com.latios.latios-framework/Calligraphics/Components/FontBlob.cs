@@ -38,6 +38,9 @@ namespace Latios.Calligraphics
         public float superscriptOffset;
         public float superscriptSize;
 
+        public float tabWidth;
+        public float tabMultiple;
+
         //public float underlineOffset;
 
         /// <summary>

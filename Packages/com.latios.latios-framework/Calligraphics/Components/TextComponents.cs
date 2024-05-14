@@ -21,6 +21,9 @@ namespace Latios.Calligraphics
     /// </summary>
     public struct TextBaseConfiguration : IComponentData
     {
+        // Todo: Current size is 28 bytes. We could make this 20 bytes by using half for
+        // fontSize, wordSpacing, lineSpacing, and paragraphSpacing. Worth it?
+
         /// <summary>
         /// The size of the font, in font sizes
         /// </summary>
@@ -33,26 +36,30 @@ namespace Latios.Calligraphics
         /// The vertex colors of the rendered text
         /// </summary>
         public Color32 color;
+
+        public float wordSpacing;
+        public float lineSpacing;
+        public float paragraphSpacing;
         /// <summary>
         /// The horizontal alignment mode of the text
         /// </summary>
         public HorizontalAlignmentOptions lineJustification
         {
-            get => (HorizontalAlignmentOptions)((m_alignmentWeightOrtho & 0x70) >> 4);
-            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & ~0x70) | ((ushort)value << 4));
+            get => (HorizontalAlignmentOptions)((m_alignmentWeightOrthoKerning & 0x70) >> 4);
+            set => m_alignmentWeightOrthoKerning = (ushort)((m_alignmentWeightOrthoKerning & ~0x70) | ((ushort)value << 4));
         }
         /// <summary>
         /// The vertical alignment mode of the text
         /// </summary>
         public VerticalAlignmentOptions verticalAlignment
         {
-            get => (VerticalAlignmentOptions)((m_alignmentWeightOrtho & 0x780) >> 7);
-            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & ~0x780) | ((ushort)value << 7));
+            get => (VerticalAlignmentOptions)((m_alignmentWeightOrthoKerning & 0x780) >> 7);
+            set => m_alignmentWeightOrthoKerning = (ushort)((m_alignmentWeightOrthoKerning & ~0x780) | ((ushort)value << 7));
         }
         public FontWeight fontWeight
         {
-            get => (FontWeight)(m_alignmentWeightOrtho & 0x0f);
-            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & ~0x0f) | (ushort)value);
+            get => (FontWeight)(m_alignmentWeightOrthoKerning & 0x0f);
+            set => m_alignmentWeightOrthoKerning = (ushort)((m_alignmentWeightOrthoKerning & ~0x0f) | (ushort)value);
         }
         public FontStyles fontStyle
         {
@@ -61,15 +68,17 @@ namespace Latios.Calligraphics
         }
         public bool isOrthographic
         {
-            get => (m_alignmentWeightOrtho & 0x8000) != 0;
-            set => m_alignmentWeightOrtho = (ushort)((m_alignmentWeightOrtho & 0x7fff) | (value ? 0x8000 : 0));
+            get => (m_alignmentWeightOrthoKerning & 0x8000) != 0;
+            set => m_alignmentWeightOrthoKerning = (ushort)((m_alignmentWeightOrthoKerning & 0x7fff) | (value ? 0x8000 : 0));
         }
-        public bool enableKerning;
-        public float lineSpacing;
-        public float paragraphSpacing;
+        public bool enableKerning
+        {
+            get => (m_alignmentWeightOrthoKerning & 0x4000) != 0;
+            set => m_alignmentWeightOrthoKerning = (ushort)((m_alignmentWeightOrthoKerning & 0xbfff) | (value ? 0x4000 : 0));
+        }
 
-        private ushort m_fontStyleFlags;  // 6 bits unused, but Unity may add more.
-        ushort         m_alignmentWeightOrtho;  // 4 bits unused.
+        ushort m_fontStyleFlags;  // 6 bits unused, but Unity may add more.
+        ushort m_alignmentWeightOrthoKerning;  // 3 bits unused.
     }
 
     /// <summary>

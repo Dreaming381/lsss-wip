@@ -1,11 +1,5 @@
-using Codice.CM.Triggers;
-using System.Globalization;
-using System;
-using System.Runtime.ConstrainedExecution;
 using Unity.Collections;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.TextCore.Text;
 
 namespace Latios.Calligraphics
 {
@@ -39,9 +33,7 @@ namespace Latios.Calligraphics
             return rune;
         }
 
-
         public static bool IsLatin1(this Unicode.Rune rune) { return rune.value < 0x100; }
-
 
         public static bool IsWhiteSpace(this Unicode.Rune rune)
         {

@@ -198,6 +198,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                 for (int entityIndex = 0; entityIndex < chunk.Count; entityIndex++)
                 {
                     var entity = entities[entityIndex];
+                    instances.Clear();
 
                     var ctrl = controlLookup[entity];
                     if ((ctrl.flags & TextRenderControl.Flags.Dirty) != TextRenderControl.Flags.Dirty)

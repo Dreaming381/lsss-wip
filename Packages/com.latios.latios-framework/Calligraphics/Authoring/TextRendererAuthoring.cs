@@ -31,6 +31,8 @@ namespace Latios.Calligraphics.Authoring
         public bool                       enableKerning       = true;
         public FontStyles                 fontStyle           = FontStyles.Normal;
         public FontWeight                 fontWeight          = FontWeight.Regular;
+        [Tooltip("Additional word spacing in font units where a value of 1 equals 1/100em.")]
+        public float wordSpacing = 0;
         [Tooltip("Additional line spacing in font units where a value of 1 equals 1/100em.")]
         public float lineSpacing = 0;
         [Tooltip("Paragraph spacing in font units where a value of 1 equals 1/100em.")]
@@ -103,6 +105,7 @@ namespace Latios.Calligraphics.Authoring
                 enableKerning     = authoring.enableKerning,
                 fontStyle         = authoring.fontStyle,
                 fontWeight        = authoring.fontWeight,
+                wordSpacing = authoring.wordSpacing,
                 lineSpacing = authoring.lineSpacing,
                 paragraphSpacing = authoring.paragraphSpacing,
             });
