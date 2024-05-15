@@ -35,7 +35,6 @@ namespace Latios.Calligraphics
             int                    accumulatedSpaces                               = 0;
             int                    startOfLineGlyphIndex                           = 0;
             int                    lastCommittedStartOfLineGlyphIndex              = -1;
-            bool                   prevWasSpace                                    = false;
             int                    lineCount                                       = 0;
             bool                   isLineStart                                     = true;
             float                  currentLineHeight                               = 0f;
@@ -44,7 +43,6 @@ namespace Latios.Calligraphics
             float                  accumulatedVerticalOffset                       = 0f;
             float                  maxLineAscender                                 = float.MinValue;
             float                  maxLineDescender                                = float.MaxValue;
-            float                  lineGap                                         = font.lineHeight - (font.ascentLine - font.descentLine);
             float                  xAdvance                                        = 0f;
 
             // Calculate the scale of the font based on selected font size and sampling point size.
@@ -84,6 +82,7 @@ namespace Latios.Calligraphics
                     else
                         xAdvance += textGenerationStateCommands.xAdvanceChange;
                     textGenerationStateCommands.Reset();
+                    needsActiveConfigurationUpdate = false;
                 }
 
                 while (prevCurNext.nextIsValid && prevCurNext.next.Current == '<')
@@ -106,6 +105,9 @@ namespace Latios.Calligraphics
 
                 if (firstIteration)
                 {
+                    // Commit the first line to the writer
+                    mappingWriter.AddLineStart(renderGlyphs.Length);
+                    mappingWriter.AddWordStart(renderGlyphs.Length);
                     firstIteration = false;
                     continue;
                 }
@@ -116,6 +118,8 @@ namespace Latios.Calligraphics
                 if (lineCount == 0)
                     topAnchor = GetTopAnchorForConfig(ref font, baseConfiguration.verticalAlignment, baseScale, topAnchor);
                 bottomAnchor  = GetBottomAnchorForConfig(ref font, baseConfiguration.verticalAlignment, baseScale, bottomAnchor);
+
+                bool prevWasSpace = prevCurNext.previousIsValid && prevCurNext.prev.Current.value == 32;
 
                 // Handle Font Styles like LowerCase, UpperCase and SmallCaps.
                 SwapRune(ref currentRune, ref textConfiguration, out float smallCapsMultiplier);
@@ -311,14 +315,6 @@ namespace Latios.Calligraphics
                 #endregion
 
                 #region Store vertex information for the character or sprite.
-                if (isLineStart)
-                {
-                    mappingWriter.AddLineStart(renderGlyphs.Length);
-                    if (!prevWasSpace)
-                    {
-                        mappingWriter.AddWordStart(renderGlyphs.Length);
-                    }
-                }
                 renderGlyph.trPosition = topRight;
                 renderGlyph.blPosition = bottomLeft;
                 renderGlyphs.Add(renderGlyph);
@@ -409,20 +405,11 @@ namespace Latios.Calligraphics
                             ApplyVerticalOffsetToGlyphs(ref glyphsLine, accumulatedVerticalOffset);
                             lastCommittedStartOfLineGlyphIndex = startOfLineGlyphIndex;
                         }
-                        accumulatedVerticalOffset += decentLineDelta;
-
-                        //apply user configurable line and paragraph spacing
-                        accumulatedVerticalOffset +=
-                            (baseConfiguration.lineSpacing + (currentRune.value == 10 || currentRune.value == 0x2029 ? baseConfiguration.paragraphSpacing : 0)) * currentEmScale;
                     }
-                    else
-                    {
-                        //ensure we apply the descenderDelta also for a manual line break right after the first line
-                        accumulatedVerticalOffset += decentLineDelta;
-                        //apply user configurable line and paragraph spacing
-                        accumulatedVerticalOffset +=
-                            (baseConfiguration.lineSpacing + (currentRune.value == 10 || currentRune.value == 0x2029 ? baseConfiguration.paragraphSpacing : 0)) * currentEmScale;
-                    }
+                    accumulatedVerticalOffset += decentLineDelta;
+                    //apply user configurable line and paragraph spacing
+                    accumulatedVerticalOffset +=
+                        (baseConfiguration.lineSpacing + (currentRune.value == 10 || currentRune.value == 0x2029 ? baseConfiguration.paragraphSpacing : 0)) * currentEmScale;
                     //reset line status
                     maxLineAscender  = float.MinValue;
                     maxLineDescender = float.MaxValue;
@@ -431,14 +418,17 @@ namespace Latios.Calligraphics
                     isLineStart  = true;
                     bottomAnchor = GetBottomAnchorForConfig(ref font, baseConfiguration.verticalAlignment, baseScale);
 
+                    // Commit the line to the writer
+                    mappingWriter.AddLineStart(renderGlyphs.Length);
+
                     xAdvance = 0;
-                    continue;
                 }
                 #endregion
 
                 #region Word Wrapping
                 // Handle word wrap
-                if (baseConfiguration.maxLineWidth < float.MaxValue &&
+                if (currentRune.value != 10 &&
+                    baseConfiguration.maxLineWidth < float.MaxValue &&
                     baseConfiguration.maxLineWidth > 0 &&
                     xAdvance > baseConfiguration.maxLineWidth)
                 {
@@ -497,11 +487,19 @@ namespace Latios.Calligraphics
                             glyphPtr[i].trPosition.y -= yOffsetChange;
                             glyphPtr[i].trPosition.x -= xOffsetChange;
                         }
+
+                        // Commit the line to the writer
+                        // Todo: Currently, lines are paragraphs. Once we have soft lines,
+                        // this is where we want the addition to go. I tested this. It works.
+                        // mappingWriter.AddLineStart(lastWordStartCharacterGlyphIndex);
                     }
                 }
 
                 //Detect start of word
-                if (currentRune.value == 32 ||  //Space
+                if (currentRune.value == 10 ||  // line feed
+                    currentRune.value == 11 ||  // vertical tab
+                    currentRune.value == 13 ||  // carriage return
+                    currentRune.value == 32 ||  //Space
                     currentRune.value == 9 ||  //Tab
                     currentRune.value == 45 ||  //Hyphen Minus
                     currentRune.value == 173 ||  //Soft hyphen
@@ -510,18 +508,15 @@ namespace Latios.Calligraphics
                     currentRune.value == 8205)  //Zero width joiner
                 {
                     lastWordStartCharacterGlyphIndex = renderGlyphs.Length;
-                    mappingWriter.AddWordStart(renderGlyphs.Length);
+                }
+                else if (lastWordStartCharacterGlyphIndex + 1 == renderGlyphs.Length)
+                {
+                    // We have to delay by one or else we register a word for every space.
+                    mappingWriter.AddWordStart(lastWordStartCharacterGlyphIndex);
                 }
 
                 if (currentRune.value == 32)
-                {
                     accumulatedSpaces++;
-                    prevWasSpace = true;
-                }
-                else if (prevWasSpace)
-                {
-                    prevWasSpace = false;
-                }
                 #endregion
             }
 
