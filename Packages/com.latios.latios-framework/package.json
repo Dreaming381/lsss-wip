@@ -5,9 +5,9 @@
   "unity": "2022.3",
   "description": "Latios Framework for DOTS is a collection of tools, algorithms, and API extensions developed by a hardcore hobbyist game developer.\n\nThis package includes all of the following packages:\n\u25aa Core\n\u25aa Physics\n\nThis version is the embedded version from a development project and may contain unstalbe features..",
   "dependencies": {
-    "com.unity.entities": "1.1.0-pre.3",
+    "com.unity.entities": "1.2.1",
     "com.unity.audio.dspgraph": "0.1.0-preview.22",
-    "com.unity.entities.graphics": "1.1.0-pre.3",
+    "com.unity.entities.graphics": "1.2.1",
     "com.unity.burst": "1.8.12"
   },
   "unityRelease": "13f1",
