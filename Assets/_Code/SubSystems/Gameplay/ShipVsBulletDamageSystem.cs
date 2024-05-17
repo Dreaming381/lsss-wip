@@ -97,14 +97,12 @@ namespace Lsss
                     }
                 }
 
-                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out var hitData))
+                if (Physics.DistanceBetween(result.colliderA, result.transformA, result.colliderB, result.transformB, 0f, out var hitData))
                 {
-                    var damage = bulletDamageLookup[result.entityA];
-                    var health = shipHealthLookup[result.entityB];
+                    var     damage = bulletDamageLookup[result.entityA];
+                    ref var health = ref shipHealthLookup.GetRW(result.entityB).ValueRW;
 
                     health.health -= damage.damage;
-
-                    shipHealthLookup[result.entityB] = health;
 
                     dcb.Add(result.entityA, result.jobIndex);
 

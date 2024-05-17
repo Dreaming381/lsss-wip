@@ -49,14 +49,12 @@ namespace Lsss
 
             public void Execute(in FindPairsResult result)
             {
-                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
+                if (Physics.DistanceBetween(result.colliderA, result.transformA, result.colliderB, result.transformB, 0f, out _))
                 {
-                    var damage = explosionDamageLookup[result.entityA];
-                    var health = shipHealthLookup[result.entityB];
+                    var     damage = explosionDamageLookup[result.entityA];
+                    ref var health = ref shipHealthLookup.GetRW(result.entityB).ValueRW;
 
                     health.health -= damage.damage;
-
-                    shipHealthLookup[result.entityB] = health;
                 }
             }
         }
