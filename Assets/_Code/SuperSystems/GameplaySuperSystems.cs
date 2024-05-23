@@ -39,12 +39,12 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
+            GetOrCreateAndAddUnmanagedSystem<BuildSpawnPointCollisionLayerSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildShipsCollisionLayersSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildBulletsCollisionLayerSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildExplosionsCollisionLayerSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildWallsCollisionLayerSystem>();
             GetOrCreateAndAddUnmanagedSystem<BuildWormholesCollisionLayerSystem>();
-            GetOrCreateAndAddUnmanagedSystem<BuildSpawnPointCollisionLayerSystem>();
 
             //GetOrCreateAndAddManagedSystem<DebugDrawFactionShipsCollisionLayersSystem>();
             //GetOrCreateAndAddManagedSystem<DebugDrawFactionShipsCollidersSystem>();
@@ -61,17 +61,19 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
+            GetOrCreateAndAddUnmanagedSystem<CheckSpawnPointIsSafeSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnShipsPrioritizeSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnShipsDequeueSystem>();  // Modifies transforms of spawners, which delays FireGunsSystem
+
             GetOrCreateAndAddUnmanagedSystem<ShipVsBulletDamageSystem>();
             GetOrCreateAndAddUnmanagedSystem<ShipVsShipDamageSystem>();
             GetOrCreateAndAddUnmanagedSystem<ShipVsExplosionDamageSystem>();
             GetOrCreateAndAddUnmanagedSystem<ShipVsWallDamageSystem>();
             GetOrCreateAndAddUnmanagedSystem<BulletVsWallSystem>();
-            GetOrCreateAndAddUnmanagedSystem<CheckSpawnPointIsSafeSystem>();
+
             //GetOrCreateAndAddUnmanagedSystem<TravelThroughWormholeSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateTimeToLiveSystem>();
             GetOrCreateAndAddUnmanagedSystem<DestroyShipsWithNoHealthSystem>();
-            GetOrCreateAndAddUnmanagedSystem<SpawnShipsPrioritizeSystem>();
-            GetOrCreateAndAddUnmanagedSystem<SpawnShipsDequeueSystem>();
             GetOrCreateAndAddUnmanagedSystem<EvaluateMissionSystem>();
             GetOrCreateAndAddUnmanagedSystem<FireGunsSystem>();
         }

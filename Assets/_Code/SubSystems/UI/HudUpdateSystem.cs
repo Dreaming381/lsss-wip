@@ -49,7 +49,9 @@ namespace Lsss
                                        new CachedShipBaseHealth { health = baseHealth.baseHealth });
 
                 m_bulletCountBuilder.Clear();
-                m_bulletCountBuilder.Append(bullets.bulletsRemaining);
+                FixedString32Bytes bulletCount = default;
+                bulletCount.Append(bullets.bulletsRemaining);
+                m_bulletCountBuilder.Append(bulletCount);
                 hud.bulletCount.SetText(m_bulletCountBuilder);
 
                 float3 localScale       = hud.boostBar.localScale;
@@ -124,10 +126,14 @@ namespace Lsss
                 m_factionsBuilder.Append('o');
                 m_factionsBuilder.Append('s');
                 m_factionsBuilder.Append('=');
-                m_factionsBuilder.Append(ratio);
+                FixedString32Bytes ratioString = default;
+                ratioString.Append(ratio);
+                m_factionsBuilder.Append(ratioString);
                 m_factionsBuilder.Append('%');
                 m_factionsBuilder.Append('>');
-                m_factionsBuilder.Append(factionCounts[i]);
+                FixedString32Bytes countString = default;
+                countString.Append(factionCounts[i]);
+                m_factionsBuilder.Append(countString);
                 m_factionsBuilder.Append('\n');
             }
             hud.factions.SetText(m_factionsBuilder);
