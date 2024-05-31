@@ -2,7 +2,7 @@
   "dependencies": {
     "com.unity.ai.navigation": "2.0.0",
     "com.unity.audio.dspgraph": "0.1.0-preview.22",
-    "com.unity.burst": "1.8.13",
+    "com.unity.burst": "1.8.15",
     "com.unity.collab-proxy": "2.3.1",
     "com.unity.collections": "2.4.0",
     "com.unity.entities": "1.2.0",
