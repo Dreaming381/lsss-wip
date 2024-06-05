@@ -120,7 +120,7 @@ namespace Latios.Psyshock
         /// </summary>
         /// <param name="settings">The settings that specify the multi-box pairs will conform to</param>
         /// <param name="allocator">The allocator to use for the PairStream</param>
-        public PairStream(in CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator) : this(settings.worldSubdivisionsPerAxis + 1, allocator)
+        public PairStream(in CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator) : this(settings.worldSubdivisionsPerAxis, allocator)
         {
         }
         /// <summary>

@@ -311,15 +311,15 @@ namespace Latios.Psyshock
                     vertices = new simdFloat3(firstComponent, secondCompPos, ones);
                     break;
                 case 3:  // negative X
-                    plane    = new Plane(new float3(-1f, 0f, 0f), box.halfSize.x - box.center.x);
+                    plane    = new Plane(new float3(-1f, 0f, 0f), -box.halfSize.x - box.center.x);
                     vertices = new simdFloat3(-ones, firstComponent, -secondCompPos);
                     break;
                 case 4:  // negative Y
-                    plane    = new Plane(new float3(0f, -1f, 0f), box.halfSize.y - box.center.y);
+                    plane    = new Plane(new float3(0f, -1f, 0f), -box.halfSize.y - box.center.y);
                     vertices = new simdFloat3(firstComponent, -ones, -secondCompPos);
                     break;
                 case 5:  // negative Z
-                    plane    = new Plane(new float3(0f, 0f, -1f), box.halfSize.z - box.center.z);
+                    plane    = new Plane(new float3(0f, 0f, -1f), -box.halfSize.z - box.center.z);
                     vertices = new simdFloat3(firstComponent, -secondCompPos, -ones);
                     break;
                 default:  // Should not happen
