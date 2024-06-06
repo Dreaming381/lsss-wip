@@ -12,18 +12,34 @@ namespace Latios.Psyshock
                                            float maxDistance,
                                            out ColliderDistanceResult result)
         {
-            var aWorldToLocal      = math.inverse(aTransform);
-            var bWorldToLocal      = math.inverse(bTransform);
-            var bInASpaceTransform = math.mul(aWorldToLocal, bTransform);
-            var aInBSpaceTransform = math.mul(bWorldToLocal, aTransform);
-            var hit                = BoxBoxDistance(in boxA,
-                                                    in boxB,
-                                                    in bInASpaceTransform,
-                                                    in aInBSpaceTransform,
-                                                    maxDistance,
-                                                    out ColliderDistanceResultInternal localResult);
-            result = InternalQueryTypeUtilities.BinAResultToWorld(in localResult, in aTransform);
-            return hit;
+            // Todo: SAT algorithm like it used to be, except better.
+            var bInATransform = math.mul(math.inverse(aTransform), bTransform);
+            var gjkResult     = GjkEpa.DoGjkEpa(boxA, boxB, in bInATransform);
+            var featureCodeA  = PointRayBox.FeatureCodeFromGjk(gjkResult.simplexAVertexCount, gjkResult.simplexAVertexA, gjkResult.simplexAVertexB, gjkResult.simplexAVertexC);
+            var featureCodeB  = PointRayBox.FeatureCodeFromGjk(gjkResult.simplexBVertexCount, gjkResult.simplexBVertexA, gjkResult.simplexBVertexB, gjkResult.simplexBVertexC);
+            result            = InternalQueryTypeUtilities.BinAResultToWorld(new ColliderDistanceResultInternal
+            {
+                distance     = gjkResult.distance,
+                hitpointA    = gjkResult.hitpointOnAInASpace,
+                hitpointB    = gjkResult.hitpointOnBInASpace,
+                normalA      = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                normalB      = math.rotate(bInATransform.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                featureCodeA = featureCodeA,
+                featureCodeB = featureCodeB
+            }, aTransform);
+            return result.distance <= maxDistance;
+            //var aWorldToLocal      = math.inverse(aTransform);
+            //var bWorldToLocal      = math.inverse(bTransform);
+            //var bInASpaceTransform = math.mul(aWorldToLocal, bTransform);
+            //var aInBSpaceTransform = math.mul(bWorldToLocal, aTransform);
+            //var hit                = BoxBoxDistance(in boxA,
+            //                                        in boxB,
+            //                                        in bInASpaceTransform,
+            //                                        in aInBSpaceTransform,
+            //                                        maxDistance,
+            //                                        out ColliderDistanceResultInternal localResult);
+            //result = InternalQueryTypeUtilities.BinAResultToWorld(in localResult, in aTransform);
+            //return hit;
         }
 
         public static bool ColliderCast(in BoxCollider boxToCast, in RigidTransform castStart, float3 castEnd, in BoxCollider targetBox, in RigidTransform targetBoxTransform,

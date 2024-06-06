@@ -25,28 +25,17 @@ namespace Latios.Psyshock
             // Todo: SAT algorithm similar to box vs box.
             var bInATransform = math.mul(math.inverse(triangleTransform), boxTransform);
             var gjkResult     = GjkEpa.DoGjkEpa(triangle, box, in bInATransform);
-            var epsilon       = gjkResult.normalizedOriginToClosestCsoPoint * math.select(-1e-4f, 1e-4f, gjkResult.distance < 0f);
-            SphereTriangle.DistanceBetween(in triangle,
-                                           in RigidTransform.identity,
-                                           new SphereCollider(gjkResult.hitpointOnAInASpace + epsilon, 0f),
-                                           RigidTransform.identity,
-                                           float.MaxValue,
-                                           out var closestOnA);
-            SphereBox.DistanceBetween(in box,
-                                      in bInATransform,
-                                      new SphereCollider(gjkResult.hitpointOnBInASpace - epsilon, 0f),
-                                      RigidTransform.identity,
-                                      float.MaxValue,
-                                      out var closestOnB);
-            result = InternalQueryTypeUtilities.BinAResultToWorld(new ColliderDistanceResultInternal
+            var featureCodeA  = PointRayTriangle.FeatureCodeFromGjk(gjkResult.simplexAVertexCount, gjkResult.simplexAVertexA, gjkResult.simplexAVertexB);
+            var featureCodeB  = PointRayBox.FeatureCodeFromGjk(gjkResult.simplexBVertexCount, gjkResult.simplexBVertexA, gjkResult.simplexBVertexB, gjkResult.simplexBVertexC);
+            result            = InternalQueryTypeUtilities.BinAResultToWorld(new ColliderDistanceResultInternal
             {
                 distance     = gjkResult.distance,
                 hitpointA    = gjkResult.hitpointOnAInASpace,
                 hitpointB    = gjkResult.hitpointOnBInASpace,
-                normalA      = closestOnA.normalA,
-                normalB      = closestOnB.normalA,
-                featureCodeA = closestOnA.featureCodeA,
-                featureCodeB = closestOnB.featureCodeA
+                normalA      = PointRayTriangle.TriangleNormalFromFeatureCode(featureCodeA, in triangle, -gjkResult.normalizedOriginToClosestCsoPoint),
+                normalB      = math.rotate(bInATransform.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                featureCodeA = featureCodeA,
+                featureCodeB = featureCodeB
             }, triangleTransform);
             return result.distance <= maxDistance;
         }
