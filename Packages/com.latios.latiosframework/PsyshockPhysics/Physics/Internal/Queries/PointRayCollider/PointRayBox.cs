@@ -329,7 +329,7 @@ namespace Latios.Psyshock
                     return xor switch
                            {
                                1 => (ushort)(0x4000 + (a >> 1)),  // Hit x-edge
-                               2 => (ushort)(0x4004 + (a & 1) + (1 >> 2)),  // Hit y-edge
+                               2 => (ushort)(0x4004 + (a & 1) + ((a >> 1) & 2)),  // Hit y-edge
                                3 => (ushort)(0x8002 + math.select(0, 3, (a & 4) != 0)),  // Hit z face diagonal (rare)
                                4 => (ushort)(0x4008 + (a & 3)),  // Hit z-edge
                                5 => (ushort)(0x8001 + math.select(0, 3, (a & 2) != 0)),  // Hit y face diagonal (rare)
@@ -401,15 +401,15 @@ namespace Latios.Psyshock
                     vertices = new simdFloat3(firstComponent, secondCompPos, ones);
                     break;
                 case 3:  // negative X
-                    plane    = new Plane(new float3(-1f, 0f, 0f), -box.halfSize.x - box.center.x);
+                    plane    = new Plane(new float3(-1f, 0f, 0f), -box.halfSize.x + box.center.x);
                     vertices = new simdFloat3(-ones, firstComponent, -secondCompPos);
                     break;
                 case 4:  // negative Y
-                    plane    = new Plane(new float3(0f, -1f, 0f), -box.halfSize.y - box.center.y);
+                    plane    = new Plane(new float3(0f, -1f, 0f), -box.halfSize.y + box.center.y);
                     vertices = new simdFloat3(firstComponent, -ones, -secondCompPos);
                     break;
                 case 5:  // negative Z
-                    plane    = new Plane(new float3(0f, 0f, -1f), -box.halfSize.z - box.center.z);
+                    plane    = new Plane(new float3(0f, 0f, -1f), -box.halfSize.z + box.center.z);
                     vertices = new simdFloat3(firstComponent, -secondCompPos, -ones);
                     break;
                 default:  // Should not happen

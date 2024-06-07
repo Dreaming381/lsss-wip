@@ -365,10 +365,10 @@ namespace Latios.Psyshock
             uint4 bIds = compressedIDs & 0xff;
 
             result.simplexAVertexA = (byte)aIds.x;
-            if (result.simplexAVertexA != result.simplexAVertexB)
+            if (aIds.x != aIds.y)
             {
                 result.simplexAVertexB = (byte)aIds.y;
-                if (result.simplexAVertexA != result.simplexAVertexC)
+                if (aIds.x != aIds.z && aIds.y != aIds.z)
                 {
                     result.simplexAVertexC     = (byte)aIds.z;
                     result.simplexAVertexCount = 3;
@@ -376,7 +376,7 @@ namespace Latios.Psyshock
                 else
                     result.simplexAVertexCount = 2;
             }
-            else if (result.simplexAVertexA != result.simplexAVertexC)
+            else if (aIds.x != aIds.z)
             {
                 result.simplexAVertexB     = (byte)aIds.z;
                 result.simplexAVertexCount = 2;
@@ -385,10 +385,10 @@ namespace Latios.Psyshock
                 result.simplexBVertexCount = 1;
 
             result.simplexBVertexA = (byte)bIds.x;
-            if (result.simplexBVertexA != result.simplexBVertexB)
+            if (bIds.x != bIds.y)
             {
                 result.simplexBVertexB = (byte)bIds.y;
-                if (result.simplexBVertexA != result.simplexBVertexC)
+                if (bIds.x != bIds.z && bIds.y != bIds.z)
                 {
                     result.simplexBVertexC     = (byte)bIds.z;
                     result.simplexBVertexCount = 3;
@@ -396,7 +396,7 @@ namespace Latios.Psyshock
                 else
                     result.simplexBVertexCount = 2;
             }
-            else if (result.simplexBVertexA != result.simplexBVertexC)
+            else if (bIds.x != bIds.z)
             {
                 result.simplexBVertexB     = (byte)bIds.z;
                 result.simplexBVertexCount = 2;

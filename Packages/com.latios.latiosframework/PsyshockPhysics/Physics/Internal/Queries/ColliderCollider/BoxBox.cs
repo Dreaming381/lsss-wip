@@ -142,7 +142,9 @@ namespace Latios.Psyshock
                     };
                     edgeDirectionB      = math.rotate(bInATransform.rot, edgeDirectionB);
                     aLocalContactNormal = math.normalize(math.cross(edgeDirectionA, edgeDirectionB));
-                    aLocalContactNormal = math.select(aLocalContactNormal, -aLocalContactNormal, math.dot(aLocalContactNormal, distanceResult.normalA) < 0f);
+                    aLocalContactNormal = math.select(aLocalContactNormal,
+                                                      -aLocalContactNormal,
+                                                      math.dot(math.rotate(aTransform.rot, aLocalContactNormal), distanceResult.normalA) < 0f);
                     break;
                 }
                 case 2:  // A point and B face
