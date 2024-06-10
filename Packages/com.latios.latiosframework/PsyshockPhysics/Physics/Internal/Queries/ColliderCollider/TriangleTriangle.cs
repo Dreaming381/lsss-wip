@@ -112,7 +112,9 @@ namespace Latios.Psyshock
                     // For A edge, this can only happen due to some bizarre precision issues.
                     // But we'll handle it anyways by just using the face normal of B.
                     aLocalContactNormal = math.normalize(math.cross(triangleBinA.pointB - triangleBinA.pointA, triangleBinA.pointC - triangleBinA.pointA));
-                    aLocalContactNormal = math.select(-aLocalContactNormal, aLocalContactNormal, math.dot(aLocalContactNormal, distanceResult.normalB) > 0f);
+                    aLocalContactNormal = math.select(-aLocalContactNormal,
+                                                      aLocalContactNormal,
+                                                      math.dot(math.rotate(aTransform.rot, aLocalContactNormal), distanceResult.normalB) > 0f);
                     break;
                 }
                 case 8:  // A face and B point
@@ -122,7 +124,9 @@ namespace Latios.Psyshock
                     // For B edge and face, this can only happen due to some bizarre precision issues.
                     // But we'll handle it anyways by just using the face normal of A.
                     aLocalContactNormal = math.normalize(math.cross(triangleA.pointB - triangleA.pointA, triangleA.pointC - triangleA.pointA));
-                    aLocalContactNormal = math.select(aLocalContactNormal, -aLocalContactNormal, math.dot(aLocalContactNormal, distanceResult.normalA) < 0f);
+                    aLocalContactNormal = math.select(aLocalContactNormal,
+                                                      -aLocalContactNormal,
+                                                      math.dot(math.rotate(aTransform.rot, aLocalContactNormal), distanceResult.normalA) < 0f);
                     break;
                 }
                 default:
