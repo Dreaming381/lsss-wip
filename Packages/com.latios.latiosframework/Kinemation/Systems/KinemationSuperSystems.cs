@@ -31,6 +31,7 @@ namespace Latios.Kinemation.Systems
 
             GetOrCreateAndAddManagedSystem<CullingRoundRobinDispatchSuperSystem>();
 
+            GetOrCreateAndAddUnmanagedSystem<SelectMmiRangeLodsSystem>();
             GetOrCreateAndAddUnmanagedSystem<GenerateBrgDrawCommandsSystem>();
             GetOrCreateAndAddUnmanagedSystem<SetRenderVisibilityFeedbackFlagsSystem>();
         }

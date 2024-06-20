@@ -34,7 +34,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.15",
+      "version": "1.8.16",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -289,6 +289,13 @@
         "com.unity.shadergraph": "17.0.3",
         "com.unity.render-pipelines.core": "17.0.3"
       }
+    },
+    "com.whinarn.unitymeshsimplifier": {
+      "version": "https://github.com/Whinarn/UnityMeshSimplifier.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "d741912bfeaad8da4fe0f258f4f3eefe1fe7b3f3"
     },
     "usfxr": {
       "version": "https://github.com/grapefrukt/usfxr.git",

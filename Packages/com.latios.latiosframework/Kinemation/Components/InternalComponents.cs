@@ -442,7 +442,7 @@ namespace InternalSourceGen
 
     internal partial struct LODCrossfadePtrMap : ICollectionComponent
     {
-        public unsafe struct CrossfadePtr { public byte* ptr; }
+        public unsafe struct CrossfadePtr { public LodCrossfade* ptr; }
         public struct ChunkIdentifier : IEquatable<ChunkIdentifier>
         {
             public uint batchID;

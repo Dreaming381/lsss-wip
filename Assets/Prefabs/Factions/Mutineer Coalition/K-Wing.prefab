@@ -60,6 +60,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -123,6 +126,9 @@ MonoBehaviour:
   m_height: 3.25
   m_radius: 0.3
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064644316398208
 GameObject:
   m_ObjectHideFlags: 0
@@ -183,6 +189,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -246,6 +255,9 @@ MonoBehaviour:
   m_height: 3.75
   m_radius: 0.5
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064644726584645
 GameObject:
   m_ObjectHideFlags: 0
@@ -402,6 +414,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -465,6 +480,9 @@ MonoBehaviour:
   m_height: 5
   m_radius: 0.25
   m_axis: 0
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064645014992081
 GameObject:
   m_ObjectHideFlags: 0
@@ -525,6 +543,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -588,6 +609,9 @@ MonoBehaviour:
   m_height: 2.5
   m_radius: 0.25
   m_axis: 0
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064645070033683
 GameObject:
   m_ObjectHideFlags: 0
@@ -649,6 +673,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -712,6 +739,9 @@ MonoBehaviour:
   m_height: 1
   m_radius: 0.075
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064645263175371
 GameObject:
   m_ObjectHideFlags: 0
@@ -773,6 +803,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -836,6 +869,9 @@ MonoBehaviour:
   m_height: 1
   m_radius: 0.075
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064645347732135
 GameObject:
   m_ObjectHideFlags: 0
@@ -897,6 +933,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -960,6 +999,9 @@ MonoBehaviour:
   m_height: 1
   m_radius: 0.075
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064645776078787
 GameObject:
   m_ObjectHideFlags: 0
@@ -1020,6 +1062,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1083,6 +1128,9 @@ MonoBehaviour:
   m_height: 2.5
   m_radius: 0.25
   m_axis: 0
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2227064646051594017
 GameObject:
   m_ObjectHideFlags: 0
@@ -1144,6 +1192,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1207,6 +1258,9 @@ MonoBehaviour:
   m_height: 1
   m_radius: 0.075
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &2513563641961661338
 GameObject:
   m_ObjectHideFlags: 0
@@ -1361,6 +1415,9 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1424,6 +1481,9 @@ MonoBehaviour:
   m_height: 1.81
   m_radius: 0.5
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!1 &7817329573658693063
 GameObject:
   m_ObjectHideFlags: 0

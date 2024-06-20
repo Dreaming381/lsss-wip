@@ -127,6 +127,9 @@ MonoBehaviour:
   m_height: 0.8
   m_radius: 0.06
   m_axis: 2
+  m_useLOD: 1
+  m_lodTransitionMinPercentage: 0.5
+  m_lodTransitionMaxPercentage: 1
 --- !u!114 &4665177173452725130
 MonoBehaviour:
   m_ObjectHideFlags: 0

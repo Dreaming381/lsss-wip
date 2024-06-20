@@ -8,51 +8,6 @@ using Unity.Rendering;
 namespace Latios.Kinemation
 {
     #region All Meshes
-    public struct LodCrossfade : IComponentData, IEnableableComponent
-    {
-        public byte raw;
-
-        public void SetHiResOpacity(float opacity, bool isLowRes)
-        {
-            int snorm  = (int)math.round(opacity * 127f);
-            snorm      = math.select(snorm, -snorm, isLowRes);
-            snorm     &= 0xff;
-            raw        = (byte)snorm;
-        }
-
-        public float hiResOpacity
-        {
-            get
-            {
-                int reg = raw;
-                var pos = math.select(reg, 256 - reg, reg > 128);
-                return pos / 127f;
-            }
-        }
-    }
-
-    // Note: You might think it would be better to cache the world-space heights before the culling callbacks.
-    // However, we still need the positions for distance calculations.
-    public struct LodHeightPercentages : IComponentData
-    {
-        // Signs represent the LOD index
-        public float localSpaceHeight;
-        public half  minPercent;
-        public half  maxPercent;
-    }
-
-    public struct LodHeightPercentagesWithCrossfadeMargins : IComponentData
-    {
-        // Signs of first three fields represent the LOD index
-        public float localSpaceHeight;
-        public half  minPercent;
-        public half  maxPercent;
-        public half  minCrossFadeEdge;  // if negative, then disable crossfade
-        public half  maxCrossFadeEdge;  // if negative, then disable crossfade
-    }
-
-    public struct SpeedTreeCrossfadeTag : IComponentData { }
-
     /// <summary>
     /// An optional component that when present will be enabled for the duration of the frame
     /// following a frame it was rendered by some view (including shadows), and disabled otherwise.

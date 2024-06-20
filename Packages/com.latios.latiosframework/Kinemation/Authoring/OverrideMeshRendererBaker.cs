@@ -34,7 +34,8 @@ namespace Latios.Kinemation.Authoring
             {
                 mesh     = mesh,
                 material = material,
-                submesh  = submesh
+                submesh  = (ushort)submesh,
+                lodMask  = MeshMaterialSubmeshSettings.kDefaultLodMask
             };
             Span<int> counts = stackalloc int[1];
             counts[0]        = 1;
@@ -94,10 +95,6 @@ namespace Latios.Kinemation.Authoring
         /// The lightmap texture scale and offset for the Renderer
         /// </summary>
         public float4 lightmapScaleOffset;
-        /// <summary>
-        /// The LOD settings for this entity, typically extracted from a belonging LOD group
-        /// </summary>
-        public LodSettings lodSettings;
         /// <summary>
         /// True if the entity should be treated as if it were marked static
         /// </summary>
@@ -163,7 +160,10 @@ namespace Latios.Kinemation.Authoring
     {
         public UnityObjectRef<Mesh>     mesh;
         public UnityObjectRef<Material> material;
-        public int                      submesh;
+        public ushort                   submesh;
+        public byte                     lodMask;  // LSB is LOD0 (highest resolution)
+
+        public const byte kDefaultLodMask = 0xff;
     }
 
     public static class RenderingBakingTools
@@ -175,7 +175,11 @@ namespace Latios.Kinemation.Authoring
         /// <param name="mesh">The mesh used for all settings</param>
         /// <param name="sharedMaterials">The list of shared materials, where a MeshMaterialSubmeshSettings will be created for each
         /// material using a submesh of the corresponding index</param>
-        public static void ExtractMeshMaterialSubmeshes(Span<MeshMaterialSubmeshSettings> dst, Mesh mesh, List<Material> sharedMaterials)
+        /// <param name="lodMask">A LOD mask for up to 8 LODs that all MaterialMeshSubmehsSettings in the span should use</param>
+        public static void ExtractMeshMaterialSubmeshes(Span<MeshMaterialSubmeshSettings> dst,
+                                                        Mesh mesh,
+                                                        List<Material>                    sharedMaterials,
+                                                        byte lodMask = MeshMaterialSubmeshSettings.kDefaultLodMask)
         {
             if (sharedMaterials == null)
                 return;
@@ -189,7 +193,8 @@ namespace Latios.Kinemation.Authoring
                 {
                     mesh     = mesh,
                     material = sharedMaterials[i],
-                    submesh  = i
+                    submesh  = (ushort)i,
+                    lodMask  = lodMask
                 };
             }
         }
@@ -317,6 +322,59 @@ namespace Latios.Kinemation.Authoring
                 lodSettings.localHeight /= math.cmax(relativeTransform.scale * relativeTransform.stretch);
             }
         }
+
+        /// <summary>
+        /// Bakes the LODSettings to optionally add a LodHeightPercentages or LodHeightPercentagesWithCrossfadeMargins
+        /// and optionally add the SpeedTreeCrossfadeTag and LodCrossfade components.
+        /// This is designed for baking a unique LOD mask that applies to the entire entity. Do not use this if you intend
+        /// to use UseMmiRangeLodTag.
+        /// </summary>
+        /// <param name="baker">The active baker</param>
+        /// <param name="targetEntity">The entity to add the components to</param>
+        /// <param name="lodSettings">The LOD settings used to derive the components to bake.</param>
+        public static void BakeLodMaskForEntity(IBaker baker, Entity targetEntity, LodSettings lodSettings)
+        {
+            if (!lodSettings.Equals(default(LodSettings)))
+            {
+                bool negHeight = (lodSettings.lowestResLodLevel & 0x1) == 1;
+                bool negMin    = (lodSettings.lowestResLodLevel & 0x2) == 2;
+                bool negMax    = (lodSettings.lowestResLodLevel & 0x4) == 4;
+                if (negHeight)
+                    lodSettings.localHeight *= -1;
+                if (negMin)
+                    lodSettings.minScreenHeightPercent *= new half(-1f);
+                if (negMax)
+                    lodSettings.maxScreenHeightPercent *= new half(-1f);
+
+                if (lodSettings.minScreenHeightPercentAtCrossfadeEdge > 0f || lodSettings.maxScreenHeightPercentAtCrossfadeEdge > 0f)
+                {
+                    if (lodSettings.isSpeedTree)
+                        baker.AddComponent<SpeedTreeCrossfadeTag>(targetEntity);
+
+                    if (lodSettings.maxScreenHeightPercentAtCrossfadeEdge < 0f)
+                        lodSettings.maxScreenHeightPercentAtCrossfadeEdge = half.MaxValueAsHalf;
+
+                    baker.AddComponent<LodCrossfade>(targetEntity);
+                    baker.AddComponent(              targetEntity, new LodHeightPercentagesWithCrossfadeMargins
+                    {
+                        localSpaceHeight = lodSettings.localHeight,
+                        maxCrossFadeEdge = lodSettings.maxScreenHeightPercentAtCrossfadeEdge,
+                        maxPercent       = lodSettings.maxScreenHeightPercent,
+                        minCrossFadeEdge = lodSettings.minScreenHeightPercentAtCrossfadeEdge,
+                        minPercent       = lodSettings.minScreenHeightPercent
+                    });
+                }
+                else
+                {
+                    baker.AddComponent(targetEntity, new LodHeightPercentages
+                    {
+                        localSpaceHeight = lodSettings.localHeight,
+                        maxPercent       = lodSettings.maxScreenHeightPercent,
+                        minPercent       = lodSettings.minScreenHeightPercent
+                    });
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -352,18 +410,19 @@ namespace Latios.Kinemation.Authoring
             RenderingBakingTools.ExtractMeshMaterialSubmeshes(mms, mesh, m_materialsCache);
             var opaqueMaterialCount = RenderingBakingTools.GroupByDepthSorting(mms);
 
+            var entity = GetEntity(TransformUsageFlags.Renderable);
             RenderingBakingTools.GetLOD(this, authoring, out var lodSettings);
+            RenderingBakingTools.BakeLodMaskForEntity(this, entity, lodSettings);
 
             var rendererSettings = new MeshRendererBakeSettings
             {
-                targetEntity                = GetEntity(TransformUsageFlags.Renderable),
+                targetEntity                = entity,
                 renderMeshDescription       = new RenderMeshDescription(authoring),
                 isDeforming                 = false,
                 suppressDeformationWarnings = false,
                 useLightmapsIfPossible      = true,
                 lightmapIndex               = authoring.lightmapIndex,
                 lightmapScaleOffset         = authoring.lightmapScaleOffset,
-                lodSettings                 = lodSettings,
                 isStatic                    = IsStatic(),
                 localBounds                 = mesh != null ? mesh.bounds : default,
             };
@@ -378,14 +437,15 @@ namespace Latios.Kinemation.Authoring
             }
             else
             {
-                var                             additionalEntity = CreateAdditionalEntity(TransformUsageFlags.Renderable, false, $"{GetName()}-TransparentRenderEntity");
-                Span <MeshRendererBakeSettings> renderers        = stackalloc MeshRendererBakeSettings[2];
-                renderers[0]                                     = rendererSettings;
-                renderers[1]                                     = rendererSettings;
-                renderers[1].targetEntity                        = additionalEntity;
-                Span<int> counts                                 = stackalloc int[2];
-                counts[0]                                        = opaqueMaterialCount;
-                counts[1]                                        = mms.Length - opaqueMaterialCount;
+                var additionalEntity = CreateAdditionalEntity(TransformUsageFlags.Renderable, false, $"{GetName()}-TransparentRenderEntity");
+                RenderingBakingTools.BakeLodMaskForEntity(this, additionalEntity, lodSettings);
+                Span <MeshRendererBakeSettings> renderers = stackalloc MeshRendererBakeSettings[2];
+                renderers[0]                              = rendererSettings;
+                renderers[1]                              = rendererSettings;
+                renderers[1].targetEntity                 = additionalEntity;
+                Span<int> counts                          = stackalloc int[2];
+                counts[0]                                 = opaqueMaterialCount;
+                counts[1]                                 = mms.Length - opaqueMaterialCount;
                 this.BakeMeshAndMaterial(renderers, mms, counts);
             }
         }
