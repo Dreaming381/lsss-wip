@@ -20,6 +20,7 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
                 UnityEngine.Debug.Log("Why? How? TypeManager corruption?");
         }
 
+        Latios.Authoring.CoreBakingBootstrap.ForceRemoveLinkedEntityGroupsOfLength1(ref context);
         Latios.Transforms.Authoring.TransformsBakingBootstrap.InstallLatiosTransformsBakers(ref context);
         Latios.Psyshock.Authoring.PsyshockBakingBootstrap.InstallUnityColliderBakers(ref context);
         Latios.Kinemation.Authoring.KinemationBakingBootstrap.InstallKinemation(ref context);

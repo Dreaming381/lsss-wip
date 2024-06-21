@@ -597,7 +597,7 @@ namespace Latios.Kinemation.Systems
                                     header,
                                     binInstanceOffset + workItemInstanceOffset + headerInstanceOffset,
                                     settings.BatchID.value,
-                                    (settings.Flags & BatchDrawCommandFlags.LODCrossFade) == BatchDrawCommandFlags.LODCrossFade,
+                                    UseCrossfades(settings.Flags),
                                     settings.FilterIndex < 0);
 
                         headerInstanceOffset += header->NumInstances;
@@ -620,7 +620,7 @@ namespace Latios.Kinemation.Systems
                                                  instanceOffset,
                                                  positionOffset,
                                                  settings.BatchID.value,
-                                                 (settings.Flags & BatchDrawCommandFlags.LODCrossFade) == BatchDrawCommandFlags.LODCrossFade,
+                                                 UseCrossfades(settings.Flags),
                                                  settings.FilterIndex < 0);
 
                         headerInstanceOffset += header->NumInstances;
