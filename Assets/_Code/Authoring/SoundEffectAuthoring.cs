@@ -15,15 +15,9 @@ namespace Lsss.Authoring
     [DisallowMultipleComponent]
     [RequireComponent(typeof(AudioSourceAuthoring))]
     [AddComponentMenu("LSSS/Behaviors/Sound Effect")]
-    public class SoundEffectAuthoring : MonoBehaviour
+    public class SoundEffectAuthoring : AudioClipOverrideBase
     {
         public SfxrParams effectSettings;
-    }
-
-    [TemporaryBakingType]
-    struct SoundEffectBlob : IComponentData
-    {
-        public SmartBlobberHandle<AudioClipBlob> blobHandle;
     }
 
     [TemporaryBakingType]
@@ -36,10 +30,10 @@ namespace Lsss.Authoring
     {
         public override void Bake(SoundEffectAuthoring authoring)
         {
-            var entity                                                = GetEntity(TransformUsageFlags.None);
-            var blobHandle                                            = this.RequestCreateBlobAsset(GetName(), 44100, 1, out var blobEntity);
-            AddComponent(blobEntity, new SfxrParameters { sfxrParams  = authoring.effectSettings });
-            AddComponent(entity,     new SoundEffectBlob { blobHandle = blobHandle });
+            var entity                                               = GetEntity(TransformUsageFlags.None);
+            var blobHandle                                           = this.RequestCreateBlobAsset(GetName(), 44100, 1, out var blobEntity);
+            AddComponent(blobEntity, new SfxrParameters { sfxrParams = authoring.effectSettings });
+            AddComponent(entity,     new AudioClipOverrideRequest(blobHandle));
         }
     }
 
@@ -791,39 +785,6 @@ namespace Lsss.Authoring
                 return sum / 64f - 1f;
             }
         };
-    }
-
-    [BurstCompile]
-    [RequireMatchingQueriesForUpdate]
-    [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
-    public partial struct SoundEffectBakingSystem : ISystem
-    {
-        [BurstCompile] public void OnCreate(ref SystemState state)
-        {
-        }
-        [BurstCompile] public void OnDestroy(ref SystemState state)
-        {
-        }
-        [BurstCompile] public void OnUpdate(ref SystemState state)
-        {
-            // Todo: Make this work in IJobEntity
-            state.CompleteDependency();
-            foreach ((var source, var blob) in SystemAPI.Query<RefRW<AudioSourceOneShot>,
-                                                               RefRO<SoundEffectBlob> >().WithOptions(EntityQueryOptions.IncludePrefab |
-                                                                                                      EntityQueryOptions.IncludeDisabledEntities))
-            {
-                source.ValueRW.clip = blob.ValueRO.blobHandle.Resolve(state.EntityManager);
-            }
-        }
-
-        //[BurstCompile]
-        //partial struct Job : IJobEntity
-        //{
-        //    public void Execute(ref AudioSourceOneShot source, in SoundEffectBlob blob)
-        //    {
-        //        source.clip = blob.blobHandle.Resolve
-        //    }
-        //}
     }
 }
 
