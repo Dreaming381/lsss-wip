@@ -1207,6 +1207,7 @@ GameObject:
   - component: {fileID: 3617336376994974873}
   - component: {fileID: 840531536580335140}
   - component: {fileID: 5783592803110495616}
+  - component: {fileID: 4728852524878632127}
   m_Layer: 0
   m_Name: C1-StarJet Mk 2
   m_TagString: Untagged
@@ -1292,6 +1293,28 @@ MonoBehaviour:
   colliderType: 1
   generateFromChildren: 1
   colliders: []
+--- !u!114 &4728852524878632127
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3617336376994974872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 620b44da7b94fad4e9edec6867214ebb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  meshRenderers:
+  - {fileID: 3617336376512516523}
+  - {fileID: 3617336375347929755}
+  - {fileID: 3617336375578872561}
+  - {fileID: 3617336376761237471}
+  - {fileID: 3617336376419725051}
+  - {fileID: 3617336375898211339}
+  - {fileID: 3617336376180498648}
+  - {fileID: 3617336375821825371}
+  - {fileID: 3617336376293506647}
 --- !u!1 &3923821726165837769
 GameObject:
   m_ObjectHideFlags: 0

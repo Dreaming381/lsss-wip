@@ -881,6 +881,7 @@ GameObject:
   - component: {fileID: 5981499127038909864}
   - component: {fileID: 3737385244040680197}
   - component: {fileID: -3694110941650495591}
+  - component: {fileID: 4360850254957729162}
   m_Layer: 0
   m_Name: S1-AstroPlane Mk 2
   m_TagString: Untagged
@@ -970,6 +971,32 @@ MonoBehaviour:
   colliderType: 1
   generateFromChildren: 1
   colliders: []
+--- !u!114 &4360850254957729162
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5981499127038909865}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 620b44da7b94fad4e9edec6867214ebb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  meshRenderers:
+  - {fileID: 5981499128022887608}
+  - {fileID: 5981499127367720403}
+  - {fileID: 5981499125954677448}
+  - {fileID: 5981499127663425104}
+  - {fileID: 5981499127359540360}
+  - {fileID: 1008522852}
+  - {fileID: 5981499127589568080}
+  - {fileID: 5981499127255497523}
+  - {fileID: 5981499127316542101}
+  - {fileID: 5981499126166545623}
+  - {fileID: 5981499126428403845}
+  - {fileID: 5981499126756459464}
+  - {fileID: 429681795439918241}
 --- !u!1 &5981499127255497535
 GameObject:
   m_ObjectHideFlags: 0

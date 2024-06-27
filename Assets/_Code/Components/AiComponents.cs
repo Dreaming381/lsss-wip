@@ -97,6 +97,13 @@ namespace Lsss
         public quaternion crossHairsForwardDirectionBias;
     }
 
+    public struct AiShipRadarRequests : IComponentData
+    {
+        public bool requestFriendAndNearestEnemy;
+    }
+
+    public struct AiShipRadarNeedsFullScanFlag : IComponentData, IEnableableComponent { }
+
     public struct AiShipRadarScanResults : IComponentData
     {
         public Entity         target;  //Null if target not found. Otherwise either new target or existing target based on whether target of radar was null.

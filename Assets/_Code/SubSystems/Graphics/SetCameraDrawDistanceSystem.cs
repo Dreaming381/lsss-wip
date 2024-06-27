@@ -31,6 +31,7 @@ namespace Lsss
                     return;
                 if (qualityLevel.level != lastSeenQualityLevel || camera != lastSeenCamera)
                 {
+                    camera.eventMask     = 0;
                     camera.farClipPlane  = distances.ValueRO.distances[math.min(distances.ValueRO.distances.Length - 1, qualityLevel.level)];
                     lastSeenCamera       = camera;
                     lastSeenQualityLevel = qualityLevel.level;

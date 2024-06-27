@@ -18,6 +18,10 @@ namespace Lsss.Authoring
     {
         public override void Bake(BulletAuthoring authoring)
         {
+            var cap = GetComponent<CapsuleMeshAuthoring>();
+            if (cap == null)
+                return;
+
             var   entity                                                                   = GetEntity(TransformUsageFlags.Dynamic);
             float timeToLive                                                               = authoring.travelDistance / authoring.speed;
             AddComponent(                 entity, new TimeToLive { timeToLive              = timeToLive });
@@ -25,6 +29,7 @@ namespace Lsss.Authoring
             AddComponent(                 entity, new Damage { damage                      = authoring.damage });
             AddComponent(                 entity, new TimeToLiveFadeStart { fadeTimeWindow = authoring.fadeOutDuration });
             AddComponent(                 entity, new FadeProperty { fade                  = 1f });
+            AddComponent(                 entity, new BulletCollider { headOffsetZ         = cap.m_height / 2f, radius = cap.m_radius });
             AddComponent<PreviousRequest>(entity);
             AddComponent<BulletFirer>(    entity);
             AddComponent<BulletTag>(      entity);

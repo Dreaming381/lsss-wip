@@ -2012,6 +2012,7 @@ GameObject:
   - component: {fileID: 3436635484991342959}
   - component: {fileID: 4815672285039604838}
   - component: {fileID: 3228637802334134237}
+  - component: {fileID: 3145350872780587215}
   m_Layer: 0
   m_Name: Belligerent
   m_TagString: Untagged
@@ -2104,6 +2105,35 @@ MonoBehaviour:
   colliderType: 1
   generateFromChildren: 1
   colliders: []
+--- !u!114 &3145350872780587215
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3436635484991342958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 620b44da7b94fad4e9edec6867214ebb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  meshRenderers:
+  - {fileID: 3436635484380601645}
+  - {fileID: 3436635484708393198}
+  - {fileID: 3436635483344813611}
+  - {fileID: 3436635483435242452}
+  - {fileID: 3436635483139164875}
+  - {fileID: 3436635484023758165}
+  - {fileID: 3436635484874618893}
+  - {fileID: 3436635483209800429}
+  - {fileID: 3436635484568905760}
+  - {fileID: 3436635484070666205}
+  - {fileID: 3436635483027201450}
+  - {fileID: 3436635484301488641}
+  - {fileID: 3436635484077134837}
+  - {fileID: 3436635484198593346}
+  - {fileID: 3436635485091997773}
+  - {fileID: 3436635484491787570}
 --- !u!1 &3436635485091997769
 GameObject:
   m_ObjectHideFlags: 0

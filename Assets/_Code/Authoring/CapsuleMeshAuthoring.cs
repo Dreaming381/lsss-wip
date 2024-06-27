@@ -279,13 +279,22 @@ namespace Lsss.Authoring
 
     public class CapsuleMeshBaker : Baker<CapsuleMeshAuthoring>
     {
-        List<Material> m_materialsCache = new List<Material>();
+        List<Material>                  m_materialsCache         = new List<Material>();
+        List<RendererCombinerAuthoring> m_rendererCombiningCache = new List<RendererCombinerAuthoring>();
 
         public override void Bake(CapsuleMeshAuthoring authoring)
         {
             var meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer == null)
                 return;
+
+            m_rendererCombiningCache.Clear();
+            GetComponentsInParent(m_rendererCombiningCache);
+            foreach (var rc in  m_rendererCombiningCache)
+            {
+                if (rc.ShouldOverride(this, meshRenderer))
+                    return;
+            }
 
             m_materialsCache.Clear();
             meshRenderer.GetSharedMaterials(m_materialsCache);
@@ -304,6 +313,7 @@ namespace Lsss.Authoring
                 var lodMesh = CreateLODMesh(authoring.m_height, authoring.m_radius, authoring.m_axis);
                 for (int i = 0; i < materialCount; i++)
                 {
+                    // Todo: This is technically bugged for transparent materials.
                     mms[materialCount + i] = new MeshMaterialSubmeshSettings
                     {
                         material = mms[i].material,
@@ -376,7 +386,7 @@ namespace Lsss.Authoring
             }
         }
 
-        Mesh CreateLODMesh(float height, float radius, CapsuleMeshAuthoring.DirectionAxis axis)
+        public static Mesh CreateLODMesh(float height, float radius, CapsuleMeshAuthoring.DirectionAxis axis)
         {
             var mesh      = new Mesh();
             var positions = new NativeArray<float3>(10, Allocator.Temp);

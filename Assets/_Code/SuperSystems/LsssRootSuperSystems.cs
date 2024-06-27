@@ -60,6 +60,12 @@ namespace Lsss.SuperSystems
             GetOrCreateAndAddManagedSystem<ProcessGameplayEventsSuperSystem>();
             GetOrCreateAndAddManagedSystem<GraphicsTransformsSuperSystem>();
         }
+
+        protected override void OnUpdate()
+        {
+            base.OnUpdate();
+            //EntityManager.CompleteAllTrackedJobs();
+        }
     }
 
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]

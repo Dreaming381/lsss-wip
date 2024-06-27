@@ -13,19 +13,16 @@ namespace Lsss
     public partial struct AiSearchAndDestroySystem : ISystem
     {
         [BurstCompile]
-        public void OnCreate(ref SystemState state)
-        {
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var jobA               = new JobA();
             jobA.scanResultsLookup = GetComponentLookup<AiShipRadarScanResults>(true);
             jobA.ScheduleParallel();
+
+            //var stats            = new NativeReference<Stats>(state.WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
+            //new StatsJob { stats = stats }.Schedule();
+            //state.Dependency     = new LogJob { stats = stats }.Schedule(state.Dependency);
+
             new JobB().ScheduleParallel();
         }
 
@@ -34,11 +31,9 @@ namespace Lsss
         partial struct JobA : IJobEntity
         {
             [ReadOnly] public ComponentLookup<AiShipRadarScanResults> scanResultsLookup;
+
             public void Execute(ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity)
             {
-                // !!!!!!!!!UNITY FIX THIS!!!!!!!!!!!!!!!!
-                // var scanResults = GetComponent<AiShipRadarScanResults>(shipRadarEntity.shipRadar);
-                //var scanResults = GetComponentLookup<AiShipRadarScanResults>(true)[shipRadarEntity.shipRadar];
                 var scanResults = scanResultsLookup[shipRadarEntity.shipRadar];
                 output.fire     = !scanResults.friendFound && scanResults.nearestEnemy != Entity.Null;
 
@@ -61,6 +56,53 @@ namespace Lsss
             public void Execute(ref AiShipRadar radar, in AiShipRadarScanResults results)
             {
                 radar.target = results.target;
+            }
+        }
+
+        struct Stats
+        {
+            public int fullScanCount;
+            public int requestedScanCount;
+            public int wanderingCount;
+            public int promotedScanCount;
+            public int friendBlockedCount;
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(AiRadarTag))]
+        [WithAll(typeof(AiShipRadarNeedsFullScanFlag))]
+        partial struct StatsJob : IJobEntity
+        {
+            public NativeReference<Stats> stats;
+
+            public void Execute(in AiShipRadarRequests requests, in AiShipRadar radar, in AiShipRadarScanResults results)
+            {
+                var s = stats.Value;
+                s.fullScanCount++;
+                if (requests.requestFriendAndNearestEnemy)
+                {
+                    s.requestedScanCount++;
+                    if (radar.target == Entity.Null)
+                        s.wanderingCount++;
+                }
+                else if (radar.target == Entity.Null)
+                    s.promotedScanCount++;
+                if (requests.requestFriendAndNearestEnemy && results.friendFound)
+                    s.friendBlockedCount++;
+                stats.Value = s;
+            }
+        }
+
+        [BurstCompile]
+        struct LogJob : IJob
+        {
+            public NativeReference<Stats> stats;
+
+            public void Execute()
+            {
+                var s = stats.Value;
+                UnityEngine.Debug.Log(
+                    $"full scans: {s.fullScanCount}, full scan requests: {s.requestedScanCount}, wandering: {s.wanderingCount} promoted scans: {s.promotedScanCount}, requested scans resulting in friend blocks: {s.friendBlockedCount}");
             }
         }
     }

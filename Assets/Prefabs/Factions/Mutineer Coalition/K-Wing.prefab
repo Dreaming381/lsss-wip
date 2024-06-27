@@ -269,6 +269,7 @@ GameObject:
   - component: {fileID: 2227064644726584644}
   - component: {fileID: 586610927272221825}
   - component: {fileID: 6117908038248050112}
+  - component: {fileID: 1427599248101888755}
   m_Layer: 0
   m_Name: K-Wing
   m_TagString: Untagged
@@ -354,6 +355,29 @@ MonoBehaviour:
   colliderType: 1
   generateFromChildren: 1
   colliders: []
+--- !u!114 &1427599248101888755
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2227064644726584645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 620b44da7b94fad4e9edec6867214ebb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  meshRenderers:
+  - {fileID: 2227064645347732131}
+  - {fileID: 2227064644942963380}
+  - {fileID: 2227064645776078799}
+  - {fileID: 2227064645014992093}
+  - {fileID: 2227064644316398220}
+  - {fileID: 2227064646051594029}
+  - {fileID: 2227064645263175383}
+  - {fileID: 2227064645070033695}
+  - {fileID: 6520421896220168703}
+  - {fileID: 140866293}
 --- !u!1 &2227064644942963368
 GameObject:
   m_ObjectHideFlags: 0

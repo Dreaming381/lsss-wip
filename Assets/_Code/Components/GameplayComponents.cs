@@ -141,6 +141,12 @@ namespace Lsss
         public bool   initialized;
     }
 
+    public struct BulletCollider : IComponentData
+    {
+        public float headOffsetZ;
+        public float radius;
+    }
+
     //Todo: Replace with Spherecast
     public partial struct BulletCollisionLayer : ICollectionComponent
     {

@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Latios.Transforms;
-using Latios.Transforms.Authoring;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -21,7 +19,7 @@ namespace Latios.Kinemation.Authoring
 
         public override void Bake(SkinnedMeshRenderer authoring)
         {
-            if (GetComponent<OverrideMeshRendererBase>() != null)
+            if (RenderingBakingTools.IsOverridden(this, authoring))
                 return;
 
             var sharedMesh = authoring.sharedMesh;

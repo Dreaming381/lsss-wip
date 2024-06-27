@@ -166,7 +166,7 @@ namespace Latios.Kinemation.Authoring
         public const byte kDefaultLodMask = 0xff;
     }
 
-    public static class RenderingBakingTools
+    public static partial class RenderingBakingTools
     {
         /// <summary>
         /// Extracts the mesh and materials combination into the destination span of MeshMaterialSubmeshSettings
@@ -389,7 +389,7 @@ namespace Latios.Kinemation.Authoring
 
         public override void Bake(MeshRenderer authoring)
         {
-            if (GetComponent<OverrideMeshRendererBase>() != null)
+            if (RenderingBakingTools.IsOverridden(this, authoring))
                 return;
 
             if (GetComponent<BakingOnlyEntityAuthoring>() != null)

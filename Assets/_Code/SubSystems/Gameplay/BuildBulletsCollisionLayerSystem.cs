@@ -33,16 +33,15 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var query = QueryBuilder().WithAll<WorldTransform, Collider, PreviousTransform, BulletTag>().Build();
+            var query = QueryBuilder().WithAll<WorldTransform, BulletCollider, PreviousTransform, BulletTag>().Build();
 
-            var bodies =
-                CollectionHelper.CreateNativeArray<ColliderBody>(query.CalculateEntityCount(),
-                                                                 state.WorldUnmanaged.UpdateAllocator.ToAllocator,
-                                                                 NativeArrayOptions.UninitializedMemory);
+            var count  = query.CalculateEntityCount();
+            var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
+            var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
 
-            new Job { bodies = bodies }.ScheduleParallel(query);
+            new Job { bodies = bodies, aabbs = aabbs }.ScheduleParallel(query);
 
-            state.Dependency = Physics.BuildCollisionLayer(bodies).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
+            state.Dependency = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
             var bcl          = new BulletCollisionLayer { layer = layer };
             latiosWorld.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
         }
@@ -51,16 +50,17 @@ namespace Lsss
         partial struct Job : IJobEntity
         {
             public NativeArray<ColliderBody> bodies;
+            public NativeArray<Aabb>         aabbs;
 
             public void Execute(Entity entity,
                                 [EntityIndexInQuery] int entityInQueryIndex,
                                 in WorldTransform worldTransform,
-                                in Collider collider,
+                                in BulletCollider collider,
                                 in PreviousTransform previousPosition)
             {
-                CapsuleCollider capsule     = collider;
+                var             pointB      = new float3(0f, 0f, collider.headOffsetZ);
+                CapsuleCollider capsule     = new CapsuleCollider(pointB, pointB, collider.radius);
                 float           tailLength  = math.distance(worldTransform.position, previousPosition.position);
-                capsule.pointA              = capsule.pointB;
                 capsule.pointA.z           -= math.max(tailLength, math.EPSILON);
 
                 bodies[entityInQueryIndex] = new ColliderBody
@@ -69,6 +69,7 @@ namespace Lsss
                     entity    = entity,
                     transform = worldTransform.worldTransform
                 };
+                aabbs[entityInQueryIndex] = Physics.AabbFrom(capsule, worldTransform.worldTransform);
             }
         }
     }

@@ -61,8 +61,10 @@ namespace Lsss.Authoring
                 nearestEnemyCrossHairsCosFovFilter   = math.cos(math.radians(authoring.enemyCrossHairsFieldOfView) / 2f),
                 crossHairsForwardDirectionBias       = crossHairsForwardDirectionBias
             });
-            AddComponent<AiShipRadarScanResults>(entity);
-            AddComponent<AiRadarTag>(            entity);
+            AddComponent<AiShipRadarScanResults>(       entity);
+            AddComponent<AiRadarTag>(                   entity);
+            AddComponent<AiShipRadarNeedsFullScanFlag>( entity);
+            AddComponent<AiShipRadarRequests>(          entity);
         }
     }
 }
