@@ -40,7 +40,7 @@ namespace Lsss
                 effectIcb            = effectIcb,
                 dt                   = dt,
                 worldTransformLookup = GetComponentLookup<WorldTransform>(true),
-                colliderLookup       = GetComponentLookup<Collider>(true)
+                colliderLookup       = GetComponentLookup<BulletCollider>(true)
             };
             job.ScheduleParallel();
 
@@ -57,7 +57,7 @@ namespace Lsss
             public float                                                                dt;
 
             [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
-            [ReadOnly] public ComponentLookup<Collider>       colliderLookup;
+            [ReadOnly] public ComponentLookup<BulletCollider> colliderLookup;
 
             public void Execute(Entity entity,
                                 [ChunkIndexInQuery] int chunkIndexInQuery,
@@ -74,9 +74,9 @@ namespace Lsss
                     {
                         for (int i = 0; i < gunPoints.Length; i++)
                         {
-                            CapsuleCollider collider                   = colliderLookup[bulletPrefab.bulletPrefab];
-                            float           halfLength                 = math.distance(collider.pointA, collider.pointB) / 2f + collider.radius;
-                            var             gunPointTransform          = worldTransformLookup[gunPoints[i].gun];
+                            var   collider                             = colliderLookup[bulletPrefab.bulletPrefab];
+                            float halfLength                           = collider.headOffsetZ + collider.radius;
+                            var   gunPointTransform                    = worldTransformLookup[gunPoints[i].gun];
                             gunPointTransform.worldTransform.position += gunPointTransform.forwardDirection * halfLength;
                             bulletIcb.Add(bulletPrefab.bulletPrefab,
                                           gunPointTransform,
