@@ -10,6 +10,8 @@ namespace Latios.Unika
         internal NativeArray<ScriptHeader> buffer;
         internal Entity                    entity;
 
+        public Enumerator GetEnumerator() => new Enumerator(this);
+
         public struct Enumerator
         {
             NativeArray<ScriptHeader> buffer;
@@ -51,6 +53,15 @@ namespace Latios.Unika
             return new EntityScriptCollection
             {
                 buffer = buffer.Reinterpret<ScriptHeader>().AsNativeArray(),
+                entity = entity
+            };
+        }
+
+        public static EntityScriptCollection AllScripts(this NativeArray<UnikaScripts> buffer, Entity entity)
+        {
+            return new EntityScriptCollection
+            {
+                buffer = buffer.Reinterpret<ScriptHeader>(),
                 entity = entity
             };
         }

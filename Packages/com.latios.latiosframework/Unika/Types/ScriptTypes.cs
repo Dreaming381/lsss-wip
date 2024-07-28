@@ -41,6 +41,16 @@ namespace Latios.Unika
             m_instanceId        = m_headerRO.instanceId,
             m_cachedHeaderIndex = m_headerOffset / sizeof(ScriptHeader)
         };
+
+        internal byte* GetUnsafePtrAsBytePtr()
+        {
+            return (byte*)m_scriptBuffer.GetUnsafePtr() + m_byteOffset;
+        }
+
+        internal byte* GetUnsafeROPtrAsBytePtr()
+        {
+            return (byte*)m_scriptBuffer.GetUnsafeReadOnlyPtr() + m_byteOffset;
+        }
     }
 
     public unsafe struct Script<T> where T : unmanaged, IUnikaScript

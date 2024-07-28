@@ -30,6 +30,12 @@ namespace Latios.Unika
             ScriptMetadata.s_metadataArray.Data       = new UnsafeList<ScriptMetadata>(512, Allocator.Persistent);
             ScriptMetadata.s_names.Data               = new UnsafeList<UnsafeText>(512, Allocator.Persistent);
             ScriptMetadata.s_offsets.Data             = new UnsafeList<TypeManager.EntityOffsetInfo>(4096, Allocator.Persistent);
+
+            ScriptMetadata.s_metadataArray.Data.Add(default);
+            string invalid     = "Null Script";
+            var    invalidText = new UnsafeText(System.Text.Encoding.UTF8.GetByteCount(invalid), Allocator.Persistent);
+            invalidText.CopyFrom(invalid);
+            ScriptMetadata.s_names.Data.Add(invalidText);
         }
 
         public static void DisposeStatics()
@@ -106,6 +112,8 @@ namespace Latios.Unika
             {
                 stableHash  = stableHash,
                 bloomMask   = mask,
+                size        = UnsafeUtility.SizeOf<T>(),
+                alignment   = UnsafeUtility.AlignOf<T>(),
                 entityStart = entityStart,
                 entityCount = entityCount,
                 blobStart   = blobStart,
@@ -131,6 +139,29 @@ namespace Latios.Unika
         public static IdAndMask GetScriptRuntimeId<T>() where T : unmanaged, IUnikaScript
         {
             return ScriptTypeInfoLookup<T>.s_runtimeTypeIndex.Data;
+        }
+
+        public static bool TryGetRuntimeIdAndMask(ulong stableHash, out IdAndMask result)
+        {
+            return ScriptStableHashToIdAndMaskMap.s_map.Data.TryGetValue(stableHash, out result);
+        }
+
+        public static int scriptTypeCount => ScriptMetadata.s_metadataArray.Data.Length;
+
+        public static ulong GetBloomMask(short runtimeId)
+        {
+            return ScriptMetadata.s_metadataArray.Data[runtimeId].bloomMask;
+        }
+
+        public static ulong GetStableHash(short runtimeId)
+        {
+            return ScriptMetadata.s_metadataArray.Data[runtimeId].stableHash;
+        }
+
+        public static int2 GetSizeAndAlignement(short runtimeId)
+        {
+            var meta = ScriptMetadata.s_metadataArray.Data[runtimeId];
+            return new int2(meta.size, meta.alignment);
         }
 
         public static UnsafeText GetName(short runtimeId)
@@ -190,6 +221,8 @@ namespace Latios.Unika
         {
             public ulong stableHash;
             public ulong bloomMask;
+            public int   size;
+            public int   alignment;
             public int   entityStart;
             public int   entityCount;
             public int   blobStart;

@@ -427,9 +427,9 @@ namespace Latios.Kinemation.Authoring.Systems
         private int m_numLightMappedMaterialCacheHits;
         private int m_numLightMappedMaterialCacheMisses;
 
-        private Dictionary<LightMapKey, LightMapReference>               m_lightMapArrayCache       = new Dictionary<LightMapKey, LightMapReference>();
-        private Dictionary<MaterialLookupKey, UnityObjectRef<Material> > m_lightMappedMaterialCache = new ();
-        private Dictionary<int, LightMapReference>                       m_lightMapReferences       = new Dictionary<int, LightMapReference>();
+        private Dictionary<LightMapKey, LightMapReference> m_lightMapArrayCache       = new Dictionary<LightMapKey, LightMapReference>();
+        private Dictionary<MaterialLookupKey, Material>    m_lightMappedMaterialCache = new ();
+        private Dictionary<int, LightMapReference>         m_lightMapReferences       = new Dictionary<int, LightMapReference>();
 
         public LightMapBakingContext()
         {
@@ -562,7 +562,7 @@ namespace Latios.Kinemation.Authoring.Systems
             }
         }
 
-        private static UnityObjectRef<Material> CreateLightMappedMaterial(UnityObjectRef<Material> material, LightMaps lightMaps)
+        private static Material CreateLightMappedMaterial(UnityObjectRef<Material> material, LightMaps lightMaps)
         {
             var lightMappedMaterial  = new Material(material);
             lightMappedMaterial.name = $"{lightMappedMaterial.name}_Lightmapped_";
