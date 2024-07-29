@@ -9,12 +9,12 @@ namespace Latios.Unika
     [StructLayout(LayoutKind.Sequential, Size = 16)]
     internal struct ScriptHeader
     {
-        const int   kTypeBitCount       = 13;
-        const int   kByteOffsetBitCount = 18;
-        const int   kInstanceIdBitCount = 54 - (kByteOffsetBitCount + kTypeBitCount);
-        const ulong kMaxTypeIndex       = (1ul << kTypeBitCount) - 1;
-        const ulong kMaxByteOffset      = (1ul << kByteOffsetBitCount) - 1;
-        const ulong kMaxInstanceId      = (1ul << kInstanceIdBitCount) - 1;
+        const int          kTypeBitCount       = 13;
+        const int          kByteOffsetBitCount = 18;
+        const int          kInstanceIdBitCount = 54 - (kByteOffsetBitCount + kTypeBitCount);
+        public const ulong kMaxTypeIndex       = (1ul << kTypeBitCount) - 1;
+        public const ulong kMaxByteOffset      = (1ul << kByteOffsetBitCount) - 1;
+        public const ulong kMaxInstanceId      = (1ul << kInstanceIdBitCount) - 1;
 
         // Master 54:
         //   instance count - 18 - 256k instances

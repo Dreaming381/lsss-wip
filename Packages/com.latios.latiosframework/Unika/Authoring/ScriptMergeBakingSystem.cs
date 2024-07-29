@@ -98,12 +98,13 @@ namespace Latios.Unika.Authoring.Systems
                     if (target.metadata.scriptRef.m_cachedHeaderIndex < 0)
                         id = currentIndex + 1;
 
-                    short scriptType      = (short)target.metadata.scriptType;
-                    var   alignment       = ScriptTypeInfoManager.GetSizeAndAlignement(scriptType).y;
-                    var   offsetFromBase  = CollectionHelper.Align(bytesRequired, alignment);
-                    bytesRequired         = offsetFromBase + target.bytes.Length;
-                    var mask              = ScriptTypeInfoManager.GetBloomMask(scriptType);
-                    combinedMask         |= mask;
+                    short scriptType = (short)target.metadata.scriptType;
+                    var   alignment  = ScriptTypeInfoManager.GetSizeAndAlignement(scriptType).y;
+                    UnityEngine.Assertions.Assert.IsTrue(alignment <= UnsafeUtility.SizeOf<ScriptHeader>());
+                    var offsetFromBase  = CollectionHelper.Align(bytesRequired, alignment);
+                    bytesRequired       = offsetFromBase + target.bytes.Length;
+                    var mask            = ScriptTypeInfoManager.GetBloomMask(scriptType);
+                    combinedMask       |= mask;
 
                     scripts.Add(new ScriptHeader
                     {
@@ -119,6 +120,8 @@ namespace Latios.Unika.Authoring.Systems
                     currentIndex++;
                 }
                 scripts.ElementAt(0).bloomMask = combinedMask;
+
+                UnityEngine.Assertions.Assert.IsTrue((ulong)bytesRequired <= ScriptHeader.kMaxByteOffset);
 
                 var elementsNeeded  = math.ceilpow2(combineTargetsCache.Length) - combineTargetsCache.Length;
                 elementsNeeded     += CollectionHelper.Align(bytesRequired, UnsafeUtility.SizeOf<ScriptHeader>()) / UnsafeUtility.SizeOf<ScriptHeader>();

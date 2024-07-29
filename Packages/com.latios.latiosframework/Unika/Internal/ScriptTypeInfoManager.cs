@@ -63,6 +63,8 @@ namespace Latios.Unika
 
         public static unsafe void InitializeScriptType<T>(System.Span<IdAndMask> runtimeInterfacesImplemented) where T : unmanaged, IUnikaScript
         {
+            UnityEngine.Assertions.Assert.IsTrue((ulong)runtimeScriptCounter <= ScriptHeader.kMaxTypeIndex);
+
             ulong mask = 0;
             foreach (var i in runtimeInterfacesImplemented)
             {

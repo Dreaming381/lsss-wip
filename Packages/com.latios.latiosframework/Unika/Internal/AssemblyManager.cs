@@ -23,6 +23,7 @@ namespace Latios.Unika
 
             ScriptTypeInfoManager.InitializeStatics();
             ScriptVTable.InitializeStatics();
+            ScriptStructuralChangeInternal.InitializeStatics();
 
 #if UNITY_EDITOR
             var interfaceTypes = UnityEditor.TypeCache.GetTypesDerivedFrom<IUnikaInterface>();

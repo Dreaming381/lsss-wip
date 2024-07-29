@@ -17,6 +17,10 @@ namespace Latios.Unika
         internal ref ScriptHeader m_header => ref *(ScriptHeader*)((byte*)m_scriptBuffer.GetUnsafePtr() + m_headerOffset);
         internal ref readonly ScriptHeader m_headerRO => ref *(ScriptHeader*)((byte*)m_scriptBuffer.GetUnsafeReadOnlyPtr() + m_headerOffset);
 
+        public Entity entity => m_entity;
+
+        public EntityScriptCollection allScripts => new EntityScriptCollection { m_buffer = m_scriptBuffer, m_entity = m_entity };
+
         public byte userByte
         {
             get => m_headerRO.userByte;
@@ -35,11 +39,11 @@ namespace Latios.Unika
             set => m_header.userFlagB = value;
         }
 
-        public ScriptRef ToRef() => new ScriptRef
+        public static implicit operator ScriptRef(Script script) => new ScriptRef
         {
-            m_entity            = m_entity,
-            m_instanceId        = m_headerRO.instanceId,
-            m_cachedHeaderIndex = m_headerOffset / sizeof(ScriptHeader)
+            m_entity            = script.m_entity,
+            m_instanceId        = script.m_headerRO.instanceId,
+            m_cachedHeaderIndex = script.m_headerOffset / sizeof(ScriptHeader)
         };
 
         internal byte* GetUnsafePtrAsBytePtr()
@@ -66,6 +70,10 @@ namespace Latios.Unika
         public ref T valueRW => ref *(T*)((byte*)m_scriptBuffer.GetUnsafePtr() + m_byteOffset);
         public ref readonly T valueRO => ref *(T*)((byte*)m_scriptBuffer.GetUnsafeReadOnlyPtr() + m_byteOffset);
 
+        public Entity entity => m_entity;
+
+        public EntityScriptCollection allScripts => new EntityScriptCollection { m_buffer = m_scriptBuffer, m_entity = m_entity };
+
         public byte userByte
         {
             get => m_headerRO.userByte;
@@ -84,13 +92,6 @@ namespace Latios.Unika
             set => m_header.userFlagB = value;
         }
 
-        public ScriptRef<T> ToRef() => new ScriptRef<T>
-        {
-            m_entity            = m_entity,
-            m_instanceId        = m_headerRO.instanceId,
-            m_cachedHeaderIndex = m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()
-        };
-
         public static implicit operator Script(Script<T> script)
         {
             return new Script
@@ -101,6 +102,20 @@ namespace Latios.Unika
                 m_byteOffset   = script.m_byteOffset,
             };
         }
+
+        public static implicit operator ScriptRef<T>(Script<T> script) => new ScriptRef<T>
+        {
+            m_entity            = script.m_entity,
+            m_instanceId        = script.m_headerRO.instanceId,
+            m_cachedHeaderIndex = script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()
+        };
+
+        public static implicit operator ScriptRef(Script<T> script) => new ScriptRef
+        {
+            m_entity            = script.m_entity,
+            m_instanceId        = script.m_headerRO.instanceId,
+            m_cachedHeaderIndex = script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()
+        };
     }
 
     public unsafe struct ScriptRef
@@ -108,13 +123,37 @@ namespace Latios.Unika
         internal Entity m_entity;
         internal int    m_instanceId;
         internal int    m_cachedHeaderIndex;
+
+        public Entity entity => m_entity;
+
+        public bool TryResolve(in EntityScriptCollection allScripts, out Script script)
+        {
+            return ScriptCast.TryResolve(ref this, allScripts, out script);
+        }
+
+        public bool TryResolve<TResolver>(ref TResolver resolver, out Script script) where TResolver : unmanaged, IScriptResolverBase
+        {
+            return ScriptCast.TryResolve(ref this, ref resolver, out script);
+        }
     }
 
-    public unsafe struct ScriptRef<T>
+    public unsafe struct ScriptRef<T> where T : unmanaged, IUnikaScript
     {
         internal Entity m_entity;
         internal int    m_instanceId;
         internal int    m_cachedHeaderIndex;
+
+        public Entity entity => m_entity;
+
+        public bool TryResolve(in EntityScriptCollection allScripts, out Script<T> script)
+        {
+            return ScriptCast.TryResolve(ref this, in allScripts, out script);
+        }
+
+        public bool TryResolve<TResolver>(ref TResolver resolver, out Script<T> script) where TResolver : unmanaged, IScriptResolverBase
+        {
+            return ScriptCast.TryResolve(ref this, ref resolver, out script);
+        }
 
         public static implicit operator ScriptRef(ScriptRef<T> script)
         {
