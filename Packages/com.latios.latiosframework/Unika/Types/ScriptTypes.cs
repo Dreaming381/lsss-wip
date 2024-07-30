@@ -21,6 +21,8 @@ namespace Latios.Unika
 
         public EntityScriptCollection allScripts => new EntityScriptCollection { m_buffer = m_scriptBuffer, m_entity = m_entity };
 
+        public int indexInEntity => (m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1;
+
         public byte userByte
         {
             get => m_headerRO.userByte;
@@ -43,7 +45,7 @@ namespace Latios.Unika
         {
             m_entity            = script.m_entity,
             m_instanceId        = script.m_headerRO.instanceId,
-            m_cachedHeaderIndex = script.m_headerOffset / sizeof(ScriptHeader)
+            m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
         };
 
         internal byte* GetUnsafePtrAsBytePtr()
@@ -73,6 +75,8 @@ namespace Latios.Unika
         public Entity entity => m_entity;
 
         public EntityScriptCollection allScripts => new EntityScriptCollection { m_buffer = m_scriptBuffer, m_entity = m_entity };
+
+        public int indexInEntity => (m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1;
 
         public byte userByte
         {
@@ -107,14 +111,14 @@ namespace Latios.Unika
         {
             m_entity            = script.m_entity,
             m_instanceId        = script.m_headerRO.instanceId,
-            m_cachedHeaderIndex = script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()
+            m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
         };
 
         public static implicit operator ScriptRef(Script<T> script) => new ScriptRef
         {
             m_entity            = script.m_entity,
             m_instanceId        = script.m_headerRO.instanceId,
-            m_cachedHeaderIndex = script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()
+            m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
         };
     }
 
