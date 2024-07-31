@@ -257,7 +257,7 @@ namespace Latios
 
             public bool MoveNext()
             {
-                while (MoveNext())
+                while (m_enumerator.MoveNext())
                 {
                     if (m_enumerator.Current.isOccupied)
                         return true;
