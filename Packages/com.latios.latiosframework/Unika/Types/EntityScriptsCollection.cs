@@ -16,6 +16,8 @@ namespace Latios.Unika
 
         public int length => m_buffer.Length > 0 ? m_buffer[0].instanceCount : 0;
 
+        public bool isEmpty => m_buffer.Length == 0;
+
         public Script this[int index]
         {
             get
@@ -37,6 +39,18 @@ namespace Latios.Unika
             // Defer all validation to the next stage, since the error messages will be identical.
             allScripts = this;
             return true;
+        }
+
+        public NativeArray<Script> ToNativeArray(AllocatorManager.AllocatorHandle allocator)
+        {
+            var result = CollectionHelper.CreateNativeArray<Script>(length, allocator, NativeArrayOptions.UninitializedMemory);
+            int i      = 0;
+            foreach (var s in this)
+            {
+                result[i] = s;
+                i++;
+            }
+            return result;
         }
 
         public Enumerator GetEnumerator() => new Enumerator(this);
