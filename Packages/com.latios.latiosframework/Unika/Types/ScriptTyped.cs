@@ -6,7 +6,8 @@ using Unity.Mathematics;
 
 namespace Latios.Unika
 {
-    public unsafe struct Script<T> : IEquatable<Script<T> >, IEquatable<Script>, IEquatable<ScriptRef<T> >, IEquatable<ScriptRef>,
+    public unsafe struct Script<T> : IScriptTyped,
+                                     IEquatable<Script<T> >, IEquatable<Script>, IEquatable<ScriptRef<T> >, IEquatable<ScriptRef>,
                                      IComparable<Script<T> >, IComparable<Script>, IComparable<ScriptRef<T> >, IComparable<ScriptRef>
         where T : unmanaged, IUnikaScript
     {
@@ -129,6 +130,12 @@ namespace Latios.Unika
 
         public bool Equals(ScriptRef other) => this == other;
         #endregion
+
+        ScriptRef IScript.ToRef() => this;
+
+        bool IScriptTyped.TryCastInit(in Script script) => ScriptCast.TryCast(in script, out this);
+
+        Script IScriptTyped.ToScript() => this;
     }
 }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -99,6 +100,21 @@ namespace Latios.Unika
             }
             script = default;
             return false;
+        }
+
+        public static Script Resolve<TResolver>(ref ScriptRef scriptRef, ref TResolver resolver) where TResolver : unmanaged, IScriptResolverBase
+        {
+            resolver.TryGet(scriptRef.entity, out var allScripts, true);
+            bool found = TryResolve(ref scriptRef, allScripts, out var script);
+            AssertInCollection(found, allScripts.entity);
+            return script;
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        internal static void AssertInCollection(bool inCollection, Entity entity)
+        {
+            if (!inCollection)
+                throw new System.InvalidOperationException($"The script instance could not be found in {entity.ToFixedString()}");
         }
     }
 }

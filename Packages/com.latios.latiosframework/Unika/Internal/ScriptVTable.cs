@@ -11,11 +11,13 @@ namespace Latios.Unika
 {
 namespace InternalSourceGen
 {
-    public static unsafe class StaticAPI
+    public static unsafe partial class StaticAPI
     {
         public struct ContextPtr
         {
             public void* ptr;
+
+            public static implicit operator ContextPtr(void* rawPte) => new ContextPtr { ptr = rawPte };
         }
 
         public delegate void BurstDispatchScriptDelegate(ContextPtr context, int operation);

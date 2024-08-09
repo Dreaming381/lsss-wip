@@ -8,7 +8,7 @@
     "com.unity.entities": "1.3.0-exp.1",
     "com.unity.audio.dspgraph": "0.1.0-preview.22",
     "com.unity.entities.graphics": "1.3.0-exp.1",
-    "com.unity.burst": "1.8.16"
+    "com.unity.burst": "1.8.17"
   },
   "unityRelease": "13f1",
   "keywords": [

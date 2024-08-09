@@ -54,7 +54,7 @@ namespace Latios.Unika
             ScriptMetadata.s_offsets.Data.Dispose();
         }
 
-        public static void InitializeInterface<T>() where T : unmanaged, IUnikaInterface
+        public static void InitializeInterface<T>() where T : IUnikaInterface
         {
             ScriptInterfaceInfoLookup<T>.s_runtimeTypeIndex.Data.runtimeId = runtimeInterfaceCounter;
             ScriptInterfaceInfoLookup<T>.s_runtimeTypeIndex.Data.bloomMask = BloomMaskOf<T>();
@@ -133,7 +133,7 @@ namespace Latios.Unika
             public short runtimeId;
         }
 
-        public static IdAndMask GetInterfaceRuntimeIdAndMask<T>() where T : unmanaged, IUnikaInterface
+        public static IdAndMask GetInterfaceRuntimeIdAndMask<T>() where T : IUnikaInterface
         {
             return ScriptInterfaceInfoLookup<T>.s_runtimeTypeIndex.Data;
         }
@@ -203,7 +203,7 @@ namespace Latios.Unika
             return span.Slice(meta.objectStart, meta.objectCount);
         }
 
-        private struct ScriptInterfaceInfoLookup<T> where T : unmanaged, IUnikaInterface
+        private struct ScriptInterfaceInfoLookup<T> where T : IUnikaInterface
         {
             public static readonly SharedStatic<IdAndMask> s_runtimeTypeIndex = SharedStatic<IdAndMask>.GetOrCreate<ScriptTypeInfoManager, T>();
         }
@@ -242,7 +242,7 @@ namespace Latios.Unika
                 SharedStatic<UnsafeList<TypeManager.EntityOffsetInfo> >.GetOrCreate<ScriptMetadata, TypeManager.EntityOffsetInfo>();
         }
 
-        static ulong BloomMaskOf<T>() where T : unmanaged, IUnikaInterface
+        static ulong BloomMaskOf<T>() where T : IUnikaInterface
         {
             // This is largely derived from TypeManager, except we use Rng instead of Random.
             // Todo: Since we don't require the bitwise-or'ing from queries (at least not in the common case),
