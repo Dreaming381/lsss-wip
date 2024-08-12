@@ -30,6 +30,13 @@ namespace Latios.Kinemation.Systems
 
         FindChunksWithVisibleJob m_findJob;
         ProfilerMarker           m_profilerEmitChunk;
+        ProfilerMarker           m_profilerCollect;
+        ProfilerMarker           m_profilerWrite;
+        ProfilerMarker           m_profilerOnUpdate;
+        ProfilerMarker           m_profilerCollections;
+        ProfilerMarker           m_profilerSetup;
+        ProfilerMarker           m_profilerJobsBeforeCombine;
+        ProfilerMarker           m_profilerCombinedJobs;
 
         public void OnCreate(ref SystemState state)
         {
@@ -50,23 +57,34 @@ namespace Latios.Kinemation.Systems
                 perFrameCullingMaskHandle  = state.GetComponentTypeHandle<ChunkPerFrameCullingMask>(false)
             };
 
-            m_profilerEmitChunk = new ProfilerMarker("EmitChunk");
+            m_profilerEmitChunk         = new ProfilerMarker("EmitChunk");
+            m_profilerCollect           = new ProfilerMarker("Collect");
+            m_profilerWrite             = new ProfilerMarker("Write");
+            m_profilerOnUpdate          = new ProfilerMarker("OnUpdateGenerateBrg");
+            m_profilerCollections       = new ProfilerMarker("Collections");
+            m_profilerSetup             = new ProfilerMarker("JobSetup");
+            m_profilerJobsBeforeCombine = new ProfilerMarker("JobsBeforeCombine");
+            m_profilerCombinedJobs      = new ProfilerMarker("CombinedJobs");
         }
 
         [BurstCompile]
         public unsafe void OnUpdate(ref SystemState state)
         {
+            m_profilerOnUpdate.Begin();
+
+            m_profilerCollections.Begin();
             var brgCullingContext  = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>();
             var lodCrossfadePtrMap = latiosWorld.worldBlackboardEntity.GetCollectionComponent<LODCrossfadePtrMap>(true);
             var cullingContext     = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            m_profilerCollections.End();
 
+            m_profilerSetup.Begin();
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
 
             m_findJob.chunkHeaderHandle.Update(ref state);
             m_findJob.chunksToProcess = chunkList.AsParallelWriter();
             m_findJob.perCameraCullingMaskHandle.Update(ref state);
             m_findJob.perFrameCullingMaskHandle.Update(ref state);
-            state.Dependency = m_findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
 
             // TODO: Dynamically estimate this based on past frames
             int binCountEstimate       = 1;
@@ -117,8 +135,8 @@ namespace Latios.Kinemation.Systems
             var collectWorkItemsJob = new CollectWorkItemsJob
             {
                 DrawCommandOutput = chunkDrawCommandOutput,
-                ProfileCollect    = new ProfilerMarker("Collect"),
-                ProfileWrite      = new ProfilerMarker("Write"),
+                ProfileCollect    = m_profilerCollect,
+                ProfileWrite      = m_profilerWrite,
             };
 
             var flushWorkItemsJob = new FlushWorkItemsJob
@@ -152,8 +170,12 @@ namespace Latios.Kinemation.Systems
                 DrawCommandOutput = chunkDrawCommandOutput,
                 FilterSettings    = brgCullingContext.batchFilterSettingsByRenderFilterSettingsSharedIndex,
             };
+            m_profilerSetup.End();
 
-            var emitDrawCommandsDependency = emitDrawCommandsJob.ScheduleByRef(chunkList, 1, state.Dependency);
+            m_profilerJobsBeforeCombine.Begin();
+            var findDependency = m_findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
+
+            var emitDrawCommandsDependency = emitDrawCommandsJob.ScheduleByRef(chunkList, 1, findDependency);
 
             var collectGlobalBinsDependency =
                 chunkDrawCommandOutput.BinCollector.ScheduleFinalize(emitDrawCommandsDependency);
@@ -171,7 +193,9 @@ namespace Latios.Kinemation.Systems
                 flushWorkItemsJob.Schedule(ChunkDrawCommandOutput.NumThreads, 1, collectWorkItemsDependency);
 
             var allocateInstancesDependency = allocateInstancesJob.Schedule(flushWorkItemsDependency);
+            m_profilerJobsBeforeCombine.End();
 
+            m_profilerCombinedJobs.Begin();
             var allocateDrawCommandsDependency = allocateDrawCommandsJob.Schedule(
                 JobHandle.CombineDependencies(sortBinsDependency, flushWorkItemsDependency));
 
@@ -195,6 +219,9 @@ namespace Latios.Kinemation.Systems
                 generateDrawRangesDependency);
 
             state.Dependency = chunkDrawCommandOutput.Dispose(expansionDependency);
+            m_profilerCombinedJobs.End();
+
+            m_profilerOnUpdate.End();
         }
 
         [BurstCompile]

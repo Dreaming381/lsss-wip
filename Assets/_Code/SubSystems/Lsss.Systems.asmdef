@@ -10,7 +10,6 @@
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.InputSystem",
-        "Unity.Jobs",
         "Unity.Mathematics",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.HighDefinition.Runtime",
@@ -23,7 +22,8 @@
         "Latios.Kinemation",
         "Unity.Entities.Graphics",
         "Latios.Transforms",
-        "Lsss"
+        "Lsss",
+        "Latios.Calligraphics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

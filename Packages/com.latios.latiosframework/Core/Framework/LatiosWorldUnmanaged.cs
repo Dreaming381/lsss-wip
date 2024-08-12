@@ -731,6 +731,12 @@ namespace Latios
 
         public void CompleteOrMergeDependencies(bool isReadOnly, ref FixedList512Bytes<JobHandle> readHandles, ref JobHandle writeHandle)
         {
+            if (writeHandle.Equals(default(JobHandle)))
+            {
+                if (isReadOnly || readHandles.IsEmpty)
+                    return;
+            }
+
             if (!m_executingSystemStack.IsEmpty && m_executingSystemStack[m_executingSystemStack.Length - 1] == m_worldUnmanaged.GetCurrentlyExecutingSystem())
             {
                 ref var state = ref m_worldUnmanaged.ResolveSystemStateRef(m_executingSystemStack[m_executingSystemStack.Length - 1]);
