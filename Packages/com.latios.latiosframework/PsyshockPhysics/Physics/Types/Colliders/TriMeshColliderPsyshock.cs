@@ -88,6 +88,7 @@ namespace Latios.Psyshock
             bool Execute(int triangleIndex);
         }
 
+        // Todo: Document this, and figure out why the other version still has usage internally, as such usage might be wrong.
         public void FindTriangles<T>(in Aabb scaledTriMeshSpaceAabb, ref T processor, float3 triMeshScale) where T : unmanaged, IFindTrianglesProcessor
         {
             if (math.any(math.isnan(scaledTriMeshSpaceAabb.min) | math.isnan(scaledTriMeshSpaceAabb.max) | math.isnan(triMeshScale)))

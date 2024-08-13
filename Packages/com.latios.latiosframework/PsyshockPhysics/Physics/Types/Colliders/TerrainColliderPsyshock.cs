@@ -52,6 +52,12 @@ namespace Latios.Psyshock
         internal BlobArray<Patch> quarters;  // 512x512
         internal BlobArray<Patch> sections;  // 4096x4096
 
+        internal interface IFindTrianglesProcessor
+        {
+            v128 FilterPatch(ref Patch patch, ulong borderMask, short quadsPerBit);
+            void Execute(ref TerrainColliderBlob blob, int3 triangleHeightIndices);
+        }
+
         [StructLayout(LayoutKind.Explicit, Size = 320)]  // 5 cache lines
         internal struct Patch
         {
@@ -136,7 +142,7 @@ namespace Latios.Psyshock
                     throw new NotImplementedException();
             }
 
-            public ulong GetBorderMask(short minX, short maxX, short minY, short maxY)
+            internal ulong GetBorderMask(int minX, int minY, int maxX, int maxY)
             {
                 var result  = kBorderMasks[math.clamp(minX - startX, 0, 7)];
                 result     |= kBorderMasks[8 + math.clamp(7 + startX - maxX, 0, 7)];
@@ -175,29 +181,163 @@ namespace Latios.Psyshock
             public v128 FilterNegativeXNormalUpside(v128 mask) => AndNotWithMask(mask, normalXPositive);
             public v128 FilterPositiveYNormalUpside(v128 mask) => AndWithMask(mask, normalYPositive);
             public v128 FilterNegativeYNormalUpside(v128 mask) => AndNotWithMask(mask, normalYPositive);
+        }
 
-            static v128 AndWithMask(v128 a, v128 b)
+        static v128 AndWithMask(v128 a, v128 b)
+        {
+            if (X86.Sse2.IsSse2Supported)
             {
-                if (X86.Sse2.IsSse2Supported)
+                return X86.Sse2.and_si128(a, b);
+            }
+            else
+            {
+                return new v128(a.ULong0 & b.ULong0, a.ULong1 & b.ULong1);
+            }
+        }
+
+        static v128 AndNotWithMask(v128 a, v128 bnot)
+        {
+            if (X86.Sse2.IsSse2Supported)
+            {
+                return X86.Sse2.andnot_si128(bnot, a);
+            }
+            else
+            {
+                return new v128(a.ULong0 & ~bnot.ULong0, a.ULong1 & ~bnot.ULong1);
+            }
+        }
+
+        internal void FindTriangles<T>(int minX, int minY, int maxX, int maxY, ref T processor) where T : unmanaged, IFindTrianglesProcessor
+        {
+            var packedSearchDomain = new int4(minX, minY, maxX, maxY);
+            packedSearchDomain     = math.clamp(packedSearchDomain, 0, quadsPerAxis - 1);
+            var patchIndices       = packedSearchDomain / 8;
+            if (math.all(patchIndices.xy == patchIndices.zw))
+            {
+                ref var patch = ref patches[patchIndices.y * patchesPerAxis + patchIndices.x];
+                DoFinal(ref patch, packedSearchDomain, ref processor);
+                return;
+            }
+            var tileIndices = patchIndices / 8;
+            if (math.all(tileIndices.xy == patchIndices.zw))
+            {
+                ref var tile = ref tiles[tileIndices.y * tilesPerAxis + tileIndices.x];
+                DoLevel(ref tile, packedSearchDomain, ref processor, 1);
+                return;
+            }
+            var quarterIndices = tileIndices / 8;
+            if (math.all(quarterIndices.xy == quarterIndices.zw))
+            {
+                ref var quarter = ref quarters[quarterIndices.y * quartersPerAxis + quarterIndices.x];
+                DoLevel(ref quarter, packedSearchDomain, ref processor, 2);
+                return;
+            }
+            var sectionIndices = quarterIndices / 8;
+            if (math.all(sectionIndices.xy == sectionIndices.zw))
+            {
+                ref var section = ref sections[sectionIndices.y * sectionsPerAxis + sectionIndices.x];
+                DoLevel(ref section, packedSearchDomain, ref processor, 3);
+                return;
+            }
+            for (int i = 0; i < sections.Length; i++)
+            {
+                DoLevel(ref sections[i], packedSearchDomain, ref processor, 3);
+            }
+        }
+
+        int ToHeight1D(int2 height2D) => height2D.y * quadsPerAxis + height2D.x;
+
+        void DoFinal<T>(ref Patch patch, int4 packedSearchDomain, ref T processor) where T : unmanaged, IFindTrianglesProcessor
+        {
+            var borderMask   = patch.GetBorderMask(packedSearchDomain.x, packedSearchDomain.y, packedSearchDomain.z, packedSearchDomain.w);
+            var triangleMask = processor.FilterPatch(ref patch, borderMask, 1);
+            if ((triangleMask.ULong0 | triangleMask.ULong1) == 0)
+                return;
+            var lower = triangleMask.ULong0;
+            for (var i = math.tzcnt(lower); i < 64; lower ^= 1ul << i, i = math.tzcnt(lower))
+            {
+                var  quad            = i / 2;
+                int2 baseCoordinates = new int2(patch.startX + (quad & 0x7), patch.startY + (quad >> 3));
+                bool isTlbr          = (patch.triangleSplitParity & (1ul << quad)) != 0;
+                bool isSecondary     = (i & 1) == 1;
+
+                var coordinates = (isTlbr, isSecondary) switch
                 {
-                    return X86.Sse2.and_si128(a, b);
-                }
-                else
-                {
-                    return new v128(a.ULong0 & b.ULong0, a.ULong1 & b.ULong1);
-                }
+                    (false, false) => new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(1, 0))),
+                    (false, true) => new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(1, 1))),
+                    (true, false) => new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(0, 1))),
+                    (true, true) => new int3(ToHeight1D(baseCoordinates + new int2(1, 0)),
+                                             ToHeight1D(baseCoordinates + new int2(1, 1)),
+                                             ToHeight1D(baseCoordinates + new int2(1, 0)))
+                };
+                processor.Execute(ref this, coordinates);
             }
 
-            static v128 AndNotWithMask(v128 a, v128 bnot)
+            var upper = triangleMask.ULong0;
+            for (var i = math.tzcnt(upper); i < 64; upper ^= 1ul << i, i = math.tzcnt(upper))
             {
-                if (X86.Sse2.IsSse2Supported)
+                var  quad            = (i / 2) + 32;
+                int2 baseCoordinates = new int2(patch.startX + (quad & 0x7), patch.startY + (quad >> 3));
+                bool isTlbr          = (patch.triangleSplitParity & (1ul << quad)) != 0;
+                bool isSecondary     = (i & 1) == 1;
+
+                var coordinates = (isTlbr, isSecondary) switch
                 {
-                    return X86.Sse2.andnot_si128(bnot, a);
-                }
+                    (false, false) => new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(1, 0))),
+                    (false, true) => new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(1, 1))),
+                    (true, false) => new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(0, 1))),
+                    (true, true) => new int3(ToHeight1D(baseCoordinates + new int2(1, 0)),
+                                             ToHeight1D(baseCoordinates + new int2(1, 1)),
+                                             ToHeight1D(baseCoordinates + new int2(1, 0)))
+                };
+                processor.Execute(ref this, coordinates);
+            }
+        }
+
+        void DoLevel<T>(ref Patch patch, int4 packedSearchDomain, ref T processor, int level) where T : unmanaged, IFindTrianglesProcessor
+        {
+            var domain       = packedSearchDomain >> (level * 3);
+            var borderMask   = patch.GetBorderMask(domain.x, domain.y, domain.z, domain.w);
+            var triangleMask = processor.FilterPatch(ref patch, borderMask, 1);
+            if ((triangleMask.ULong0 | triangleMask.ULong1) == 0)
+                return;
+
+            ref var targetPatchArray = ref patches;
+            var     dimension        = patchesPerAxis;
+            if (level == 2)
+            {
+                targetPatchArray = ref tiles;
+                dimension        = tilesPerAxis;
+            }
+            if (level == 3)
+            {
+                targetPatchArray = ref quarters;
+                dimension        = quartersPerAxis;
+            }
+
+            triangleMask = AndWithMask(triangleMask, new v128(0x5555555555555555, 0x5555555555555555));
+            var lower    = triangleMask.ULong0;
+            for (var i = math.tzcnt(lower); i < 64; lower ^= 1ul << i, i = math.tzcnt(lower))
+            {
+                var     quad            = i / 2;
+                int2    baseCoordinates = new int2(patch.startX + (quad & 0x7), patch.startY + (quad >> 3));
+                ref var targetPatch     = ref targetPatchArray[baseCoordinates.y * dimension + baseCoordinates.x];
+                if (level == 1)
+                    DoFinal(ref targetPatch, packedSearchDomain, ref processor);
                 else
-                {
-                    return new v128(a.ULong0 & ~bnot.ULong0, a.ULong1 & ~bnot.ULong1);
-                }
+                    DoLevel(ref targetPatch, packedSearchDomain, ref processor, level - 1);
+            }
+
+            var upper = triangleMask.ULong0;
+            for (var i = math.tzcnt(upper); i < 64; upper ^= 1ul << i, i = math.tzcnt(upper))
+            {
+                var     quad            = (i / 2) + 32;
+                int2    baseCoordinates = new int2(patch.startX + (quad & 0x7), patch.startY + (quad >> 3));
+                ref var targetPatch     = ref targetPatchArray[baseCoordinates.y * dimension + baseCoordinates.x];
+                if (level == 1)
+                    DoFinal(ref targetPatch, packedSearchDomain, ref processor);
+                else
+                    DoLevel(ref targetPatch, packedSearchDomain, ref processor, level - 1);
             }
         }
     }
