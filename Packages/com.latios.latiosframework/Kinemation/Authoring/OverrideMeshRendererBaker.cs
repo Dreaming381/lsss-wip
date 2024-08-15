@@ -211,6 +211,24 @@ namespace Latios.Kinemation.Authoring
             return flags == RenderMeshUtility.EntitiesGraphicsComponentFlags.DepthSorted;
         }
 
+        /// <summary>
+        /// Returns VertexSkinning and Deform feature flags if they are required by any of the materials.
+        /// </summary>
+        public static MeshDeformDataFeatures GetDeformFeaturesFromMaterials(List<Material> materials)
+        {
+            MeshDeformDataFeatures features = MeshDeformDataFeatures.None;
+            foreach (var material in materials)
+            {
+                var classification = LatiosMeshRendererBakingUtility.GetDeformClassificationFromMaterial(material);
+                if ((classification & (DeformClassification.AnyCurrentDeform | DeformClassification.AnyPreviousDeform | DeformClassification.TwoAgoDeform)) !=
+                    DeformClassification.None)
+                    features |= MeshDeformDataFeatures.Deform;
+                else if (classification != DeformClassification.None)
+                    features |= MeshDeformDataFeatures.VertexSkinning;
+            }
+            return features;
+        }
+
         static Material[] s_materialSpanCache = new Material[1];
 
         /// <summary>

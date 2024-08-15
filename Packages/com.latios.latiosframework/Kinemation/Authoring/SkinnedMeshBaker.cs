@@ -64,6 +64,8 @@ namespace Latios.Kinemation.Authoring
                 Debug.LogWarning($"Some materials on Skinned Mesh Renderer {authoring.gameObject.name} were not assigned. Rendering results may be incorrect.");
             }
 
+            MeshDeformDataFeatures deformFeatures = RenderingBakingTools.GetDeformFeaturesFromMaterials(m_materialsCache);
+
             var entity = GetEntity(TransformUsageFlags.Renderable);
 
             var settings = GetComponent<SkinnedMeshSettingsAuthoring>();
@@ -150,7 +152,7 @@ namespace Latios.Kinemation.Authoring
                     }
                 }
             }
-            if (sharedMesh.blendShapeCount > 0)
+            if (sharedMesh.blendShapeCount > 0 && (deformFeatures & MeshDeformDataFeatures.Deform) != MeshDeformDataFeatures.None)
             {
                 AddComponent<BlendShapeState>(entity);
                 var weightsBuffer = AddBuffer<BlendShapeWeight>(entity);
@@ -160,11 +162,12 @@ namespace Latios.Kinemation.Authoring
                 {
                     weights[i] = authoring.GetBlendShapeWeight(i) / 100f;
                 }
+                deformFeatures |= MeshDeformDataFeatures.BlendShapes;
             }
 
             AddComponent(entity, new PendingMeshDeformDataBlob
             {
-                blobHandle = this.RequestCreateBlobAsset(sharedMesh)
+                blobHandle = this.RequestCreateBlobAsset(sharedMesh, deformFeatures)
             });
             AddComponent<MeshDeformDataBlobReference>(entity);
 

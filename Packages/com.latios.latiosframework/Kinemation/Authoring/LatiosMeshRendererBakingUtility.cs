@@ -189,7 +189,7 @@ namespace Latios.Kinemation.Authoring
         static int s_legacyDotsDeformProperty    = Shader.PropertyToID("_DotsDeformationParams");
         static int s_legacyComputeDeformProperty = Shader.PropertyToID("_ComputeMeshIndex");
 
-        private static DeformClassification GetDeformClassificationFromMaterial(Material material)
+        internal static DeformClassification GetDeformClassificationFromMaterial(Material material)
         {
             DeformClassification classification = DeformClassification.None;
             if (material.HasProperty(s_legacyLbsProperty))

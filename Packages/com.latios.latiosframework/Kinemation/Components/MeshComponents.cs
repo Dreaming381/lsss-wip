@@ -347,6 +347,9 @@ namespace Latios.Kinemation
         public BlobArray<float>                maxRadialOffsetsInBoneSpaceByBone;
         public BlobArray<BoneWeightLinkedList> boneWeights;
         public BlobArray<uint>                 boneWeightBatchStarts;
+
+        public bool hasBindPoses => bindPoses.Length > 0;
+        public bool hasDeformBoneWeights => boneWeights.Length > 0;
     }
 
     /// <summary>
@@ -381,6 +384,8 @@ namespace Latios.Kinemation
         public BlobArray<BlendShapeVertexDisplacement>      gpuData;
         public BlobArray<FixedString128Bytes>               shapeNames;
         public BlobArray<float>                             maxRadialOffsets;
+
+        public bool hasBlendShapes => shapes.Length > 0;
     }
 
     /// <summary>
@@ -412,7 +417,7 @@ namespace Latios.Kinemation
         /// Packed vertex indices triplets per triangle. Prefer to use GetIndicesForTriangle() and triangleCount to iterate.
         /// If any of the submesh topologies are not triangles, this will be empty.
         /// </summary>
-        public BlobArray<uint>                  packedIndicesByTriangle;
+        public BlobArray<uint> packedIndicesByTriangle;
         /// <summary>
         /// UV0s of the mesh, used to recalculate tangents. If the mesh does not have UV0s, this will be empty.
         /// </summary>
@@ -477,6 +482,8 @@ namespace Latios.Kinemation
         /// How indices for triangles and duplicates are packed.
         /// </summary>
         public IndicesPackMode packMode;
+
+        public bool hasMeshNormalizationData => triangleCount > 0;
 
         /// <summary>
         /// Gets the 3 vertex indices for a given triangle. Duplicates are NOT redirected.
@@ -689,6 +696,8 @@ namespace Latios.Kinemation
         public FixedString128Bytes         name;
 
         public int uniqueVertexPositionsCount => undeformedVertices.Length - normalizationData.duplicatePositionCount;
+
+        public bool hasUndeformedVertices => undeformedVertices.Length > 0;
     }
 
     /// <summary>

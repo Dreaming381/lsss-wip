@@ -88,7 +88,14 @@ namespace Latios.Psyshock
             bool Execute(int triangleIndex);
         }
 
-        // Todo: Document this, and figure out why the other version still has usage internally, as such usage might be wrong.
+        /// <summary>
+        /// Finds the triangles in the TriMesh Collider Blob which overlap the queried Aabb
+        /// and invokes the processor for each triangle found.
+        /// </summary>
+        /// <typeparam name="T">An IFindTrianglesProcessor</typeparam>
+        /// <param name="scaledTriMeshSpaceAabb">The Aabb in the blob's belonging collider's scaled space</param>
+        /// <param name="processor">The processor which should handle each result found</param>
+        /// <param name="triMeshScale">The scale of the collider</param>
         public void FindTriangles<T>(in Aabb scaledTriMeshSpaceAabb, ref T processor, float3 triMeshScale) where T : unmanaged, IFindTrianglesProcessor
         {
             if (math.any(math.isnan(scaledTriMeshSpaceAabb.min) | math.isnan(scaledTriMeshSpaceAabb.max) | math.isnan(triMeshScale)))
