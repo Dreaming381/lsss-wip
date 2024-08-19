@@ -6,6 +6,7 @@ using AOT;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -13,6 +14,7 @@ namespace Latios.Kinemation
 {
     public static unsafe class GraphicsUnmanaged
     {
+        #region Public API
         public static void Initialize()
         {
             if (initialized)
@@ -33,6 +35,81 @@ namespace Latios.Kinemation
             // There is no domain unload in player builds, so we must be sure to shutdown when the process exits.
             AppDomain.CurrentDomain.ProcessExit += (_, __) => { Shutdown(); };
         }
+
+        public static void SetGlobalBuffer(int propertyId, GraphicsBufferUnmanaged graphicsBuffer)
+        {
+            graphicsBuffer.CheckValid();
+            var context = new SetGlobalBufferContext
+            {
+                propertyId = propertyId,
+                listIndex  = graphicsBuffer.index,
+                success    = false
+            };
+            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 8);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Setting the Graphics Buffer globally failed.");
+#endif
+        }
+        #endregion
+
+        #region Extensions
+        public static void SetBuffer(this UnityObjectRef<ComputeShader> computeShader, int kernelIndex, int propertyId, GraphicsBufferUnmanaged graphicsBuffer)
+        {
+            graphicsBuffer.CheckValid();
+            var context = new ComputeShaderSetBufferContext
+            {
+                computeShader = computeShader,
+                kernelIndex   = kernelIndex,
+                propertyId    = propertyId,
+                listIndex     = graphicsBuffer.index,
+                success       = false
+            };
+            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 5);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Setting the Graphics Buffer for the Compute Shader failed.");
+#endif
+        }
+
+        public static void SetInt(this UnityObjectRef<ComputeShader> computeShader, int propertyId, int integer)
+        {
+            var context = new ComputeShaderSetIntContext
+            {
+                computeShader = computeShader,
+                propertyId    = propertyId,
+                integer       = integer,
+                success       = false
+            };
+            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 6);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Setting the Int for the Compute Shader failed.");
+#endif
+        }
+
+        public static void Dispatch(this UnityObjectRef<ComputeShader> computeShader, int kernelIndex, int threadGroupsX, int threadGroupsY, int threadGroupsZ)
+        {
+            var context = new ComputeShaderDispatchContext
+            {
+                computeShader = computeShader,
+                kernelIndex   = kernelIndex,
+                threadGroupsX = threadGroupsX,
+                threadGroupsY = threadGroupsY,
+                threadGroupsZ = threadGroupsZ,
+                success       = false
+            };
+            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 7);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Dispatching the Compute Shader failed.");
+#endif
+        }
+        #endregion
 
         #region Internal
         internal static GraphicsBufferUnmanaged CreateGraphicsBuffer(GraphicsBuffer.Target target, GraphicsBuffer.UsageFlags usageFlags, int count, int stride)
@@ -185,47 +262,125 @@ namespace Latios.Kinemation
             public int  byteCount;
             public bool success;
         }
+
+        // Code 5
+        struct ComputeShaderSetBufferContext
+        {
+            public UnityObjectRef<ComputeShader> computeShader;
+            public int                           kernelIndex;
+            public int                           propertyId;
+            public int                           listIndex;
+            public bool                          success;
+        }
+
+        // Code 6
+        struct ComputeShaderSetIntContext
+        {
+            public UnityObjectRef<ComputeShader> computeShader;
+            public int                           propertyId;
+            public int                           integer;
+            public bool                          success;
+        }
+
+        // Code 7
+        struct ComputeShaderDispatchContext
+        {
+            public UnityObjectRef<ComputeShader> computeShader;
+            public int                           kernelIndex;
+            public int                           threadGroupsX;
+            public int                           threadGroupsY;
+            public int                           threadGroupsZ;
+            public bool                          success;
+        }
+
+        // Code 8
+        struct SetGlobalBufferContext
+        {
+            public int  propertyId;
+            public int  listIndex;
+            public bool success;
+        }
         #endregion
 
         [MonoPInvokeCallback(typeof(ManagedDelegate))]
         static void ManagedExecute(IntPtr context, int operation)
         {
-            switch (operation)
+            try
             {
-                case 1:
+                switch (operation)
                 {
-                    ref var ctx = ref *(GraphicsBufferCreateContext*)context;
-                    if (ctx.appendToList)
-                        buffers.Add(default); // Gaurd against desync if constructor throws
+                    case 1:
+                    {
+                        ref var ctx = ref *(GraphicsBufferCreateContext*)context;
+                        if (ctx.appendToList)
+                            buffers.Add(default); // Gaurd against desync if constructor throws
 
-                    var buffer             = new GraphicsBuffer(ctx.target, ctx.usageFlags, ctx.count, ctx.stride);
-                    buffers[ctx.listIndex] = buffer;
-                    ctx.success            = true;
-                    break;
+                        var buffer             = new GraphicsBuffer(ctx.target, ctx.usageFlags, ctx.count, ctx.stride);
+                        buffers[ctx.listIndex] = buffer;
+                        ctx.success            = true;
+                        break;
+                    }
+                    case 2:
+                    {
+                        var index = ((GraphicsBufferDisposeContext*)context)->listIndex;
+                        buffers[index].Dispose();
+                        buffers[index] = null;
+                        break;
+                    }
+                    case 3:
+                    {
+                        ref var ctx    = ref *(GraphicsBufferLockForWriteContext*)context;
+                        var     buffer = buffers[ctx.listIndex];
+                        ctx.bytes      = buffer.LockBufferForWrite<byte>(ctx.byteOffset, ctx.byteCount);
+                        ctx.success    = true;
+                        break;
+                    }
+                    case 4:
+                    {
+                        ref var ctx    = ref *(GraphicsBufferUnlockAfterWriteContext*)context;
+                        var     buffer = buffers[ctx.listIndex];
+                        buffer.UnlockBufferAfterWrite<byte>(ctx.byteCount);
+                        ctx.success = true;
+                        break;
+                    }
+                    case 5:
+                    {
+                        ref var       ctx    = ref *(ComputeShaderSetBufferContext*)context;
+                        var           buffer = buffers[ctx.listIndex];
+                        ComputeShader shader = ctx.computeShader;
+                        shader.SetBuffer(ctx.kernelIndex, ctx.propertyId, buffer);
+                        ctx.success = true;
+                        break;
+                    }
+                    case 6:
+                    {
+                        ref var       ctx    = ref *(ComputeShaderSetIntContext*)context;
+                        ComputeShader shader = ctx.computeShader;
+                        shader.SetInt(ctx.propertyId, ctx.integer);
+                        ctx.success = true;
+                        break;
+                    }
+                    case 7:
+                    {
+                        ref var       ctx    = ref *(ComputeShaderDispatchContext*)context;
+                        ComputeShader shader = ctx.computeShader;
+                        shader.Dispatch(ctx.kernelIndex, ctx.threadGroupsX, ctx.threadGroupsY, ctx.threadGroupsZ);
+                        ctx.success = true;
+                        break;
+                    }
+                    case 8:
+                    {
+                        ref var ctx    = ref *(SetGlobalBufferContext*)context;
+                        var     buffer = buffers[ctx.listIndex];
+                        Shader.SetGlobalBuffer(ctx.propertyId, buffer);
+                        ctx.success = true;
+                        break;
+                    }
                 }
-                case 2:
-                {
-                    var index = ((GraphicsBufferDisposeContext*)context)->listIndex;
-                    buffers[index].Dispose();
-                    buffers[index] = null;
-                    break;
-                }
-                case 3:
-                {
-                    ref var ctx    = ref *(GraphicsBufferLockForWriteContext*)context;
-                    var     buffer = buffers[ctx.listIndex];
-                    ctx.bytes      = buffer.LockBufferForWrite<byte>(ctx.byteOffset, ctx.byteCount);
-                    ctx.success    = true;
-                    break;
-                }
-                case 4:
-                {
-                    ref var ctx    = ref *(GraphicsBufferUnlockAfterWriteContext*)context;
-                    var     buffer = buffers[ctx.listIndex];
-                    buffer.UnlockBufferAfterWrite<byte>(ctx.byteCount);
-                    ctx.success = true;
-                    break;
-                }
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
             }
         }
     }

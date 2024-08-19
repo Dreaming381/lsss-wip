@@ -44,7 +44,7 @@ namespace Latios.Kinemation
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        void CheckValid()
+        internal void CheckValid()
         {
             if (!IsValid())
                 throw new NullReferenceException("The GraphicsBufferUnmanaged is not valid.");
