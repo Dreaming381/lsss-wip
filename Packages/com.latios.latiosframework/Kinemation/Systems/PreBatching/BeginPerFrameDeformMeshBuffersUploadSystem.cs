@@ -8,21 +8,25 @@ using Unity.Mathematics;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial class BeginPerFrameDeformMeshBuffersUploadSystem : SubSystem
+    public partial struct BeginPerFrameDeformMeshBuffersUploadSystem : ISystem
     {
-        protected override void OnCreate()
+        LatiosWorldUnmanaged latiosWorld;
+
+        public void OnCreate(ref SystemState state)
         {
-            worldBlackboardEntity.AddManagedStructComponent(new MeshGpuUploadBuffers());
-            worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MeshGpuUploadBuffersMapped());
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+            latiosWorld.worldBlackboardEntity.AddComponentData(new MeshGpuUploadBuffers());
+            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MeshGpuUploadBuffersMapped());
         }
 
-        protected override void OnUpdate()
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
         {
-            var meshGpuManager        = worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(false);
-            var boneOffsetsGpuManager = worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(false);
-            var broker                = worldBlackboardEntity.GetManagedStructComponent<GraphicsBufferBrokerReference>();
+            var meshGpuManager        = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(false);
+            var boneOffsetsGpuManager = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(false);
+            var broker                = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
 
-            CompleteDependency();
+            state.CompleteDependency();
 
             JobHandle jhv = default;
             JobHandle jhw = default;
@@ -33,22 +37,22 @@ namespace Latios.Kinemation.Systems
             MeshGpuUploadBuffersMapped newBuffersMapped = default;
 
             var requiredSizes            = meshGpuManager.requiredBufferSizes.Value;
-            newBuffers.verticesBuffer    = broker.graphicsBufferBroker.GetMeshVerticesBuffer(requiredSizes.requiredVertexBufferSize);
-            newBuffers.weightsBuffer     = broker.graphicsBufferBroker.GetMeshWeightsBuffer(requiredSizes.requiredWeightBufferSize);
-            newBuffers.bindPosesBuffer   = broker.graphicsBufferBroker.GetMeshBindPosesBuffer(requiredSizes.requiredBindPoseBufferSize);
-            newBuffers.blendShapesBuffer = broker.graphicsBufferBroker.GetMeshBlendShapesBuffer(requiredSizes.requiredBlendShapesBufferSize);
+            newBuffers.verticesBuffer    = broker.GetMeshVerticesBuffer(requiredSizes.requiredVertexBufferSize);
+            newBuffers.weightsBuffer     = broker.GetMeshWeightsBuffer(requiredSizes.requiredWeightBufferSize);
+            newBuffers.bindPosesBuffer   = broker.GetMeshBindPosesBuffer(requiredSizes.requiredBindPoseBufferSize);
+            newBuffers.blendShapesBuffer = broker.GetMeshBlendShapesBuffer(requiredSizes.requiredBlendShapesBufferSize);
 
             if (!meshGpuManager.uploadCommands.IsEmpty)
             {
                 var uploadCount                                        = (uint)meshGpuManager.uploadCommands.Length;
-                newBuffers.verticesUploadBuffer                        = broker.graphicsBufferBroker.GetMeshVerticesUploadBuffer(requiredSizes.requiredVertexUploadSize);
-                newBuffers.weightsUploadBuffer                         = broker.graphicsBufferBroker.GetMeshWeightsUploadBuffer(requiredSizes.requiredWeightUploadSize);
-                newBuffers.bindPosesUploadBuffer                       = broker.graphicsBufferBroker.GetMeshBindPosesUploadBuffer(requiredSizes.requiredBindPoseUploadSize);
-                newBuffers.blendShapesUploadBuffer                     = broker.graphicsBufferBroker.GetMeshBlendShapesUploadBuffer(requiredSizes.requiredBlendShapesUploadSize);
-                newBuffers.verticesUploadMetaBuffer                    = broker.graphicsBufferBroker.GetMetaUint3UploadBuffer(uploadCount);
-                newBuffers.weightsUploadMetaBuffer                     = broker.graphicsBufferBroker.GetMetaUint3UploadBuffer(uploadCount);
-                newBuffers.bindPosesUploadMetaBuffer                   = broker.graphicsBufferBroker.GetMetaUint3UploadBuffer(uploadCount);
-                newBuffers.blendShapesUploadMetaBuffer                 = broker.graphicsBufferBroker.GetMetaUint3UploadBuffer(uploadCount);
+                newBuffers.verticesUploadBuffer                        = broker.GetMeshVerticesUploadBuffer(requiredSizes.requiredVertexUploadSize);
+                newBuffers.weightsUploadBuffer                         = broker.GetMeshWeightsUploadBuffer(requiredSizes.requiredWeightUploadSize);
+                newBuffers.bindPosesUploadBuffer                       = broker.GetMeshBindPosesUploadBuffer(requiredSizes.requiredBindPoseUploadSize);
+                newBuffers.blendShapesUploadBuffer                     = broker.GetMeshBlendShapesUploadBuffer(requiredSizes.requiredBlendShapesUploadSize);
+                newBuffers.verticesUploadMetaBuffer                    = broker.GetMetaUint3UploadBuffer(uploadCount);
+                newBuffers.weightsUploadMetaBuffer                     = broker.GetMetaUint3UploadBuffer(uploadCount);
+                newBuffers.bindPosesUploadMetaBuffer                   = broker.GetMetaUint3UploadBuffer(uploadCount);
+                newBuffers.blendShapesUploadMetaBuffer                 = broker.GetMetaUint3UploadBuffer(uploadCount);
                 newBuffersMapped.verticesUploadBufferWriteCount        = requiredSizes.requiredVertexUploadSize;
                 newBuffersMapped.weightsUploadBufferWriteCount         = requiredSizes.requiredWeightUploadSize;
                 newBuffersMapped.bindPosesUploadBufferWriteCount       = requiredSizes.requiredBindPoseUploadSize;
@@ -70,12 +74,11 @@ namespace Latios.Kinemation.Systems
 
                 newBuffersMapped.needsMeshCommitment = true;
 
-                ref var allocator       = ref World.UpdateAllocator;
-                var     verticesSums    = allocator.AllocateNativeArray<uint>(meshGpuManager.uploadCommands.Length);
-                var     weightsSums     = allocator.AllocateNativeArray<uint>(meshGpuManager.uploadCommands.Length);
-                var     bindPosesSums   = allocator.AllocateNativeArray<uint>(meshGpuManager.uploadCommands.Length);
-                var     blendShapesSums = allocator.AllocateNativeArray<uint>(meshGpuManager.uploadCommands.Length);
-                jhv                     = new PrefixSumVerticesCountsJob
+                var verticesSums    = CollectionHelper.CreateNativeArray<uint>(meshGpuManager.uploadCommands.Length, state.WorldUpdateAllocator);
+                var weightsSums     = CollectionHelper.CreateNativeArray<uint>(meshGpuManager.uploadCommands.Length, state.WorldUpdateAllocator);
+                var bindPosesSums   = CollectionHelper.CreateNativeArray<uint>(meshGpuManager.uploadCommands.Length, state.WorldUpdateAllocator);
+                var blendShapesSums = CollectionHelper.CreateNativeArray<uint>(meshGpuManager.uploadCommands.Length, state.WorldUpdateAllocator);
+                jhv                 = new PrefixSumVerticesCountsJob
                 {
                     commands = meshGpuManager.uploadCommands.AsArray(),
                     sums     = verticesSums
@@ -129,13 +132,13 @@ namespace Latios.Kinemation.Systems
 
             uint boneOffsetsSize         = (uint)boneOffsetsGpuManager.offsets.Length;
             uint boneOffsetsGpuSize      = boneOffsetsSize / 2 + (boneOffsetsSize & 1);
-            newBuffers.boneOffsetsBuffer = broker.graphicsBufferBroker.GetBoneOffsetsBuffer(boneOffsetsGpuSize);
+            newBuffers.boneOffsetsBuffer = broker.GetBoneOffsetsBuffer(boneOffsetsGpuSize);
 
             if (boneOffsetsGpuManager.isDirty.Value && boneOffsetsGpuSize > 0)
             {
                 uint metaCount                                         = (uint)math.ceil(boneOffsetsGpuSize / 64f);
-                newBuffers.boneOffsetsUploadBuffer                     = broker.graphicsBufferBroker.GetBoneOffsetsUploadBuffer(boneOffsetsGpuSize);
-                newBuffers.boneOffsetsUploadMetaBuffer                 = broker.graphicsBufferBroker.GetMetaUint3UploadBuffer(boneOffsetsGpuSize);
+                newBuffers.boneOffsetsUploadBuffer                     = broker.GetBoneOffsetsUploadBuffer(boneOffsetsGpuSize);
+                newBuffers.boneOffsetsUploadMetaBuffer                 = broker.GetMetaUint3UploadBuffer(boneOffsetsGpuSize);
                 newBuffersMapped.boneOffsetsUploadBufferWriteCount     = boneOffsetsGpuSize;
                 newBuffersMapped.boneOffsetsUploadMetaBufferWriteCount = metaCount;
                 var mappedBoneOffsets                                  = newBuffers.boneOffsetsUploadBuffer.LockBufferForWrite<uint>(0, (int)boneOffsetsGpuSize);
@@ -156,18 +159,18 @@ namespace Latios.Kinemation.Systems
             jhAll.Add(jhp);
             jhAll.Add(jhs);
             jhAll.Add(jho);
-            Dependency = JobHandle.CombineDependencies(jhAll.AsArray());
+            state.Dependency = JobHandle.CombineDependencies(jhAll.AsArray());
 
             if (newBuffersMapped.needsMeshCommitment || newBuffersMapped.needsBoneOffsetCommitment)
             {
-                worldBlackboardEntity.SetManagedStructComponent(newBuffers);
-                worldBlackboardEntity.SetCollectionComponentAndDisposeOld(newBuffersMapped);
-                Dependency = new ClearCommandsJob
+                latiosWorld.worldBlackboardEntity.SetComponentData(newBuffers);
+                latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(newBuffersMapped);
+                state.Dependency = new ClearCommandsJob
                 {
                     commands      = meshGpuManager.uploadCommands,
                     requiredSizes = meshGpuManager.requiredBufferSizes,
                     isDirty       = boneOffsetsGpuManager.isDirty
-                }.Schedule(Dependency);
+                }.Schedule(state.Dependency);
             }
         }
 

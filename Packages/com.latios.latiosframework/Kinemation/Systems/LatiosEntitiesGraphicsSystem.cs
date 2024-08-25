@@ -403,13 +403,16 @@ namespace Latios.Kinemation.Systems
             }
 #endif
             InitializeMaterialProperties();
-            var uploadMaterialPropertiesSystem = World.GetExistingSystemManaged<UploadMaterialPropertiesSystem>();
-            m_ComponentTypeCache.FetchTypeHandles(uploadMaterialPropertiesSystem);
-            uploadMaterialPropertiesSystem.m_burstCompatibleTypeArray = m_ComponentTypeCache.ToBurstCompatible(Allocator.Persistent);
-            m_ComponentTypeCache.FetchTypeHandles(this);
+            var     uploadMaterialPropertiesSystem      = World.Unmanaged.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>();
+            ref var uploadMaterialPropertiesSystemState = ref World.Unmanaged.ResolveSystemStateRef(uploadMaterialPropertiesSystem);
+            m_ComponentTypeCache.FetchTypeHandles(ref uploadMaterialPropertiesSystemState);
+            ref var uploadMaterialPropertiesSystemMemory =
+                ref World.Unmanaged.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(uploadMaterialPropertiesSystem);
+            uploadMaterialPropertiesSystemMemory.m_burstCompatibleTypeArray = m_ComponentTypeCache.ToBurstCompatible(Allocator.Persistent);
+            m_ComponentTypeCache.FetchTypeHandles(ref CheckedStateRef);
             m_burstCompatibleTypeArray = m_ComponentTypeCache.ToBurstCompatible(Allocator.Persistent);
             // This assumes uploadMaterialPropertiesSystem is already fully created from when the KinemationCullingSuperSystem was created.
-            m_GPUPersistentInstanceBufferHandle = uploadMaterialPropertiesSystem.m_GPUPersistentInstanceBufferHandle;
+            m_GPUPersistentInstanceBufferHandle = uploadMaterialPropertiesSystemMemory.m_GPUPersistentInstanceBufferHandle;
 
             // UsedTypes values are the ComponentType values while the keys are the same
             // except with the bit flags in the high bits masked off.
@@ -1647,7 +1650,8 @@ namespace Latios.Kinemation.Systems
                     Debug.LogError(
                         "Entities Graphics: Current loaded scenes need more than 1GiB of persistent GPU memory. This is more than some GPU backends can allocate. Try to reduce amount of loaded data.");
 
-                var uploadSystem = World.GetExistingSystemManaged<UploadMaterialPropertiesSystem>();
+                ref var uploadSystem = ref World.Unmanaged.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(
+                    World.Unmanaged.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>());
                 if (uploadSystem.SetBufferSize(m_PersistentInstanceDataSize, out var newHandle))
                 {
                     m_GPUPersistentInstanceBufferHandle = newHandle;

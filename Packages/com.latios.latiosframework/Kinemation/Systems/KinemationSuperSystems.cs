@@ -52,11 +52,11 @@ namespace Latios.Kinemation.Systems
             EnableSystemSorting = false;
 
             GetOrCreateAndAddManagedSystem<CullingRoundRobinEarlyExtensionsSuperSystem>();
-            GetOrCreateAndAddManagedSystem<UploadDynamicMeshesSystem>();
-            GetOrCreateAndAddManagedSystem<BlendShapesDispatchSystem>();
-            GetOrCreateAndAddManagedSystem<SkinningDispatchSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UploadDynamicMeshesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BlendShapesDispatchSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SkinningDispatchSystem>();
             GetOrCreateAndAddManagedSystem<CullingRoundRobinLateExtensionsSuperSystem>();
-            GetOrCreateAndAddManagedSystem<UploadMaterialPropertiesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<UploadMaterialPropertiesSystem>();
 
             worldBlackboardEntity.AddComponent<CullingComputeDispatchActiveState>();
         }
@@ -114,7 +114,7 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<UpdateSkeletonBoundsSystem>();
             GetOrCreateAndAddUnmanagedSystem<LatiosRenderBoundsUpdateSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateBrgBoundsSystem>();
-            GetOrCreateAndAddManagedSystem<BeginPerFrameDeformMeshBuffersUploadSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BeginPerFrameDeformMeshBuffersUploadSystem>();
         }
     }
 
@@ -131,7 +131,7 @@ namespace Latios.Kinemation.Systems
         {
             EnableSystemSorting = false;
 
-            GetOrCreateAndAddManagedSystem<EndPerFrameMeshDeformBuffersUploadSystem>();
+            GetOrCreateAndAddUnmanagedSystem<EndPerFrameMeshDeformBuffersUploadSystem>();
             GetOrCreateAndAddUnmanagedSystem<PrepareLODsSystem>();
             GetOrCreateAndAddUnmanagedSystem<LatiosLightProbeUpdateSystem>();
             GetOrCreateAndAddUnmanagedSystem<CombineExposedBonesSystem>();

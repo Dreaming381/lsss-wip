@@ -43,6 +43,24 @@ namespace Latios.Kinemation
             GraphicsUnmanaged.GraphicsBufferUnlockAfterWrite(this, countWritten * size);
         }
 
+        public int count
+        {
+            get
+            {
+                CheckValid();
+                return GraphicsUnmanaged.GetGraphicsBufferCount(this);
+            }
+        }
+
+        public int stride
+        {
+            get
+            {
+                CheckValid();
+                return GraphicsUnmanaged.GetGraphicsBufferStride(this);
+            }
+        }
+
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         internal void CheckValid()
         {

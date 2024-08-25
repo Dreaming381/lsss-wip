@@ -45,7 +45,7 @@ namespace Latios.Kinemation
                 listIndex  = graphicsBuffer.index,
                 success    = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 8);
+            DoManagedExecute((IntPtr)(&context), 8);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
@@ -66,7 +66,7 @@ namespace Latios.Kinemation
                 listIndex     = graphicsBuffer.index,
                 success       = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 5);
+            DoManagedExecute((IntPtr)(&context), 5);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
@@ -83,7 +83,7 @@ namespace Latios.Kinemation
                 integer       = integer,
                 success       = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 6);
+            DoManagedExecute((IntPtr)(&context), 6);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
@@ -102,7 +102,26 @@ namespace Latios.Kinemation
                 threadGroupsZ = threadGroupsZ,
                 success       = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 7);
+            DoManagedExecute((IntPtr)(&context), 7);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Dispatching the Compute Shader failed.");
+#endif
+        }
+
+        public static void GetKernelThreadGroupSizes(this UnityObjectRef<ComputeShader> computeShader, int kernelIndex, out uint x, out uint y, out uint z)
+        {
+            var context = new GetComputShaderThreadGroupSizesContext
+            {
+                computeShader = computeShader,
+                kernelIndex   = kernelIndex,
+                success       = false
+            };
+            DoManagedExecute((IntPtr)(&context), 9);
+            x = context.x;
+            y = context.y;
+            z = context.z;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
@@ -139,7 +158,7 @@ namespace Latios.Kinemation
                 appendToList = appendToList,
                 success      = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 1);
+            DoManagedExecute((IntPtr)(&context), 1);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
@@ -151,7 +170,7 @@ namespace Latios.Kinemation
         internal static void DisposeGraphicsBuffer(GraphicsBufferUnmanaged unmanaged)
         {
             var context = new GraphicsBufferDisposeContext { listIndex = unmanaged.index };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 2);
+            DoManagedExecute((IntPtr)(&context), 2);
         }
 
         internal static bool IsValid(GraphicsBufferUnmanaged unmanaged)
@@ -171,7 +190,7 @@ namespace Latios.Kinemation
                 byteCount  = byteCount,
                 success    = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 3);
+            DoManagedExecute((IntPtr)(&context), 3);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
@@ -188,12 +207,46 @@ namespace Latios.Kinemation
                 byteCount = byteCount,
                 success   = false
             };
-            handles.Data.managedFunctionPtr.Invoke((IntPtr)(&context), 4);
+            DoManagedExecute((IntPtr)(&context), 4);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
                 throw new System.InvalidOperationException("Unlocking the GraphicsBufferUnmanaged after write failed.");
 #endif
+        }
+
+        internal static int GetGraphicsBufferCount(GraphicsBufferUnmanaged unmanaged)
+        {
+            var context = new GetGraphicsBufferCountContext
+            {
+                listIndex = unmanaged.index,
+                count     = 0,
+                success   = false
+            };
+            DoManagedExecute((IntPtr)(&context), 10);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Failed to obtain the count from the GraphicsBufferUnmanaged.");
+#endif
+            return context.count;
+        }
+
+        internal static int GetGraphicsBufferStride(GraphicsBufferUnmanaged unmanaged)
+        {
+            var context = new GetGraphicsBufferStrideContext
+            {
+                listIndex = unmanaged.index,
+                stride    = 0,
+                success   = false
+            };
+            DoManagedExecute((IntPtr)(&context), 11);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Failed to obtain the stride from the GraphicsBufferUnmanaged.");
+#endif
+            return context.stride;
         }
         #endregion
 
@@ -217,7 +270,7 @@ namespace Latios.Kinemation
             if (!initialized)
                 return;
             foreach (var buffer in buffers)
-                buffer.Dispose();
+                buffer?.Dispose();
             buffers = null;
             handles.Data.freeList.Dispose();
             handles.Data.versions.Dispose();
@@ -300,7 +353,50 @@ namespace Latios.Kinemation
             public int  listIndex;
             public bool success;
         }
+
+        // Code 9
+        struct GetComputShaderThreadGroupSizesContext
+        {
+            public UnityObjectRef<ComputeShader> computeShader;
+            public int                           kernelIndex;
+            public uint                          x;
+            public uint                          y;
+            public uint                          z;
+            public bool                          success;
+        }
+
+        // Code 10
+        struct GetGraphicsBufferCountContext
+        {
+            public int  listIndex;
+            public int  count;
+            public bool success;
+        }
+
+        // Code 11
+        struct GetGraphicsBufferStrideContext
+        {
+            public int  listIndex;
+            public int  stride;
+            public bool success;
+        }
         #endregion
+
+        static void DoManagedExecute(IntPtr context, int operation)
+        {
+            bool didIt = false;
+            ManagedExecuteFromManaged(context, operation, ref didIt);
+
+            if (!didIt)
+                handles.Data.managedFunctionPtr.Invoke(context, operation);
+        }
+
+        [BurstDiscard]
+        static void ManagedExecuteFromManaged(IntPtr context, int operation, ref bool didIt)
+        {
+            didIt = true;
+            ManagedExecute(context, operation);
+        }
 
         [MonoPInvokeCallback(typeof(ManagedDelegate))]
         static void ManagedExecute(IntPtr context, int operation)
@@ -374,6 +470,30 @@ namespace Latios.Kinemation
                         var     buffer = buffers[ctx.listIndex];
                         Shader.SetGlobalBuffer(ctx.propertyId, buffer);
                         ctx.success = true;
+                        break;
+                    }
+                    case 9:
+                    {
+                        ref var       ctx    = ref *(GetComputShaderThreadGroupSizesContext*)context;
+                        ComputeShader shader = ctx.computeShader;
+                        shader.GetKernelThreadGroupSizes(ctx.kernelIndex, out ctx.x, out ctx.y, out ctx.z);
+                        ctx.success = true;
+                        break;
+                    }
+                    case 10:
+                    {
+                        ref var ctx    = ref *(GetGraphicsBufferCountContext*)context;
+                        var     buffer = buffers[ctx.listIndex];
+                        ctx.count      = buffer.count;
+                        ctx.success    = true;
+                        break;
+                    }
+                    case 11:
+                    {
+                        ref var ctx    = ref *(GetGraphicsBufferStrideContext*)context;
+                        var     buffer = buffers[ctx.listIndex];
+                        ctx.stride     = buffer.stride;
+                        ctx.success    = true;
                         break;
                     }
                 }
