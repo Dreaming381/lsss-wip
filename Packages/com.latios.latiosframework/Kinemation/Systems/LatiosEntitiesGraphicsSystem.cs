@@ -515,7 +515,9 @@ namespace Latios.Kinemation.Systems
         {
             using var callbackMarker = m_latiosPerformCullingMarker.Auto();
 
+#if UNITY_6000_0_OR_NEWER
             cullingOutput.customCullingResult[0] = (IntPtr)m_cullPassIndexThisFrame;
+#endif
             //UnityEngine.Debug.Log($"OnPerformCulling pass {m_cullPassIndexThisFrame} of type {batchCullingContext.viewType}");
 
             var setup = new BurstCullingSetup

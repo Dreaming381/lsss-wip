@@ -122,7 +122,7 @@ namespace Latios.Kinemation.Systems
                 WorldTransformType    = TypeManager.GetTypeIndex<WorldTransform>(),
                 PreviousTransformType = TypeManager.GetTypeIndex<PreviousTransform>(),
 #elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
-                WorldTransformType    = TypeManager.GetTypeIndex<LocalToWorld>(),
+                WorldTransformType    = TypeManager.GetTypeIndex<Unity.Transforms.LocalToWorld>(),
                 PreviousTransformType = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousM>(),
 #endif
             }.ScheduleParallel(m_metaQuery, state.Dependency);
