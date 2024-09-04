@@ -395,10 +395,12 @@ namespace Latios.Kinemation.Systems
                 state.EntityManager.RemoveComponent(m_deadCopyDeformQuery, ComponentType.ChunkComponent<ChunkCopyDeformTag>());
                 state.EntityManager.AddComponent(m_newCopyDeformQuery, ComponentType.ChunkComponent<ChunkCopyDeformTag>());
                 state.EntityManager.RemoveComponent(m_deadMeshesQuery, new ComponentTypeSet(ComponentType.ChunkComponent<ChunkPerFrameCullingMask>(),
+                                                                                            ComponentType.ChunkComponent<ChunkPerDispatchCullingMask>(),
                                                                                             ComponentType.ChunkComponent<ChunkPerCameraCullingMask>(),
                                                                                             ComponentType.ChunkComponent<ChunkPerCameraCullingSplitsMask>(),
                                                                                             ComponentType.ChunkComponent<ChunkMaterialPropertyDirtyMask>()));
                 state.EntityManager.AddComponent(m_newMeshesQuery, new ComponentTypeSet(ComponentType.ChunkComponent<ChunkPerFrameCullingMask>(),
+                                                                                        ComponentType.ChunkComponent<ChunkPerDispatchCullingMask>(),
                                                                                         ComponentType.ChunkComponent<ChunkPerCameraCullingMask>(),
                                                                                         ComponentType.ChunkComponent<ChunkPerCameraCullingSplitsMask>(),
                                                                                         ComponentType.ChunkComponent<ChunkMaterialPropertyDirtyMask>()));

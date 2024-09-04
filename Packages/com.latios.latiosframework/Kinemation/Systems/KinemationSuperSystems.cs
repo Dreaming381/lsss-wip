@@ -26,16 +26,48 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<FrustumCullSkinnedEntitiesSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullSkinnedPostProcessEntitiesSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullUnskinnedEntitiesSystem>();
+
+#if UNITY_6000_0_OR_NEWER
+            GetOrCreateAndAddUnmanagedSystem<CopyDeformCullingSystem>();
+#else
             GetOrCreateAndAddUnmanagedSystem<AllocateDeformMaterialPropertiesSystem>();
             GetOrCreateAndAddUnmanagedSystem<CopyDeformWithCullingSystem>();
+            GetOrCreateAndAddUnmanagedSystem<CopyPerCameraMasksToPerDispatchMasksSystem>();
 
             GetOrCreateAndAddManagedSystem<CullingRoundRobinDispatchSuperSystem>();
+#endif
 
             GetOrCreateAndAddUnmanagedSystem<SelectMmiRangeLodsSystem>();
             GetOrCreateAndAddUnmanagedSystem<GenerateBrgDrawCommandsSystem>();
+#if !UNITY_6000_0_OR_NEWER
+            GetOrCreateAndAddUnmanagedSystem<SetRenderVisibilityFeedbackFlagsSystem>();
+#endif
+        }
+    }
+
+#if UNITY_6000_0_OR_NEWER
+    /// <summary>
+    /// This super system executes for each dispatch pass callback from Unity and may
+    /// run multiple times per frame. If you need a new hook point into this culling loop
+    /// for your own custom systems, please make a request via available social channels.
+    /// </summary>
+    [DisableAutoCreation]
+    public partial class KinemationCullingDispatchSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = false;
+
+            GetOrCreateAndAddUnmanagedSystem<AllocateDeformMaterialPropertiesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<CopyDeformMaterialsSystem>();
+
+            GetOrCreateAndAddManagedSystem<CullingRoundRobinDispatchSuperSystem>();
+
+            GetOrCreateAndAddUnmanagedSystem<ApplyDispatchMasksToFrameMasksSystem>();
             GetOrCreateAndAddUnmanagedSystem<SetRenderVisibilityFeedbackFlagsSystem>();
         }
     }
+#endif
 
     /// <summary>
     /// This super system executes special dispatch culling systems in round-robin fashion.

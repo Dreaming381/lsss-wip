@@ -137,8 +137,8 @@ namespace Latios.Calligraphics.Rendering.Systems
         public CollectState Collect(ref SystemState state)
         {
             // Skip after the first camera in this frame.
-            int cullingPassIndex = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>().cullIndexThisFrame;
-            if (cullingPassIndex != 0)
+            int dispatchPassIndex = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame;
+            if (dispatchPassIndex != 0)
             {
                 return default;
             }

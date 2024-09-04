@@ -44,7 +44,7 @@ namespace Latios.Kinemation.Systems
 
             m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
 
-            m_metaQuery = state.Fluent().With<EntitiesGraphicsChunkInfo>(false).With<ChunkHeader>(true).With<ChunkPerCameraCullingMask>(true).Build();
+            m_metaQuery = state.Fluent().With<EntitiesGraphicsChunkInfo>(false).With<ChunkHeader>(true).With<ChunkPerDispatchCullingMask>(true).Build();
 
             m_persistentInstanceDataSize = kGPUBufferSizeInitial;
 
@@ -89,7 +89,7 @@ namespace Latios.Kinemation.Systems
         {
             var context               = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(true);
             var materialPropertyTypes = latiosWorld.worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true);
-            var culling               = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var dispatchContext       = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
 
             // Conservative estimate is that every known type is in every chunk. There will be
             // at most one operation per type per chunk, which will be either an actual
@@ -106,18 +106,18 @@ namespace Latios.Kinemation.Systems
             m_burstCompatibleTypeArray.Update(ref state);
             var collectJh = new ComputeOperationsJob
             {
-                ChunkHeader                     = SystemAPI.GetComponentTypeHandle<ChunkHeader>(true),
-                ChunkProperties                 = context.chunkProperties,
-                chunkPropertyDirtyMaskHandle    = SystemAPI.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
-                chunkPerCameraCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                ComponentTypes                  = m_burstCompatibleTypeArray,
-                GpuUploadOperations             = gpuUploadOperations,
-                EntitiesGraphicsChunkInfo       = SystemAPI.GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
-                NumGpuUploadOperations          = numGpuUploadOperations,
-                PreviousTransformPreviousType   = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousMI_Tag>(),
-                WorldTransformInverseType       = TypeManager.GetTypeIndex<WorldToLocal_Tag>(),
-                postProcessMatrixHandle         = SystemAPI.GetComponentTypeHandle<PostProcessMatrix>(true),
-                previousPostProcessMatrixHandle = SystemAPI.GetComponentTypeHandle<PreviousPostProcessMatrix>(true),
+                ChunkHeader                       = SystemAPI.GetComponentTypeHandle<ChunkHeader>(true),
+                ChunkProperties                   = context.chunkProperties,
+                chunkPropertyDirtyMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
+                chunkPerDispatchCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
+                ComponentTypes                    = m_burstCompatibleTypeArray,
+                GpuUploadOperations               = gpuUploadOperations,
+                EntitiesGraphicsChunkInfo         = SystemAPI.GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
+                NumGpuUploadOperations            = numGpuUploadOperations,
+                PreviousTransformPreviousType     = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousMI_Tag>(),
+                WorldTransformInverseType         = TypeManager.GetTypeIndex<WorldToLocal_Tag>(),
+                postProcessMatrixHandle           = SystemAPI.GetComponentTypeHandle<PostProcessMatrix>(true),
+                previousPostProcessMatrixHandle   = SystemAPI.GetComponentTypeHandle<PreviousPostProcessMatrix>(true),
 #if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
                 WorldTransformType    = TypeManager.GetTypeIndex<WorldTransform>(),
                 PreviousTransformType = TypeManager.GetTypeIndex<PreviousTransform>(),
@@ -138,7 +138,7 @@ namespace Latios.Kinemation.Systems
 
             return new CollectState
             {
-                globalSystemVersionOfLatiosEntitiesGraphics = culling.globalSystemVersionOfLatiosEntitiesGraphics,
+                globalSystemVersionOfLatiosEntitiesGraphics = dispatchContext.globalSystemVersionOfLatiosEntitiesGraphics,
                 gpuUploadOperations                         = gpuUploadOperations,
                 numGpuUploadOperations                      = numGpuUploadOperations,
                 uploadSizeRequirements                      = uploadSizeRequirements,
@@ -221,12 +221,12 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct ComputeOperationsJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo> EntitiesGraphicsChunkInfo;
-            public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>       chunkPropertyDirtyMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> chunkPerCameraCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>               ChunkHeader;
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix>         postProcessMatrixHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousPostProcessMatrix> previousPostProcessMatrixHandle;
+            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo>   EntitiesGraphicsChunkInfo;
+            public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>         chunkPropertyDirtyMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchCullingMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 ChunkHeader;
+            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix>           postProcessMatrixHandle;
+            [ReadOnly] public ComponentTypeHandle<PreviousPostProcessMatrix>   previousPostProcessMatrixHandle;
 
             [ReadOnly] public NativeArray<ChunkProperty> ChunkProperties;
             public int                                   WorldTransformType;
@@ -243,14 +243,14 @@ namespace Latios.Kinemation.Systems
             {
                 // metaChunk is the chunk which contains the meta entities (= entities holding the chunk components) for the actual chunks
 
-                var hybridChunkInfos   = metaChunk.GetNativeArray(ref EntitiesGraphicsChunkInfo);
-                var chunkHeaders       = metaChunk.GetNativeArray(ref ChunkHeader);
-                var chunkDirtyMasks    = metaChunk.GetNativeArray(ref chunkPropertyDirtyMaskHandle);
-                var chunkPerCameraMask = metaChunk.GetNativeArray(ref chunkPerCameraCullingMaskHandle);
+                var hybridChunkInfos     = metaChunk.GetNativeArray(ref EntitiesGraphicsChunkInfo);
+                var chunkHeaders         = metaChunk.GetNativeArray(ref ChunkHeader);
+                var chunkDirtyMasks      = metaChunk.GetNativeArray(ref chunkPropertyDirtyMaskHandle);
+                var chunkPerDispatchMask = metaChunk.GetNativeArray(ref chunkPerDispatchCullingMaskHandle);
 
                 for (int i = 0; i < metaChunk.Count; ++i)
                 {
-                    var visibleMask = chunkPerCameraMask[i];
+                    var visibleMask = chunkPerDispatchMask[i];
                     if ((visibleMask.lower.Value | visibleMask.upper.Value) == 0)
                         continue;
 

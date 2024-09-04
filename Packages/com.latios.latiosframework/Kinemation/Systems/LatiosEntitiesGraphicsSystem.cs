@@ -79,6 +79,10 @@ using Unity.Transforms;
 
 using MaterialPropertyType = Unity.Rendering.MaterialPropertyType;
 
+#if !UNITY_BURST_EXPERIMENTAL_ATOMIC_INTRINSICS
+#error Latios Framework requires UNITY_BURST_EXPERIMENTAL_ATOMIC_INTRINSICS to be defined in your scripting define symbols.
+#endif
+
 namespace Latios.Kinemation.Systems
 {
     [UpdateInGroup(typeof(PresentationSystemGroup))]
@@ -199,8 +203,13 @@ namespace Latios.Kinemation.Systems
         kMaxBytesPerBatchRawBuffer;
 
         KinemationCullingSuperSystem m_cullingSuperSystem;
-        int                          m_cullPassIndexThisFrame;
-        NativeList<JobHandle>        m_cullingCallbackFinalJobHandles;  // Used for safe destruction of threaded allocators.
+#if UNITY_6000_0_OR_NEWER
+        KinemationCullingDispatchSuperSystem m_cullingDispatchSuperSystem;
+#endif
+        int                   m_cullPassIndexThisFrame;
+        int                   m_dispatchPassIndexThisFrame;
+        int                   m_cullPassIndexForLastDispatch;
+        NativeList<JobHandle> m_cullingCallbackFinalJobHandles;  // Used for safe destruction of threaded allocators.
 
         ComponentTypeCache.BurstCompatibleTypeArray m_burstCompatibleTypeArray;
 
@@ -227,7 +236,11 @@ namespace Latios.Kinemation.Systems
             }
 
             m_cullingSuperSystem = World.GetOrCreateSystemManaged<KinemationCullingSuperSystem>();
+#if UNITY_6000_0_OR_NEWER
+            m_cullingDispatchSuperSystem = World.GetOrCreateSystemManaged<KinemationCullingDispatchSuperSystem>();
+#endif
             worldBlackboardEntity.AddComponent<CullingContext>();
+            worldBlackboardEntity.AddComponent<DispatchContext>();
             worldBlackboardEntity.AddBuffer<CullingPlane>();
             worldBlackboardEntity.AddBuffer<CullingSplitElement>();
             worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new PackedCullingSplits { packedSplits = new NativeReference<CullingSplits>(Allocator.Persistent) });
@@ -460,7 +473,9 @@ namespace Latios.Kinemation.Systems
             worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(default, false);
 
             m_ThreadLocalAllocators.Rewind();
-            m_cullPassIndexThisFrame = 0;
+            m_cullPassIndexThisFrame       = 0;
+            m_dispatchPassIndexThisFrame   = 0;
+            m_cullPassIndexForLastDispatch = -1;
 
             m_LastSystemVersionAtLastUpdate   = LastSystemVersion;
             m_globalSystemVersionAtLastUpdate = GlobalSystemVersion;
@@ -526,6 +541,7 @@ namespace Latios.Kinemation.Systems
                 entityManager                   = EntityManager,
                 worldBlackboardEntity           = worldBlackboardEntity,
                 cullPassIndexThisFrame          = m_cullPassIndexThisFrame,
+                dispatchPassIndexThisFrame      = m_dispatchPassIndexThisFrame,
                 globalSystemVersionAtLastUpdate = m_globalSystemVersionAtLastUpdate,
                 lastSystemVersionAtLastUpdate   = m_LastSystemVersionAtLastUpdate,
                 batchCullingContext             = batchCullingContext,
@@ -555,6 +571,9 @@ namespace Latios.Kinemation.Systems
             DoBurstCullingFinalize(&finalize);
 
             m_cullPassIndexThisFrame++;
+#if !UNITY_6000_0_OR_NEWER
+            m_dispatchPassIndexThisFrame++;
+#endif
 
             return finalize.finalHandle;
         }
@@ -562,6 +581,13 @@ namespace Latios.Kinemation.Systems
         private unsafe void OnFinishedCulling(IntPtr customCullingResult)
         {
             //UnityEngine.Debug.Log($"OnFinishedCulling pass {(int)customCullingResult}");
+
+            if (m_cullPassIndexThisFrame == m_cullPassIndexForLastDispatch)
+                return;
+
+            m_cullingDispatchSuperSystem.Update();
+            m_cullPassIndexForLastDispatch = m_cullPassIndexThisFrame;
+            m_dispatchPassIndexThisFrame++;
         }
         #endregion
 
@@ -578,6 +604,7 @@ namespace Latios.Kinemation.Systems
             public EntityManager                                   entityManager;
             public BlackboardEntity                                worldBlackboardEntity;
             public int                                             cullPassIndexThisFrame;
+            public int                                             dispatchPassIndexThisFrame;
             public uint                                            globalSystemVersionAtLastUpdate;
             public uint                                            lastSystemVersionAtLastUpdate;
             public BatchCullingContext                             batchCullingContext;
@@ -610,19 +637,23 @@ namespace Latios.Kinemation.Systems
 
                 worldBlackboardEntity.SetComponentData(new CullingContext
                 {
-                    cullIndexThisFrame                          = cullPassIndexThisFrame,
-                    cullingFlags                                = batchCullingContext.cullingFlags,
+                    cullIndexThisFrame  = cullPassIndexThisFrame,
+                    cullingFlags        = batchCullingContext.cullingFlags,
+                    cullingLayerMask    = batchCullingContext.cullingLayerMask,
+                    localToWorldMatrix  = batchCullingContext.localToWorldMatrix,
+                    lodParameters       = batchCullingContext.lodParameters,
+                    projectionType      = batchCullingContext.projectionType,
+                    receiverPlaneCount  = batchCullingContext.receiverPlaneCount,
+                    receiverPlaneOffset = batchCullingContext.receiverPlaneOffset,
+                    sceneCullingMask    = batchCullingContext.sceneCullingMask,
+                    viewID              = batchCullingContext.viewID,
+                    viewType            = batchCullingContext.viewType,
+                });
+                worldBlackboardEntity.SetComponentData(new DispatchContext
+                {
                     globalSystemVersionOfLatiosEntitiesGraphics = globalSystemVersionAtLastUpdate,
                     lastSystemVersionOfLatiosEntitiesGraphics   = lastSystemVersionAtLastUpdate,
-                    cullingLayerMask                            = batchCullingContext.cullingLayerMask,
-                    localToWorldMatrix                          = batchCullingContext.localToWorldMatrix,
-                    lodParameters                               = batchCullingContext.lodParameters,
-                    projectionType                              = batchCullingContext.projectionType,
-                    receiverPlaneCount                          = batchCullingContext.receiverPlaneCount,
-                    receiverPlaneOffset                         = batchCullingContext.receiverPlaneOffset,
-                    sceneCullingMask                            = batchCullingContext.sceneCullingMask,
-                    viewID                                      = batchCullingContext.viewID,
-                    viewType                                    = batchCullingContext.viewType
+                    dispatchIndexThisFrame                      = dispatchPassIndexThisFrame
                 });
 
                 var cullingPlanesBuffer = worldBlackboardEntity.GetBuffer<CullingPlane>(false);

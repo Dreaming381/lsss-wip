@@ -36,7 +36,7 @@ namespace Latios.Kinemation.Systems
             m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
 
             m_query = state.Fluent().With<BlendShapeWeight>(true).With<BlendShapeState>(true).With<BoundMesh>(true)
-                      .With<ChunkPerCameraCullingMask>(true, true).With<ChunkPerFrameCullingMask>(true, true)
+                      .With<ChunkPerDispatchCullingMask>(true, true).With<ChunkPerFrameCullingMask>(true, true)
                       .Without<DisableComputeShaderProcessingTag>().Build();
 
             m_dispatchShader = Resources.Load<ComputeShader>("ShapeBlending");
@@ -67,7 +67,7 @@ namespace Latios.Kinemation.Systems
                 entityHandle                         = SystemAPI.GetEntityTypeHandle(),
                 legacyComputeDeformShaderIndexHandle = SystemAPI.GetComponentTypeHandle<LegacyComputeDeformShaderIndex>(true),
                 legacyDotsDeformShaderIndexHandle    = SystemAPI.GetComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>(true),
-                perCameraMaskHandle                  = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
+                perDispatchMaskHandle                = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                 perFrameMaskHandle                   = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
                 previousDeformShaderIndexHandle      = SystemAPI.GetComponentTypeHandle<PreviousDeformShaderIndex>(true),
                 stateHandle                          = SystemAPI.GetComponentTypeHandle<BlendShapeState>(true),
@@ -188,7 +188,7 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct GatherUploadOperationsJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask>              perCameraMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask>            perDispatchMaskHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>               perFrameMaskHandle;
             [ReadOnly] public ComponentTypeHandle<BlendShapeState>                        stateHandle;
             [ReadOnly] public BufferTypeHandle<BlendShapeWeight>                          weightsHandle;
@@ -206,10 +206,10 @@ namespace Latios.Kinemation.Systems
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 //UnityEngine.Debug.Log("Checking chunk for upload");
-                var cameraMask = chunk.GetChunkComponentData(ref perCameraMaskHandle);
-                var frameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                var dispatchMask = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
+                var frameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
                 if ((upper | lower) == 0)
                     return;
 

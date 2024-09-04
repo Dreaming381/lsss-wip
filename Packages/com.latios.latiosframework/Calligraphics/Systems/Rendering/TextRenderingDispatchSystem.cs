@@ -62,16 +62,16 @@ namespace Latios.Calligraphics.Rendering.Systems
             m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
 
             m_glyphsQuery = state.Fluent().With<RenderGlyph, TextRenderControl, RenderBounds>(true).With<TextShaderIndex>(false)
-                            .With<ChunkPerCameraCullingMask, ChunkPerFrameCullingMask>(true,  true).Without<GpuResidentTextTag>().Build();
+                            .With<ChunkPerDispatchCullingMask, ChunkPerFrameCullingMask>(true,  true).Without<GpuResidentTextTag>().Build();
             m_masksQuery = state.Fluent().With<TextMaterialMaskShaderIndex>(false).With<RenderBounds, RenderGlyphMask>(true)
-                           .With<ChunkPerCameraCullingMask, ChunkPerFrameCullingMask>(true,  true).Without<GpuResidentTextTag>().Build();
+                           .With<ChunkPerDispatchCullingMask, ChunkPerFrameCullingMask>(true,  true).Without<GpuResidentTextTag>().Build();
             m_allQuery = state.Fluent().WithAnyEnabled<TextShaderIndex, TextMaterialMaskShaderIndex>(true).With<RenderBounds>(true)
-                         .With<ChunkPerCameraCullingMask>(                          false, true).With<ChunkPerFrameCullingMask>(true, true)
+                         .With<ChunkPerDispatchCullingMask>(                          false, true).With<ChunkPerFrameCullingMask>(true, true)
                          .Without<GpuResidentTextTag>().Build();
             m_glyphsAndMasksQuery = state.Fluent().With<RenderGlyph, TextRenderControl, RenderBounds>(true)
                                     .With<TextShaderIndex, TextMaterialMaskShaderIndex, RenderGlyphMask>(true)
                                     .With<AdditionalFontMaterialEntity>(                                 true)
-                                    .With<ChunkPerCameraCullingMask, ChunkPerFrameCullingMask>(          true, true).Without<GpuResidentTextTag>().Build();
+                                    .With<ChunkPerDispatchCullingMask, ChunkPerFrameCullingMask>(        true, true).Without<GpuResidentTextTag>().Build();
 
             var copyByteAddressShader = Resources.Load<ComputeShader>("CopyBytes");
             m_uploadGlyphsShader      = Resources.Load<ComputeShader>("UploadGlyphs");
@@ -120,7 +120,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                 maskMaterialMaskLower           = fontMaterialMaskLower,
                 maskMaterialMaskUpper           = fontMaterialMaskUpper,
                 materialPropertyDirtyMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
-                perCameraMaskHandle             = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
+                perDispatchMaskHandle           = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(false),
                 perFrameMaskHandle              = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true)
             }.ScheduleParallel(m_allQuery, state.Dependency);
 
@@ -134,7 +134,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                     additionalEntitiesHandle = SystemAPI.GetBufferTypeHandle<AdditionalFontMaterialEntity>(true),
                     esil                     = SystemAPI.GetEntityStorageInfoLookup(),
                     map                      = map.AsParallelWriter(),
-                    perCameraMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
+                    perDispatchMaskHandle    = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                     perFrameMaskHandle       = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true)
                 }.ScheduleParallel(m_glyphsAndMasksQuery, materialMasksJh);
             }
@@ -151,7 +151,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                 glyphMaskHandle             = SystemAPI.GetBufferTypeHandle<RenderGlyphMask>(true),
                 gpuResidentGlyphCountLookup = SystemAPI.GetComponentLookup<GpuResidentGlyphCount>(true),
                 map                         = map,
-                perCameraMaskHandle         = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
+                perDispatchMaskHandle       = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                 perFrameMaskHandle          = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
                 streamWriter                = glyphStream.AsWriter(),
                 textShaderIndexHandle       = SystemAPI.GetComponentTypeHandle<TextShaderIndex>(false),
@@ -184,7 +184,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                     maskCountThisFrameLookup   = SystemAPI.GetComponentLookup<MaskCountThisFrame>(false),
                     maskCountThisPass          = 0,
                     maskShaderIndexHandle      = SystemAPI.GetComponentTypeHandle<TextMaterialMaskShaderIndex>(false),
-                    perCameraMaskHandle        = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
+                    perDispatchMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                     perFrameMaskHandle         = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
                     streamWriter               = maskStream.AsWriter(),
                     worldBlackboardEntity      = latiosWorld.worldBlackboardEntity
@@ -200,7 +200,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                 var copyPropertiesJh = new CopyGlyphShaderIndicesJob
                 {
                     additionalEntitiesHandle = SystemAPI.GetBufferTypeHandle<AdditionalFontMaterialEntity>(true),
-                    perCameraMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
+                    perDispatchMaskHandle    = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                     perFrameMaskHandle       = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
                     shaderIndexHandle        = SystemAPI.GetComponentTypeHandle<TextShaderIndex>(true),
                     renderGlyphMaskLookup    = SystemAPI.GetBufferLookup<RenderGlyphMask>(true),
@@ -381,7 +381,7 @@ namespace Latios.Calligraphics.Rendering.Systems
             [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask> perFrameMaskHandle;
             [ReadOnly] public BufferTypeHandle<RenderGlyph>                 glyphsHandle;
             [ReadOnly] public BufferTypeHandle<RenderGlyphMask>             glyphMasksHandle;
-            public ComponentTypeHandle<ChunkPerCameraCullingMask>           perCameraMaskHandle;
+            public ComponentTypeHandle<ChunkPerDispatchCullingMask>         perDispatchMaskHandle;
             public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>      materialPropertyDirtyMaskHandle;
 
             public ulong glyphMaterialMaskLower;
@@ -391,10 +391,10 @@ namespace Latios.Calligraphics.Rendering.Systems
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                ref var cameraMask = ref chunk.GetChunkComponentRefRW(ref perCameraMaskHandle);
-                var     frameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var     lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var     upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                ref var dispatchMask = ref chunk.GetChunkComponentRefRW(ref perDispatchMaskHandle);
+                var     frameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                var     lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var     upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
                 if ((upper | lower) == 0)
                     return;
 
@@ -409,11 +409,11 @@ namespace Latios.Calligraphics.Rendering.Systems
                         var buffer = glyphMasksBuffers[i];
                         if (buffer.Length == 0)
                         {
-                            ref var bitHolder = ref i >= 64 ? ref cameraMask.upper : ref cameraMask.lower;
+                            ref var bitHolder = ref i >= 64 ? ref dispatchMask.upper : ref dispatchMask.lower;
                             bitHolder.SetBits(i % 64, false);
                         }
                     }
-                    if ((cameraMask.upper.Value | cameraMask.lower.Value) != 0)
+                    if ((dispatchMask.upper.Value | dispatchMask.lower.Value) != 0)
                     {
                         dirtyMask.lower.Value |= maskMaterialMaskLower;
                         dirtyMask.upper.Value |= maskMaterialMaskUpper;
@@ -430,11 +430,11 @@ namespace Latios.Calligraphics.Rendering.Systems
                         var buffer = glyphsBuffers[i];
                         if (buffer.Length == 0)
                         {
-                            ref var bitHolder = ref i >= 64 ? ref cameraMask.upper : ref cameraMask.lower;
+                            ref var bitHolder = ref i >= 64 ? ref dispatchMask.upper : ref dispatchMask.lower;
                             bitHolder.SetBits(i % 64, false);
                         }
                     }
-                    if ((cameraMask.upper.Value | cameraMask.lower.Value) != 0)
+                    if ((dispatchMask.upper.Value | dispatchMask.lower.Value) != 0)
                     {
                         dirtyMask.lower.Value |= glyphMaterialMaskLower;
                         dirtyMask.upper.Value |= glyphMaterialMaskUpper;
@@ -447,19 +447,19 @@ namespace Latios.Calligraphics.Rendering.Systems
         [BurstCompile]
         struct FindCulledGlyphHoldersWithVisibleChildrenJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>  perFrameMaskHandle;
-            [ReadOnly] public BufferTypeHandle<AdditionalFontMaterialEntity> additionalEntitiesHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraMaskHandle;
-            [ReadOnly] public EntityStorageInfoLookup                        esil;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly] public BufferTypeHandle<AdditionalFontMaterialEntity>   additionalEntitiesHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly] public EntityStorageInfoLookup                          esil;
 
             public NativeParallelHashMap<ArchetypeChunk, v128>.ParallelWriter map;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var cameraMask       = chunk.GetChunkComponentData(ref perCameraMaskHandle);
+                var dispatchMask     = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
                 var frameMask        = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var lower            = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var upper            = cameraMask.upper.Value & (~frameMask.upper.Value);
+                var lower            = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var upper            = dispatchMask.upper.Value & (~frameMask.upper.Value);
                 upper                = ~upper;
                 lower                = ~lower;
                 BitField64 lowerMask = default;
@@ -480,12 +480,12 @@ namespace Latios.Calligraphics.Rendering.Systems
                     bool survive = false;
                     foreach (var entity in entitiesBuffers[i])
                     {
-                        var info            = esil[entity.entity];
-                        var childCameraMask = chunk.GetChunkComponentData(ref perCameraMaskHandle);
-                        var childFrameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                        var info              = esil[entity.entity];
+                        var childDispatchMask = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
+                        var childFrameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
                         if (info.IndexInChunk >= 64)
                         {
-                            if (!childFrameMask.upper.IsSet(info.IndexInChunk - 64) && childCameraMask.upper.IsSet(info.IndexInChunk - 64))
+                            if (!childFrameMask.upper.IsSet(info.IndexInChunk - 64) && childDispatchMask.upper.IsSet(info.IndexInChunk - 64))
                             {
                                 survive = true;
                                 break;
@@ -493,7 +493,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                         }
                         else
                         {
-                            if (!childFrameMask.lower.IsSet(info.IndexInChunk) && childCameraMask.lower.IsSet(info.IndexInChunk))
+                            if (!childFrameMask.lower.IsSet(info.IndexInChunk) && childDispatchMask.lower.IsSet(info.IndexInChunk))
                             {
                                 survive = true;
                                 break;
@@ -519,17 +519,17 @@ namespace Latios.Calligraphics.Rendering.Systems
         [BurstCompile]
         struct GatherGlyphUploadOperationsJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>  perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<TextRenderControl>         trcHandle;
-            [ReadOnly] public BufferTypeHandle<RenderGlyph>                  glyphsHandle;
-            [ReadOnly] public BufferTypeHandle<RenderGlyphMask>              glyphMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraMaskHandle;
-            [ReadOnly] public BufferTypeHandle<AdditionalFontMaterialEntity> additonalEntitiesHandle;
-            [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, v128>    map;
-            [ReadOnly] public ComponentLookup<GpuResidentGlyphCount>         gpuResidentGlyphCountLookup;
-            public ComponentTypeHandle<TextShaderIndex>                      textShaderIndexHandle;
-            public ComponentLookup<GlyphCountThisFrame>                      glyphCountThisFrameLookup;
-            public Entity                                                    worldBlackboardEntity;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<TextRenderControl>           trcHandle;
+            [ReadOnly] public BufferTypeHandle<RenderGlyph>                    glyphsHandle;
+            [ReadOnly] public BufferTypeHandle<RenderGlyphMask>                glyphMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly] public BufferTypeHandle<AdditionalFontMaterialEntity>   additonalEntitiesHandle;
+            [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, v128>      map;
+            [ReadOnly] public ComponentLookup<GpuResidentGlyphCount>           gpuResidentGlyphCountLookup;
+            public ComponentTypeHandle<TextShaderIndex>                        textShaderIndexHandle;
+            public ComponentLookup<GlyphCountThisFrame>                        glyphCountThisFrameLookup;
+            public Entity                                                      worldBlackboardEntity;
 
             public uint glyphCountThisPass;
 
@@ -537,10 +537,10 @@ namespace Latios.Calligraphics.Rendering.Systems
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var cameraMask = chunk.GetChunkComponentData(ref perCameraMaskHandle);
-                var frameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                var dispatchMask = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
+                var frameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
 
                 if (chunk.Has(ref additonalEntitiesHandle))
                 {
@@ -599,13 +599,13 @@ namespace Latios.Calligraphics.Rendering.Systems
         [BurstCompile]
         struct GatherMaskUploadOperationsJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>  perFrameMaskHandle;
-            [ReadOnly] public BufferTypeHandle<RenderGlyphMask>              glyphMasksHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraMaskHandle;
-            [ReadOnly] public ComponentLookup<GpuResidentMaskCount>          gpuResidentMaskCountLookup;
-            public ComponentTypeHandle<TextMaterialMaskShaderIndex>          maskShaderIndexHandle;
-            public ComponentLookup<MaskCountThisFrame>                       maskCountThisFrameLookup;
-            public Entity                                                    worldBlackboardEntity;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly] public BufferTypeHandle<RenderGlyphMask>                glyphMasksHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly] public ComponentLookup<GpuResidentMaskCount>            gpuResidentMaskCountLookup;
+            public ComponentTypeHandle<TextMaterialMaskShaderIndex>            maskShaderIndexHandle;
+            public ComponentLookup<MaskCountThisFrame>                         maskCountThisFrameLookup;
+            public Entity                                                      worldBlackboardEntity;
 
             public uint maskCountThisPass;
 
@@ -613,10 +613,10 @@ namespace Latios.Calligraphics.Rendering.Systems
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var cameraMask = chunk.GetChunkComponentData(ref perCameraMaskHandle);
-                var frameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                var dispatchMask = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
+                var frameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
                 if ((upper | lower) == 0)
                     return;
 
@@ -657,7 +657,7 @@ namespace Latios.Calligraphics.Rendering.Systems
         struct CopyGlyphShaderIndicesJob : IJobChunk
         {
             [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>                   perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask>                  perCameraMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask>                perDispatchMaskHandle;
             [ReadOnly] public ComponentTypeHandle<TextShaderIndex>                            shaderIndexHandle;
             [ReadOnly] public BufferTypeHandle<AdditionalFontMaterialEntity>                  additionalEntitiesHandle;
             [ReadOnly] public BufferLookup<RenderGlyphMask>                                   renderGlyphMaskLookup;
@@ -665,10 +665,10 @@ namespace Latios.Calligraphics.Rendering.Systems
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var cameraMask = chunk.GetChunkComponentData(ref perCameraMaskHandle);
-                var frameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                var dispatchMask = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
+                var frameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
                 if ((upper | lower) == 0)
                     return;
 

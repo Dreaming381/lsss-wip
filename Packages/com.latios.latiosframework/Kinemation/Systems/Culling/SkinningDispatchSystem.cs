@@ -71,8 +71,8 @@ namespace Latios.Kinemation.Systems
             m_worldTransformLookup = new WorldTransformReadOnlyAspect.Lookup(ref state);
 
             m_skeletonQuery        = state.Fluent().With<DependentSkinnedMesh>(true).With<ChunkPerCameraSkeletonCullingMask>(true, true).Build();
-            m_skinnedMeshQuery     = state.Fluent().With<SkeletonDependent>(true).With<ChunkPerCameraCullingMask>(true, true).Build();
-            m_skinnedMeshMetaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkPerCameraCullingMask>(true).Build();
+            m_skinnedMeshQuery     = state.Fluent().With<SkeletonDependent>(true).With<ChunkPerDispatchCullingMask>(true, true).Build();
+            m_skinnedMeshMetaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkPerDispatchCullingMask>(true).Build();
 
             state.RequireForUpdate(m_skeletonQuery);
             state.RequireForUpdate(m_skinnedMeshQuery);
@@ -127,11 +127,11 @@ namespace Latios.Kinemation.Systems
 
             var collectJh = new FindMeshChunksNeedingSkinningJob
             {
-                chunkHeaderHandle          = SystemAPI.GetComponentTypeHandle<ChunkHeader>(true),
-                chunksToProcess            = meshChunks.AsParallelWriter(),
-                perCameraCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                perFrameCullingMaskHandle  = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                skeletonDependentHandle    = SystemAPI.GetComponentTypeHandle<SkeletonDependent>(true)
+                chunkHeaderHandle            = SystemAPI.GetComponentTypeHandle<ChunkHeader>(true),
+                chunksToProcess              = meshChunks.AsParallelWriter(),
+                perDispatchCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
+                perFrameCullingMaskHandle    = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
+                skeletonDependentHandle      = SystemAPI.GetComponentTypeHandle<SkeletonDependent>(true)
             }.ScheduleParallel(m_skinnedMeshMetaQuery, state.Dependency);
 
             collectJh = new CollectVisibleMeshesJob
@@ -151,7 +151,7 @@ namespace Latios.Kinemation.Systems
                 twoAgoDeformHandle         = SystemAPI.GetComponentTypeHandle<TwoAgoDeformShaderIndex>(true),
                 twoAgoDqsVertexHandle      = SystemAPI.GetComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>(true),
                 twoAgoMatrixVertexHandle   = SystemAPI.GetComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>(true),
-                perCameraMaskHandle        = SystemAPI.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
+                perDispatchMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                 perFrameMaskHandle         = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
                 requestsBlockList          = requestsBlockList
             }.Schedule(meshChunks, 1, collectJh);
@@ -172,7 +172,6 @@ namespace Latios.Kinemation.Systems
                 groupedSkinningRequestsStartsAndCounts   = groupedSkinningRequestsStartsAndCounts.AsDeferredJobArray(),
                 optimizedBoneBufferHandle                = SystemAPI.GetBufferTypeHandle<OptimizedBoneTransform>(true),
                 perChunkPrefixSums                       = perChunkPrefixSums,
-                skeletonCullingMaskHandle                = SystemAPI.GetComponentTypeHandle<ChunkPerCameraSkeletonCullingMask>(true),
                 skeletonEntityToSkinningRequestsGroupMap = skeletonEntityToSkinningRequestsGroupMap,
                 skinnedMeshesBufferHandle                = SystemAPI.GetBufferTypeHandle<DependentSkinnedMesh>(true),
                 skinningStream                           = skinningStream.AsWriter()
@@ -502,27 +501,27 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct FindMeshChunksNeedingSkinningJob : IJobChunk
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>  perFrameCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>               chunkHeaderHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>         skeletonDependentHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameCullingMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
+            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>           skeletonDependentHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
             [Unity.Burst.CompilerServices.SkipLocalsInit]
             public unsafe void Execute(in ArchetypeChunk metaChunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var chunksCache = stackalloc ArchetypeChunk[128];
-                int chunksCount = 0;
-                var cameraMasks = metaChunk.GetNativeArray(ref perCameraCullingMaskHandle);
-                var frameMasks  = metaChunk.GetNativeArray(ref perFrameCullingMaskHandle);
-                var headers     = metaChunk.GetNativeArray(ref chunkHeaderHandle);
+                var chunksCache   = stackalloc ArchetypeChunk[128];
+                int chunksCount   = 0;
+                var dispatchMasks = metaChunk.GetNativeArray(ref perDispatchCullingMaskHandle);
+                var frameMasks    = metaChunk.GetNativeArray(ref perFrameCullingMaskHandle);
+                var headers       = metaChunk.GetNativeArray(ref chunkHeaderHandle);
                 for (int i = 0; i < metaChunk.Count; i++)
                 {
-                    var cameraMask = cameraMasks[i];
-                    var frameMask  = frameMasks[i];
-                    var lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                    var upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                    var dispatchMask = dispatchMasks[i];
+                    var frameMask    = frameMasks[i];
+                    var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                    var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
                     if ((lower | upper) != 0 && headers[i].ArchetypeChunk.Has(ref skeletonDependentHandle))
                     {
                         chunksCache[chunksCount] = headers[i].ArchetypeChunk;
@@ -542,9 +541,9 @@ namespace Latios.Kinemation.Systems
         {
             [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
 
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>  perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>         skeletonDependentHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>           skeletonDependentHandle;
 
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
 
@@ -575,10 +574,10 @@ namespace Latios.Kinemation.Systems
 
             void Execute(in ArchetypeChunk chunk)
             {
-                var cameraMask = chunk.GetChunkComponentData(ref perCameraMaskHandle);
-                var frameMask  = chunk.GetChunkComponentData(ref perFrameMaskHandle);
-                var lower      = cameraMask.lower.Value & (~frameMask.lower.Value);
-                var upper      = cameraMask.upper.Value & (~frameMask.upper.Value);
+                var dispatchMask = chunk.GetChunkComponentData(ref perDispatchMaskHandle);
+                var frameMask    = chunk.GetChunkComponentData(ref perFrameMaskHandle);
+                var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
+                var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
 
                 var depsArray      = chunk.GetNativeArray(ref skeletonDependentHandle);
                 var classification = deformClassificationMap[chunk];
@@ -907,9 +906,8 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct GenerateSkinningCommandsJob : IJobChunk
         {
-            [ReadOnly] public EntityTypeHandle                                       entityHandle;
-            [ReadOnly] public BufferTypeHandle<DependentSkinnedMesh>                 skinnedMeshesBufferHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraSkeletonCullingMask> skeletonCullingMaskHandle;
+            [ReadOnly] public EntityTypeHandle                       entityHandle;
+            [ReadOnly] public BufferTypeHandle<DependentSkinnedMesh> skinnedMeshesBufferHandle;
 
             [ReadOnly] public BufferTypeHandle<BoneReference>          boneReferenceBufferHandle;
             [ReadOnly] public BufferTypeHandle<OptimizedBoneTransform> optimizedBoneBufferHandle;
@@ -930,30 +928,24 @@ namespace Latios.Kinemation.Systems
                     perChunkPrefixSums[unfilteredChunkIndex] = default;
                     return;
                 }
-                var mask = chunk.GetChunkComponentData(ref skeletonCullingMaskHandle);
-                if ((mask.lower.Value | mask.upper.Value) == 0)
-                {
-                    perChunkPrefixSums[unfilteredChunkIndex] = default;
-                    return;
-                }
 
                 skinningStream.BeginForEachIndex(unfilteredChunkIndex);
                 chunkPrefixSums = default;
 
                 if (chunk.Has(ref boneReferenceBufferHandle))
                 {
-                    ProcessExposed(in chunk, mask);
+                    ProcessExposed(in chunk);
                 }
                 else if (chunk.Has(ref optimizedBoneBufferHandle))
                 {
-                    ProcessOptimized(in chunk, mask);
+                    ProcessOptimized(in chunk);
                 }
 
                 perChunkPrefixSums[unfilteredChunkIndex] = chunkPrefixSums;
                 skinningStream.EndForEachIndex();
             }
 
-            void ProcessExposed(in ArchetypeChunk chunk, ChunkPerCameraSkeletonCullingMask cameraMask)
+            void ProcessExposed(in ArchetypeChunk chunk)
             {
                 var entityArray           = chunk.GetNativeArray(entityHandle);
                 var skinnedMeshesAccessor = chunk.GetBufferAccessor(ref skinnedMeshesBufferHandle);
@@ -961,8 +953,8 @@ namespace Latios.Kinemation.Systems
 
                 for (int i = 0; i < chunk.Count; i++)
                 {
-                    var mask = i >= 64 ? cameraMask.upper : cameraMask.lower;
-                    if (mask.IsSet(i % 64))
+                    //var mask = i >= 64 ? dispatchMask.upper : dispatchMask.lower;
+                    //if (mask.IsSet(i % 64))
                     {
                         var boneCount = boneBufferAccessor[i].Length;
                         ProcessRequests(entityArray[i], skinnedMeshesAccessor[i].AsNativeArray(), i, boneCount);
@@ -970,7 +962,7 @@ namespace Latios.Kinemation.Systems
                 }
             }
 
-            void ProcessOptimized(in ArchetypeChunk chunk, ChunkPerCameraSkeletonCullingMask cameraMask)
+            void ProcessOptimized(in ArchetypeChunk chunk)
             {
                 var entityArray           = chunk.GetNativeArray(entityHandle);
                 var skinnedMeshesAccessor = chunk.GetBufferAccessor(ref skinnedMeshesBufferHandle);
@@ -978,8 +970,8 @@ namespace Latios.Kinemation.Systems
 
                 for (int i = 0; i < chunk.Count; i++)
                 {
-                    var mask = i >= 64 ? cameraMask.upper : cameraMask.lower;
-                    if (mask.IsSet(i % 64))
+                    //var mask = i >= 64 ? dispatchMask.upper : dispatchMask.lower;
+                    //if (mask.IsSet(i % 64))
                     {
                         var boneCount = boneBufferAccessor[i].Length / 6;
                         ProcessRequests(entityArray[i], skinnedMeshesAccessor[i].AsNativeArray(), i, boneCount);
