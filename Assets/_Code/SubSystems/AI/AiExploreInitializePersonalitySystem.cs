@@ -41,7 +41,7 @@ namespace Lsss
                 arenaRadius = arenaRadius
             }.ScheduleParallel(m_query);
 
-            ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query, EntityQueryCaptureMode.AtRecord);
+            ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query.ToEntityArray(Allocator.Temp));
         }
 
         [BurstCompile]

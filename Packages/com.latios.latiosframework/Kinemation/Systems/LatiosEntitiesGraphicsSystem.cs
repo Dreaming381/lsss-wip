@@ -914,6 +914,8 @@ namespace Latios.Kinemation.Systems
 
         private void Dispose()
         {
+            JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
+
             if (ErrorShaderEnabled)
                 Material.DestroyImmediate(m_ErrorMaterial);
 

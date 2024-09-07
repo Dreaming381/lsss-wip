@@ -37,7 +37,7 @@ namespace Lsss
                 rng = state.GetJobRng(),
             }.ScheduleParallel(m_query);
 
-            ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query, EntityQueryCaptureMode.AtRecord);
+            ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query.ToEntityArray(Allocator.Temp));
         }
 
         [BurstCompile]

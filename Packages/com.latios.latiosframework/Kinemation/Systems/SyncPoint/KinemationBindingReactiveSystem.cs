@@ -345,7 +345,7 @@ namespace Latios.Kinemation.Systems
                 JobHandle.ScheduleBatchedJobs();
 
                 // If we remove this component right away, we'll end up with motion vector artifacts. So we defer it by one frame.
-                latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent<PreviousPostProcessMatrix>(m_deadPreviousPostProcessMatrixQuery, EntityQueryCaptureMode.AtRecord);
+                latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent<PreviousPostProcessMatrix>(m_deadPreviousPostProcessMatrixQuery.ToEntityArray(Allocator.Temp));
 
                 state.CompleteDependency();
 

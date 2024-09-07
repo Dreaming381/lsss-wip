@@ -152,7 +152,7 @@ namespace Latios.Calligraphics.Rendering.Systems
             ulong fontMaterialMaskUpper = (ulong)fontIndex >= 64UL ? (1UL << (fontIndex - 64)) : 0UL;
 
             var set = new ComponentTypeSet(ComponentType.ReadOnly<GpuResidentAllocation>(), ComponentType.ReadOnly<GpuResidentUpdateFlag>());
-            latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent(m_deadQuery, in set, EntityQueryCaptureMode.AtRecord);
+            latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent(m_deadQuery.ToEntityArray(Allocator.Temp), in set);
 
             var materialMasksJh = new UpdateMaterialMasksJob
             {
