@@ -131,19 +131,19 @@ namespace Latios
 
             float4x4 kMat;
             kMat.c0.x = mat.c0.x + mat.c1.y + mat.c2.z - eigen0;
-            kMat.c0.y = mat.c2.y - mat.c1.z;
-            kMat.c0.z = mat.c0.z - mat.c2.x;
-            kMat.c0.w = mat.c1.x - mat.c0.y;
+            kMat.c0.y = mat.c1.z - mat.c2.y;
+            kMat.c0.z = mat.c2.x - mat.c0.z;
+            kMat.c0.w = mat.c0.y - mat.c1.x;
 
             kMat.c1.x = kMat.c0.y;
             kMat.c1.y = mat.c0.x - mat.c1.y - mat.c2.z - eigen0;
-            kMat.c1.z = mat.c1.x + mat.c0.y;
-            kMat.c1.w = mat.c0.z + mat.c2.x;
+            kMat.c1.z = mat.c0.y + mat.c1.x;
+            kMat.c1.w = mat.c2.x + mat.c0.z;
 
             kMat.c2.x = kMat.c0.z;
             kMat.c2.y = kMat.c1.z;
             kMat.c2.z = -mat.c0.x + mat.c1.y - mat.c2.z - eigen0;
-            kMat.c2.w = mat.c2.y + mat.c2.z;
+            kMat.c2.w = mat.c1.z + mat.c2.y;
 
             kMat.c3.x = kMat.c0.w;
             kMat.c3.y = kMat.c1.w;
