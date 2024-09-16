@@ -198,7 +198,7 @@ namespace Latios.Compatibility.UnityNetCode
         /// </summary>
         /// <param name="name">The client world name</param>
         /// <returns></returns>
-        public static new World CreateClientWorld(string name)
+        public static new World CreateClientWorld(string name, bool setAsDefault = true)
         {
 #if UNITY_SERVER && !UNITY_EDITOR
             throw new NotImplementedException();
@@ -208,7 +208,7 @@ namespace Latios.Compatibility.UnityNetCode
                 return ClientServerBootstrap.CreateClientWorld(name);
 
             var world = bootstrap.Initialize(name, WorldFlags.GameClient, WorldSystemFilterFlags.ClientSimulation | WorldSystemFilterFlags.Presentation);
-            if (World.DefaultGameObjectInjectionWorld == null)
+            if (World.DefaultGameObjectInjectionWorld == null || setAsDefault)
                 World.DefaultGameObjectInjectionWorld = world;
             ScriptBehaviourUpdateOrder.AppendWorldToCurrentPlayerLoop(world);
             ClientWorlds.Add(world);

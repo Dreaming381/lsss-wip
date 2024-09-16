@@ -4,6 +4,7 @@ using Latios;
 using Latios.Authoring;
 using Latios.Compatibility.UnityNetCode;
 using Unity.Entities;
+using Unity.NetCode;
 
 #if !LATIOS_TRANSFORMS_UNITY
 #error The currently active Latios Framework Bootstrap requires LATIOS_TRANSFORMS_UNITY to be defined for correct operation.

@@ -4,6 +4,7 @@ using Latios;
 using Latios.Authoring;
 using Latios.Compatibility.UnityNetCode;
 using Unity.Entities;
+using Unity.NetCode;
 
 [UnityEngine.Scripting.Preserve]
 public class LatiosBakingBootstrap : ICustomBakingBootstrap
