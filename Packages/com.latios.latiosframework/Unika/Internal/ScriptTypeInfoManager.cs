@@ -86,6 +86,7 @@ namespace Latios.Unika
                                                               out var hasEntityRefs,
                                                               out var hasBlobRefs,
                                                               out var hasWeakAssetRefs,
+                                                              out var hasUnityObjectRefs,
                                                               ref s_entityOffsetCache,
                                                               ref s_blobOffsetCache,
                                                               ref s_assetOffsetCache,
