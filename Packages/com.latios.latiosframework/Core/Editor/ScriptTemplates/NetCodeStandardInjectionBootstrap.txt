@@ -74,6 +74,10 @@ public class NetCodeClientLatiosBootrap : ICustomClientWorldBootstrap
     {
         var world = new LatiosWorld(defaultWorldName, worldFlags, LatiosWorld.WorldRole.Client);
 
+        UnityEngine.Application.runInBackground = true;
+
+        NetCodeBootstrapTools.InitializeNetCodeSingletonsOnTheWorldBlackboardEntity(world);
+
         var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(worldSystemFilterFlags);
         NetCodeBootstrapTools.InjectUnityAndNetCodeGeneratedSystems(systems, world, world.simulationSystemGroup);
 
@@ -102,6 +106,10 @@ public class NetCodeServerLatiosBootrap : ICustomServerWorldBootstrap
     {
         var world = new LatiosWorld(defaultWorldName, worldFlags, LatiosWorld.WorldRole.Server);
 
+        UnityEngine.Application.runInBackground = true;
+
+        NetCodeBootstrapTools.InitializeNetCodeSingletonsOnTheWorldBlackboardEntity(world);
+
         var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(worldSystemFilterFlags);
         NetCodeBootstrapTools.InjectUnityAndNetCodeGeneratedSystems(systems, world, world.simulationSystemGroup);
 
@@ -122,6 +130,10 @@ public class NetCodeThinClientLatiosBootrap : ICustomThinClientWorldBootstrap
     public World Initialize(string defaultWorldName, WorldFlags worldFlags, WorldSystemFilterFlags worldSystemFilterFlags)
     {
         var world = new LatiosWorld(defaultWorldName, worldFlags, LatiosWorld.WorldRole.ThinClient);
+
+        UnityEngine.Application.runInBackground = true;
+
+        NetCodeBootstrapTools.InitializeNetCodeSingletonsOnTheWorldBlackboardEntity(world);
 
         var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(worldSystemFilterFlags);
         NetCodeBootstrapTools.InjectUnityAndNetCodeGeneratedSystems(systems, world, world.simulationSystemGroup);

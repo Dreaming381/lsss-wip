@@ -9,6 +9,15 @@ namespace Latios.Compatibility.UnityNetCode
 {
     public static class NetCodeBootstrapTools
     {
+        public static void InitializeNetCodeSingletonsOnTheWorldBlackboardEntity(LatiosWorld world)
+        {
+            //world.worldBlackboardEntity.AddComponent<RpcCollection>();
+            if (world.IsClient() && !world.IsThinClient())
+            {
+                //world.worldBlackboardEntity.AddComponent<GhostPredictionSmoothing>();
+            }
+        }
+
         public static void EnableDynamicAssembliesList(WorldUnmanaged world)
         {
             using var query = world.EntityManager.CreateEntityQuery(new EntityQueryBuilder(
