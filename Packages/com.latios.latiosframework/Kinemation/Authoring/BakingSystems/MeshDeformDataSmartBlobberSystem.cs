@@ -17,6 +17,9 @@ using UnityEngine;
 
 namespace Latios.Kinemation.Authoring
 {
+    /// <summary>
+    /// Feature flags that specify use cases a MeshDeformDataBlob should have the data to support
+    /// </summary>
     public enum MeshDeformDataFeatures
     {
         VertexSkinning = 0x1,
@@ -33,6 +36,7 @@ namespace Latios.Kinemation.Authoring
         /// Requests the creation of a MeshDeformDataBlob Blob Asset
         /// </summary>
         /// <param name="mesh">The mesh containing the skin weights to be baked into a blob</param>
+        /// <param name="features">Feature flags that specify which use cases the blob should support</param>
         public static SmartBlobberHandle<MeshDeformDataBlob> RequestCreateBlobAsset(this IBaker baker, Mesh mesh, MeshDeformDataFeatures features = MeshDeformDataFeatures.All)
         {
             return baker.RequestCreateBlobAsset<MeshDeformDataBlob, MeshDeformDataBakeData>(new MeshDeformDataBakeData

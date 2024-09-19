@@ -223,6 +223,22 @@ namespace Lsss.Authoring
                 localBounds                 = bounds,
             };
 
+            if (useLod)
+            {
+                AddComponent<UseMmiRangeLodTag>(entity);
+                AddComponent<LodCrossfade>(     entity);
+                AddComponent(                   entity, new MmiRange2LodSelect
+                {
+                    height                       = conservativeLodHeight,
+                    fullLod0ScreenHeightFraction = (half)(conservativeLodMax / 100f),
+                    fullLod1ScreenHeightFraction = (half)(conservativeLodMin / 100f),
+                });
+                //half fraction1 = (half)(authoring.m_lodTransitionMinPercentage / 100f);
+                //UnityEngine.Debug.Log($"Authored: {authoring.m_lodTransitionMinPercentage}, converted: {(float)fraction1}");
+                if (conservativeLodMin > 2f)
+                    UnityEngine.Debug.Log($"Bad LOD: {authoring.gameObject.name}, {authoring.transform.root.gameObject.name}");
+            }
+
             if (opaqueCount == 0 || transparentCount == 0)
             {
                 Span<MeshRendererBakeSettings> renderers = stackalloc MeshRendererBakeSettings[1];
@@ -237,8 +253,8 @@ namespace Lsss.Authoring
                 if (useLod)
                 {
                     AddComponent<UseMmiRangeLodTag>(additionalEntity);
-                    AddComponent<LodCrossfade>(     entity);
-                    AddComponent(                   entity, new MmiRange2LodSelect
+                    AddComponent<LodCrossfade>(     additionalEntity);
+                    AddComponent(                   additionalEntity, new MmiRange2LodSelect
                     {
                         height                       = conservativeLodHeight,
                         fullLod0ScreenHeightFraction = (half)(conservativeLodMax / 100f),

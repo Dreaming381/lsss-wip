@@ -141,6 +141,9 @@ namespace Latios.Kinemation
             index = s_reservedUploadPoolsCount++
         };
 
+        /// <summary>
+        /// Returns true if this instance constains valid backing containers
+        /// </summary>
         public bool isCreated => m_persistentBuffers.IsCreated;
 
         /// <summary>

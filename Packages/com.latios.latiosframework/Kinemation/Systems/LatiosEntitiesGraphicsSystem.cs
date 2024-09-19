@@ -206,9 +206,11 @@ namespace Latios.Kinemation.Systems
 #if UNITY_6000_0_OR_NEWER
         KinemationCullingDispatchSuperSystem m_cullingDispatchSuperSystem;
 #endif
-        int                   m_cullPassIndexThisFrame;
-        int                   m_dispatchPassIndexThisFrame;
-        int                   m_cullPassIndexForLastDispatch;
+        int m_cullPassIndexThisFrame;
+        int m_dispatchPassIndexThisFrame;
+#pragma warning disable CS0414  // Variable assigned but unused in 2022 LTS
+        int m_cullPassIndexForLastDispatch;
+#pragma warning restore CS0414
         NativeList<JobHandle> m_cullingCallbackFinalJobHandles;  // Used for safe destruction of threaded allocators.
 
         ComponentTypeCache.BurstCompatibleTypeArray m_burstCompatibleTypeArray;
@@ -578,6 +580,7 @@ namespace Latios.Kinemation.Systems
             return finalize.finalHandle;
         }
 
+#if UNITY_6000_0_OR_NEWER
         private unsafe void OnFinishedCulling(IntPtr customCullingResult)
         {
             //UnityEngine.Debug.Log($"OnFinishedCulling pass {(int)customCullingResult}");
@@ -589,6 +592,7 @@ namespace Latios.Kinemation.Systems
             m_cullPassIndexForLastDispatch = m_cullPassIndexThisFrame;
             m_dispatchPassIndexThisFrame++;
         }
+#endif
         #endregion
 
         #region Burst Culling

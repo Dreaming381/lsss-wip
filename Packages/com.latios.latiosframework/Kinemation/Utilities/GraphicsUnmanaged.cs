@@ -12,9 +12,15 @@ using UnityEngine;
 
 namespace Latios.Kinemation
 {
+    /// <summary>
+    /// A Burst-compatible API for various graphics operations
+    /// </summary>
     public static unsafe class GraphicsUnmanaged
     {
         #region Public API
+        /// <summary>
+        /// Initialize the GraphicsUnmanaged APIs. Call this if you intend to use these APIs before Kinemation's systems are installed.
+        /// </summary>
         public static void Initialize()
         {
             if (initialized)
@@ -36,6 +42,11 @@ namespace Latios.Kinemation
             AppDomain.CurrentDomain.ProcessExit += (_, __) => { Shutdown(); };
         }
 
+        /// <summary>
+        /// Sets a global buffer property for all shaders. Equivalent to Shader.SetGlobalBuffer()
+        /// </summary>
+        /// <param name="propertyId">The name ID of the poperty retrived by Shader.PropertyToID</param>
+        /// <param name="graphicsBuffer">The buffer to set.</param>
         public static void SetGlobalBuffer(int propertyId, GraphicsBufferUnmanaged graphicsBuffer)
         {
             graphicsBuffer.CheckValid();
@@ -55,6 +66,12 @@ namespace Latios.Kinemation
         #endregion
 
         #region Extensions
+        /// <summary>
+        /// Sets an input or output compute buffer.
+        /// </summary>
+        /// <param name="kernelIndex">For which kernel the buffer is being set. See ComputeShader.FindKernel().</param>
+        /// <param name="propertyId">Property name ID, use Shader.PropertyToID() to get it.</param>
+        /// <param name="graphicsBuffer">Buffer to set.</param>
         public static void SetBuffer(this UnityObjectRef<ComputeShader> computeShader, int kernelIndex, int propertyId, GraphicsBufferUnmanaged graphicsBuffer)
         {
             graphicsBuffer.CheckValid();
@@ -74,6 +91,11 @@ namespace Latios.Kinemation
 #endif
         }
 
+        /// <summary>
+        /// Set an integer parameter
+        /// </summary>
+        /// <param name="propertyId">Property name ID, use Shader.PropertyToID() to get it.</param>
+        /// <param name="integer">Value to set.</param>
         public static void SetInt(this UnityObjectRef<ComputeShader> computeShader, int propertyId, int integer)
         {
             var context = new ComputeShaderSetIntContext
@@ -91,6 +113,13 @@ namespace Latios.Kinemation
 #endif
         }
 
+        /// <summary>
+        /// Execute a compute shader.
+        /// </summary>
+        /// <param name="kernelIndex">Which kernel to exeucte. A single compute shader asset can have multiple kernel entry points.</param>
+        /// <param name="threadGroupsX">Number of work groups in the X dimension.</param>
+        /// <param name="threadGroupsY">Number of work groups in the Y dimension.</param>
+        /// <param name="threadGroupsZ">Number of work groups in the Z dimension.</param>
         public static void Dispatch(this UnityObjectRef<ComputeShader> computeShader, int kernelIndex, int threadGroupsX, int threadGroupsY, int threadGroupsZ)
         {
             var context = new ComputeShaderDispatchContext
@@ -110,6 +139,13 @@ namespace Latios.Kinemation
 #endif
         }
 
+        /// <summary>
+        /// Get kernel thread group sizes.
+        /// </summary>
+        /// <param name="kernelIndex">Which kernel to exeucte. A single compute shader asset can have multiple kernel entry points.</param>
+        /// <param name="x">Thread group size in the X dimension.</param>
+        /// <param name="y">Thread group size in the Y dimension.</param>
+        /// <param name="z">Thread group size in the Z dimension.</param>
         public static void GetKernelThreadGroupSizes(this UnityObjectRef<ComputeShader> computeShader, int kernelIndex, out uint x, out uint y, out uint z)
         {
             var context = new GetComputShaderThreadGroupSizesContext

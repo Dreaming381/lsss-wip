@@ -658,7 +658,7 @@ namespace Latios.Kinemation.Systems
                                     binInstanceOffset + workItemInstanceOffset + headerInstanceOffset,
                                     settings.BatchID.value,
                                     UseCrossfades(settings.Flags),
-                                    settings.FilterIndex < 0);
+                                    settings.FilterIndex >= 0);
 
                         headerInstanceOffset += header->NumInstances;
                         header                = header->Next;
@@ -681,7 +681,7 @@ namespace Latios.Kinemation.Systems
                                                  positionOffset,
                                                  settings.BatchID.value,
                                                  UseCrossfades(settings.Flags),
-                                                 settings.FilterIndex < 0);
+                                                 settings.FilterIndex >= 0);
 
                         headerInstanceOffset += header->NumInstances;
                         header                = header->Next;
@@ -800,7 +800,7 @@ namespace Latios.Kinemation.Systems
                         ulong mask                     = 1ul << bitIndex;
                         qword                         ^= mask;
                         int instanceIndex              = (i << 6) + bitIndex;
-                        var crossfade                  = complementCrossfades ? crossfades[i].ToComplement() : crossfades[i];
+                        var crossfade                  = complementCrossfades ? crossfades[instanceIndex].ToComplement() : crossfades[instanceIndex];
                         int visibilityIndex            = ((startIndex + instanceIndex) & 0x00ffffff) | (crossfade.raw << 24);
                         outputInstances[numInstances]  = visibilityIndex;
                         ++numInstances;
@@ -866,7 +866,7 @@ namespace Latios.Kinemation.Systems
                         int instanceIndex  = (i << 6) + bitIndex;
 
                         int visibilityIndex           = startIndex + instanceIndex;
-                        var crossfade                 = complementCrossfades ? crossfades[i].ToComplement() : crossfades[i];
+                        var crossfade                 = complementCrossfades ? crossfades[instanceIndex].ToComplement() : crossfades[instanceIndex];
                         outputInstances[numInstances] = (visibilityIndex & 0x00ffffff) | (crossfade.raw << 24);
 #if !LATIOS_TRANSFORMS_UNITY
                         outputSortingPosition[numInstances] = transforms[instanceIndex].position;

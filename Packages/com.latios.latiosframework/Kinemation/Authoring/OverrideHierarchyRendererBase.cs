@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
@@ -20,18 +21,59 @@ namespace Latios.Kinemation.Authoring
 
     public static partial class RenderingBakingTools
     {
-        static List<OverrideHierarchyRendererBase> s_overrideCache = new List<OverrideHierarchyRendererBase>();
+        static List<OverrideHierarchyRendererBase> s_overrideHCache = new List<OverrideHierarchyRendererBase>();
+        static List<OverrideMeshRendererBase>      s_overrideMCache = new List<OverrideMeshRendererBase>();
 
-        public static bool IsOverridden(IBaker baker, Renderer authoring)
+        /// <summary>
+        /// Test if the Renderer has an OverrideMeshRendererBase or OverrideHierarchyRendererBase that should apply to it
+        /// and is not in the ignore list.
+        /// </summary>
+        /// <param name="baker">The current baker processing an authoring component</param>
+        /// <param name="authoring">A renderer component that should be evaluated</param>
+        /// <param name="overridesToIgnore">An ignore list of OverrideMeshRendererBase and OverrideHierarchyRendererBase (other types in the list do nothing).
+        /// Use this to filter out overrides you already know about, such as one you are currently baking.</param>
+        /// <returns>Returns true if a valid override was found</returns>
+        public static bool IsOverridden(IBaker baker, Renderer authoring, Span<UnityObjectRef<MonoBehaviour> > overridesToIgnore = default)
         {
-            if (baker.GetComponent<OverrideMeshRendererBase>() != null)
+            if (overridesToIgnore.IsEmpty && baker.GetComponent<OverrideMeshRendererBase>(authoring) != null)
                 return true;
-
-            s_overrideCache.Clear();
-            baker.GetComponentsInParent(s_overrideCache);
-            foreach (var o in s_overrideCache)
+            else if (!overridesToIgnore.IsEmpty)
             {
-                if (o.ShouldOverride(baker, authoring))
+                s_overrideMCache.Clear();
+                baker.GetComponents(authoring, s_overrideMCache);
+                foreach (var o in s_overrideMCache)
+                {
+                    UnityObjectRef<MonoBehaviour> oref        = o;
+                    bool                          foundIgnore = false;
+                    foreach (var i in overridesToIgnore)
+                    {
+                        if (oref == i)
+                        {
+                            foundIgnore = true;
+                            break;
+                        }
+                    }
+                    if (!foundIgnore)
+                        return true;
+                }
+            }
+
+            s_overrideHCache.Clear();
+            baker.GetComponentsInParent(s_overrideHCache);
+            foreach (var o in s_overrideHCache)
+            {
+                UnityObjectRef<MonoBehaviour> oref        = o;
+                bool                          foundIgnore = false;
+                foreach (var i in overridesToIgnore)
+                {
+                    if (oref == i)
+                    {
+                        foundIgnore = true;
+                        break;
+                    }
+                }
+
+                if (!foundIgnore && o.ShouldOverride(baker, authoring))
                     return true;
             }
 

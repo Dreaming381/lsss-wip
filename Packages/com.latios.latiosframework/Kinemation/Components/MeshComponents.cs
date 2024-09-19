@@ -684,7 +684,8 @@ namespace Latios.Kinemation
     }
 
     /// <summary>
-    /// Combined skinning and blend shape blob data for a Mesh
+    /// Combined skinning, blend shape, and other deformation blob data for a Mesh.
+    /// Some values may not be present, depending on the MeshDeformDataFeatures specified during baking.
     /// </summary>
     public struct MeshDeformDataBlob
     {

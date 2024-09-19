@@ -4,10 +4,23 @@ using Unity.Mathematics;
 
 namespace Latios.Kinemation
 {
+    /// <summary>
+    /// A struct which can accumulate a root motion delta transform during sampling and blending, properly accounting for looping clips.
+    /// This must be initialized to default before use.
+    /// </summary>
     public struct RootMotionDeltaAccumulator  // Note: Must be initialized to default to work.
     {
         private TransformQvvs delta;
 
+        /// <summary>
+        /// Accumulate the weighted root transform after sampling a clip into a BufferPoseBlender.
+        /// </summary>
+        /// <param name="blender">A BufferPoseBlender which should contain the sampled root transform at index 0. Index 0 is cleared after reading.</param>
+        /// <param name="clip">The clip that was sampled, and from which more samples can be taken.</param>
+        /// <param name="previousClipTime">The previous clip time, obtained via LoopToClipTime(), prior to the current sample in index 0.</param>
+        /// <param name="loopCycleTransitions">The signed number of times the clip "wrapped" between the previous time and the current time.
+        /// Backwards playback will result in negative values. Use SkeletonClip.CountLoopCycleTransitions() to obtain this value.</param>
+        /// <param name="keyframeInterpolationMode">The interpolation mode used when sampling the clip.</param>
         public void Accumulate(ref BufferPoseBlender blender,
                                ref SkeletonClip clip,
                                float previousClipTime,
@@ -21,6 +34,15 @@ namespace Latios.Kinemation
             Accumulate(in normalizedSampledRoot, math.asfloat(sampledRoot.worldIndex), ref clip, previousClipTime, loopCycleTransitions, keyframeInterpolationMode);
         }
 
+        /// <summary>
+        /// Accumulate the weighted root transform after sampling a clip into an optimized skeleton.
+        /// </summary>
+        /// <param name="skeleton">An optimized skeleton which should contain the sampled root transform at bone index 0. The bone is cleared after reading.</param>
+        /// <param name="clip">The clip that was sampled, and from which more samples can be taken.</param>
+        /// <param name="previousClipTime">The previous clip time, obtained via LoopToClipTime(), prior to the current sample in index 0.</param>
+        /// <param name="loopCycleTransitions">The signed number of times the clip "wrapped" between the previous time and the current time.
+        /// Backwards playback will result in negative values. Use SkeletonClip.CountLoopCycleTransitions() to obtain this value.</param>
+        /// <param name="keyframeInterpolationMode">The interpolation mode used when sampling the clip.</param>
         public void Accumulate(ref OptimizedSkeletonAspect skeleton,
                                ref SkeletonClip clip,
                                float previousClipTime,
@@ -35,6 +57,14 @@ namespace Latios.Kinemation
             Accumulate(in normalizedSampledRoot, math.asfloat(sampledRoot.worldIndex), ref clip, previousClipTime, loopCycleTransitions, keyframeInterpolationMode);
         }
 
+        /// <summary>
+        /// Sample and accumulate the root transform using the specified clip.
+        /// </summary>
+        /// <param name="clip">The clip to sample</param>
+        /// <param name="currentLoopingTime">The current time in the clip, including loop multiples of the clip's duration</param>
+        /// <param name="previousLoopingTime">The previous time in the clip, including loop multiples of the clip's duration</param>
+        /// <param name="weight">The weight factor that should be applied for this sample when blending the root delta</param>
+        /// <param name="keyframeInterpolationMode">The interpolation mode to use when sampling the clip</param>
         public void SampleAccumulate(ref SkeletonClip clip,
                                      float currentLoopingTime,
                                      float previousLoopingTime,
@@ -102,7 +132,13 @@ namespace Latios.Kinemation
             }
         }
 
+        /// <summary>
+        /// Gets the raw accumulated root motion transform delta
+        /// </summary>
         public TransformQvvs rawDelta => delta;
+        /// <summary>
+        /// Gets the normalized accumulated root motion transform delta
+        /// </summary>
         public TransformQvvs normalizedDelta
         {
             get
@@ -114,8 +150,17 @@ namespace Latios.Kinemation
         }
     }
 
+    /// <summary>
+    /// Contains methods to apply "mathematical expressions" between bone transforms for working with transform deltas
+    /// </summary>
     public static class RootMotionTools
     {
+        /// <summary>
+        /// Gets a transform delta from the previous transform to the current transform. Only valid for normalized transforms.
+        /// </summary>
+        /// <param name="current">The current transform</param>
+        /// <param name="previous">The previous transform</param>
+        /// <returns>Effectively result = current - previous, using appropriate "difference" metrics for each attribute of the transform</returns>
         public static TransformQvvs DeltaBetween(in TransformQvvs current, in TransformQvvs previous)
         {
             return new TransformQvvs
@@ -128,6 +173,12 @@ namespace Latios.Kinemation
             };
         }
 
+        /// <summary>
+        /// Applies a weight to all attributes of the transform
+        /// </summary>
+        /// <param name="bone">The transform to apply weights to</param>
+        /// <param name="weight">The weight to scale everything by</param>
+        /// <returns>The weighted transform</returns>
         public static TransformQvvs ApplyWeight(TransformQvvs bone, float weight)
         {
             bone.position       *= weight;
@@ -138,6 +189,13 @@ namespace Latios.Kinemation
             return bone;
         }
 
+        /// <summary>
+        /// Adds two weighted delta transforms together. Use this for combining deltas between different clips.
+        /// This operation is commutative.
+        /// </summary>
+        /// <param name="deltaA">The first delta</param>
+        /// <param name="deltaB">The second delta</param>
+        /// <returns>A combined delta that is effectively the sum of its parts</returns>
         public static TransformQvvs AddDeltas(in TransformQvvs deltaA, in TransformQvvs deltaB)
         {
             return new TransformQvvs
@@ -150,6 +208,13 @@ namespace Latios.Kinemation
             };
         }
 
+        /// <summary>
+        /// Sequences two delta transforms together. Use this for dealing with discontinuities when sampling deltas in a single clip such as wrapping,
+        /// or when the time spans multiple adjacent clips played in sequence. Order matters, and the transforms must be normalized.
+        /// </summary>
+        /// <param name="deltaFirst">The first delta acquired in the sequence</param>
+        /// <param name="deltaSecond">The second delta acquired in the sequence</param>
+        /// <returns>An overall delta that would result from playing the first delta, and then the second</returns>
         public static TransformQvvs ConcatenateDeltas(in TransformQvvs deltaFirst, in TransformQvvs deltaSecond)
         {
             return new TransformQvvs

@@ -12,7 +12,7 @@ using UnityEngine.Scripting;
 namespace Latios.Transforms.Compatibility.UnityNetCode
 {
     /// <summary>
-    /// The default serialization strategy for the <see cref="Unity.Transforms.LocalTransform"/> components provided by the NetCode package.
+    /// The default serialization strategy for the <see cref="WorldTransform"/> components.
     /// </summary>
     [Preserve]
     [GhostComponentVariation(typeof(Transforms.WorldTransform), "Transform QVVS - 3D")]
@@ -49,7 +49,7 @@ namespace Latios.Transforms.Compatibility.UnityNetCode
 
     /// <summary>
     /// The default prediction error <see cref="SmoothingAction"/> function for the <see cref="WorldTransform"/> component.
-    /// Supports the user data that lets you customize the clamping and snapping of the worldTransform component (any time the worldTransform prediction error is too large).
+    /// Supports the user data that lets you customize the clamping and snapping of the WorldTransform component (any time the worldTransform prediction error is too large).
     /// </summary>
     [BurstCompile]
     public unsafe struct DefaultWorldTransformSmoothingAction

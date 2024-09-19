@@ -36,7 +36,8 @@ namespace Latios.Kinemation
         /// <param name="isLowRes">Set to true if this entity represents the low-res LOD. Always set to false when using multi-LOD filtering.</param>
         public void SetFromHiResOpacity(float opacity, bool isLowRes)
         {
-            int snorm  = (int)math.round(opacity * 127f);
+            opacity    = math.max(opacity, math.EPSILON);
+            int snorm  = (int)math.ceil(opacity * 127f);
             snorm      = math.select(snorm, -snorm, isLowRes);
             snorm     &= 0xff;
             raw        = (byte)snorm;
@@ -101,6 +102,10 @@ namespace Latios.Kinemation
     /// </summary>
     public struct SpeedTreeCrossfadeTag : IComponentData { }
 
+    /// <summary>
+    /// Specifies the height and screen percentages for a 2-LOD entity with the UseMmiRangeLodTag.
+    /// This is the best choice for high entity counts, such as projectiles.
+    /// </summary>
     public struct MmiRange2LodSelect : IComponentData
     {
         public float height;
@@ -108,6 +113,9 @@ namespace Latios.Kinemation
         public half  fullLod1ScreenHeightFraction;
     }
 
+    /// <summary>
+    /// Static class with utility methods for LOD evaluation (mostly extension methods)
+    /// </summary>
     public static class LodUtilities
     {
         const uint kLodMaskInMmi = 0xf << 27;

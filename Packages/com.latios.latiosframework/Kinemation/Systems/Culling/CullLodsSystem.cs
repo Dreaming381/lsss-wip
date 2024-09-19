@@ -215,7 +215,7 @@ namespace Latios.Kinemation.Systems
                             if (computedParams.worldHeight < minMargin)
                             {
                                 // We are crossfading with a lower resolution LOD
-                                // The fromula is the same for both SpeedTree and dithered, meaning SpeedTree only uses half the snorm space
+                                // The formula is the same for both SpeedTree and dithered, meaning SpeedTree only uses half the snorm space
                                 LodCrossfade newCrossfade = default;
                                 float        opacity      = math.unlerp(computedParams.minPercent, minMargin, computedParams.worldHeight);
                                 newCrossfade.SetFromHiResOpacity(opacity, false);

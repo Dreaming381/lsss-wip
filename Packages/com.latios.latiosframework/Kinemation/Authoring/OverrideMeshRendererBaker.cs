@@ -166,6 +166,9 @@ namespace Latios.Kinemation.Authoring
         public const byte kDefaultLodMask = 0xff;
     }
 
+    /// <summary>
+    /// Various rendering baking helper methods
+    /// </summary>
     public static partial class RenderingBakingTools
     {
         /// <summary>
