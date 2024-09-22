@@ -64,6 +64,21 @@ namespace Latios
             }
         }
 
+        /// <summary>
+        /// Obtains the managed LatiosWorld. Not Burst-compatible.
+        /// </summary>
+        public LatiosWorld latiosWorld
+        {
+            get
+            {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+                if (!LatiosWorldUnmanagedTracking.CheckHandle(m_index, m_version))
+                    throw new System.InvalidOperationException("LatiosWorldUnmanaged is uninitialized. You must fetch a valid instance from SystemState.");
+#endif
+                return m_impl->m_worldUnmanaged.EntityManager.World as LatiosWorld;
+            }
+        }
+
         #region blackboards
         /// <summary>
         /// The worldBlackboardEntity associated with this world

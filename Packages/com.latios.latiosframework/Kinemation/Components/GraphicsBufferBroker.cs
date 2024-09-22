@@ -49,7 +49,7 @@ namespace Latios.Kinemation
         public static GraphicsBufferUnmanaged GetMetaUint4UploadBuffer(this GraphicsBufferBroker broker, uint requiredNumUint4s)
         {
             requiredNumUint4s = math.max(requiredNumUint4s, kMinUploadMetaSize);
-            return broker.GetUploadBuffer(s_ids.Data.metaUint3UploadID, requiredNumUint4s * 4);
+            return broker.GetUploadBuffer(s_ids.Data.metaUint4UploadID, requiredNumUint4s * 4);
         }
         #endregion
 

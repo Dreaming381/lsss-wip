@@ -26,10 +26,10 @@ namespace Latios.Kinemation.Systems
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_verticesUploadShader        = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("UploadVertices");
-            m_transformUnionsUploadShader = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("UploadTransformUnions");
-            m_blendShapesUploadShader     = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("UploadBlendShapes");
-            m_bytesUploadShader           = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("UploadBytes");
+            m_verticesUploadShader        = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadVertices");
+            m_transformUnionsUploadShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadTransformUnions");
+            m_blendShapesUploadShader     = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadBlendShapes");
+            m_bytesUploadShader           = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadBytes");
 
             _src                = UnityEngine.Shader.PropertyToID("_src");
             _dst                = UnityEngine.Shader.PropertyToID("_dst");

@@ -97,8 +97,8 @@ namespace Latios.Calligraphics.Rendering.Systems
                          .WithAnyEnabled<RenderGlyph, RenderGlyphMask>(true)
                          .Without<GpuResidentAllocation>().Build();
 
-            m_uploadGlyphsShader  = Resources.Load<ComputeShader>("UploadGlyphs");
-            m_uploadMasksShader   = Resources.Load<ComputeShader>("UploadBytes");
+            m_uploadGlyphsShader  = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("UploadGlyphs");
+            m_uploadMasksShader   = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("UploadBytes");
             _src                  = Shader.PropertyToID("_src");
             _dst                  = Shader.PropertyToID("_dst");
             _startOffset          = Shader.PropertyToID("_startOffset");

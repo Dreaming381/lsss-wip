@@ -39,7 +39,7 @@ namespace Latios.Kinemation.Systems
                       .With<ChunkPerDispatchCullingMask>(true, true).With<ChunkPerFrameCullingMask>(true, true)
                       .Without<DisableComputeShaderProcessingTag>().Build();
 
-            m_dispatchShader = Resources.Load<ComputeShader>("ShapeBlending");
+            m_dispatchShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("ShapeBlending");
 
             _srcVertices                   = Shader.PropertyToID("_srcVertices");
             _dstVertices                   = Shader.PropertyToID("_dstVertices");

@@ -178,7 +178,7 @@ namespace Latios.Unika
             for (int i = 0; i < scriptCount; i++)
             {
                 var header = scripts[i + 1];
-                var hash   = hashes[header.header.instanceId];
+                var hash   = hashes[header.header.scriptType];
                 if (!ScriptTypeInfoManager.TryGetRuntimeIdAndMask(hash, out var idAndMask))
                     throw new System.InvalidOperationException(
                         "Unika serialized stable hash was not found in this runtime. Did you fail to load an assembly? Or perhaps the runtime representation does not match the baked representation?");

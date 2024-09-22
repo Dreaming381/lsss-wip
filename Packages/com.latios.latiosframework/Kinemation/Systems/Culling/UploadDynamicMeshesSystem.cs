@@ -37,7 +37,7 @@ namespace Latios.Kinemation.Systems
             m_query = state.Fluent().With<DynamicMeshVertex>(true).With<DynamicMeshState>(true).With<BoundMesh>(true)
                       .With<ChunkPerDispatchCullingMask>(true, true).With<ChunkPerFrameCullingMask>(true, true).Build();
 
-            m_uploadShader                 = Resources.Load<ComputeShader>("UploadVertices");
+            m_uploadShader                 = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("UploadVertices");
             _src                           = Shader.PropertyToID("_src");
             _dst                           = Shader.PropertyToID("_dst");
             _startOffset                   = Shader.PropertyToID("_startOffset");
@@ -49,6 +49,14 @@ namespace Latios.Kinemation.Systems
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state) => m_data.DoUpdate(ref state, ref this);
+
+        public void OnDestroy(ref SystemState state)
+        {
+            GraphicsBuffer n = null;
+            Shader.SetGlobalBuffer(_DeformedMeshData,              n);
+            Shader.SetGlobalBuffer(_PreviousFrameDeformedMeshData, n);
+            Shader.SetGlobalBuffer(_latiosDeformBuffer,            n);
+        }
 
         public CollectState Collect(ref SystemState state)
         {

@@ -54,7 +54,7 @@ namespace Latios.Kinemation.Systems
                 (int)m_persistentInstanceDataSize / 4,
                 4);
             m_GPUPersistentInstanceBufferHandle = m_GPUPersistentInstanceData.ToManaged().bufferHandle;
-            m_GPUUploader                       = new LatiosSparseUploader(m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
+            m_GPUUploader                       = new LatiosSparseUploader(latiosWorld.latiosWorld, m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
         }
 
         // Todo: Get rid of the hard system dependencies.

@@ -611,9 +611,10 @@ namespace Latios.Kinemation.SparseUpload
         /// <summary>
         /// Constructs a new sparse uploader with the specified buffer as the target.
         /// </summary>
+        /// <param name="latiosWorld">The LatiosWorld (needed for GC preservation bug workaround)</param>
         /// <param name="destinationBuffer">The target buffer to write uploads into.</param>
         /// <param name="bufferChunkSize">The upload buffer chunk size.</param>
-        public LatiosSparseUploader(GraphicsBufferUnmanaged destinationBuffer, int bufferChunkSize = 16 * 1024 * 1024)
+        public LatiosSparseUploader(LatiosWorld latiosWorld, GraphicsBufferUnmanaged destinationBuffer, int bufferChunkSize = 16 * 1024 * 1024)
         {
             m_BufferChunkSize = bufferChunkSize;
 
@@ -630,7 +631,7 @@ namespace Latios.Kinemation.SparseUpload
             m_ThreadData->m_NumBuffers = 0;
             m_ThreadData->m_CurrBuffer = 0;
 
-            m_SparseUploaderShader = Resources.Load<ComputeShader>("LatiosSparseUploader");
+            m_SparseUploaderShader = latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("LatiosSparseUploader");
             m_CopyKernelIndex      = m_SparseUploaderShader.Value.FindKernel("CopyKernel");
             m_ReplaceKernelIndex   = m_SparseUploaderShader.Value.FindKernel("ReplaceKernel");
 

@@ -179,7 +179,7 @@ namespace Latios.Kinemation
             }
             else
             {
-                listIndex = handles.Data.freeList[handles.Data.versions.Length - 1];
+                listIndex = handles.Data.freeList[handles.Data.freeList.Length - 1];
                 handles.Data.freeList.Length--;
                 handles.Data.versions[listIndex]++;
                 appendToList = false;
@@ -205,6 +205,8 @@ namespace Latios.Kinemation
 
         internal static void DisposeGraphicsBuffer(GraphicsBufferUnmanaged unmanaged)
         {
+            handles.Data.versions[unmanaged.index]++;
+            handles.Data.freeList.Add(unmanaged.index);
             var context = new GraphicsBufferDisposeContext { listIndex = unmanaged.index };
             DoManagedExecute((IntPtr)(&context), 2);
         }

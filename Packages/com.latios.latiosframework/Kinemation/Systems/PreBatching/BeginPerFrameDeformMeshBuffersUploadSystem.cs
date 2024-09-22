@@ -255,7 +255,10 @@ namespace Latios.Kinemation.Systems
             {
                 uint size = (uint)commands[index].blob.Value.undeformedVertices.Length;
                 if (size == 0)
+                {
+                    mappedMeta[index] = uint3.zero;
                     return;
+                }
                 mappedMeta[index] = new uint3(prefixSums[index], commands[index].verticesIndex, size);
                 var blobData      = commands[index].blob.Value.undeformedVertices.GetUnsafePtr();
                 var subArray      = mappedVertices.GetSubArray((int)prefixSums[index], (int)size);
@@ -275,7 +278,10 @@ namespace Latios.Kinemation.Systems
             {
                 uint size = (uint)commands[index].blob.Value.skinningData.boneWeights.Length;
                 if (size == 0)
+                {
+                    mappedMeta[index] = uint3.zero;
                     return;
+                }
                 mappedMeta[index] = new uint3(prefixSums[index], commands[index].weightsIndex, size);
                 var blobData      = commands[index].blob.Value.skinningData.boneWeights.GetUnsafePtr();
                 var subArray      = mappedWeights.GetSubArray((int)prefixSums[index], (int)size);
@@ -296,7 +302,10 @@ namespace Latios.Kinemation.Systems
                 ref var skinningData = ref commands[index].blob.Value.skinningData;
                 uint    size         = (uint)(skinningData.bindPoses.Length + skinningData.bindPosesDQ.Length);
                 if (size == 0)
+                {
+                    mappedMeta[index] = uint3.zero;
                     return;
+                }
                 mappedMeta[index] = new uint3(prefixSums[index], commands[index].bindPosesIndex, size);
                 var blobData      = skinningData.bindPoses.GetUnsafePtr();
                 var subArray      = mappedBindPoses.GetSubArray((int)prefixSums[index], (int)size);
@@ -320,7 +329,10 @@ namespace Latios.Kinemation.Systems
             {
                 uint size = (uint)commands[index].blob.Value.blendShapesData.gpuData.Length;
                 if (size == 0)
+                {
+                    mappedMeta[index] = uint3.zero;
                     return;
+                }
                 mappedMeta[index] = new uint3(prefixSums[index], commands[index].blendShapesIndex, size);
                 var blobData      = commands[index].blob.Value.blendShapesData.gpuData.GetUnsafePtr();
                 var subArray      = mappedBlendShapes.GetSubArray((int)prefixSums[index], (int)size);

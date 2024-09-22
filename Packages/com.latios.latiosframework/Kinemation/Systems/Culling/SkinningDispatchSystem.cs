@@ -67,6 +67,8 @@ namespace Latios.Kinemation.Systems
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
+            m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+
             m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
             m_worldTransformLookup = new WorldTransformReadOnlyAspect.Lookup(ref state);
 
@@ -78,9 +80,9 @@ namespace Latios.Kinemation.Systems
             state.RequireForUpdate(m_skinnedMeshQuery);
 
             m_batchSkinningKernelIndex = UnityEngine.SystemInfo.maxComputeWorkGroupSizeX < 1024 ? 1 : 0;
-            m_batchSkinningShader      = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("BatchSkinning");
-            m_expansionShader          = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("SkeletonMeshExpansion");
-            m_meshSkinningShader       = UnityEngine.Resources.Load<UnityEngine.ComputeShader>("MeshSkinning");
+            m_batchSkinningShader      = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("BatchSkinning");
+            m_expansionShader          = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("SkeletonMeshExpansion");
+            m_meshSkinningShader       = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("MeshSkinning");
 
             // Compute
             _dstTransforms          = UnityEngine.Shader.PropertyToID("_dstTransforms");

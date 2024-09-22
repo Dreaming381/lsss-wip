@@ -466,7 +466,7 @@ namespace Latios.Kinemation.Authoring.Systems
                         boneWeightStarts[batchIndex] = (uint)batchHeaderIndex;
                     }
                 }
-                else
+                else if (bindPoses.Length > 0)
                 {
                     // We still need to compute the bone radial offsets, which means we still need the vertices.
                     context.vector3Cache.ResizeUninitialized(mesh.vertexCount);
