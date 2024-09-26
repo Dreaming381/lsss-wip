@@ -24,6 +24,10 @@ namespace Latios.Kinemation.Authoring
         [SerializeField, HideInInspector] internal List<OptimizedBoneDescription> m_bones;
         [SerializeField] internal bool                                            m_validateDuringBaking = true;
 
+        public int length => m_bones.Count;
+
+        public OptimizedBoneDescription this[int index] => m_bones[index];
+
         private void Awake()
         {
             Generate();
@@ -83,6 +87,8 @@ namespace Latios.Kinemation.Authoring
                 bone.reversePath = $"{bone.shortName}/{parent.reversePath}";
                 m_bones[i]       = bone;
             }
+
+            shadow.Dispose();
         }
     }
 
