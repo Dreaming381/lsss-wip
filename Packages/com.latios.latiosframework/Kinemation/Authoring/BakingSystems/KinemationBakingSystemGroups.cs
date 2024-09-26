@@ -99,6 +99,7 @@ namespace Latios.Kinemation.Authoring.Systems
             EnableSystemSorting = false;
 
             GetOrCreateAndAddSystem<ResolveSkeletonAndSkinnedMeshBlobsSystem>();  // async
+            GetOrCreateAndAddSystem<ValidateOptimizedSkeletonCacheSystem>();  // async
         }
     }
 }

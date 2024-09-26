@@ -54,6 +54,8 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
             shadowHierarchy.SetActive(false);
         }
 
+        public int boneCount => parentIndices.Length;
+
         // -1 for no parent
         public short GetBoneParent(int boneIndex) => parentIndices[boneIndex];
 
@@ -121,6 +123,8 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
             shadowHierarchy.DestroySafelyFromAnywhere();
             parentIndices.Dispose();
         }
+
+        internal Transform GetShadowTransformForBone(int boneIndex) => taa[boneIndex];
 
         void SampleClip(ref UnsafeList<TransformQvvs>                          boneTransforms,
                         AnimationClip clip,

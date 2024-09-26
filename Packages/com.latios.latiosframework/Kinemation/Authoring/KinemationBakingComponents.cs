@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Latios.Authoring;
+using Latios.Transforms;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Entities.Exposed;
@@ -11,6 +12,7 @@ using UnityEngine;
 namespace Latios.Kinemation.Authoring
 {
     #region Kinemation Smart Blobber Data
+    [InternalBufferCapacity(1)]
     [BakingType]
     internal struct AutoBindSkinnedMeshToSkeleton : IBufferElementData
     {
@@ -52,6 +54,7 @@ namespace Latios.Kinemation.Authoring
         public GCHandle                   keepAliveHandle;
     }
 
+    [InternalBufferCapacity(0)]
     [BakingType]
     internal struct OptimizedSkeletonExportedBone : IBufferElementData
     {
@@ -59,6 +62,7 @@ namespace Latios.Kinemation.Authoring
         public int    boneIndex;
     }
 
+    [InternalBufferCapacity(0)]
     [TemporaryBakingType]
     internal struct ExportedBoneGameObjectRef : IBufferElementData
     {
@@ -77,10 +81,28 @@ namespace Latios.Kinemation.Authoring
         public SmartBlobberHandle<MeshDeformDataBlob> blobHandle;
     }
 
+    [InternalBufferCapacity(0)]
     [TemporaryBakingType]
     internal struct ClipEventToBake : IBufferElementData
     {
         public ClipEvent clipEvent;
+    }
+
+    [InternalBufferCapacity(0)]
+    [BakingType]
+    internal struct OptimizedSkeletonStructureCacheBoneValidation : IBufferElementData
+    {
+        public TransformQvvs localTransform;
+        public int           parentIndex;
+        public int           firstPathByteIndex;
+        public int           pathByteCount;
+    }
+
+    [InternalBufferCapacity(0)]
+    [BakingType]
+    internal struct OptimizedSkeletonStructureCachePathValidation : IBufferElementData
+    {
+        public byte b;
     }
     #endregion
 
