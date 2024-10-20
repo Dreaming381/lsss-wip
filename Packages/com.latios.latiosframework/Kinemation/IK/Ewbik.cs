@@ -40,9 +40,11 @@ namespace Latios.Kinemation
             internal Span<float3> targetPoints;
             internal Span<float>  weights;
             internal int          boneIterations;
+            internal int          skeletonIterations;
 
             // Always 1 or greater
             public int iterationsSoFarForThisBone => boneIterations;
+            public int iterationsCompletedForSkeleton => skeletonIterations;
 
             public float MeanSquareDistanceFrom(TransformQvvs deltaTransformToApply)
             {
@@ -83,9 +85,10 @@ namespace Latios.Kinemation
                     {
                         count++;
                     }
-                    targetCountsByBone[i]                         += count;
-                    var optimizedBone                              = skeleton.bones[i];
-                    targetCountsByBone[optimizedBone.parentIndex] += targetCountsByBone[i];
+                    targetCountsByBone[i] += count;
+                    var optimizedBone      = skeleton.bones[i];
+                    if (optimizedBone.index > 0)
+                        targetCountsByBone[optimizedBone.parentIndex] += targetCountsByBone[i];
                     if (constraintSolver.IsFixedToParent(optimizedBone))
                         targetCountsByBone[i] = 0;
                 }
@@ -107,6 +110,7 @@ namespace Latios.Kinemation
                             boneIndex          = i
                         };
                         runningStart += targetCountsByBone[i];
+                        solveListLength++;
                     }
                 }
                 solveList            = solveList.Slice(0, solveListLength);
@@ -186,7 +190,7 @@ namespace Latios.Kinemation
                     do
                     {
                         int pairCount = 0;
-                        for (int i = 0; i > boneTargetIndices.Length; i++)
+                        for (int i = 0; i < boneTargetIndices.Length; i++)
                         {
                             ref var target                  = ref targets[boneTargetIndices[i]];
                             var     targetedBoneTransform   = skeleton.bones[target.boneIndex].rootTransform;
@@ -238,16 +242,18 @@ namespace Latios.Kinemation
                         boneSolveIterations++;
                         var boneSolveState = new BoneSolveState
                         {
-                            currentPoints  = currentPoints.Slice(0, pairCount),
-                            targetPoints   = targetPoints.Slice(0, pairCount),
-                            weights        = weights.Slice(0, pairCount),
-                            boneIterations = boneSolveIterations
+                            currentPoints      = currentPoints.Slice(0, pairCount),
+                            targetPoints       = targetPoints.Slice(0, pairCount),
+                            weights            = weights.Slice(0, pairCount),
+                            boneIterations     = boneSolveIterations,
+                            skeletonIterations = skeletonIterations,
                         };
                         var proposedDelta = Qcp.Solve(boneSolveState.currentPoints, boneSolveState.targetPoints, boneSolveState.weights, useTranslation);
                         repeat            = constraintSolver.ApplyConstraintsToBone(bone, in proposedDelta, in boneSolveState);
                     }
                     while (repeat);
                 }
+                skeletonIterations++;
             }
         }
 

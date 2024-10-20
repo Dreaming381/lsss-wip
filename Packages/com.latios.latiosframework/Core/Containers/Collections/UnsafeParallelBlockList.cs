@@ -577,6 +577,11 @@ namespace Latios.Unsafe
                 return ref UnsafeUtility.AsRef<T>(m_readAddress);
             }
 
+            /// <summary>
+            /// Returns the current element's raw address within the block list.
+            /// </summary>
+            public void* GetCurrentPtr() => m_readAddress;
+
             internal Enumerator GetNextIndexEnumerator()
             {
                 return new Enumerator(m_perThreadBlockList + 1, m_elementSize, m_elementsPerBlock);
@@ -636,6 +641,11 @@ namespace Latios.Unsafe
             /// <typeparam name="T">It is assumed the size of T is the same as what was passed into elementSize during construction</typeparam>
             /// <returns>A ref of the element stored, reinterpreted with the strong type</returns>
             public ref T GetCurrentAsRef<T>() where T : unmanaged => ref m_enumerator.GetCurrentAsRef<T>();
+
+            /// <summary>
+            /// Returns the current element's raw address within the block list.
+            /// </summary>
+            public void* GetCurrentPtr() => m_enumerator.GetCurrentPtr();
 
             // Schedule for 128 iterations
             //[BurstCompile]
@@ -709,6 +719,7 @@ namespace Latios.Unsafe
             var elementsInLastBlock        = blockList->elementCount % m_elementsPerBlock;
             var elementsStillNeededInBlock = math.select(m_elementsPerBlock - elementsInLastBlock, 0, elementsInLastBlock == 0);
             var elementsInOtherLastBlock   = otherBlockList->elementCount % m_elementsPerBlock;
+            elementsInOtherLastBlock       = math.select(elementsInOtherLastBlock, m_elementsPerBlock, elementsInOtherLastBlock == 0);
             if (elementsInOtherLastBlock <= elementsStillNeededInBlock)
             {
                 var otherBlock    = otherBlockList->blocks[otherBlockList->blocks.Length - 1];
@@ -717,6 +728,7 @@ namespace Latios.Unsafe
                 var dst           = blockToAppend.ptr + elementsInLastBlock * m_elementSize;
                 UnsafeUtility.MemCpy(dst, src, elementsInOtherLastBlock * m_elementSize);
                 AllocatorManager.Free(otherAllocator, otherBlock.ptr, m_blockSize);
+                elementsInLastBlock        += elementsInOtherLastBlock;
                 elementsStillNeededInBlock -= elementsInOtherLastBlock;
                 otherBlockList->blocks.Length--;
                 blockList->nextWriteAddress += elementsInOtherLastBlock * m_elementSize;

@@ -42,7 +42,7 @@ namespace Latios.Kinemation.Authoring.Systems
 
             new ClearJob().ScheduleParallel();
 
-            var ecbAdd = new EntityCommandBuffer(Allocator.TempJob);
+            var ecbAdd = new EntityCommandBuffer(state.WorldUpdateAllocator);
             new ApplySkeletonsToBonesJob
             {
                 componentTypesToAdd             = componentsToAdd,
@@ -54,16 +54,13 @@ namespace Latios.Kinemation.Authoring.Systems
                 localTransformLookup            = m_localTransformLookup
             }.ScheduleParallel();
 
-            var ecbRemove                        = new EntityCommandBuffer(Allocator.TempJob);
+            var ecbRemove                        = new EntityCommandBuffer(state.WorldUpdateAllocator);
             new RemoveDisconnectedBonesJob { ecb = ecbRemove.AsParallelWriter(), componentTypesToRemove = componentsToAdd }.ScheduleParallel();
 
             state.CompleteDependency();
 
             ecbAdd.Playback(state.EntityManager);
             ecbRemove.Playback(state.EntityManager);
-
-            ecbAdd.Dispose();
-            ecbRemove.Dispose();
         }
 
         [WithOptions(EntityQueryOptions.IncludeDisabledEntities | EntityQueryOptions.IncludePrefab)]

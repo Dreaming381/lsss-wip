@@ -22,7 +22,7 @@ namespace Latios.Unika
 
         protected override void OnUpdate()
         {
-            var blobTarget = new NativeReference<UnikaSerializedTypeIds>(Allocator.TempJob);
+            var blobTarget = new NativeReference<UnikaSerializedTypeIds>(WorldUpdateAllocator);
             Dependency     = new BuildBlobJob
             {
                 blobTarget = blobTarget,
@@ -33,7 +33,6 @@ namespace Latios.Unika
             {
                 blobTarget = blobTarget
             }.ScheduleParallel(Dependency);
-            Dependency = blobTarget.Dispose(Dependency);
             Dependency = new SerializeJob().ScheduleParallel(Dependency);
         }
 

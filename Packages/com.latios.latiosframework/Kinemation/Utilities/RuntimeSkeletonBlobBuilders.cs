@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Latios.Authoring;
 using Latios.Kinemation.Authoring;
 using Latios.Transforms;
 using Unity.Burst;

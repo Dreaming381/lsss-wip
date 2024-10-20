@@ -20,7 +20,7 @@ namespace Latios.Unika.Authoring.Systems
         {
             var count = QueryBuilder().WithAll<BakedScriptMetadata>().WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)
                         .Build().CalculateEntityCountWithoutFiltering();
-            var hashmap = new NativeParallelMultiHashMap<Entity, Entity>(count, Allocator.TempJob);
+            var hashmap = new NativeParallelMultiHashMap<Entity, Entity>(count, state.WorldUpdateAllocator);
 
             new FindJob { hashmap = hashmap.AsParallelWriter() }.ScheduleParallel();
             new MergeJob
@@ -29,8 +29,6 @@ namespace Latios.Unika.Authoring.Systems
                 metadataLookup = GetComponentLookup<BakedScriptMetadata>(true),
                 bytesLookup    = GetBufferLookup<BakedScriptByte>(true)
             }.ScheduleParallel();
-
-            state.Dependency = hashmap.Dispose(state.Dependency);
         }
 
         [WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)]
