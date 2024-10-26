@@ -77,6 +77,7 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<LatiosLightProbeUpdateSystem>();
             GetOrCreateAndAddUnmanagedSystem<CombineExposedBonesSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateSkinnedPostProcessMatrixBoundsSystem>();
+            GetOrCreateAndAddManagedSystem<KinemationCustomGraphicsSuperSystem>();
 #if UNITY_EDITOR
             GetOrCreateAndAddManagedSystem<KinemationCullingPassSystemExposerSuperSystem>();
 #endif
@@ -124,7 +125,7 @@ namespace Latios.Kinemation.Systems
 
     #region Custom Graphics SuperSystems
     /// <summary>
-    /// This super system optionally exists based on the existence of EnableCustomGraphicsTag
+    /// This super system optionally updates based on the existence of EnableCustomGraphicsTag
     /// on the worldBlackboardEntity. It is responsible for making ECS data accessible to VFX Graph
     /// or other operations which must happen before culling.
     /// </summary>

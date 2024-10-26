@@ -586,8 +586,12 @@ namespace Latios.Kinemation.Systems
             m_cullPassIndexThisFrame++;
 #if !UNITY_6000_0_OR_NEWER
             m_dispatchPassIndexThisFrame++;
+            if (m_dispatchPassIndexThisFrame > 1024)
+            {
+                JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
+                m_ThreadLocalAllocators.Rewind();
+            }
 #endif
-
             return finalize.finalHandle;
         }
 
@@ -602,6 +606,11 @@ namespace Latios.Kinemation.Systems
             m_cullingDispatchSuperSystem.Update();
             m_cullPassIndexForLastDispatch = m_cullPassIndexThisFrame;
             m_dispatchPassIndexThisFrame++;
+            if (m_dispatchPassIndexThisFrame > 1024)
+            {
+                JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
+                m_ThreadLocalAllocators.Rewind();
+            }
         }
 #endif
         #endregion

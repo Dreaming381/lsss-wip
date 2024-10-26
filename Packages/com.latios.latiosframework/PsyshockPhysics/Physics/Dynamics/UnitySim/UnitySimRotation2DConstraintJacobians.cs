@@ -7,9 +7,12 @@ namespace Latios.Psyshock
 {
     public static partial class UnitySim
     {
+        /// <summary>
+        /// A struct which contains a solver-optimized form of a 2D rotation constraint.
+        /// </summary>
         public struct Rotation2DConstraintJacobianParameters
         {
-            public quaternion inertialPoseAInInertialPoseBSpace;
+            public quaternion inertialRotationAInInertialPoseBSpace;
 
             public float3 axisAInInertialPoseASpace;
             public float3 axisBInInertialPoseBSpace;
@@ -22,6 +25,21 @@ namespace Latios.Psyshock
             public float damping;
         }
 
+        /// <summary>
+        /// Constructs a 2D rotaton constraint
+        /// </summary>
+        /// <param name="parameters">The resulting constraint data</param>
+        /// <param name="inertialPoseWorldRotationA">The current world rotation of the inertia tensor diagonal of the first body A</param>
+        /// <param name="jointRotationInInertialPoseASpace">The inertial-pose relative rotation of the "joint" in A,
+        /// which when the constraint is in the rest pose, the world-space version of rotation should match the world-space counterpart in B</param>
+        /// <param name="inertialPoseWorldRotationB">The current world rotation of the inertia tensor diagonal of the second body B</param>
+        /// <param name="jointRotationInInertialPoseBSpace">The inertial-pose relative rotation of the "joint" in B,
+        /// which when the constraint is in the rest pose, the world-space version of rotation should match the world-space counterpart in A</param>
+        /// <param name="minAngle">The minimum angle allowed in the range of [-2*pi, 2*pi]</param>
+        /// <param name="maxAngle">The maximum angle allowed in the range of [-2*pi, 2*pi]</param>
+        /// <param name="tau">The normalized stiffness factor</param>
+        /// <param name="damping">The normalized damping factor</param>
+        /// <param name="freeAxisIndex">The axis within the joint that is unconstrained</param>
         public static void BuildJacobian(out Rotation2DConstraintJacobianParameters parameters,
                                          quaternion inertialPoseWorldRotationA, quaternion jointRotationInInertialPoseASpace,
                                          quaternion inertialPoseWorldRotationB, quaternion jointRotationInInertialPoseBSpace,
@@ -29,17 +47,17 @@ namespace Latios.Psyshock
         {
             parameters = new Rotation2DConstraintJacobianParameters
             {
-                inertialPoseAInInertialPoseBSpace = math.normalize(math.InverseRotateFast(inertialPoseWorldRotationB, inertialPoseWorldRotationA)),
-                axisAInInertialPoseASpace         = new float3x3(jointRotationInInertialPoseASpace)[freeAxisIndex],
-                axisBInInertialPoseBSpace         = new float3x3(jointRotationInInertialPoseBSpace)[freeAxisIndex],
-                minAngle                          = minAngle,
-                maxAngle                          = maxAngle,
-                tau                               = tau,
-                damping                           = damping,
+                inertialRotationAInInertialPoseBSpace = math.normalize(math.InverseRotateFast(inertialPoseWorldRotationB, inertialPoseWorldRotationA)),
+                axisAInInertialPoseASpace             = new float3x3(jointRotationInInertialPoseASpace)[freeAxisIndex],
+                axisBInInertialPoseBSpace             = new float3x3(jointRotationInInertialPoseBSpace)[freeAxisIndex],
+                minAngle                              = minAngle,
+                maxAngle                              = maxAngle,
+                tau                                   = tau,
+                damping                               = damping,
             };
             // Calculate the initial error
             {
-                float3 axisAinB         = math.mul(parameters.inertialPoseAInInertialPoseBSpace, parameters.axisAInInertialPoseASpace);
+                float3 axisAinB         = math.mul(parameters.inertialRotationAInInertialPoseBSpace, parameters.axisAInInertialPoseASpace);
                 float  sinAngle         = math.length(math.cross(axisAinB, parameters.axisBInInertialPoseBSpace));
                 float  cosAngle         = math.dot(axisAinB, parameters.axisBInInertialPoseBSpace);
                 float  angle            = math.atan2(sinAngle, cosAngle);
@@ -47,14 +65,47 @@ namespace Latios.Psyshock
             }
         }
 
+        /// <summary>
+        /// Updates the 2D rotation constraint with newly integrated inertial pose world rotations
+        /// </summary>
+        /// <param name="parameters">The constraint data</param>
+        /// <param name="inertialPoseWorldRotationA">The new world-space orientation of the first body's inertia tensor diagonal</param>
+        /// <param name="inertialPoseWorldRotationB">The new world-space orientation of the second body's inertia tensor diagonal</param>
+        public static void UpdateJacobian(ref Rotation2DConstraintJacobianParameters parameters,
+                                          quaternion inertialPoseWorldRotationA, quaternion inertialPoseWorldRotationB)
+        {
+            parameters.inertialRotationAInInertialPoseBSpace = math.normalize(math.InverseRotateFast(inertialPoseWorldRotationB, inertialPoseWorldRotationA));
+            float3 axisAinB                                  = math.mul(parameters.inertialRotationAInInertialPoseBSpace, parameters.axisAInInertialPoseASpace);
+            float  sinAngle                                  = math.length(math.cross(axisAinB, parameters.axisBInInertialPoseBSpace));
+            float  cosAngle                                  = math.dot(axisAinB, parameters.axisBInInertialPoseBSpace);
+            float  angle                                     = math.atan2(sinAngle, cosAngle);
+            parameters.initialError                          = CalculateError(angle, parameters.minAngle, parameters.maxAngle);
+        }
+
+        /// <summary>
+        /// Used to determine the indices within a float3 angular velocity that a pair of impulses apply to from a 2D rotation constraint given a free axis
+        /// </summary>
+        /// <param name="freeIndex">The free unconstrained axis index</param>
+        /// <returns>A pair of values in the range [0, 2] each that specify the ordinate index corresponding to an impulse.</returns>
         public static int2 ConvertRotation2DJacobianFreeRotationIndexToImpulseIndices(int freeIndex) => (freeIndex + new int2(1, 2)) % 3;
 
-        // Returns the impulse applied only to the angular velocity for the constrained axes, whose indices can be obtained from the above method.
+        /// <summary>
+        /// Solves the 2D rotation constraint for the pair of bodies
+        /// </summary>
+        /// <param name="velocityA">The velocity of the first body</param>
+        /// <param name="massA">The mass of the first body</param>
+        /// <param name="velocityB">The velocity of the second body</param>
+        /// <param name="massB">The mass of the second body</param>
+        /// <param name="parameters">The constraint data</param>
+        /// <param name="deltaTime">The timestep over which this constraint is being solved</param>
+        /// <param name="inverseDeltaTime">The reciprocal of deltaTime, should be: 1f / deltaTime</param>
+        /// <returns>The scalar impulses applied only to the angular velocity for each of the constrained axes, whose ordinates can be determined via
+        /// ConvertRotation2DJacobianFreeRotationIndexToImpulseIndices()</returns>
         public static float2 SolveJacobian(ref Velocity velocityA, in Mass massA, ref Velocity velocityB, in Mass massB,
                                            in Rotation2DConstraintJacobianParameters parameters, float deltaTime, float inverseDeltaTime)
         {
             // Predict the relative orientation at the end of the step
-            quaternion futureBFromA = IntegrateOrientationBFromA(parameters.inertialPoseAInInertialPoseBSpace, velocityA.angular, velocityB.angular, deltaTime);
+            quaternion futureBFromA = IntegrateOrientationBFromA(parameters.inertialRotationAInInertialPoseBSpace, velocityA.angular, velocityB.angular, deltaTime);
 
             // Calculate the jacobian axis and angle
             float3 axisAinB     = math.mul(futureBFromA, parameters.axisAInInertialPoseASpace);

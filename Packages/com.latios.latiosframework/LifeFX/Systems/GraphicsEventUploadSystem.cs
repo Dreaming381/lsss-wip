@@ -49,7 +49,6 @@ namespace Latios.LifeFX.Systems
             }
         }
 
-        [BurstCompile]
         public void OnDestroy(ref SystemState state)
         {
             state.CompleteDependency();
@@ -66,7 +65,10 @@ namespace Latios.LifeFX.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            if (m_destinationsQuery.IsEmptyIgnoreFilter || latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame == 0)
+            if (latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
+                return default;
+
+            if (m_destinationsQuery.IsEmptyIgnoreFilter)
             {
                 // Force jobs to complete and rewind so that we don't have an infinite memory leak if we have events but no destinations.
                 latiosWorld.GetCollectionComponent<GraphicsEventPostal>(latiosWorld.worldBlackboardEntity, out var jobsToComplete);

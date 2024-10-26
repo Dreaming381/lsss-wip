@@ -24,5 +24,23 @@ namespace Latios.LifeFX
             return new int3(tunnel.GetHashCode(), requestor.GetHashCode(), eventTypeIndex).GetHashCode();
         }
     }
+
+    // Consumes 32 bytes
+    [InternalBufferCapacity(2)]
+    internal struct GraphicsGlobalBufferDestination : IBufferElementData, IEquatable<GraphicsGlobalBufferDestination>
+    {
+        public UnityObjectRef<GraphicsGlobalBufferReceptor> requestor;
+        public int                                          shaderPropertyId;
+
+        public bool Equals(GraphicsGlobalBufferDestination other )
+        {
+            return requestor.Equals(other.requestor) && shaderPropertyId.Equals(other.shaderPropertyId);
+        }
+
+        public override int GetHashCode()
+        {
+            return new int2(requestor.GetHashCode(), shaderPropertyId).GetHashCode();
+        }
+    }
 }
 
