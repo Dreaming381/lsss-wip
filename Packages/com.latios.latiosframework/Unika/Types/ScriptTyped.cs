@@ -6,10 +6,10 @@ using Unity.Mathematics;
 
 namespace Latios.Unika
 {
-    public unsafe struct Script<T> : IScriptTyped,
+    public unsafe struct Script<T> : IScriptTypedExtensionsApi,
                                      IEquatable<Script<T> >, IEquatable<Script>, IEquatable<ScriptRef<T> >, IEquatable<ScriptRef>,
                                      IComparable<Script<T> >, IComparable<Script>, IComparable<ScriptRef<T> >, IComparable<ScriptRef>
-        where T : unmanaged, IUnikaScript
+        where T : unmanaged, IUnikaScript, IUnikaScriptGen
     {
         internal NativeArray<ScriptHeader> m_scriptBuffer;
         internal Entity                    m_entity;
@@ -131,11 +131,13 @@ namespace Latios.Unika
         public bool Equals(ScriptRef other) => this == other;
         #endregion
 
-        ScriptRef IScript.ToRef() => this;
+        ScriptRef IScriptExtensionsApi.ToRef() => this;
 
-        bool IScriptTyped.TryCastInit(in Script script) => ScriptCast.TryCast(in script, out this);
+        bool IScriptTypedExtensionsApi.Is(in Script script) => ScriptCast.IsScript<T>(in script);
 
-        Script IScriptTyped.ToScript() => this;
+        bool IScriptTypedExtensionsApi.TryCastInit(in Script script) => ScriptCast.TryCast(in script, out this);
+
+        public Script ToScript() => this;
     }
 }
 

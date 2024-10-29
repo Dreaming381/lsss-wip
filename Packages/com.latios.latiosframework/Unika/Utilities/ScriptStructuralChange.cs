@@ -11,7 +11,7 @@ namespace Latios.Unika
                                         in T script,
                                         byte userByte = 0,
                                         bool userFlagA = false,
-                                        bool userFlagB = false) where T : unmanaged, IUnikaScript
+                                        bool userFlagB = false) where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             var scriptType  = ScriptTypeInfoManager.GetScriptRuntimeId<T>().runtimeId;
             var index       = ScriptStructuralChangeInternal.AllocateScript(ref scriptsBuffer, scriptType);

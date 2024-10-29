@@ -7,7 +7,7 @@ namespace Latios.Unika
 {
     public unsafe struct ScriptRef<T> : IEquatable<ScriptRef<T> >, IEquatable<ScriptRef>,
                                         IComparable<ScriptRef<T> >, IComparable<ScriptRef>
-        where T : unmanaged, IUnikaScript
+        where T : unmanaged, IUnikaScript, IUnikaScriptGen
     {
         internal Entity m_entity;
         internal int    m_instanceId;
@@ -15,16 +15,6 @@ namespace Latios.Unika
 
         #region Main API
         public Entity entity => m_entity;
-
-        public bool TryResolve(in EntityScriptCollection allScripts, out Script<T> script)
-        {
-            return ScriptCast.TryResolve(ref this, in allScripts, out script);
-        }
-
-        public bool TryResolve<TResolver>(ref TResolver resolver, out Script<T> script) where TResolver : unmanaged, IScriptResolverBase
-        {
-            return ScriptCast.TryResolve(ref this, ref resolver, out script);
-        }
 
         public static implicit operator ScriptRef(ScriptRef<T> script)
         {

@@ -67,6 +67,11 @@ namespace InternalSourceGen
             return s_map.Data.TryGetValue(new Key(scriptId, interfaceId), out interfaceVirtual);
         }
 
+        public static bool Contains(short scriptId, short interfaceId)
+        {
+            return s_map.Data.ContainsKey(new Key(scriptId, interfaceId));
+        }
+
         public static void InitializeStatics()
         {
             s_map.Data = new UnsafeHashMap<Key, FunctionPointer<InternalSourceGen.StaticAPI.BurstDispatchScriptDelegate> >(1024, Allocator.Persistent);

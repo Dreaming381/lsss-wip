@@ -13,16 +13,6 @@ namespace Latios.Unika
 
         #region Main API
         public Entity entity => m_entity;
-
-        public bool TryResolve(in EntityScriptCollection allScripts, out Script script)
-        {
-            return ScriptCast.TryResolve(ref this, allScripts, out script);
-        }
-
-        public bool TryResolve<TResolver>(ref TResolver resolver, out Script script) where TResolver : unmanaged, IScriptResolverBase
-        {
-            return ScriptCast.TryResolve(ref this, ref resolver, out script);
-        }
         #endregion
 
         #region Type operations

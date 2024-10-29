@@ -86,6 +86,7 @@ namespace Latios.Unika
 
             if (loadedAssemblies.Contains(assembly))
                 return;
+
             loadedAssemblies.Add(assembly);
 
             interfaceTypeCache.Clear();

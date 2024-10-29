@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Latios.Unika.Authoring
 {
-    public abstract class UnikaScriptAuthoring<T> : UnikaScriptAuthoringBase where T : unmanaged, IUnikaScript
+    public abstract class UnikaScriptAuthoring<T> : UnikaScriptAuthoringBase where T : unmanaged, IUnikaScript, IUnikaScriptGen
     {
         new public ScriptRef<T> GetScriptRef(IBaker baker, TransformUsageFlags transformUsageFlags = TransformUsageFlags.None)
         {

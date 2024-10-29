@@ -19,6 +19,9 @@ namespace Latios.Unika.Authoring
 
         public ScriptRef GetScriptRef(IBaker baker, TransformUsageFlags transformUsageFlags = TransformUsageFlags.None)
         {
+            if (!enabled)
+                return default;
+
             m_scriptsCache.Clear();
             baker.GetComponents(this, m_scriptsCache);
             for (int i = 0, validBefore = 0; i < m_scriptsCache.Count; i++)
@@ -38,7 +41,7 @@ namespace Latios.Unika.Authoring
                     else
                         return default;
                 }
-                else if (s.IsValid())
+                else if (s.enabled && s.IsValid())
                     validBefore++;
             }
             return default;
@@ -53,7 +56,7 @@ namespace Latios.Unika.Authoring
         public bool                userFlagA;
         public bool                userFlagB;
 
-        public unsafe void Assign<T>(ref T script) where T : unmanaged, IUnikaScript
+        public unsafe void Assign<T>(ref T script) where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             var scriptSize = UnsafeUtility.SizeOf<T>();
             scriptType     = ScriptTypeInfoManager.GetScriptRuntimeId<T>().runtimeId;
@@ -69,7 +72,7 @@ namespace Latios.Unika.Authoring
                                                  ref T script,
                                                  byte userByte = 0,
                                                  bool userFlagA = false,
-                                                 bool userFlagB = false) where T : unmanaged, IUnikaScript
+                                                 bool userFlagB = false) where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             var entity = baker.CreateAdditionalEntity(TransformUsageFlags.None, true);
             var size   = UnsafeUtility.SizeOf<T>();
@@ -92,7 +95,7 @@ namespace Latios.Unika.Authoring
             return entity;
         }
 
-        public static unsafe ref T GetBakedScriptInPostProcess<T>(this EntityManager entityManager, Entity bakingOnlyEntity) where T : unmanaged, IUnikaScript
+        public static unsafe ref T GetBakedScriptInPostProcess<T>(this EntityManager entityManager, Entity bakingOnlyEntity) where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             var bytes = entityManager.GetBuffer<BakedScriptByte>(bakingOnlyEntity);
             return ref UnsafeUtility.AsRef<T>(bytes.GetUnsafePtr());

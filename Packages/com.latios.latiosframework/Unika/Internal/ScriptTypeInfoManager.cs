@@ -12,6 +12,7 @@ namespace Latios.Unika
         static short runtimeInterfaceCounter = 1;
         static short runtimeScriptCounter    = 1;
 
+        static HashSet<System.Type>                     s_capturedInterfaces  = new HashSet<System.Type>();
         static Dictionary<System.Type, ulong>           s_stableTypeHashCache = new Dictionary<System.Type, ulong>();
         static HashSet<System.Type>                     s_noOffsetsCache      = new HashSet<System.Type>();
         static NativeList<TypeManager.EntityOffsetInfo> s_entityOffsetCache;
@@ -56,12 +57,16 @@ namespace Latios.Unika
 
         public static void InitializeInterface<T>() where T : IUnikaInterface
         {
+            var type = typeof(T);
+            if (!s_capturedInterfaces.Add(type))
+                return;
+
             ScriptInterfaceInfoLookup<T>.s_runtimeTypeIndex.Data.runtimeId = runtimeInterfaceCounter;
             ScriptInterfaceInfoLookup<T>.s_runtimeTypeIndex.Data.bloomMask = BloomMaskOf<T>();
             runtimeInterfaceCounter++;
         }
 
-        public static unsafe void InitializeScriptType<T>(System.Span<IdAndMask> runtimeInterfacesImplemented) where T : unmanaged, IUnikaScript
+        public static unsafe void InitializeScriptType<T>(System.ReadOnlySpan<IdAndMask> runtimeInterfacesImplemented) where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             UnityEngine.Assertions.Assert.IsTrue((ulong)runtimeScriptCounter <= ScriptHeader.kMaxTypeIndex);
 
@@ -139,7 +144,7 @@ namespace Latios.Unika
             return ScriptInterfaceInfoLookup<T>.s_runtimeTypeIndex.Data;
         }
 
-        public static IdAndMask GetScriptRuntimeId<T>() where T : unmanaged, IUnikaScript
+        public static IdAndMask GetScriptRuntimeId<T>() where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             return ScriptTypeInfoLookup<T>.s_runtimeTypeIndex.Data;
         }
@@ -209,7 +214,7 @@ namespace Latios.Unika
             public static readonly SharedStatic<IdAndMask> s_runtimeTypeIndex = SharedStatic<IdAndMask>.GetOrCreate<ScriptTypeInfoManager, T>();
         }
 
-        private struct ScriptTypeInfoLookup<T> where T : unmanaged, IUnikaScript
+        private struct ScriptTypeInfoLookup<T> where T : unmanaged, IUnikaScript, IUnikaScriptGen
         {
             public static readonly SharedStatic<IdAndMask> s_runtimeTypeIndex = SharedStatic<IdAndMask>.GetOrCreate<ScriptTypeInfoManager, T>();
         }

@@ -1,6 +1,5 @@
+using System;
 using System.Diagnostics;
-using System.Security.Cryptography;
-using NUnit.Framework.Internal;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -12,7 +11,15 @@ namespace Latios.Unika.InternalSourceGen
     public static partial class StaticAPI
     {
         #region Types
-        public interface IInterfaceData : IScriptTyped
+        public interface IUnikaInterfaceSourceGenerated : IUnikaInterfaceGen
+        {
+        }
+
+        public interface IUnikaScriptSourceGenerated : IUnikaScriptGen
+        {
+        }
+
+        public interface IInterfaceData : IScriptTypedExtensionsApi
         {
         }
 
@@ -21,7 +28,17 @@ namespace Latios.Unika.InternalSourceGen
         {
             TInterfaceStruct assign { set; }
 
-            bool IScriptTyped.TryCastInit(in Script script)
+            bool IScriptTypedExtensionsApi.Is(in Script script)
+            {
+                var idAndMask = ScriptTypeInfoManager.GetInterfaceRuntimeIdAndMask<TInterface>();
+                if ((script.m_headerRO.bloomMask & idAndMask.bloomMask) == idAndMask.bloomMask)
+                {
+                    return ScriptVTable.Contains((short)script.m_headerRO.scriptType, idAndMask.runtimeId);
+                }
+                return false;
+            }
+
+            bool IScriptTypedExtensionsApi.TryCastInit(in Script script)
             {
                 var idAndMask = ScriptTypeInfoManager.GetInterfaceRuntimeIdAndMask<TInterface>();
                 if ((script.m_headerRO.bloomMask & idAndMask.bloomMask) == idAndMask.bloomMask)
@@ -73,8 +90,49 @@ namespace Latios.Unika.InternalSourceGen
         }
         #endregion
 
+        #region Registration
+        public struct ScriptInterfaceRegistrationData
+        {
+            public short                                        runtimeId;
+            public ulong                                        bloomMask;
+            public FunctionPointer<BurstDispatchScriptDelegate> functionPtr;
+        }
+
+        // functionPtr is left unpopulated
+        public static ScriptInterfaceRegistrationData InitializeInterface<T>() where T : IUnikaInterface
+        {
+            ScriptTypeInfoManager.InitializeInterface<T>();
+            var idAndMask = ScriptTypeInfoManager.GetInterfaceRuntimeIdAndMask<T>();
+            return new ScriptInterfaceRegistrationData
+            {
+                runtimeId = idAndMask.runtimeId,
+                bloomMask = idAndMask.bloomMask
+            };
+        }
+
+        public static void InitializeScript<T>(ReadOnlySpan<ScriptInterfaceRegistrationData> interfacesImplemented) where T : unmanaged, IUnikaScript, IUnikaScriptGen
+        {
+            Span<ScriptTypeInfoManager.IdAndMask> idAndMasks = stackalloc ScriptTypeInfoManager.IdAndMask[interfacesImplemented.Length];
+            for (int i = 0; i < idAndMasks.Length; i++)
+            {
+                idAndMasks[i] = new ScriptTypeInfoManager.IdAndMask
+                {
+                    runtimeId = interfacesImplemented[i].runtimeId,
+                    bloomMask = interfacesImplemented[i].bloomMask
+                };
+            }
+            ScriptTypeInfoManager.InitializeScriptType<T>(idAndMasks);
+
+            var scriptId = ScriptTypeInfoManager.GetScriptRuntimeId<T>().runtimeId;
+            foreach (var i in interfacesImplemented)
+            {
+                ScriptVTable.Add(scriptId, i.runtimeId, i.functionPtr);
+            }
+        }
+        #endregion
+
         #region Casting
-        public static TDst DownCast<TDst, TDstInterface>(InterfaceData src) where TDst : unmanaged, IInterfaceData where TDstInterface : unmanaged, IUnikaInterface
+        public static TDst DownCast<TDst, TDstInterface>(InterfaceData src) where TDst : unmanaged, IInterfaceData where TDstInterface : IUnikaInterface
         {
             InterfaceData dst = default;
             dst.script        = src.script;
@@ -83,8 +141,18 @@ namespace Latios.Unika.InternalSourceGen
             return UnsafeUtility.As<InterfaceData, TDst>(ref dst);
         }
 
+        public static TDst DownCast<TDst, TDstInterface, TScript>(Script<TScript> src) where TDst : unmanaged,
+        IInterfaceData where TDstInterface : IUnikaInterface where TScript : unmanaged, IUnikaScript, IUnikaScriptGen
+        {
+            InterfaceData dst = default;
+            dst.script        = src;
+            var type          = (short)src.m_headerRO.scriptType;
+            ScriptVTable.TryGet(type, ScriptTypeInfoManager.GetInterfaceRuntimeIdAndMask<TDstInterface>().runtimeId, out dst.functionPointer);
+            return UnsafeUtility.As<InterfaceData, TDst>(ref dst);
+        }
+
         public static bool TryResolve<TDst>(ref ScriptRef src, in EntityScriptCollection allScripts, out TDst dst)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
         {
             if (ScriptCast.TryResolve(ref src, in allScripts, out var script))
             {
@@ -96,13 +164,13 @@ namespace Latios.Unika.InternalSourceGen
         }
 
         public static bool TryResolve<TDst>(ref InterfaceRefData src, in EntityScriptCollection allScripts, out TDst dst)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
         {
             return TryResolve(ref src.scriptRef, in allScripts, out dst);
         }
 
         public static bool TryResolve<TDst, TResolver>(ref ScriptRef src, ref TResolver resolver, out TDst dst)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
             where TResolver : unmanaged, IScriptResolverBase
         {
             if (ScriptCast.TryResolve(ref src, ref resolver, out var script))
@@ -115,14 +183,14 @@ namespace Latios.Unika.InternalSourceGen
         }
 
         public static bool TryResolve<TDst, TResolver>(ref InterfaceRefData src, ref TResolver resolver, out TDst dst)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
             where TResolver : unmanaged, IScriptResolverBase
         {
             return TryResolve(ref src.scriptRef, ref resolver, out dst);
         }
 
         public static TDst Resolve<TDst>(ref ScriptRef src, in EntityScriptCollection allScripts)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
         {
             var found = TryResolve<TDst>(ref src, in allScripts, out var dst);
             ScriptCast.AssertInCollection(found, allScripts.entity);
@@ -130,13 +198,13 @@ namespace Latios.Unika.InternalSourceGen
         }
 
         public static TDst Resolve<TDst>(ref InterfaceRefData src, in EntityScriptCollection allScripts)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
         {
             return Resolve<TDst>(ref src.scriptRef, in allScripts);
         }
 
         public static TDst Resolve<TDst, TResolver>(ref ScriptRef src, ref TResolver resolver)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
             where TResolver : unmanaged, IScriptResolverBase
         {
             var  script = ScriptCast.Resolve(ref src, ref resolver);
@@ -148,7 +216,7 @@ namespace Latios.Unika.InternalSourceGen
         }
 
         public static TDst Resolve<TDst, TResolver>(ref InterfaceRefData src, ref TResolver resolver)
-            where TDst : unmanaged, IScriptTyped
+            where TDst : unmanaged, IScriptTypedExtensionsApi
             where TResolver : unmanaged, IScriptResolverBase
         {
             return Resolve<TDst, TResolver>(ref src.scriptRef, ref resolver);
@@ -170,15 +238,22 @@ namespace Latios.Unika.InternalSourceGen
             data.functionPointer.Invoke(&context, operation);
         }
 
+        public static unsafe ref TScriptType ExtractScript<TScriptType>(ContextPtr context) where TScriptType : unmanaged, IUnikaScript, IUnikaScriptGen
+        {
+            var scriptPtr = ((ZeroArg*)context.ptr)->script;
+            return ref UnsafeUtility.AsRef<TScriptType>(scriptPtr);
+        }
+
         unsafe struct OneArg
         {
             public void* script;
             public void* arg0;
         }
 
-        public static unsafe void Dispatch(ref InterfaceData data, int operation, ref byte arg0)
+        public static unsafe void Dispatch<TArg0>(ref InterfaceData data, int operation, ref TArg0 targ0) where TArg0 : unmanaged
         {
-            fixed (byte* a0 = &arg0)
+            ref var      arg0 = ref UnsafeUtility.As<TArg0, byte>(ref targ0);
+            fixed (byte* a0   = &arg0)
             {
                 var context = new OneArg
                 {
@@ -189,6 +264,12 @@ namespace Latios.Unika.InternalSourceGen
             }
         }
 
+        public static unsafe ref TArg ExtractArg0<TArg>(ContextPtr context) where TArg : unmanaged
+        {
+            var argPtr = ((OneArg*)context.ptr)->arg0;
+            return ref UnsafeUtility.AsRef<TArg>(argPtr);
+        }
+
         unsafe struct TwoArg
         {
             public void* script;
@@ -196,9 +277,11 @@ namespace Latios.Unika.InternalSourceGen
             public void* arg1;
         }
 
-        public static unsafe void Dispatch(ref InterfaceData data, int operation, ref byte arg0, ref byte arg1)
+        public static unsafe void Dispatch<TArg0, TArg1>(ref InterfaceData data, int operation, ref TArg0 targ0, ref TArg1 targ1) where TArg0 : unmanaged where TArg1 : unmanaged
         {
-            fixed (byte* a0 = &arg0, a1 = &arg1)
+            ref var      arg0 = ref UnsafeUtility.As<TArg0, byte>(ref targ0);
+            ref var      arg1 = ref UnsafeUtility.As<TArg1, byte>(ref targ1);
+            fixed (byte* a0   = &arg0, a1 = &arg1)
             {
                 var context = new TwoArg
                 {
@@ -208,6 +291,12 @@ namespace Latios.Unika.InternalSourceGen
                 };
                 data.functionPointer.Invoke(&context, operation);
             }
+        }
+
+        public static unsafe ref TArg ExtractArg1<TArg>(ContextPtr context) where TArg : unmanaged
+        {
+            var argPtr = ((TwoArg*)context.ptr)->arg1;
+            return ref UnsafeUtility.AsRef<TArg>(argPtr);
         }
 
         // Todo: 3 - 16

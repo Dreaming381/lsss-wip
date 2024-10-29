@@ -6,7 +6,7 @@ using Unity.Mathematics;
 
 namespace Latios.Unika
 {
-    public unsafe struct Script : IScript, IEquatable<Script>, IComparable<Script>, IEquatable<ScriptRef>, IComparable<ScriptRef>
+    public unsafe struct Script : IScriptExtensionsApi, IEquatable<Script>, IComparable<Script>, IEquatable<ScriptRef>, IComparable<ScriptRef>
     {
         internal NativeArray<ScriptHeader> m_scriptBuffer;
         internal Entity                    m_entity;
@@ -122,7 +122,7 @@ namespace Latios.Unika
             return (byte*)m_scriptBuffer.GetUnsafeReadOnlyPtr() + m_byteOffset;
         }
 
-        ScriptRef IScript.ToRef()
+        ScriptRef IScriptExtensionsApi.ToRef()
         {
             return this;
         }
