@@ -1,3 +1,4 @@
+using NUnit.Framework;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -14,6 +15,12 @@ namespace Latios.Psyshock
         /// <returns>True if the point is on or inside the ellipse, false otherwise</returns>
         public static bool IsOnOrInsideEllipse(float2 halfExtents, float2 testPoint)
         {
+            if (math.any(halfExtents <= math.EPSILON))
+            {
+                var absTestPoint = math.abs(testPoint);
+                return absTestPoint.Equals(math.min(absTestPoint, halfExtents));
+            }
+
             var testPointSq   = testPoint * testPoint;
             var halfExtentsSq = halfExtents * halfExtents;
             var result        = math.csum(testPointSq / halfExtentsSq);
@@ -29,6 +36,14 @@ namespace Latios.Psyshock
         /// <returns>A point on the perimeter of the ellipse that is closest to the query point</returns>
         public static float2 ClosestPointOnEllipse(float2 halfExtents, float2 testPoint)
         {
+            // This first check is custom.
+            var isZeroExtent = halfExtents <= math.EPSILON;
+            if (math.any(isZeroExtent))
+            {
+                //The ellipse has degenerated into a line segment.
+                return math.select(math.min(halfExtents, testPoint), 0f, isZeroExtent);
+            }
+
             // The following code is an optimized version of the algorithm found here: https://github.com/0xfaded/ellipse_demo
             // The associated blog post detailing the technique is described here: https://blog.chatfield.io/simple-method-for-distance-to-ellipse/
             // The code is licensed under the MIT license as follows:

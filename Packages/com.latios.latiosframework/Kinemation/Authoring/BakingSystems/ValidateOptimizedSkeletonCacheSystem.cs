@@ -44,6 +44,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     return;
                 }
 
+                var firstActualPathLength = blobPaths.blob.Value.pathsInReversedNotation[0].Length;
                 for (int i = 0; i < boneCount; i++)
                 {
                     var validateBone    = validateBones[i];
@@ -85,7 +86,8 @@ namespace Latios.Kinemation.Authoring.Systems
                     FixedString4096Bytes wrongPath = default;
                     wrongPath.AsFixedList().AddRange(wrongBytes.GetUnsafeReadOnlyPtr(), validateBone.pathByteCount - firstPath.Length);
                     FixedString4096Bytes rightPath = default;
-                    rightPath.AsFixedList().AddRange(blobPaths.blob.Value.pathsInReversedNotation[i].GetUnsafePtr(), blobPaths.blob.Value.pathsInReversedNotation[i].Length);
+                    rightPath.AsFixedList().AddRange(blobPaths.blob.Value.pathsInReversedNotation[i].GetUnsafePtr(),
+                                                     blobPaths.blob.Value.pathsInReversedNotation[i].Length - firstActualPathLength);
                     if (wrongPath != rightPath)
                     {
                         UnityEngine.Debug.LogWarning(

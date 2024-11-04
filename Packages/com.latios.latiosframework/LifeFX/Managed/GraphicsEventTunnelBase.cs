@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace Latios.LifeFX
 {
+    /// <summary>
+    /// Don't touch this. See GraphicsEventTunnel<T> instead.
+    /// </summary>
     public abstract class GraphicsEventTunnelBase : ScriptableObject
     {
         internal abstract TypeInfo GetEventType();

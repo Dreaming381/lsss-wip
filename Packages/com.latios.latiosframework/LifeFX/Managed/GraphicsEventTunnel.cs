@@ -4,6 +4,11 @@ using UnityEngine;
 
 namespace Latios.LifeFX
 {
+    /// <summary>
+    /// Subclass this type to create a GPU event tunnel class of a particular event type.
+    /// Then, create instances of the class in the editor and connect them between GameObjects and entities.
+    /// </summary>
+    /// <typeparam name="T">The GPU event type</typeparam>
     public abstract class GraphicsEventTunnel<T> : GraphicsEventTunnelBase where T : unmanaged
     {
         internal sealed override TypeInfo GetEventType() => new TypeInfo

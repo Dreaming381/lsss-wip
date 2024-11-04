@@ -5,6 +5,10 @@ using UnityEngine.Events;
 
 namespace Latios.LifeFX
 {
+    /// <summary>
+    /// A base class or standalone provider of a GPU events sent to a specific tunnel in the form of an element range within a GraphicsBuffer.
+    /// Attach this to the same GameObject that has a GameObjectEntity component.
+    /// </summary>
     [AddComponentMenu("Latios/LifeFX/Graphics Event Buffer Receptor")]
     public class GraphicsEventBufferReceptor : MonoBehaviour, IInitializeGameObjectEntity
     {
@@ -14,10 +18,12 @@ namespace Latios.LifeFX
         public event OnGraphicsEventPublishedDelegate                 OnGraphicsEventPublished;
         [SerializeField] private UnityEvent<GraphicsBuffer, int, int> OnGraphicsEventPublishedSerialized;
 
+        // Called from an ECS system
         public virtual void Publish(GraphicsBuffer graphicsBuffer, int startIndex, int count)
         {
         }
 
+        // IInitializeGameObjectEntity method, automatically called.
         public void Initialize(LatiosWorld latiosWorld, Entity gameObjectEntity)
         {
             if (tunnel == null)

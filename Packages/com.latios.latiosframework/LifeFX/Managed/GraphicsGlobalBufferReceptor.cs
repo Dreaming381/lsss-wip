@@ -5,6 +5,15 @@ using UnityEngine.Events;
 
 namespace Latios.LifeFX
 {
+    /// <summary>
+    /// A base class or standalone provider of a GraphicsBuffer populated by entity data and bound to a global shader property.
+    /// Attach this to the same GameObject that has a GameObjectEntity component.
+    /// </summary>
+    /// <remarks>
+    /// Supported built-in shader properties:
+    /// _latiosDeformBuffer
+    /// _latiosBoneTransforms
+    /// </remarks>
     [AddComponentMenu("Latios/LifeFX/Graphics Global Buffer Receptor")]
     public class GraphicsGlobalBufferReceptor : MonoBehaviour, IInitializeGameObjectEntity
     {
@@ -15,10 +24,12 @@ namespace Latios.LifeFX
         public event OnGraphicsGlobalPublishedDelegate      OnGraphicsGlobalPublished;
         [SerializeField] private UnityEvent<GraphicsBuffer> OnGraphicsGlobalPublishedSerialized;
 
+        // Called from an ECS system
         public virtual void Publish(GraphicsBuffer graphicsBuffer)
         {
         }
 
+        // IInitializeGameObjectEntity method, automatically called.
         public void Initialize(LatiosWorld latiosWorld, Entity gameObjectEntity)
         {
             if (string.IsNullOrEmpty(m_bufferShaderProperty))

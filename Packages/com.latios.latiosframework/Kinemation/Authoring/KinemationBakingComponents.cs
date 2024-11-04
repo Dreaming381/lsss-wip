@@ -56,7 +56,7 @@ namespace Latios.Kinemation.Authoring
 
     [InternalBufferCapacity(0)]
     [BakingType]
-    internal struct OptimizedSkeletonExportedBone : IBufferElementData
+    internal struct ImportedSocket : IBufferElementData
     {
         public Entity boneEntity;
         public int    boneIndex;
@@ -64,10 +64,13 @@ namespace Latios.Kinemation.Authoring
 
     [InternalBufferCapacity(0)]
     [TemporaryBakingType]
-    internal struct ExportedBoneGameObjectRef : IBufferElementData
+    internal struct ImportedSocketGameObjectRef : IBufferElementData
     {
         public UnityObjectRef<GameObject> authoringGameObjectForBone;
     }
+
+    [BakingType]
+    internal struct AuthoredSocket : IComponentData { }
 
     [TemporaryBakingType]
     internal struct PendingMeshBindingPathsBlob : IComponentData

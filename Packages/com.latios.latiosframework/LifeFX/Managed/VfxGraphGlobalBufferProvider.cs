@@ -3,6 +3,14 @@ using UnityEngine.VFX;
 
 namespace Latios.LifeFX
 {
+    /// <summary>
+    /// Feeds a GPU buffer populated from ECS data to a VFX Graph. Attach this to a VFX Graph GameObject with the GameObjectEntity component.
+    /// </summary>
+    /// <remarks>
+    /// Supported built-in shader properties:
+    /// _latiosDeformBuffer
+    /// _latiosBoneTransforms
+    /// </remarks>
     [AddComponentMenu("Latios/LifeFX/VFX Graph Global Buffer Provider")]
     public class VfxGraphGlobalBufferProvider : GraphicsGlobalBufferReceptor
     {

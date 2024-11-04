@@ -4,7 +4,7 @@ using Unity.Entities;
 namespace Latios.Kinemation.Authoring.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
-    [UpdateInGroup(typeof(SmartBlobberBakingGroup))]
+    [UpdateInGroup(typeof(TransformBakingSystemGroup), OrderFirst = true)]
     [DisableAutoCreation]
     public partial class KinemationPreTransformsBakingGroup : ComponentSystemGroup
     {
@@ -55,7 +55,7 @@ namespace Latios.Kinemation.Authoring.Systems
             GetOrCreateAndAddManagedSystem<PruneShadowHierarchiesSystem>();  // sync
             GetOrCreateAndAddManagedSystem<BuildOptimizedBoneTransformsSystem>();  // sync
             GetOrCreateAndAddManagedSystem<GatherSkeletonBindingPathsFromShadowHierarchySystem>();  // sync
-            GetOrCreateAndAddManagedSystem<AssignExportedBoneIndicesSystem>();  // sync
+            GetOrCreateAndAddManagedSystem<AssignSocketIndicesSystem>();  // sync
             GetOrCreateAndAddManagedSystem<GatherOptimizedHierarchyFromShadowHierarchySystem>();  // sync -> async
 
             GetOrCreateAndAddSystem<BindSkinnedMeshesToSkeletonsSystem>();  // async -> sync
@@ -66,12 +66,12 @@ namespace Latios.Kinemation.Authoring.Systems
             GetOrCreateAndAddSystem<SkeletonHierarchySmartBlobberSystem>();  // async
             GetOrCreateAndAddSystem<ParameterClipSetSmartBlobberSystem>();  // async
 
-            GetOrCreateAndAddSystem<SetupExportedBonesSystem>();  // async -> sync
+            GetOrCreateAndAddSystem<SetupSocketsSystem>();  // async -> sync
             GetOrCreateAndAddManagedSystem<SkeletonClipSetSmartBlobberSystem>();  // sync -> async
 #if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-            GetOrCreateAndAddSystem<Latios.Transforms.Authoring.Systems.TransformHierarchySyncBakingSystem>();  // async | Needed for correcting children of exported bones.
+            GetOrCreateAndAddSystem<Latios.Transforms.Authoring.Systems.TransformHierarchySyncBakingSystem>();  // async | Needed for correcting children of sockets.
 #elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
-            // Todo: How do we set LTWs correctly for exported bones in Unity Transforms?
+            // Todo: How do we set LTWs correctly for sockets in Unity Transforms?
 #endif
             GetOrCreateAndAddManagedSystem<DestroyShadowHierarchiesSystem>();  // sync
 #endif

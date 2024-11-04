@@ -116,10 +116,15 @@ namespace Latios.Kinemation.RuntimeBlobBuilders
             return result;
         }
 
-        public void Dispose()
+        public void Dispose() => Dispose(false);
+
+        public void Dispose(bool forceRuntimeDispose)
         {
             taa.Dispose();
-            shadowHierarchy.DestroySafelyFromAnywhere();
+            if (forceRuntimeDispose)
+                GameObject.Destroy(shadowHierarchy);
+            else
+                shadowHierarchy.DestroySafelyFromAnywhere();
             parentIndices.Dispose();
         }
 

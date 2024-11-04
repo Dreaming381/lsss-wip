@@ -3,6 +3,9 @@ using UnityEngine.VFX;
 
 namespace Latios.LifeFX
 {
+    /// <summary>
+    /// Feeds GPU events from ECS data to a VFX Graph. Attach this to a VFX Graph GameObject with the GameObjectEntity component.
+    /// </summary>
     [AddComponentMenu("Latios/LifeFX/VFX Graph Event Buffer Provider")]
     public class VfxGraphEventBufferProvider : GraphicsEventBufferReceptor
     {

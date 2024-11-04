@@ -224,6 +224,21 @@ namespace Latios.Unika.InternalSourceGen
         #endregion
 
         #region Dispatch
+        public static unsafe ref T ExtractRefReturn<T>(ContextPtr refReturn) where T : unmanaged
+        {
+            return ref UnsafeUtility.AsRef<T>(refReturn.ptr);
+        }
+
+        public static unsafe ContextPtr AssignRefReturn<T>(ref T ret) where T : unmanaged
+        {
+            return new ContextPtr { ptr = UnsafeUtility.AddressOf(ref ret) };
+        }
+
+        public static unsafe ContextPtr AssignRefReadonlyReturn<T>(in T ret) where T : unmanaged
+        {
+            return new ContextPtr { ptr = UnsafeUtility.AddressOf(ref UnsafeUtilityExtensions.AsRef(in ret)) };
+        }
+
         unsafe struct ZeroArg
         {
             public void* script;

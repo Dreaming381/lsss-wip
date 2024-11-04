@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Latios.Transforms;
 using Unity.Collections;
@@ -7,6 +8,7 @@ using UnityEngine;
 
 namespace Latios.Kinemation.Authoring
 {
+    [Serializable]
     public struct OptimizedBoneDescription
     {
         public TransformQvvs rootTransform;
@@ -14,15 +16,20 @@ namespace Latios.Kinemation.Authoring
         public int           parentIndex;
         public string        shortName;
         public string        reversePath;
-        public Transform     exportTransform;  // Warning: Not validated during baking
+        public Transform     importedSocket;  // Warning: Not validated during baking
     }
 
-    [ExecuteInEditMode]
+    [AddComponentMenu("Latios/Kinemation/Optimized Skeleton Cache")]
+    [ExecuteAlways]
     [DisallowMultipleComponent]
     public class OptimizedSkeletonStructureCache : MonoBehaviour
     {
-        [SerializeField, HideInInspector] internal List<OptimizedBoneDescription> m_bones;
-        [SerializeField] internal bool                                            m_validateDuringBaking = true;
+        // Todo: Make this read-only in the inspector
+        [SerializeField] internal List<OptimizedBoneDescription> m_bones;
+        [SerializeField] internal bool                           m_validateDuringBaking = true;
+
+        // Force this to be copied on instantiation.
+        [SerializeField, HideInInspector] bool m_isClone = false;
 
         public int length => m_bones.Count;
 
@@ -36,23 +43,27 @@ namespace Latios.Kinemation.Authoring
         [ContextMenu("Regenerate")]
         private void Regenerate()
         {
-            m_bones.Clear();
+            m_bones?.Clear();
             Generate();
         }
 
         private void Generate()
         {
+            if (m_isClone)
+                return;
+
             if (m_bones == null)
                 m_bones = new List<OptimizedBoneDescription>();
 
             if (m_bones.Count != 0)
                 return;
 
-            var animator = GetComponent<Animator>();
-            if (animator == null)
+            if (!TryGetComponent<Animator>(out var animator))
                 return;
 
+            m_isClone        = true;
             var shadow       = new RuntimeBlobBuilders.SkeletonClipSetSampler(animator);
+            m_isClone        = false;
             var boneCount    = shadow.boneCount;
             m_bones.Capacity = boneCount;
             for (int i = 0; i < boneCount; i++)
@@ -66,11 +77,11 @@ namespace Latios.Kinemation.Authoring
                 }
                 m_bones.Add(new OptimizedBoneDescription
                 {
-                    rootTransform   = new TransformQvvs(default, default, default, stretch),
-                    localTransform  = new TransformQvs(bone.localPosition, bone.localRotation, scale),
-                    parentIndex     = shadow.GetBoneParent(i),
-                    shortName       = shadow.GetNameOfBone(i),
-                    exportTransform = exportTransform
+                    rootTransform  = new TransformQvvs(default, default, default, stretch),
+                    localTransform = new TransformQvs(bone.localPosition, bone.localRotation, scale),
+                    parentIndex    = shadow.GetBoneParent(i),
+                    shortName      = shadow.GetNameOfBone(i),
+                    importedSocket = exportTransform
                 });
             }
             var first                    = m_bones[0];

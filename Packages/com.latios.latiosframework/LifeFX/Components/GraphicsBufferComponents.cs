@@ -7,6 +7,8 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
+// Todo: Nothing in this file is ready yet.
+
 namespace Latios.LifeFX
 {
     public struct GraphicsSyncState
