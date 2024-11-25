@@ -16,12 +16,20 @@ namespace Lsss.SuperSystems
     [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup), OrderLast = true)]
     public partial class LsssInitializationRootSuperSystem : RootSuperSystem
     {
+        protected override void CreateSystems()
+        {
+            GetOrCreateAndAddManagedSystem<GameplaySyncPointSuperSystem>();
+        }
+    }
+
+    [UpdateInGroup(typeof(Latios.Systems.PostSyncPointGroup))]
+    [UpdateBefore(typeof(Latios.Transforms.Systems.MotionHistoryUpdateSuperSystem))]  // Clean up spawned transforms before motion history to avoid spawn blur.
+    public partial class LsssPostInitializationRootSuperSystem : RootSuperSystem
+    {
         SystemHandle m_gameObjectEntitySystemToTemporarilyDisable;
 
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddManagedSystem<GameplaySyncPointSuperSystem>();
-
             GetOrCreateAndAddManagedSystem<Latios.Transforms.Systems.TransformSuperSystem>();
 
             m_gameObjectEntitySystemToTemporarilyDisable = World.GetExistingSystem<Latios.Transforms.Systems.CopyGameObjectTransformFromEntitySystem>();

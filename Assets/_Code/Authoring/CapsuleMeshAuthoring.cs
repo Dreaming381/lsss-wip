@@ -13,7 +13,7 @@ namespace Lsss.Authoring
 {
     [RequireComponent(typeof(MeshFilter))]
     [AddComponentMenu("LSSS/Mesh Builders/Capsule")]
-    public class CapsuleMeshAuthoring : OverrideMeshRendererBase
+    public class CapsuleMeshAuthoring : MonoBehaviour, IOverrideMeshRenderer
     {
         public enum DirectionAxis
         {

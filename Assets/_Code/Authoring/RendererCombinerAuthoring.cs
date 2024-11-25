@@ -12,11 +12,11 @@ using UnityEngine;
 
 namespace Lsss.Authoring
 {
-    public class RendererCombinerAuthoring : OverrideHierarchyRendererBase
+    public class RendererCombinerAuthoring : MonoBehaviour, IOverrideHierarchyRenderer
     {
         public List<MeshRenderer> meshRenderers;
 
-        public override bool ShouldOverride(IBaker baker, Renderer renderer)
+        public bool ShouldOverride(IBaker baker, Renderer renderer)
         {
             if (meshRenderers == null)
                 return false;

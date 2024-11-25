@@ -120,7 +120,6 @@ namespace Latios.Kinemation.Authoring.Systems
             {
                 if (boneReference.skeletonRoot == Entity.Null)
                 {
-                    UnityEngine.Debug.Log("Removing disconnected bone");
                     ecb.RemoveComponent( chunkIndexInQuery, entity, componentTypesToRemove);
                 }
             }
