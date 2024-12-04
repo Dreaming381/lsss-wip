@@ -42,6 +42,13 @@ namespace Latios.Kinemation
         public float3x4 postProcessMatrix;
     }
 
+    /// <summary>
+    /// When present on an entity with a MaterialMeshInfo that uses ranges, every mesh instance
+    /// in the range will be replaced with the mesh specified directly by the MaterialMeshInfo.
+    /// This allows you to render multiple materials in a single entity using a runtime-generated mesh.
+    /// </summary>
+    public struct OverrideMeshInRangeTag : IComponentData { }
+
     /// <summary></summary>
     /// An optional flag which specifies when a deformed mesh needs to be rebound
     /// Usage: Add/Enable this component whenever binding needs to occur.
