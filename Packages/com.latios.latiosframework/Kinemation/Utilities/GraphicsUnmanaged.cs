@@ -10,6 +10,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Latios.Kinemation
 {
@@ -88,11 +89,31 @@ namespace Latios.Kinemation
         }
 
         /// <summary>
+        /// Destroys multiple Mesh objects
+        /// </summary>
+        /// <param name="meshes">An arrayof mesh objects to destroy</param>
+        public static void DestroyMeshes(NativeArray<UnityObjectRef<Mesh> > meshes)
+        {
+            var context = new DestroyMeshesContext
+            {
+                meshes  = meshes,
+                success = false
+            };
+            DoManagedExecute((IntPtr)(&context), 16);
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (!context.success)
+                throw new System.InvalidOperationException("Destroying the meshes failed.");
+#endif
+        }
+
+        /// <summary>
         /// Registers multiple meshes with the LatiosEntitiesGraphicsSystem within the specified World.
         /// </summary>
         /// <param name="meshes">The meshes to register</param>
+        /// <param name="outputIDs">The array to store the resulting BatchMeshID values corresponding to the registered meshes</param>
         /// <param name="world">The world which contains the LatiosEntitiesGraphicsSystem performing the rendering</param>
-        public static void RegisterMeshes(NativeArray<UnityObjectRef<Mesh> > meshes, WorldUnmanaged world)
+        public static void RegisterMeshes(NativeArray<UnityObjectRef<Mesh> > meshes, NativeArray<BatchMeshID> outputIDs, WorldUnmanaged world)
         {
             var context = new RegisterMeshesContext
             {
@@ -526,6 +547,7 @@ namespace Latios.Kinemation
         struct RegisterMeshesContext
         {
             public NativeArray<UnityObjectRef<Mesh> > meshes;
+            public NativeArray<BatchMeshID>           outputIDs;
             public WorldUnmanaged                     world;
             public SystemTypeIndex                    latiosEntitiesGraphicsSystem;
             public bool                               success;
@@ -538,6 +560,13 @@ namespace Latios.Kinemation
             public NativeArray<UnityObjectRef<Mesh> >    meshes;
             public UnityEngine.Rendering.MeshUpdateFlags flags;
             public bool                                  success;
+        }
+
+        // Code 16
+        struct DestroyMeshesContext
+        {
+            public NativeArray<UnityObjectRef<Mesh> > meshes;
+            public bool                               success;
         }
         #endregion
 
@@ -682,9 +711,11 @@ namespace Latios.Kinemation
                         ref var ctx    = ref *(RegisterMeshesContext*)context;
                         var     system = ctx.world.EntityManager.World.GetExistingSystemManaged(ctx.latiosEntitiesGraphicsSystem) as LatiosEntitiesGraphicsSystem;
                         // Todo: Unity has a Span registration API, but it is internal.
+                        int i = 0;
                         foreach (var mesh in ctx.meshes)
                         {
-                            system.RegisterMesh(mesh);
+                            ctx.outputIDs[i] = system.RegisterMesh(mesh);
+                            i++;
                         }
                         ctx.success = true;
                         break;
@@ -699,6 +730,14 @@ namespace Latios.Kinemation
                         }
                         Mesh.ApplyAndDisposeWritableMeshData(ctx.data, meshListCache, ctx.flags);
                         meshListCache.Clear();  // Clear to help GC maybe?
+                        ctx.success = true;
+                        break;
+                    }
+                    case 16:
+                    {
+                        ref var ctx = ref *(DestroyMeshesContext*)context;
+                        foreach (var mesh in ctx.meshes)
+                            mesh.Value.DestroySafelyFromAnywhere();
                         ctx.success = true;
                         break;
                     }
