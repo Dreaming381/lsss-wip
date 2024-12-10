@@ -469,11 +469,12 @@ namespace Latios.Kinemation
 
     internal partial struct UniqueMeshPool : ICollectionComponent
     {
-        public NativeList<UnityObjectRef<UnityEngine.Mesh> >                unusedMeshes;
-        public NativeList<UnityObjectRef<UnityEngine.Mesh> >                allMeshes;
-        public NativeHashSet<BatchMeshID>                                   invalidMeshesToCull;
-        public NativeHashSet<BatchMeshID>                                   meshesValidatedThisFrame;
-        public NativeHashMap<UnityObjectRef<UnityEngine.Mesh>, BatchMeshID> meshToIdMap;
+        public NativeList<UnityObjectRef<UnityEngine.Mesh> >                 unusedMeshes;
+        public NativeList<UnityObjectRef<UnityEngine.Mesh> >                 allMeshes;
+        public NativeHashSet<BatchMeshID>                                    invalidMeshesToCull;
+        public NativeHashSet<BatchMeshID>                                    meshesPrevalidatedThisFrame;
+        public NativeHashMap<UnityObjectRef<UnityEngine.Mesh>, BatchMeshID>  meshToIdMap;
+        public NativeHashMap<BatchMeshID, UnityObjectRef<UnityEngine.Mesh> > idToMeshMap;
 
         public JobHandle TryDispose(JobHandle inputDeps)
         {
@@ -484,8 +485,9 @@ namespace Latios.Kinemation
                 unusedMeshes.Dispose();
                 allMeshes.Dispose();
                 invalidMeshesToCull.Dispose();
-                meshesValidatedThisFrame.Dispose();
+                meshesPrevalidatedThisFrame.Dispose();
                 meshToIdMap.Dispose();
+                idToMeshMap.Dispose();
                 return default;
             }
             return inputDeps;

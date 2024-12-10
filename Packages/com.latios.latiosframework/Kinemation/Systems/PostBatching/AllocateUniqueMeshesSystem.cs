@@ -30,11 +30,12 @@ namespace Latios.Kinemation.Systems
 
             latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new UniqueMeshPool
             {
-                allMeshes                = new NativeList<UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent),
-                unusedMeshes             = new NativeList<UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent),
-                invalidMeshesToCull      = new NativeHashSet<BatchMeshID>(64, Allocator.Persistent),
-                meshesValidatedThisFrame = new NativeHashSet<BatchMeshID>(64, Allocator.Persistent),
-                meshToIdMap              = new NativeHashMap<UnityObjectRef<UnityEngine.Mesh>, BatchMeshID>(64, Allocator.Persistent)
+                allMeshes                   = new NativeList<UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent),
+                unusedMeshes                = new NativeList<UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent),
+                invalidMeshesToCull         = new NativeHashSet<BatchMeshID>(64, Allocator.Persistent),
+                meshesPrevalidatedThisFrame = new NativeHashSet<BatchMeshID>(64, Allocator.Persistent),
+                meshToIdMap                 = new NativeHashMap<UnityObjectRef<UnityEngine.Mesh>, BatchMeshID>(64, Allocator.Persistent),
+                idToMeshMap                 = new NativeHashMap<BatchMeshID, UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent)
             });
         }
 
@@ -103,6 +104,7 @@ namespace Latios.Kinemation.Systems
                 for (int i = 0; i < meshes.Length; i++)
                 {
                     meshPool.meshToIdMap.Add(meshes[i], ids[i]);
+                    meshPool.idToMeshMap.Add(ids[i], meshes[i]);
                 }
             }
         }

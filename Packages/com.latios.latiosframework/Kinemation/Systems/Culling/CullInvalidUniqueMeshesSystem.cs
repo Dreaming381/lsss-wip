@@ -74,7 +74,7 @@ namespace Latios.Kinemation.Systems
         {
             public UniqueMeshPool meshPool;
 
-            public void Execute() => meshPool.meshesValidatedThisFrame.Clear();
+            public void Execute() => meshPool.meshesPrevalidatedThisFrame.Clear();
         }
 
         [BurstCompile]
@@ -111,7 +111,7 @@ namespace Latios.Kinemation.Systems
                 {
                     if (configuredBits[entityIndex])
                     {
-                        if (!configurations[entityIndex].disableEmptyAndInvalidMeshCulling && !meshPool.meshesValidatedThisFrame.Contains(mmis[entityIndex].MeshID))
+                        if (!configurations[entityIndex].disableEmptyAndInvalidMeshCulling && !meshPool.meshesPrevalidatedThisFrame.Contains(mmis[entityIndex].MeshID))
                         {
                             if (entityIndex < 64)
                                 furtherEvaluateLower.SetBits(entityIndex, true);
@@ -194,7 +194,7 @@ namespace Latios.Kinemation.Systems
                     else
                     {
                         meshPool.invalidMeshesToCull.Remove(request.id);
-                        meshPool.meshesValidatedThisFrame.Add(request.id);
+                        meshPool.meshesPrevalidatedThisFrame.Add(request.id);
                     }
                 }
             }
