@@ -361,21 +361,24 @@ namespace Latios.Kinemation.Systems
             }
 
             // Validate indices only if we haven't failed already
+            int totalIndexCount = 0;
             if (!failed && hasIndices)
             {
-                int i = 0;
                 foreach (var index in indexBuffers[entityIndex])
                 {
                     if (index.index < 0 || index.index >= vertexCount)
                     {
                         UnityEngine.Debug.LogError(
-                            $"In {entities[entityIndex].ToFixedString()}, index value {index.index} at position {i} in the index buffer is outside the vertex range [0, {vertexCount})");
+                            $"In {entities[entityIndex].ToFixedString()}, index value {index.index} at position {totalIndexCount} in the index buffer is outside the vertex range [0, {vertexCount})");
                         failed = true;
                         break;
                     }
-                    i++;
+                    totalIndexCount++;
                 }
             }
+            // If the mesh is just empty, silently fail.
+            if (vertexCount == 0 && totalIndexCount == 0)
+                failed = true;
 
             return !failed;
         }
