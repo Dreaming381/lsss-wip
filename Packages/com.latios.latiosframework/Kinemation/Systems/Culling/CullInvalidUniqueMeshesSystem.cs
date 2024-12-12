@@ -25,7 +25,7 @@ namespace Latios.Kinemation.Systems
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<UniqueMeshConfig>(true).With<MaterialMeshInfo>().With<ChunkPerCameraCullingMask>(false, true).Build();
+            m_query     = state.Fluent().With<UniqueMeshConfig>(false).With<MaterialMeshInfo>(true).With<ChunkPerCameraCullingMask>(false, true).Build();
         }
 
         [BurstCompile]

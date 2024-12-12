@@ -1,5 +1,4 @@
 using Latios.Kinemation.Systems;
-using Latios.Transforms;
 using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
@@ -11,32 +10,134 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine.Rendering;
 
+using static Unity.Entities.SystemAPI;
+
 namespace Latios.Kinemation
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UploadUniqueMeshesSystem : ISystem
+    public partial struct UploadUniqueMeshesSystem : ISystem, ICullingComputeDispatchSystem<UploadUniqueMeshesSystem.CollectState,  UploadUniqueMeshesSystem.WriteState>
     {
-        LatiosWorldUnmanaged latiosWorld;
+        LatiosWorldUnmanaged                                 latiosWorld;
+        EntityQuery                                          m_query;
+        CullingComputeDispatchData<CollectState, WriteState> m_data;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
+            m_query     = state.Fluent().With<UniqueMeshConfig>(false).Build();
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
+        public void OnUpdate(ref SystemState state) => m_data.DoUpdate(ref state, ref this);
+
+        public CollectState Collect(ref SystemState state)
         {
+            var chunkCount      = m_query.CalculateChunkCountWithoutFiltering();
+            var collectedChunks = new NativeList<CollectedChunk>(chunkCount, state.WorldUpdateAllocator);
+            collectedChunks.Resize(chunkCount, NativeArrayOptions.ClearMemory);
+            var meshIDsToInvalidate = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<BatchMeshID>(), 256, state.WorldUpdateAllocator);
+            var meshPool            = latiosWorld.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(false);
+
+            state.Dependency = new FindAndValidateMeshesJob
+            {
+                collectedChunks         = collectedChunks,
+                colorHandle             = GetBufferTypeHandle<UniqueMeshColor>(true),
+                configHandle            = GetComponentTypeHandle<UniqueMeshConfig>(false),
+                entityHandle            = GetEntityTypeHandle(),
+                indexHandle             = GetBufferTypeHandle<UniqueMeshIndex>(true),
+                maskHandle              = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
+                meshIDsToInvalidate     = meshIDsToInvalidate,
+                meshPool                = meshPool,
+                mmiHandle               = GetComponentTypeHandle<MaterialMeshInfo>(true),
+                normalHandle            = GetBufferTypeHandle<UniqueMeshNormal>(true),
+                positionHandle          = GetBufferTypeHandle<UniqueMeshPosition>(true),
+                submeshHandle           = GetBufferTypeHandle<UniqueMeshSubmesh>(true),
+                tangentHandle           = GetBufferTypeHandle<UniqueMeshTangent>(true),
+                trackedUniqueMeshHandle = GetComponentTypeHandle<TrackedUniqueMesh>(true),
+                uv0xyHandle             = GetBufferTypeHandle<UniqueMeshUv0xy>(true),
+                uv3xyzHandle            = GetBufferTypeHandle<UniqueMeshUv3xyz>(true),
+            }.ScheduleParallel(m_query, state.Dependency);
+
+            var meshesNeeded = new NativeReference<int>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
+
+            state.Dependency = new OrganizeMeshesJob
+            {
+                collectedChunks     = collectedChunks,
+                meshIDsToInvalidate = meshIDsToInvalidate,
+                meshPool            = meshPool,
+                meshesNeeded        = meshesNeeded
+            }.Schedule(state.Dependency);
+
+            return new CollectState
+            {
+                collectedChunks = collectedChunks,
+                meshesNeeded    = meshesNeeded
+            };
         }
 
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public WriteState Write(ref SystemState state, ref CollectState collectState)
         {
+            var meshCount = collectState.meshesNeeded.Value;
+            if (meshCount == 0)
+                return default;
+            var meshesToUpload =
+                CollectionHelper.CreateNativeArray<UnityObjectRef<UnityEngine.Mesh> >(meshCount, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
+            var meshDataArray = UnityEngine.Mesh.AllocateWritableMeshData(meshCount);
+            var meshPool      = latiosWorld.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(true);
+
+            state.Dependency = new WriteMeshesJob
+            {
+                collectedChunks = collectState.collectedChunks.AsDeferredJobArray(),
+                colorHandle     = GetBufferTypeHandle<UniqueMeshColor>(false),
+                configHandle    = GetComponentTypeHandle<UniqueMeshConfig>(false),
+                indexHandle     = GetBufferTypeHandle<UniqueMeshIndex>(false),
+                meshDataArray   = meshDataArray,
+                meshesToUpload  = meshesToUpload,
+                meshPool        = meshPool,
+                mmiHandle       = GetComponentTypeHandle<MaterialMeshInfo>(true),
+                normalHandle    = GetBufferTypeHandle<UniqueMeshNormal>(false),
+                positionHandle  = GetBufferTypeHandle<UniqueMeshPosition>(false),
+                submeshHandle   = GetBufferTypeHandle<UniqueMeshSubmesh>(false),
+                tangentHandle   = GetBufferTypeHandle<UniqueMeshTangent>(false),
+                trackedHandle   = GetComponentTypeHandle<TrackedUniqueMesh>(true),
+                uv0xyHandle     = GetBufferTypeHandle<UniqueMeshUv0xy>(false),
+                uv3xyzHandle    = GetBufferTypeHandle<UniqueMeshUv3xyz>(false),
+            }.ScheduleParallel(meshCount, 1, state.Dependency);
+
+            return new WriteState
+            {
+                meshCount      = meshCount,
+                meshDataArray  = meshDataArray,
+                meshesToUpload = meshesToUpload
+            };
         }
 
-        struct CollectedChunk
+        public void Dispatch(ref SystemState state, ref WriteState writeState)
+        {
+            if (writeState.meshCount == 0)
+                return;
+
+            var flags = MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontResetBoneBounds | MeshUpdateFlags.DontNotifyMeshUsers | MeshUpdateFlags.DontRecalculateBounds;
+            GraphicsUnmanaged.ApplyAndDisposeWritableMeshData(writeState.meshDataArray, writeState.meshesToUpload, flags);
+        }
+
+        public struct CollectState
+        {
+            internal NativeList<CollectedChunk> collectedChunks;
+            internal NativeReference<int>       meshesNeeded;
+        }
+
+        public struct WriteState
+        {
+            internal int                                            meshCount;
+            internal UnityEngine.Mesh.MeshDataArray                 meshDataArray;
+            internal NativeArray<UnityObjectRef<UnityEngine.Mesh> > meshesToUpload;
+        }
+
+        internal struct CollectedChunk
         {
             public ArchetypeChunk chunk;
             public BitField64     lower;
@@ -58,6 +159,7 @@ namespace Latios.Kinemation
             [ReadOnly] public BufferTypeHandle<UniqueMeshIndex>                indexHandle;
             [ReadOnly] public BufferTypeHandle<UniqueMeshSubmesh>              submeshHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> maskHandle;
+            [ReadOnly] public ComponentTypeHandle<TrackedUniqueMesh>           trackedUniqueMeshHandle;
             [ReadOnly] public UniqueMeshPool                                   meshPool;
 
             public ComponentTypeHandle<UniqueMeshConfig>                            configHandle;
@@ -69,9 +171,13 @@ namespace Latios.Kinemation
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
+                // 1) Only consider meshes that have a MaterialMeshInfo or a TrackedUniqueMesh.
+                if (!(chunk.Has(ref mmiHandle) || chunk.Has(ref trackedUniqueMeshHandle)))
+                    return;
+
                 var configurations = (UniqueMeshConfig*)chunk.GetRequiredComponentDataPtrRO(ref configHandle);
 
-                // 1) Only consider visible meshes or meshes with forced uploads
+                // 2) Only consider visible meshes or meshes with forced uploads
                 ChunkPerDispatchCullingMask maskToProcess = default;
                 if (chunk.HasChunkComponent(ref maskHandle))
                     maskToProcess = chunk.GetChunkComponentData(ref maskHandle);
@@ -90,8 +196,8 @@ namespace Latios.Kinemation
                 if ((maskToProcess.lower.Value | maskToProcess.upper.Value) == 0)
                     return;
 
-                // 2) Identify which meshes still need validation.
-                var        mmis          = (MaterialMeshInfo*)chunk.GetRequiredComponentDataPtrRO(ref mmiHandle);
+                // 3) Identify which meshes still need validation.
+                var        mmis          = chunk.GetComponentDataPtrRO(ref mmiHandle);
                 BitField64 validateLower = default, validateUpper = default;
                 enumerator               = new ChunkEntityEnumerator(true, new v128(maskToProcess.lower.Value, maskToProcess.upper.Value), chunk.Count);
                 while (enumerator.NextEntityIndex(out var entityIndex))
@@ -108,7 +214,7 @@ namespace Latios.Kinemation
                 // New configurations to validate
                 var configuredBits = chunk.GetEnabledMask(ref configHandle);
 
-                // 3) Validate meshes still needing validation if necessary
+                // 4) Validate meshes still needing validation if necessary
                 if ((validateLower.Value | validateUpper.Value) != 0)
                 {
                     var validator = new UniqueMeshValidator
@@ -146,7 +252,7 @@ namespace Latios.Kinemation
                 if ((maskToProcess.lower.Value | maskToProcess.upper.Value) == 0)
                     return;
 
-                // 4) Export chunk
+                // 5) Export chunk
                 collectedChunks[unfilteredChunkIndex] = new CollectedChunk
                 {
                     chunk = chunk,
@@ -162,6 +268,7 @@ namespace Latios.Kinemation
             public NativeList<CollectedChunk> collectedChunks;
             public UniqueMeshPool             meshPool;
             public UnsafeParallelBlockList    meshIDsToInvalidate;
+            public NativeReference<int>       meshesNeeded;
 
             public void Execute()
             {
@@ -186,6 +293,7 @@ namespace Latios.Kinemation
                     writeIndex++;
                 }
                 collectedChunks.Length = writeIndex;
+                meshesNeeded.Value     = prefixSum;
             }
         }
 
@@ -512,6 +620,7 @@ namespace Latios.Kinemation
             void RecalculateNormals(NativeArray<float3> positions, NativeArray<float3> normals, NativeArray<int> indices, NativeArray<UniqueMeshSubmesh> submeshes)
             {
                 // Todo:
+                throw new System.NotImplementedException("Recalculate normals for UniqueMesh is not supported at this time.");
             }
 
             void RecalculateTangents(NativeArray<float3>            positions,
@@ -522,6 +631,7 @@ namespace Latios.Kinemation
                                      NativeArray<UniqueMeshSubmesh> submeshes)
             {
                 // Todo:
+                throw new System.NotImplementedException("Recalculate tangents for UniqueMesh is not supported at this time.");
             }
 
             void Write(ref int writeIndex, ref NativeArray<float> stream, float2 value)

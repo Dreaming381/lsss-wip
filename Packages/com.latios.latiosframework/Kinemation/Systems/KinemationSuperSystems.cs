@@ -90,7 +90,7 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<LatiosLightProbeUpdateSystem>();
             GetOrCreateAndAddUnmanagedSystem<CombineExposedBonesSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateSkinnedPostProcessMatrixBoundsSystem>();
-            //GetOrCreateAndAddUnmanagedSystem<AllocateUniqueMeshesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<AllocateUniqueMeshesSystem>();
             GetOrCreateAndAddManagedSystem<KinemationCustomGraphicsSuperSystem>();
 #if UNITY_EDITOR
             GetOrCreateAndAddManagedSystem<KinemationCullingPassSystemExposerSuperSystem>();
@@ -218,7 +218,7 @@ namespace Latios.Kinemation.Systems
             EnableSystemSorting = false;
 
             GetOrCreateAndAddUnmanagedSystem<InitializeAndFilterPerCameraSystem>();
-            //GetOrCreateAndAddUnmanagedSystem<CullInvalidUniqueMeshesSystem>();
+            GetOrCreateAndAddUnmanagedSystem<CullInvalidUniqueMeshesSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullExposedSkeletonsSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullOptimizedSkeletonsSystem>();
             GetOrCreateAndAddUnmanagedSystem<CullLodsSystem>();
@@ -283,7 +283,7 @@ namespace Latios.Kinemation.Systems
             EnableSystemSorting = false;
 
             GetOrCreateAndAddManagedSystem<DispatchRoundRobinEarlyExtensionsSuperSystem>();
-            // Unique Meshes here
+            GetOrCreateAndAddUnmanagedSystem<UploadUniqueMeshesSystem>();
             GetOrCreateAndAddUnmanagedSystem<UploadDynamicMeshesSystem>();
             GetOrCreateAndAddUnmanagedSystem<BlendShapesDispatchSystem>();
             GetOrCreateAndAddUnmanagedSystem<SkinningDispatchSystem>();
