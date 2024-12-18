@@ -11,7 +11,7 @@ namespace Latios.Kinemation.Authoring
     /// Unlike with LOD Group, this LOD1 is combined with the entity or pair of entities.
     /// </summary>
     [DisallowMultipleComponent]
-    [AddComponentMenu("Latios/Kinemation/LOD1 Append")]
+    [AddComponentMenu("Latios/Kinemation/LOD1 Append (Kinemation)")]
     public class LodAppendAuthoring : MonoBehaviour
     {
         [Tooltip("The screen percentage below which LOD1 (the loResMesh) is exclusively shown")]
