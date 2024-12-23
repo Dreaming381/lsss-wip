@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Entities.Exposed;
@@ -62,6 +63,8 @@ namespace Latios
         }
 
         public TempArchetypeEnumerator archetypes => new TempArchetypeEnumerator { query = this, currentIndex = -1 };
+        public TempChunkEnumerator<TempArchetypeEnumerator> chunks => archetypes.chunks;
+        public TempEntityEnumerator<TempMaskedChunkEnumerator<TempChunkEnumerator<TempArchetypeEnumerator>>> entities => chunks.masked.entities;
         #endregion
 
         #region Fields
@@ -93,12 +96,23 @@ namespace Latios
         #endregion
     }
 
-    public struct TempArchetypeEnumerator
+    public interface ITempArchetypeEnumerator
+    {
+        EntityStorageInfoLookup entityStorageInfoLookup { get; }
+        EntityArchetype Current { get; }
+        bool MoveNext();
+    }
+
+    public struct TempArchetypeEnumerator : ITempArchetypeEnumerator
     {
         internal TempQuery query;
         internal int       currentIndex;
 
+        public TempChunkEnumerator<TempArchetypeEnumerator> chunks => new TempChunkEnumerator<TempArchetypeEnumerator>(this);
+
         public TempArchetypeEnumerator GetEnumerator() => this;
+
+        public EntityStorageInfoLookup entityStorageInfoLookup => query.esil;
 
         public EntityArchetype Current
         {
@@ -227,6 +241,135 @@ namespace Latios
 
                 return true;
             }
+        }
+    }
+
+    public interface ITempChunkEnumerator
+    {
+        EntityStorageInfoLookup entityStorageInfoLookup { get; }
+        ArchetypeChunk Current { get; }
+        public bool MoveNext();
+    }
+
+    public struct TempChunkEnumerator<TArchetypeEnumerator> : ITempChunkEnumerator where TArchetypeEnumerator : unmanaged, ITempArchetypeEnumerator
+    {
+        internal TArchetypeEnumerator archetypeEnumerator;
+        internal int currentChunkIndexInArchetype;
+
+        public TempMaskedChunkEnumerator<TempChunkEnumerator<TArchetypeEnumerator>> masked => new TempMaskedChunkEnumerator<TempChunkEnumerator<TArchetypeEnumerator>>(this);
+
+        public TempChunkEnumerator(TArchetypeEnumerator archetypes)
+        {
+            archetypeEnumerator = archetypes;
+            currentChunkIndexInArchetype = -1;
+        }
+
+        public TempChunkEnumerator<TArchetypeEnumerator> GetEnumerator() => this;
+
+        public EntityStorageInfoLookup entityStorageInfoLookup => archetypeEnumerator.entityStorageInfoLookup;
+
+        public ArchetypeChunk Current
+        {
+            get
+            {
+                TempQuery.CheckValid(entityStorageInfoLookup);
+                return archetypeEnumerator.Current.GetChunkAtIndex(currentChunkIndexInArchetype);
+            }
+        }
+
+        public bool MoveNext()
+        {
+            TempQuery.CheckValid(entityStorageInfoLookup);
+            currentChunkIndexInArchetype++;
+            while (currentChunkIndexInArchetype >= archetypeEnumerator.Current.ChunkCount)
+            {
+                currentChunkIndexInArchetype = 0;
+                if (!archetypeEnumerator.MoveNext())
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    public struct MaskedChunk
+    {
+        public ArchetypeChunk chunk;
+        public v128 enabledMask;
+        public bool useEnabledMask;
+    }
+
+    public interface ITempMaskedChunkEnumerator
+    {
+        EntityStorageInfoLookup entityStorageInfoLookup { get; }
+        MaskedChunk Current { get; }
+        bool MoveNext();
+    }
+
+    public struct TempMaskedChunkEnumerator<TTempChunkEnumerator> : ITempMaskedChunkEnumerator where TTempChunkEnumerator : unmanaged, ITempChunkEnumerator
+    {
+        internal TTempChunkEnumerator tempChunkEnumerator;
+        internal MaskedChunk currentMaskedChunk;
+
+        public TempEntityEnumerator<TempMaskedChunkEnumerator<TTempChunkEnumerator>> entities => new TempEntityEnumerator<TempMaskedChunkEnumerator<TTempChunkEnumerator>>(this);
+
+        public TempMaskedChunkEnumerator(TTempChunkEnumerator chunks)
+        {
+            tempChunkEnumerator = chunks;
+            currentMaskedChunk = default;
+        }
+
+        public TempMaskedChunkEnumerator<TTempChunkEnumerator> GetEnumerator() => this;
+
+        public EntityStorageInfoLookup entityStorageInfoLookup => tempChunkEnumerator.entityStorageInfoLookup;
+
+        public MaskedChunk Current => currentMaskedChunk;
+        public bool MoveNext()
+        {
+            if (tempChunkEnumerator.MoveNext())
+            {
+                currentMaskedChunk = new MaskedChunk { chunk = tempChunkEnumerator.Current, useEnabledMask = false };
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public struct TempEntityEnumerator<TTempMaskedChunkEnumerator> where TTempMaskedChunkEnumerator : unmanaged, ITempMaskedChunkEnumerator
+    {
+        internal TTempMaskedChunkEnumerator chunkEnumerator;
+        internal ChunkEntityEnumerator indexEnumerator;
+        internal NativeArray<Entity> entities;
+        internal int currentIndex;
+
+        public TempEntityEnumerator(TTempMaskedChunkEnumerator maskedChunks)
+        {
+            chunkEnumerator = maskedChunks;
+            indexEnumerator = default;
+            entities = default;
+            currentIndex = -1;
+        }
+
+        public TempEntityEnumerator<TTempMaskedChunkEnumerator> GetEnumerator() => this;
+
+        public Entity Current => entities[currentIndex];
+        public bool MoveNext()
+        {
+            // Note: A default instance will return false here.
+            if (!indexEnumerator.NextEntityIndex(out currentIndex))
+            {
+                if (chunkEnumerator.MoveNext())
+                {
+                    var chunk = chunkEnumerator.Current;
+                    entities = chunk.chunk.GetNativeArray(chunkEnumerator.entityStorageInfoLookup.AsEntityTypeHandle());
+                    indexEnumerator = new ChunkEntityEnumerator(chunk.useEnabledMask, chunk.enabledMask, chunk.chunk.Count);
+                    indexEnumerator.NextEntityIndex(out currentIndex);
+                    return true;
+                }
+                return false;
+            }
+            return true;
         }
     }
 }

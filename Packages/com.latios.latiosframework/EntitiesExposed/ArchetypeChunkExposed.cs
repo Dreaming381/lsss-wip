@@ -88,6 +88,7 @@ namespace Unity.Entities.Exposed
         public static unsafe int GetChunkComponentCount(in this EntityArchetype archetype) => archetype.Archetype->NumChunkComponents;
         public static unsafe int GetBufferComponentCount(in this EntityArchetype archetype) => archetype.Archetype->NumBufferComponents;
         public static unsafe TypeIndex GetTypeAtIndex(in this EntityArchetype archetype, int index) => archetype.Archetype->Types[index].TypeIndex;
+        public static unsafe ArchetypeChunk GetChunkAtIndex(in this EntityArchetype archetype, int index) => new ArchetypeChunk(archetype.Archetype->Chunks[index], archetype.Archetype->EntityComponentStore);
     }
 }
 
