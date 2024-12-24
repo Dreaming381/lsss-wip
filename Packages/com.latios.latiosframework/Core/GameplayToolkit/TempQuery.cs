@@ -7,9 +7,21 @@ using Unity.Mathematics;
 
 namespace Latios
 {
+    /// <summary>
+    /// A temporary EntityQuery which can be constructed directly in a job.
+    /// </summary>
     public struct TempQuery
     {
         #region API
+        /// <summary>
+        /// Creates a temporary EntityQuery
+        /// </summary>
+        /// <param name="archetypes">The archetypes retrieved by EntityManager.GetAllArchetypes(), or a reduced subset to consider</param>
+        /// <param name="entityStorageInfoLookup">The EntityStorageInfoLookup used for fetching entities and ensuring safety</param>
+        /// <param name="with">The component types that should be present (enabled states are not considered)</param>
+        /// <param name="withAny">The component types where at least one should be present (enabled states are not considered)</param>
+        /// <param name="without">The component types that should be absent (disabled components don't count as absent)</param>
+        /// <param name="options">EntityQuery options to use. FilterWriteGroup and IgnoreComponentEnabledState are not acknowledged.</param>
         public TempQuery(NativeArray<EntityArchetype> archetypes,
                          EntityStorageInfoLookup entityStorageInfoLookup,
                          ComponentTypeSet with,
@@ -62,8 +74,17 @@ namespace Latios
             packedQueryOptions = (byte)options;
         }
 
+        /// <summary>
+        /// The list of archetypes matching the query, which can be used in a foreach expression
+        /// </summary>
         public TempArchetypeEnumerator archetypes => new TempArchetypeEnumerator { query = this, currentIndex = -1 };
+        /// <summary>
+        /// The list of chunks matching the query, which can be used in a foreach expression
+        /// </summary>
         public TempChunkEnumerator<TempArchetypeEnumerator> chunks => archetypes.chunks;
+        /// <summary>
+        /// The list of entities matching the query, which can be used in a foreach expression
+        /// </summary>
         public TempEntityEnumerator<TempMaskedChunkEnumerator<TempChunkEnumerator<TempArchetypeEnumerator>>> entities => chunks.masked.entities;
         #endregion
 
@@ -96,6 +117,9 @@ namespace Latios
         #endregion
     }
 
+    /// <summary>
+    /// An interface for providing archetypes that should be enumerated
+    /// </summary>
     public interface ITempArchetypeEnumerator
     {
         EntityStorageInfoLookup entityStorageInfoLookup { get; }
@@ -103,6 +127,9 @@ namespace Latios
         bool MoveNext();
     }
 
+    /// <summary>
+    /// An archetype enumerator based on a TempQuery
+    /// </summary>
     public struct TempArchetypeEnumerator : ITempArchetypeEnumerator
     {
         internal TempQuery query;
@@ -244,6 +271,9 @@ namespace Latios
         }
     }
 
+    /// <summary>
+    /// An interface for providing chunks that should be enumerated
+    /// </summary>
     public interface ITempChunkEnumerator
     {
         EntityStorageInfoLookup entityStorageInfoLookup { get; }
@@ -251,6 +281,10 @@ namespace Latios
         public bool MoveNext();
     }
 
+    /// <summary>
+    /// A chunk enumerator that enumerates all chunks in all archetypes provided by the archetype enumerator
+    /// </summary>
+    /// <typeparam name="TArchetypeEnumerator"></typeparam>
     public struct TempChunkEnumerator<TArchetypeEnumerator> : ITempChunkEnumerator where TArchetypeEnumerator : unmanaged, ITempArchetypeEnumerator
     {
         internal TArchetypeEnumerator archetypeEnumerator;
@@ -293,6 +327,9 @@ namespace Latios
         }
     }
 
+    /// <summary>
+    /// A chunk along with an optional enabled filter mask that can be iterated with ChunkEntityEnumerator
+    /// </summary>
     public struct MaskedChunk
     {
         public ArchetypeChunk chunk;
@@ -300,6 +337,9 @@ namespace Latios
         public bool useEnabledMask;
     }
 
+    /// <summary>
+    /// An interface for providing chunks with optional enabled masks
+    /// </summary>
     public interface ITempMaskedChunkEnumerator
     {
         EntityStorageInfoLookup entityStorageInfoLookup { get; }
@@ -307,6 +347,10 @@ namespace Latios
         bool MoveNext();
     }
 
+    /// <summary>
+    /// A default masked chunk enumerator which includes all entities in each chunk provided by the chunk enumerator
+    /// </summary>
+    /// <typeparam name="TTempChunkEnumerator"></typeparam>
     public struct TempMaskedChunkEnumerator<TTempChunkEnumerator> : ITempMaskedChunkEnumerator where TTempChunkEnumerator : unmanaged, ITempChunkEnumerator
     {
         internal TTempChunkEnumerator tempChunkEnumerator;
@@ -336,6 +380,11 @@ namespace Latios
         }
     }
 
+    /// <summary>
+    /// An entity enumerator that iterates all enabled entities provided by the masked chunk enumerator,
+    /// which can be used in a foreach expression
+    /// </summary>
+    /// <typeparam name="TTempMaskedChunkEnumerator"></typeparam>
     public struct TempEntityEnumerator<TTempMaskedChunkEnumerator> where TTempMaskedChunkEnumerator : unmanaged, ITempMaskedChunkEnumerator
     {
         internal TTempMaskedChunkEnumerator chunkEnumerator;

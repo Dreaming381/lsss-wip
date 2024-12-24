@@ -51,6 +51,11 @@ namespace Latios.Myri.Authoring
                 Debug.LogError($"Myri failed to bake clip {clip.name}. Only mono and stereo clips are supported.");
                 return false;
             }
+            if (clip.loadType != AudioClipLoadType.DecompressOnLoad)
+            {
+                Debug.LogError($"Myri failed to bake clip {clip.name}. The clip must be imported with \"Decompress On Load\".");
+                return false;
+            }
             baker.AddComponent(blobBakingEntity, new AudioClipBlobBakeData { clip = clip, numVoices = numVoices });
             return true;
         }
