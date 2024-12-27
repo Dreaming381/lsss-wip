@@ -85,7 +85,120 @@ namespace Latios
         /// <summary>
         /// The list of entities matching the query, which can be used in a foreach expression
         /// </summary>
-        public TempEntityEnumerator<TempMaskedChunkEnumerator<TempChunkEnumerator<TempArchetypeEnumerator>>> entities => chunks.masked.entities;
+        public TempEntityEnumerator<TempMaskedChunkEnumerator<TempChunkEnumerator<TempArchetypeEnumerator> > > entities => chunks.masked.entities;
+
+        /// <summary>
+        /// Returns true if the archetype is included in this query
+        /// </summary>
+        /// <param name="archetype">The archetype to test against</param>
+        /// <returns>True if the archetype is included in the query, false otherwise</returns>
+        public bool MatchesArchetype(EntityArchetype archetype)
+        {
+            if ((archetype.GetBloomMask() & bloomMask) != bloomMask)
+                return false;
+
+            if (archetype.TypesCount < requiredTypeCount)
+                return false;
+
+            if (archetype.Prefab && (queryOptions & EntityQueryOptions.IncludePrefab) == EntityQueryOptions.Default)
+                return false;
+            if (archetype.Disabled && (queryOptions & EntityQueryOptions.IncludeDisabledEntities) == EntityQueryOptions.Default)
+                return false;
+            if (archetype.HasChunkHeader() && (queryOptions & EntityQueryOptions.IncludeMetaChunks) == EntityQueryOptions.Default)
+                return false;
+            if (archetype.HasSystemInstanceComponents() && (queryOptions & EntityQueryOptions.IncludeSystems) == EntityQueryOptions.Default)
+                return false;
+            if (requiredChunkTypeCount > archetype.GetChunkComponentCount())
+                return false;
+            if (requiredBufferTypeCount > archetype.GetBufferComponentCount())
+                return false;
+
+            // Todo: We could do more early-out checks here, such as checking type flags used in the query for object refs or other specialties.
+
+            // Time to do detailed analysis. First, required types.
+            if (withTypes.Length > 0)
+            {
+                bool missingRequired  = true;
+                int  queryTypeIndex   = 0;
+                var  currentQueryType = withTypes.GetTypeIndex(0);
+                for (int i = 0; i < archetype.TypesCount; i++)
+                {
+                    var archetypeType = archetype.GetTypeAtIndex(i);
+                    if (archetypeType.Value == currentQueryType.Value)
+                    {
+                        queryTypeIndex++;
+                        if (queryTypeIndex >= archetype.TypesCount)
+                        {
+                            missingRequired = false;
+                            break;
+                        }
+                        currentQueryType = withTypes.GetTypeIndex(queryTypeIndex);
+                    }
+                    else if (archetypeType.Value > currentQueryType.Value)
+                    {
+                        break;
+                    }
+                }
+                if (missingRequired)
+                    return false;
+            }
+            // Next, any types.
+            if (withAnyTypes.Length > 0)
+            {
+                bool found            = false;
+                int  queryTypeIndex   = 0;
+                var  currentQueryType = withAnyTypes.GetTypeIndex(0);
+                for (int i = 0; i < archetype.TypesCount; i++)
+                {
+                    var archetypeType = archetype.GetTypeAtIndex(i);
+                    if (archetypeType.Value == currentQueryType.Value)
+                    {
+                        found = true;
+                        break;
+                    }
+                    while (archetypeType.Value > currentQueryType.Value)
+                    {
+                        queryTypeIndex++;
+                        if (queryTypeIndex >= archetype.TypesCount)
+                        {
+                            break;
+                        }
+                        currentQueryType = withAnyTypes.GetTypeIndex(queryTypeIndex);
+                    }
+                }
+                if (!found)
+                    return false;
+            }
+            // Finally, without types.
+            if (withoutTypes.Length > 0)
+            {
+                bool found            = false;
+                int  queryTypeIndex   = 0;
+                var  currentQueryType = withoutTypes.GetTypeIndex(0);
+                for (int i = 0; i < archetype.TypesCount; i++)
+                {
+                    var archetypeType = archetype.GetTypeAtIndex(i);
+                    if (archetypeType.Value == currentQueryType.Value)
+                    {
+                        found = true;
+                        break;
+                    }
+                    while (archetypeType.Value > currentQueryType.Value)
+                    {
+                        queryTypeIndex++;
+                        if (queryTypeIndex >= archetype.TypesCount)
+                        {
+                            break;
+                        }
+                        currentQueryType = withoutTypes.GetTypeIndex(queryTypeIndex);
+                    }
+                }
+                if (found)
+                    return false;
+            }
+
+            return true;
+        }
         #endregion
 
         #region Fields
@@ -163,110 +276,8 @@ namespace Latios
                 if (archetype.ChunkCount == 0)
                     continue;
 
-                if ((archetype.GetBloomMask() & query.bloomMask) != query.bloomMask)
-                    continue;
-
-                if (archetype.TypesCount < query.requiredTypeCount)
-                    continue;
-
-                if (archetype.Prefab && (query.queryOptions & EntityQueryOptions.IncludePrefab) == EntityQueryOptions.Default)
-                    continue;
-                if (archetype.Disabled && (query.queryOptions & EntityQueryOptions.IncludeDisabledEntities) == EntityQueryOptions.Default)
-                    continue;
-                if (archetype.HasChunkHeader() && (query.queryOptions & EntityQueryOptions.IncludeMetaChunks) == EntityQueryOptions.Default)
-                    continue;
-                if (archetype.HasSystemInstanceComponents() && (query.queryOptions & EntityQueryOptions.IncludeSystems) == EntityQueryOptions.Default)
-                    continue;
-                if (query.requiredChunkTypeCount > archetype.GetChunkComponentCount())
-                    continue;
-                if (query.requiredBufferTypeCount > archetype.GetBufferComponentCount())
-                    continue;
-
-                // Todo: We could do more early-out checks here, such as checking type flags used in the query for object refs or other specialties.
-
-                // Time to do detailed analysis. First, required types.
-                if (query.withTypes.Length > 0)
-                {
-                    bool missingRequired  = true;
-                    int  queryTypeIndex   = 0;
-                    var  currentQueryType = query.withTypes.GetTypeIndex(0);
-                    for (int i = 0; i < archetype.TypesCount; i++)
-                    {
-                        var archetypeType = archetype.GetTypeAtIndex(i);
-                        if (archetypeType.Value == currentQueryType.Value)
-                        {
-                            queryTypeIndex++;
-                            if (queryTypeIndex >= archetype.TypesCount)
-                            {
-                                missingRequired = false;
-                                break;
-                            }
-                            currentQueryType = query.withTypes.GetTypeIndex(queryTypeIndex);
-                        }
-                        else if (archetypeType.Value > currentQueryType.Value)
-                        {
-                            break;
-                        }
-                    }
-                    if (missingRequired)
-                        continue;
-                }
-                // Next, any types.
-                if (query.withAnyTypes.Length > 0)
-                {
-                    bool found            = false;
-                    int  queryTypeIndex   = 0;
-                    var  currentQueryType = query.withAnyTypes.GetTypeIndex(0);
-                    for (int i = 0; i < archetype.TypesCount; i++)
-                    {
-                        var archetypeType = archetype.GetTypeAtIndex(i);
-                        if (archetypeType.Value == currentQueryType.Value)
-                        {
-                            found = true;
-                            break;
-                        }
-                        while (archetypeType.Value > currentQueryType.Value)
-                        {
-                            queryTypeIndex++;
-                            if (queryTypeIndex >= archetype.TypesCount)
-                            {
-                                break;
-                            }
-                            currentQueryType = query.withAnyTypes.GetTypeIndex(queryTypeIndex);
-                        }
-                    }
-                    if (!found)
-                        continue;
-                }
-                // Finally, without types.
-                if (query.withoutTypes.Length > 0)
-                {
-                    bool found            = false;
-                    int  queryTypeIndex   = 0;
-                    var  currentQueryType = query.withoutTypes.GetTypeIndex(0);
-                    for (int i = 0; i < archetype.TypesCount; i++)
-                    {
-                        var archetypeType = archetype.GetTypeAtIndex(i);
-                        if (archetypeType.Value == currentQueryType.Value)
-                        {
-                            found = true;
-                            break;
-                        }
-                        while (archetypeType.Value > currentQueryType.Value)
-                        {
-                            queryTypeIndex++;
-                            if (queryTypeIndex >= archetype.TypesCount)
-                            {
-                                break;
-                            }
-                            currentQueryType = query.withoutTypes.GetTypeIndex(queryTypeIndex);
-                        }
-                    }
-                    if (found)
-                        continue;
-                }
-
-                return true;
+                if (query.MatchesArchetype(archetype))
+                    return true;
             }
         }
     }
@@ -288,13 +299,13 @@ namespace Latios
     public struct TempChunkEnumerator<TArchetypeEnumerator> : ITempChunkEnumerator where TArchetypeEnumerator : unmanaged, ITempArchetypeEnumerator
     {
         internal TArchetypeEnumerator archetypeEnumerator;
-        internal int currentChunkIndexInArchetype;
+        internal int                  currentChunkIndexInArchetype;
 
-        public TempMaskedChunkEnumerator<TempChunkEnumerator<TArchetypeEnumerator>> masked => new TempMaskedChunkEnumerator<TempChunkEnumerator<TArchetypeEnumerator>>(this);
+        public TempMaskedChunkEnumerator<TempChunkEnumerator<TArchetypeEnumerator> > masked => new TempMaskedChunkEnumerator<TempChunkEnumerator<TArchetypeEnumerator> >(this);
 
         public TempChunkEnumerator(TArchetypeEnumerator archetypes)
         {
-            archetypeEnumerator = archetypes;
+            archetypeEnumerator          = archetypes;
             currentChunkIndexInArchetype = -1;
         }
 
@@ -333,8 +344,8 @@ namespace Latios
     public struct MaskedChunk
     {
         public ArchetypeChunk chunk;
-        public v128 enabledMask;
-        public bool useEnabledMask;
+        public v128           enabledMask;
+        public bool           useEnabledMask;
     }
 
     /// <summary>
@@ -354,14 +365,14 @@ namespace Latios
     public struct TempMaskedChunkEnumerator<TTempChunkEnumerator> : ITempMaskedChunkEnumerator where TTempChunkEnumerator : unmanaged, ITempChunkEnumerator
     {
         internal TTempChunkEnumerator tempChunkEnumerator;
-        internal MaskedChunk currentMaskedChunk;
+        internal MaskedChunk          currentMaskedChunk;
 
-        public TempEntityEnumerator<TempMaskedChunkEnumerator<TTempChunkEnumerator>> entities => new TempEntityEnumerator<TempMaskedChunkEnumerator<TTempChunkEnumerator>>(this);
+        public TempEntityEnumerator<TempMaskedChunkEnumerator<TTempChunkEnumerator> > entities => new TempEntityEnumerator<TempMaskedChunkEnumerator<TTempChunkEnumerator> >(this);
 
         public TempMaskedChunkEnumerator(TTempChunkEnumerator chunks)
         {
             tempChunkEnumerator = chunks;
-            currentMaskedChunk = default;
+            currentMaskedChunk  = default;
         }
 
         public TempMaskedChunkEnumerator<TTempChunkEnumerator> GetEnumerator() => this;
@@ -388,16 +399,16 @@ namespace Latios
     public struct TempEntityEnumerator<TTempMaskedChunkEnumerator> where TTempMaskedChunkEnumerator : unmanaged, ITempMaskedChunkEnumerator
     {
         internal TTempMaskedChunkEnumerator chunkEnumerator;
-        internal ChunkEntityEnumerator indexEnumerator;
-        internal NativeArray<Entity> entities;
-        internal int currentIndex;
+        internal ChunkEntityEnumerator      indexEnumerator;
+        internal NativeArray<Entity>        entities;
+        internal int                        currentIndex;
 
         public TempEntityEnumerator(TTempMaskedChunkEnumerator maskedChunks)
         {
             chunkEnumerator = maskedChunks;
             indexEnumerator = default;
-            entities = default;
-            currentIndex = -1;
+            entities        = default;
+            currentIndex    = -1;
         }
 
         public TempEntityEnumerator<TTempMaskedChunkEnumerator> GetEnumerator() => this;
@@ -410,8 +421,8 @@ namespace Latios
             {
                 if (chunkEnumerator.MoveNext())
                 {
-                    var chunk = chunkEnumerator.Current;
-                    entities = chunk.chunk.GetNativeArray(chunkEnumerator.entityStorageInfoLookup.AsEntityTypeHandle());
+                    var chunk       = chunkEnumerator.Current;
+                    entities        = chunk.chunk.GetNativeArray(chunkEnumerator.entityStorageInfoLookup.AsEntityTypeHandle());
                     indexEnumerator = new ChunkEntityEnumerator(chunk.useEnabledMask, chunk.enabledMask, chunk.chunk.Count);
                     indexEnumerator.NextEntityIndex(out currentIndex);
                     return true;
