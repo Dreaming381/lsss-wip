@@ -172,6 +172,25 @@ namespace Latios.Kinemation.Authoring
     /// </summary>
     public static partial class RenderingBakingTools
     {
+        static Mesh s_uniqueMeshPlaceholder = null;
+
+        /// <summary>
+        /// Gets a Unique Mesh Placeholder
+        /// </summary>
+        public static Mesh uniqueMeshPlaceholder
+        {
+            get
+            {
+                if (s_uniqueMeshPlaceholder == null)
+                {
+#if UNITY_EDITOR
+                    s_uniqueMeshPlaceholder = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Packages/com.latios.latiosframework/Kinemation/Authoring/UniqueMeshPlaceholder.asset");
+#endif
+                }
+                return s_uniqueMeshPlaceholder;
+            }
+        }
+
         /// <summary>
         /// Extracts the mesh and materials combination into the destination span of MeshMaterialSubmeshSettings
         /// </summary>
@@ -477,7 +496,7 @@ namespace Latios.Kinemation.Authoring
                 RenderingBakingTools.ExtractMeshMaterialSubmeshes(lod0, mesh, m_materialsCache, 0x01);
                 if (!lodAppend1Null)
                 {
-                    var lod1     = mms.Slice(m_materialsCache.Count, m_materialsCache.Count + lodAppend1Count);
+                    var lod1     = mms.Slice(m_materialsCache.Count, lodAppend1Count);
                     var lod1Mats = lodAppend.useOverrideMaterialsForLod1 ? lodAppend.overrideMaterialsForLod1 : m_materialsCache;
                     RenderingBakingTools.ExtractMeshMaterialSubmeshes(lod1, lodAppend.lod1Mesh, lod1Mats, (byte)(lodAppend.enableLod2 ? 0x02 : 0xfe));
                 }

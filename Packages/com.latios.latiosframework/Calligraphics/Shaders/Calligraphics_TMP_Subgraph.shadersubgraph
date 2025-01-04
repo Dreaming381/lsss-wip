@@ -2349,6 +2349,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "ScreenSpaceRatio",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -2546,7 +2547,7 @@
     "hlslDeclarationOverride": 0,
     "m_Hidden": false,
     "m_Value": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "isMainTexture": false,
@@ -3027,10 +3028,10 @@
         "w": 1.0
     },
     "m_DefaultValue": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0,
+        "w": 1.0
     },
     "m_Labels": []
 }
@@ -3244,7 +3245,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"fileID\":-2362172177983852347,\"guid\":\"dda5bcb0d1e9515498f6e4e038bbefe6\",\"type\":2}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -4173,6 +4174,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "ComputeSDF",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -4260,7 +4262,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -4577,6 +4579,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "EvaluateLight",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -4757,7 +4760,7 @@
     "m_Title": "Outline1 Texture",
     "m_Position": {
         "x": -58.0,
-        "y": 833.9999389648438
+        "y": 834.0
     }
 }
 
@@ -4855,6 +4858,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "GetSurfaceNormal",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -4964,10 +4968,10 @@
         "w": 1.0
     },
     "m_DefaultValue": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0,
-        "w": 0.0
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0,
+        "w": 1.0
     },
     "m_Labels": []
 }
@@ -5072,6 +5076,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "Layer1",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -5215,7 +5220,7 @@
     "hlslDeclarationOverride": 0,
     "m_Hidden": false,
     "m_Value": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "isMainTexture": false,
@@ -5569,7 +5574,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"fileID\":-2362172177983852347,\"guid\":\"dda5bcb0d1e9515498f6e4e038bbefe6\",\"type\":2}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -5710,8 +5715,8 @@
     "m_ObjectId": "580e0bca9979496a93446b383e01683d",
     "m_Title": "Vertex Color",
     "m_Position": {
-        "x": -3614.000244140625,
-        "y": -3549.000244140625
+        "x": 955.0,
+        "y": -237.0
     }
 }
 
@@ -5853,7 +5858,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -6479,8 +6484,8 @@
     "m_ObjectId": "7462d08a22794d78950c47211417f9af",
     "m_Title": "Screen Space Ratio",
     "m_Position": {
-        "x": -6485.591796875,
-        "y": -3365.3779296875
+        "x": -1791.0,
+        "y": -37.0
     }
 }
 
@@ -6633,6 +6638,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "GetFontWeight",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -6966,8 +6972,8 @@
     "m_ObjectId": "7c74e6a48d9341e4b1c8e4933d328fe0",
     "m_Title": "Face Texture",
     "m_Position": {
-        "x": -384.99993896484377,
-        "y": 375.9999084472656
+        "x": -385.0,
+        "y": 376.0
     }
 }
 
@@ -7693,6 +7699,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "Layer4",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -7702,8 +7709,8 @@
     "m_ObjectId": "8d5bd58d3d4848fc952f7c104b88b04d",
     "m_Title": "FontWeight",
     "m_Position": {
-        "x": 10.0,
-        "y": 10.0
+        "x": -1936.0,
+        "y": 544.0
     }
 }
 
@@ -7855,6 +7862,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "Composite",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -7885,7 +7893,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -7952,7 +7960,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"fileID\":-2362172177983852347,\"guid\":\"dda5bcb0d1e9515498f6e4e038bbefe6\",\"type\":2}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -8047,8 +8055,8 @@
     "m_ObjectId": "94a3b50d96bc4bd2adc02800f59ee6ed",
     "m_Title": "Underlay",
     "m_Position": {
-        "x": -5253.0,
-        "y": -4542.0
+        "x": -244.0,
+        "y": -1212.0
     }
 }
 
@@ -8445,7 +8453,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -9036,6 +9044,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "ComputeSDF44",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -10350,7 +10359,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"fileID\":-2362172177983852347,\"guid\":\"dda5bcb0d1e9515498f6e4e038bbefe6\",\"type\":2}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -10772,7 +10781,7 @@
     "m_StageCapability": 3,
     "m_BareResource": true,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -10943,8 +10952,8 @@
     "m_ObjectId": "d034f6e93537404d84868eda878887bd",
     "m_Title": "Offset Scale",
     "m_Position": {
-        "x": -5893.0,
-        "y": -3921.000244140625
+        "x": -1223.0,
+        "y": -597.0
     }
 }
 
@@ -11272,7 +11281,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -11997,8 +12006,8 @@
     "m_ObjectId": "e5d2da04730f4cc8a338b4dc1d6789f1",
     "m_Title": "Generate Normal",
     "m_Position": {
-        "x": 182.00027465820313,
-        "y": -693.0000610351563
+        "x": 182.0,
+        "y": -693.0
     }
 }
 
@@ -12416,8 +12425,8 @@
     "m_ObjectId": "eefcfadd0e104383996427b636abb740",
     "m_Title": "Face + 3 Outlines + Underlay",
     "m_Position": {
-        "x": -883.9998779296875,
-        "y": -226.49984741210938
+        "x": -884.0,
+        "y": -227.0
     }
 }
 
@@ -12512,6 +12521,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "GenerateUV",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
@@ -12554,7 +12564,7 @@
     "m_StageCapability": 3,
     "m_BareResource": false,
     "m_Texture": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "m_DefaultType": 0
@@ -13000,7 +13010,7 @@
     "hlslDeclarationOverride": 0,
     "m_Hidden": false,
     "m_Value": {
-        "m_SerializedTexture": "{\"texture\":{\"instanceID\":0}}",
+        "m_SerializedTexture": "",
         "m_Guid": ""
     },
     "isMainTexture": false,
@@ -13091,6 +13101,7 @@
     "m_SourceType": 0,
     "m_FunctionName": "GenerateUV",
     "m_FunctionSource": "c02aab30a23b76e4b9bf303e29bc8e4a",
+    "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."
 }
 
