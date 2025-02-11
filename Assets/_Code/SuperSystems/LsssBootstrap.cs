@@ -30,9 +30,9 @@ public class LatiosBakingBootstrap : ICustomBakingBootstrap
 [UnityEngine.Scripting.Preserve]
 public class LatiosEditorBootstrap : ICustomEditorBootstrap
 {
-    public World InitializeOrModify(World defaultEditorWorld)
+    public World Initialize(string defaultEditorWorldName)
     {
-        var world = new LatiosWorld(defaultEditorWorld.Name);
+        var world = new LatiosWorld(defaultEditorWorldName, WorldFlags.Editor);
 
         var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(WorldSystemFilterFlags.Default, true);
 
