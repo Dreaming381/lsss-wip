@@ -22,30 +22,6 @@ namespace Lsss.SuperSystems
         }
     }
 
-    [UpdateInGroup(typeof(Latios.Systems.PostSyncPointGroup))]
-    [UpdateBefore(typeof(Latios.Transforms.Systems.MotionHistoryUpdateSuperSystem))]  // Clean up spawned transforms before motion history to avoid spawn blur.
-    public partial class LsssPostInitializationRootSuperSystem : RootSuperSystem
-    {
-        SystemHandle m_gameObjectEntitySystemToTemporarilyDisable;
-
-        protected override void CreateSystems()
-        {
-            GetOrCreateAndAddManagedSystem<Latios.Transforms.Systems.TransformSuperSystem>();
-
-            m_gameObjectEntitySystemToTemporarilyDisable = World.GetExistingSystem<Latios.Transforms.Systems.CopyGameObjectTransformFromEntitySystem>();
-        }
-
-        protected override void OnUpdate()
-        {
-            // Unity early in the frame after initialization reads engine transforms on the main thread in order to do camera raycasts.
-            // By disabling this system here, we skip the job sync.
-            // Todo: Uncomment after switching camera follow system to use parenting, as otherwise this causes jitter.
-            //World.Unmanaged.ResolveSystemStateRef(m_gameObjectEntitySystemToTemporarilyDisable).Enabled = false;
-            base.OnUpdate();
-            //World.Unmanaged.ResolveSystemStateRef(m_gameObjectEntitySystemToTemporarilyDisable).Enabled = true;
-        }
-    }
-
     [UpdateInGroup(typeof(SimulationSystemGroup))]
     [UpdateBefore(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
     public partial class LsssPreTransformRootSuperSystem : RootSuperSystem
