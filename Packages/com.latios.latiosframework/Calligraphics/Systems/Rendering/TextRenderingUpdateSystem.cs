@@ -9,11 +9,11 @@ using Unity.Rendering;
 
 using static Unity.Entities.SystemAPI;
 
-namespace Latios.Calligraphics.Rendering.Systems
+namespace Latios.CalligraphicsV1.Rendering.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [DisableAutoCreation]
-    [UpdateInGroup(typeof(Calligraphics.Systems.CalligraphicsUpdateSuperSystem), OrderLast = true)]
+    [UpdateInGroup(typeof(CalligraphicsV1.Systems.CalligraphicsUpdateSuperSystem), OrderLast = true)]
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
     public partial struct TextRenderingUpdateSystem : ISystem

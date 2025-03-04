@@ -7,7 +7,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-namespace Latios.Calligraphics.Systems
+namespace Latios.CalligraphicsV1.Systems
 {
     [DisableAutoCreation]
     [UpdateInGroup(typeof(UpdatePresentationSystemGroup))]

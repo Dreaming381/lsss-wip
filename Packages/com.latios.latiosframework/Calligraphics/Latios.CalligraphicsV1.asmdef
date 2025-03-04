@@ -1,6 +1,6 @@
 {
-    "name": "Latios.Calligraphics",
-    "rootNamespace": "Latios.Calligraphics",
+    "name": "Latios.CalligraphicsV1",
+    "rootNamespace": "Latios.CalligraphicsV1V1",
     "references": [
         "Latios.Core",
         "Latios.Psyshock",

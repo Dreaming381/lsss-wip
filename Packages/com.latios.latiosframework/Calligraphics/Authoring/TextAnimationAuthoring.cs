@@ -6,10 +6,10 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace Latios.Calligraphics.Authoring
+namespace Latios.CalligraphicsV1.Authoring
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("Latios/Calligraphics/Text Animation (Calligraphics)")]
+    [AddComponentMenu("Latios/CalligraphicsV1V1/Text Animation (CalligraphicsV1V1)")]
     [RequireComponent(typeof(TextRendererAuthoring))]
     public class TextAnimationAuthoring : MonoBehaviour
     {

@@ -1,4 +1,4 @@
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -7,7 +7,7 @@ using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
 
-namespace Latios.Calligraphics.Systems
+namespace Latios.CalligraphicsV1.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(CalligraphicsUpdateSuperSystem))]

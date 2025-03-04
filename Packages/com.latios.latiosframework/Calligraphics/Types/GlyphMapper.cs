@@ -2,7 +2,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     /// <summary>
     /// A utility struct that is used for reading mapping data from the input TextRenderer string

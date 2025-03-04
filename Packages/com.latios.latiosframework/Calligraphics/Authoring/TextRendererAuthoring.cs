@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Latios.Authoring;
-using Latios.Calligraphics.Rendering;
-using Latios.Calligraphics.Rendering.Authoring;
+using Latios.CalligraphicsV1.Rendering;
+using Latios.CalligraphicsV1.Rendering.Authoring;
 using Latios.Kinemation.Authoring;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,10 +13,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.TextCore.Text;
 
-namespace Latios.Calligraphics.Authoring
+namespace Latios.CalligraphicsV1.Authoring
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("Latios/Calligraphics/Text Renderer (Calligraphics)")]
+    [AddComponentMenu("Latios/CalligraphicsV1/Text Renderer (CalligraphicsV1)")]
     public class TextRendererAuthoring : MonoBehaviour
     {
         [TextArea(5, 10)]

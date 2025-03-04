@@ -23,7 +23,7 @@
         "Unity.Entities.Graphics",
         "Latios.Transforms",
         "Lsss",
-        "Latios.Calligraphics"
+        "Latios.CalligraphicsV1"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

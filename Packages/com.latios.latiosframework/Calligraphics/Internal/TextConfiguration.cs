@@ -1,4 +1,4 @@
-using Latios.Calligraphics.RichText;
+using Latios.CalligraphicsV1.RichText;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -7,7 +7,7 @@ using UnityEngine.TextCore.Text;
 // As a general rule, GlyphGeneration should never modify the ActiveTextConfiguration or TextConfigurationStack, only read them.
 // They should be driven by the RichTextParser.
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal struct TextGenerationStateCommands
     {

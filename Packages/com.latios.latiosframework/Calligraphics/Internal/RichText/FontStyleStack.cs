@@ -1,6 +1,6 @@
 using UnityEngine.TextCore.Text;
 
-namespace Latios.Calligraphics.RichText
+namespace Latios.CalligraphicsV1.RichText
 {
     /// <summary>
     /// Structure used to track basic XML tags which are binary (on / off)

@@ -6,7 +6,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Latios.Calligraphics.Editor
+namespace Latios.CalligraphicsV1.Editor
 {
     [CustomPropertyDrawer(typeof(InterpolationType))]
     public class InterpolationTypeDrawer : PropertyDrawer

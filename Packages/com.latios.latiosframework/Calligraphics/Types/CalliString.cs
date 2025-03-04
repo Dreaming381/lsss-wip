@@ -6,7 +6,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     /// <summary>
     /// A Burst-compatible string type that wraps a DynamicBuffer of bytes
@@ -147,9 +147,9 @@ namespace Latios.Calligraphics
         /// </remarks>
         public struct Enumerator : IEnumerator<Unicode.Rune>
         {
-            CalliString target;
-            int m_currentByteIndex;
-            int m_currentCharIndex;
+            CalliString  target;
+            int          m_currentByteIndex;
+            int          m_currentCharIndex;
             Unicode.Rune current;
 
             /// <summary>
@@ -158,10 +158,10 @@ namespace Latios.Calligraphics
             /// <param name="source">A NativeText for which to create an enumerator.</param>
             public Enumerator(CalliString source)
             {
-                target = source;
+                target             = source;
                 m_currentByteIndex = 0;
                 m_currentCharIndex = 0;
-                current = default;
+                current            = default;
             }
 
             /// <summary>
@@ -221,7 +221,7 @@ namespace Latios.Calligraphics
             public void Reset()
             {
                 m_currentByteIndex = 0;
-                current = default;
+                current            = default;
             }
 
             object IEnumerator.Current

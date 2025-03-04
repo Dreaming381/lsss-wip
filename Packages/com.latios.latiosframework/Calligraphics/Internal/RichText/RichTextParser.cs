@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
 
-namespace Latios.Calligraphics.RichText
+namespace Latios.CalligraphicsV1.RichText
 {
     internal static class RichTextParser
     {

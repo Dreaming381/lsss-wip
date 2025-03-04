@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Scripting;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     [Serializable]
     [BurstCompile]

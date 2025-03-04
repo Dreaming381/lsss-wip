@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     /// <summary>
     /// The text unit to which the transition will apply

@@ -1,5 +1,5 @@
-using Latios.Calligraphics.Rendering;
-using Latios.Calligraphics.RichText;
+using Latios.CalligraphicsV1.Rendering;
+using Latios.CalligraphicsV1.RichText;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.TextCore.LowLevel;
 using UnityEngine.TextCore.Text;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal static class GlyphGeneration
     {

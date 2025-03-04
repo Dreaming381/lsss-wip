@@ -1,13 +1,13 @@
 using Unity.Entities;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     /// <summary>
     /// An aspect for working with renderable text
     /// </summary>
     public readonly partial struct TextRendererAspect : IAspect
     {
-        readonly DynamicBuffer<CalliByte> m_string;
+        readonly DynamicBuffer<CalliByte>     m_string;
         readonly RefRW<TextBaseConfiguration> m_baseConfig;
 
         /// <summary>

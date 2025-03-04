@@ -1,8 +1,8 @@
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal struct PositionTransitionProvider : ITransitionProvider
     {

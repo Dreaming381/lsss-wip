@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     /// <summary>
     /// A reference to the font blob asset used for text rendering.

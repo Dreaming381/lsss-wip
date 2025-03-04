@@ -1,5 +1,5 @@
-using Latios.Calligraphics.Rendering;
-using Latios.Calligraphics.RichText;
+using Latios.CalligraphicsV1.Rendering;
+using Latios.CalligraphicsV1.RichText;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
 
-namespace Latios.Calligraphics.Systems
+namespace Latios.CalligraphicsV1.Systems
 {
     [UpdateInGroup(typeof(CalligraphicsUpdateSuperSystem))]
     [UpdateAfter(typeof(GenerateGlyphsSystem))]

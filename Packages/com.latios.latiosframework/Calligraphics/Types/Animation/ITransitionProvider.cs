@@ -1,8 +1,8 @@
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Burst;
 using Unity.Entities;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal interface ITransitionProvider
     {

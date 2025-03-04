@@ -1,9 +1,9 @@
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal struct OpacityTransitionProvider : ITransitionProvider
     {
@@ -15,11 +15,16 @@ namespace Latios.Calligraphics
             }
         }
 
-        public void SetValue(ref DynamicBuffer<RenderGlyph> renderGlyphs, TextAnimationTransition transition, GlyphMapper glyphMapper, int startIndex, int endIndex, float normalizedTime)
+        public void SetValue(ref DynamicBuffer<RenderGlyph> renderGlyphs,
+                             TextAnimationTransition transition,
+                             GlyphMapper glyphMapper,
+                             int startIndex,
+                             int endIndex,
+                             float normalizedTime)
         {
-            var startValue = new Color32(0, 0, 0, transition.startValueByte);
-            var endValue  = new Color32(0, 0, 0, transition.endValueByte);
-            Color32 value = startValue;
+            var     startValue = new Color32(0, 0, 0, transition.startValueByte);
+            var     endValue   = new Color32(0, 0, 0, transition.endValueByte);
+            Color32 value      = startValue;
 
             if (transition.currentTime >= transition.transitionDelay)
             {
@@ -34,19 +39,19 @@ namespace Latios.Calligraphics
                 renderGlyphs[i] = renderGlyph;
             }
         }
-        
+
         private void SetOpacityValue(ref RenderGlyph glyph, byte value)
         {
-            var blColor       = glyph.blColor;
-            var brColor       = glyph.brColor;
-            var tlColor       = glyph.tlColor;
-            var trColor       = glyph.trColor;
+            var blColor = glyph.blColor;
+            var brColor = glyph.brColor;
+            var tlColor = glyph.tlColor;
+            var trColor = glyph.trColor;
 
             blColor.a = value;
             brColor.a = value;
             tlColor.a = value;
             trColor.a = value;
-                                
+
             glyph.blColor = blColor;
             glyph.brColor = brColor;
             glyph.tlColor = tlColor;
@@ -54,3 +59,4 @@ namespace Latios.Calligraphics
         }
     }
 }
+

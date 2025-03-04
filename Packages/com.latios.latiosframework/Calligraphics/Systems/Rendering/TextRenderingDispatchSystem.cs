@@ -13,7 +13,7 @@ using UnityEngine;
 
 // Todo: This system needs to be reworked for more optimal scheduling.
 
-namespace Latios.Calligraphics.Rendering.Systems
+namespace Latios.CalligraphicsV1.Rendering.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [RequireMatchingQueriesForUpdate]
@@ -85,7 +85,7 @@ namespace Latios.Calligraphics.Rendering.Systems
             _latiosTextMaskBuffer     = Shader.PropertyToID("_latiosTextMaskBuffer");
 
             if (!latiosWorld.worldBlackboardEntity.HasComponent<GraphicsBufferBroker>())
-                throw new System.InvalidOperationException("Calligraphics must be installed after Kinemation.");
+                throw new System.InvalidOperationException("CalligraphicsV1 must be installed after Kinemation.");
             graphicsBroker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
             graphicsBroker.InitializePersistentBuffer(kGlyphsBufferID, 128 * 96, 4, GraphicsBuffer.Target.Raw, copyByteAddressShader);
             graphicsBroker.InitializeUploadPool(kGlyphsUploadID, 4, GraphicsBuffer.Target.Raw);

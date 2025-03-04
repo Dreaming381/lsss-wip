@@ -1,10 +1,10 @@
 using System;
-using Latios.Calligraphics.Authoring;
+using Latios.CalligraphicsV1.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
-namespace Latios.Calligraphics.Editor
+namespace Latios.CalligraphicsV1.Editor
 {
     [CustomPropertyDrawer(typeof(GlyphAnimation))]
     public class GlyphAnimationPropertyDrawer : PropertyDrawer

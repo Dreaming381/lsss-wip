@@ -36,7 +36,7 @@ using Unity.Rendering;
 // TextMeshPro. The glyph stays compressed in its 96 byte form on the GPU and is decoded directly in
 // the vertex shader.
 
-namespace Latios.Calligraphics.Rendering
+namespace Latios.CalligraphicsV1.Rendering
 {
     [MaterialProperty("_latiosTextGlyphBase")]
     public struct TextShaderIndex : IComponentData
@@ -70,7 +70,7 @@ namespace Latios.Calligraphics.Rendering
         public PackedColor trColor;
         public PackedColor brColor;
 
-        public int  unicode; //not needed anywhere-->remove from struct?
+        public int   unicode;  //not needed anywhere-->remove from struct?
         public float shear;  // Should be equal to topLeft.x - bottomLeft.x
         public float scale;
         public float rotationCCW;  // Radians

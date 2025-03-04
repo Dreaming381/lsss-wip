@@ -40,7 +40,6 @@ public class LatiosEditorBootstrap : ICustomEditorBootstrap
 
         Latios.Transforms.TransformsBootstrap.InstallTransforms(world, world.simulationSystemGroup);
         Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
-        Latios.Calligraphics.CalligraphicsBootstrap.InstallCalligraphics(world);
 
         world.initializationSystemGroup.SortSystems();
         world.simulationSystemGroup.SortSystems();

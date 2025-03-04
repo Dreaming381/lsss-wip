@@ -1,24 +1,24 @@
 using System;
 using System.Runtime.InteropServices;
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal struct NoisePositionTransitionProvider : ITransitionProvider
     {
         public unsafe void Initialize(ref TextAnimationTransition transition, ref Rng.RngSequence rng, GlyphMapper glyphMapper)
         {
             int valueCount = transition.endIndex - transition.startIndex + 1;
-            
+
             if (transition.currentIteration < transition.loopCount && (transition.endBehavior & TransitionEndBehavior.Loop) == TransitionEndBehavior.Loop)
             {
-                int valueSize = UnsafeUtility.SizeOf<float2>();
+                int valueSize      = UnsafeUtility.SizeOf<float2>();
                 int valueAlignment = UnsafeUtility.AlignOf<float2>();
-                int bufferSize = valueCount * valueSize;
+                int bufferSize     = valueCount * valueSize;
 
                 if (transition.valuesBufferLength != valueCount)
                 {
@@ -55,8 +55,8 @@ namespace Latios.Calligraphics
                     UnsafeUtility.WriteArrayElement(transition.startValuesBuffer.ToPointer(), i, oldEndValue);
                     var noiseSeedX = rng.NextFloat2(new float2(-1f, -1f), new float2(1f, 1f));
                     var noiseSeedY = rng.NextFloat2(new float2(-1f, -1f), new float2(1f, 1f));
-                    var endValue = new float2(noise.cnoise(noiseSeedX) * transition.noiseScaleFloat2.x,
-                        noise.cnoise(noiseSeedY) * transition.noiseScaleFloat2.y);
+                    var endValue   = new float2(noise.cnoise(noiseSeedX) * transition.noiseScaleFloat2.x,
+                                                noise.cnoise(noiseSeedY) * transition.noiseScaleFloat2.y);
                     //Write the new end
                     UnsafeUtility.WriteArrayElement(transition.endValuesBuffer.ToPointer(), i, endValue);
                     var readStartValue =
@@ -102,13 +102,16 @@ namespace Latios.Calligraphics
                 switch (transition.scope)
                 {
                     case TransitionTextUnitScope.Glyph:
-                        SetPositionValue(ref renderGlyphs, i, i, values[transition.endIndex - i]);
+                        SetPositionValue(ref renderGlyphs, i, i,
+                                         values[transition.endIndex - i]);
                         break;
                     case TransitionTextUnitScope.Word:
-                        SetPositionValue(ref renderGlyphs, glyphMapper.GetGlyphStartIndexAndCountForWord(i).x, glyphMapper.GetGlyphStartIndexAndCountForWord(i).y - 1, values[transition.endIndex - glyphMapper.GetGlyphStartIndexAndCountForWord(i).x]);
+                        SetPositionValue(ref renderGlyphs, glyphMapper.GetGlyphStartIndexAndCountForWord(i).x, glyphMapper.GetGlyphStartIndexAndCountForWord(i).y - 1,
+                                         values[transition.endIndex - glyphMapper.GetGlyphStartIndexAndCountForWord(i).x]);
                         break;
                     case TransitionTextUnitScope.Line:
-                        SetPositionValue(ref renderGlyphs, glyphMapper.GetGlyphStartIndexAndCountForLine(i).x, glyphMapper.GetGlyphStartIndexAndCountForLine(i).y - 1, values[transition.endIndex - glyphMapper.GetGlyphStartIndexAndCountForLine(i).x]);
+                        SetPositionValue(ref renderGlyphs, glyphMapper.GetGlyphStartIndexAndCountForLine(i).x, glyphMapper.GetGlyphStartIndexAndCountForLine(i).y - 1,
+                                         values[transition.endIndex - glyphMapper.GetGlyphStartIndexAndCountForLine(i).x]);
                         break;
                     default:
                         SetPositionValue(ref renderGlyphs, i, i, values[0]);
@@ -137,13 +140,13 @@ namespace Latios.Calligraphics
             for (int i = startIndex; i <= endIndex; i++)
             {
                 var glyph = renderGlyphs[i];
-                
+
                 var blPosition = glyph.blPosition + value;
                 var trPosition = glyph.trPosition + value;
 
                 glyph.blPosition = blPosition;
                 glyph.trPosition = trPosition;
-                
+
                 renderGlyphs[i] = glyph;
             }
         }

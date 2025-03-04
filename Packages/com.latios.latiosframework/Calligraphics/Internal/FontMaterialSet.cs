@@ -1,9 +1,8 @@
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Collections;
 using Unity.Entities;
 
-
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal unsafe struct FontMaterialSet
     {
@@ -41,7 +40,7 @@ namespace Latios.Calligraphics
             m_selectorBuffer.Clear();
             m_hasMultipleFonts = true;
             m_fontToEntityIndexArray.Clear();
-            m_fontToEntityIndexArray.Add(0);// Index 0 is this entity. Index 1 is the first entity in AdditionalFontMaterialEntity buffer.
+            m_fontToEntityIndexArray.Add(0);  // Index 0 is this entity. Index 1 is the first entity in AdditionalFontMaterialEntity buffer.
             for (int i = 0; i < entities.Length; i++)
             {
                 if (blobLookup.TryGetComponent(entities[i].entity, out var blobRef))

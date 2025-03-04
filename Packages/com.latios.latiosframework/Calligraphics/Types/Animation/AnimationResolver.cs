@@ -1,7 +1,7 @@
-using Latios.Calligraphics.Rendering;
+using Latios.CalligraphicsV1.Rendering;
 using Unity.Entities;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     internal static class AnimationResolver
     {

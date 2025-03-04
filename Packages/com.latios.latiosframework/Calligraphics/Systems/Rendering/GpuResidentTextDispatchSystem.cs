@@ -12,7 +12,7 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine;
 
-namespace Latios.Calligraphics.Rendering.Systems
+namespace Latios.CalligraphicsV1.Rendering.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [RequireMatchingQueriesForUpdate]
@@ -114,7 +114,7 @@ namespace Latios.Calligraphics.Rendering.Systems
             latiosWorld.worldBlackboardEntity.AddComponentData(new GpuResidentMaskCount { maskCount = 1});
 
             if (!latiosWorld.worldBlackboardEntity.HasComponent<GraphicsBufferBroker>())
-                throw new System.InvalidOperationException("Calligraphics must be installed after Kinemation.");
+                throw new System.InvalidOperationException("CalligraphicsV1 must be installed after Kinemation.");
             graphicsBroker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
             graphicsBroker.InitializeUploadPool(kGlyphsUploadID,     4, GraphicsBuffer.Target.Raw);
             graphicsBroker.InitializeUploadPool(kGlyphMasksUploadID, 4, GraphicsBuffer.Target.Raw);

@@ -4,8 +4,7 @@
     "references": [
         "Unity.Collections",
         "Unity.Mathematics",
-        "Unity.Platforms.UI.Editor",
-        "Latios.Calligraphics"
+        "Latios.CalligraphicsV1"
     ],
     "includePlatforms": [
         "Editor"

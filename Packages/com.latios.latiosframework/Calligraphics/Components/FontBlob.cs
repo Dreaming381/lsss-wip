@@ -6,7 +6,7 @@ using Unity.Mathematics;
 using UnityEngine.TextCore;
 using UnityEngine.TextCore.LowLevel;
 
-namespace Latios.Calligraphics
+namespace Latios.CalligraphicsV1
 {
     //TODO: Underlay, Bold, Smallcaps
     public struct FontBlob

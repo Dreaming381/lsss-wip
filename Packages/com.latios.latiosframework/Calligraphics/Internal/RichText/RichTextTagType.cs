@@ -1,4 +1,4 @@
-namespace Latios.Calligraphics.RichText
+namespace Latios.CalligraphicsV1.RichText
 {
     internal enum RichTextTagType : byte
     {

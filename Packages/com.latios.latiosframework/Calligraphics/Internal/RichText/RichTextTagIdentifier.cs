@@ -1,15 +1,15 @@
-namespace Latios.Calligraphics.RichText
+namespace Latios.CalligraphicsV1.RichText
 {
     // Often referred to as "attributes" though we refrain from that term due to aliasing
     // with both graphics attributes and C# language attributes.
     internal struct RichTextTagIdentifier
     {
-        public int             nameHashCode;
-        public int             valueHashCode;
-        public int             valueStartIndex;  //bytes position, not char!
-        public int             valueLength;  //byte length, not char!
-        public TagUnitType     unitType;
-        public TagValueType    valueType;
+        public int          nameHashCode;
+        public int          valueHashCode;
+        public int          valueStartIndex;  //bytes position, not char!
+        public int          valueLength;  //byte length, not char!
+        public TagUnitType  unitType;
+        public TagValueType valueType;
 
         public static RichTextTagIdentifier Empty => new RichTextTagIdentifier
         {

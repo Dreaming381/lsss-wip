@@ -7,7 +7,7 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine;
 
-namespace Latios.Calligraphics.Rendering.Authoring
+namespace Latios.CalligraphicsV1.Rendering.Authoring
 {
     [BurstCompile]
     public static class LatiosTextBackendBakingUtility
