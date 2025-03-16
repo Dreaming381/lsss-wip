@@ -61,9 +61,15 @@ namespace Latios.Kinemation.Systems
             }
 #endif
 
-            state.EntityManager.AddComponent(m_MissingHybridChunkInfo, ComponentType.ChunkComponent<EntitiesGraphicsChunkInfo>());
-            state.EntityManager.RemoveChunkComponentData<EntitiesGraphicsChunkInfo>(m_DisabledRenderingQuery);
-            state.EntityManager.RemoveChunkComponentData<EntitiesGraphicsChunkInfo>(m_destroyedChunkInfoQuery);
+            DoChanges(ref state, ref this);
+        }
+
+        [BurstCompile]
+        static void DoChanges(ref SystemState state, ref LatiosUpdateEntitiesGraphicsChunkStructureSystem system)
+        {
+            state.EntityManager.AddComponent(system.m_MissingHybridChunkInfo, ComponentType.ChunkComponent<EntitiesGraphicsChunkInfo>());
+            state.EntityManager.RemoveChunkComponentData<EntitiesGraphicsChunkInfo>(system.m_DisabledRenderingQuery);
+            state.EntityManager.RemoveChunkComponentData<EntitiesGraphicsChunkInfo>(system.m_destroyedChunkInfoQuery);
         }
     }
 }
