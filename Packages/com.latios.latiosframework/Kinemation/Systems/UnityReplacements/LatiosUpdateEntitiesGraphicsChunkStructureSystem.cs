@@ -26,11 +26,10 @@ namespace Latios.Kinemation.Systems
         public void OnCreate(ref SystemState state)
         {
             m_MissingHybridChunkInfo = state.Fluent().With<ChunkWorldRenderBounds>(true, true).With<WorldRenderBounds>(true).WithWorldTransformReadOnly()
-                                       .With<MaterialMeshInfo>(true).Without<EntitiesGraphicsChunkInfo>(true).Without<DisableRendering>().IncludePrefabs().
-                                       IncludeDisabledEntities().Build();
+                                       .With<MaterialMeshInfo>(true).Without<EntitiesGraphicsChunkInfo>(true).Without<DisableRendering>().IncludePrefabs().Build();
 
             m_DisabledRenderingQuery = state.Fluent().With<EntitiesGraphicsChunkInfo>(true, true)
-                                       .WithAnyEnabled<Disabled, Prefab, DisableRendering>(true).IncludeDisabledEntities().IncludePrefabs().Build();
+                                       .WithAnyEnabled<Disabled, DisableRendering>(true).IncludeDisabledEntities().IncludePrefabs().Build();
 
             m_destroyedChunkInfoQuery = state.Fluent().With<EntitiesGraphicsChunkInfo>(true, true).Without<MaterialMeshInfo>().Build();
 
@@ -43,11 +42,6 @@ namespace Latios.Kinemation.Systems
                 },
             });
 #endif
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
         }
 
         //[BurstCompile]
