@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -117,12 +119,256 @@ namespace Latios.Psyshock
         /// </summary>
         public Aabb GetAabb(int index) => layer.GetAabb(index);
 
+        /// <summary>
+        /// Creates a mask that can be used when performing query operations on this CollisionWorld
+        /// to only include entities which match the specified EntityQueryMask without filtering.
+        /// This mask should typically be created from inside the job and cached.
+        /// </summary>
+        /// <param name="entityQueryMask">An EntityQueryMask which will identify entities in the CollisionWorld to be considered candidates in queries</param>
+        /// <returns>A Mask which can be used as a parameter in various spatial query methods alongside this CollisionWorld.</returns>
+        public Mask CreateMask(EntityQueryMask entityQueryMask)
+        {
+            Span<short> indices = stackalloc short[archetypesInLayer.Length];
+            int         count   = 0;
+            for (int i = 0; i < archetypesInLayer.Length; i++)
+            {
+                if (entityQueryMask.Matches(archetypesInLayer[i]))
+                {
+                    indices[count] = (short)i;
+                    count++;
+                }
+            }
+            return new Mask(indices.Slice(0, count));
+        }
+
+        /// <summary>
+        /// Creates a mask that can be used when performing query operations on this CollisionWorld
+        /// to only include entities which match the specified entity query description without filtering.
+        /// This mask should typically be created from inside the job and cached.
+        /// </summary>
+        /// <param name="entityStorageInfoLookup">The EntityStorageInfoLookup used for fetching entities and ensuring safety</param>
+        /// <param name="with">The component types that should be present (enabled states are not considered)</param>
+        /// <param name="withAny">The component types where at least one should be present (enabled states are not considered)</param>
+        /// <param name="without">The component types that should be absent (disabled components don't count as absent)</param>
+        /// <param name="options">EntityQuery options to use. FilterWriteGroup and IgnoreComponentEnabledState are not acknowledged.</param>
+        /// <returns>A Mask which can be used as a parameter in various spatial query methods alongside this CollisionWorld.</returns>
+        public Mask CreateMask(EntityStorageInfoLookup entityStorageInfoLookup,
+                               ComponentTypeSet with,
+                               ComponentTypeSet withAny = default,
+                               ComponentTypeSet without = default,
+                               EntityQueryOptions options = EntityQueryOptions.Default)
+        {
+            return CreateMask(new TempQuery(default, entityStorageInfoLookup, with, withAny, without, options));
+        }
+
+        /// <summary>
+        /// Creates a mask that can be used when performing query operations on this CollisionWorld
+        /// to only include entities which match the specified TempQuery.
+        /// This mask should typically be created from inside the job and cached.
+        /// </summary>
+        /// <param name="entityQueryMask">A TempQuery which will identify entities in the CollisionWorld to be considered candidates in queries.
+        /// The TempQuery's internal array of EntityArchetype will be ignored, and constructing a TempQuery with that parameter defaulted is valid.</param>
+        /// <returns>A Mask which can be used as a parameter in various spatial query methods alongside this CollisionWorld.</returns>
+        public Mask CreateMask(in TempQuery tempQuery)
+        {
+            CheckValid(tempQuery.entityStorageInfoLookup);
+            Span<short> indices = stackalloc short[archetypesInLayer.Length];
+            int         count   = 0;
+            for (int i = 0; i < archetypesInLayer.Length; i++)
+            {
+                if (tempQuery.MatchesArchetype(archetypesInLayer[i]))
+                {
+                    indices[count] = (short)i;
+                    count++;
+                }
+            }
+            return new Mask(indices.Slice(0, count));
+        }
+
+        /// <summary>
+        /// A mask based on some kind of entity query which can select and filter entities in the CollisionWorld it was made from.
+        /// Instances should be retrieved from the CollisionWorld within the same job and thread they are used.
+        /// </summary>
+        [StructLayout(LayoutKind.Explicit, Size = 64)]
+        public unsafe struct Mask
+        {
+            /// <summary>
+            /// Returns false if this Mask is still the default value
+            /// </summary>
+            public bool isCreated => mode != Mode.Default;
+
+            enum Mode
+            {
+                Default,
+                Empty,
+                Bitmask,
+                ShortList,
+                LongList
+            }
+
+            [FieldOffset(0)]
+            short current;
+
+            [FieldOffset(2)]
+            byte modeAndShortListCount;
+
+            Mode mode
+            {
+                get => (Mode)(modeAndShortListCount & 0x7);
+                set => Bits.SetBits(ref modeAndShortListCount, 0, 3, (byte)value);
+            }
+            int shortCount
+            {
+                get => modeAndShortListCount >> 3;
+                set => Bits.SetBits(ref modeAndShortListCount, 3, 5, (byte)value);
+            }
+
+            [FieldOffset(3)]
+            byte maskShortIndex;  // Bitmask index or shortList next index
+
+            [FieldOffset(4)]
+            uint bitmaskFinal;
+
+            [FieldOffset(8)]
+            fixed ulong bitmask[7];
+
+            [FieldOffset(4)]
+            fixed short shortList[30];
+
+            [FieldOffset(4)]
+            short longListIndex;
+
+            [FieldOffset(8)]
+            UnsafeList<short> longList;
+
+            public Mask GetEnumerator() => this;
+
+            public short Current => current;
+
+            public bool MoveNext()
+            {
+                switch (mode)
+                {
+                    case Mode.Empty: return false;
+                    case Mode.Bitmask:
+                    {
+                        while (maskShortIndex < 7)
+                        {
+                            if (bitmask[maskShortIndex] == 0)
+                            {
+                                maskShortIndex++;
+                                continue;
+                            }
+                            var tz                   = math.tzcnt(bitmask[maskShortIndex]);
+                            current                  = (short)(64 * maskShortIndex + tz);
+                            bitmask[maskShortIndex] ^= 1ul << tz;
+                            return true;
+                        }
+                        if (bitmaskFinal != 0)
+                        {
+                            var tz        = math.tzcnt(bitmaskFinal);
+                            current       = (short)(64 * 7 + tz);
+                            bitmaskFinal ^= 1u << tz;
+                            return true;
+                        }
+                        return false;
+                    }
+                    case Mode.ShortList:
+                    {
+                        if (maskShortIndex < shortCount)
+                        {
+                            current = shortList[maskShortIndex];
+                            maskShortIndex++;
+                            return true;
+                        }
+                        return false;
+                    }
+                    case Mode.LongList:
+                    {
+                        if (longListIndex < longList.Length)
+                        {
+                            current = longList[longListIndex];
+                            longListIndex++;
+                            return true;
+                        }
+                        return false;
+                    }
+                    default: return false;
+                }
+            }
+
+            internal Mask(ReadOnlySpan<short> indices)
+            {
+                this = default;
+                if (indices.Length == 0)
+                {
+                    return;
+                }
+
+                // Always prefer the shortlist over anything else since it is the cheapest
+                if (indices.Length <= 30)
+                {
+                    maskShortIndex = 0;
+                    mode           = Mode.ShortList;
+                    shortCount     = indices.Length;
+                    for (int i = 0; i < indices.Length; i++)
+                        shortList[i] = indices[i];
+                }
+                else if (indices[indices.Length - 1] < 7 * 64 + 32)
+                {
+                    maskShortIndex = 0;
+                    mode           = Mode.Bitmask;
+                    foreach (var index in indices)
+                    {
+                        var ul  = index >> 6;
+                        var bit = index & 0x3f;
+                        if (ul == 7)
+                            bitmaskFinal |= 1u << bit;
+                        else
+                            bitmask[ul] |= 1ul << bit;
+                    }
+                }
+                else
+                {
+                    longListIndex = 0;
+                    mode          = Mode.LongList;
+                    longList      = new UnsafeList<short>(indices.Length, Allocator.Temp);
+                    foreach (var index in indices)
+                        longList.AddNoResize(index);
+                }
+            }
+        }
+
+        internal WorldBucket GetBucket(int bucketIndex)
+        {
+            int start = layer.bucketStartsAndCounts[bucketIndex].x;
+            int count = layer.bucketStartsAndCounts[bucketIndex].y;
+            return new WorldBucket
+            {
+                slices                   = layer.GetBucketSlices(bucketIndex),
+                archetypeStartsAndCounts = archetypeStartsAndCountsByBucket.AsArray().GetSubArray(archetypesInLayer.Length * bucketIndex, archetypesInLayer.Length),
+                archetypeBodyIndices     = archetypeBodyIndicesByBucket.AsArray().GetSubArray(start, count),
+                archetypeIntervalTrees   = archetypeIntervalTreesByBucket.AsArray().GetSubArray(start, count)
+            };
+        }
+
         [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
         internal static void CheckWorldIndexIsValid(byte worldIndex)
         {
             if (worldIndex == 0)
                 throw new ArgumentOutOfRangeException("The worldIndex must be greater than 0 in a CollisionWorld");
         }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        internal static void CheckValid(EntityStorageInfoLookup esil) => esil.Exists(Entity.Null);
+    }
+
+    internal struct WorldBucket
+    {
+        public BucketSlices                  slices;
+        public NativeArray<int2>             archetypeStartsAndCounts;
+        public NativeArray<int>              archetypeBodyIndices;
+        public NativeArray<IntervalTreeNode> archetypeIntervalTrees;
     }
 }
 

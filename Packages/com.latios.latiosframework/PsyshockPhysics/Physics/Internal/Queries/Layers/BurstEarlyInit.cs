@@ -149,6 +149,7 @@ namespace Latios.Psyshock
             public void Init()
             {
                 IJobExtensions.EarlyJobInit<FindObjectsConfig<T>.FindObjectsInternal.SingleJob>();
+                IJobExtensions.EarlyJobInit<FindObjectsWorldConfig<T>.FindObjectsInternal.SingleJob>();
             }
         }
 
