@@ -1,4 +1,5 @@
-﻿using Latios.Unsafe;
+﻿using System;
+using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Burst.Intrinsics;
@@ -255,6 +256,112 @@ namespace Latios.Psyshock
                             processor.Execute(in result);
                         }
                     }
+                }
+            }
+        }
+
+        static unsafe void SelfSweepIndices<T>(ref FindPairsResult result, in BucketSlices bucket, ReadOnlySpan<int> indices, ref T processor, ref ThreadStackAllocator allocator)
+            where T : unmanaged, IFindPairsProcessor
+        {
+            var xmins     = allocator.Allocate<float>(indices.Length + 1);
+            var xmaxs     = allocator.Allocate<float>(indices.Length);
+            var yzminmaxs = allocator.Allocate<float4>(indices.Length);
+
+            for (int i = 0; i < indices.Length; i++)
+            {
+                var index    = indices[i];
+                xmins[i]     = bucket.xmins[index];
+                xmaxs[i]     = bucket.xmaxs[index];
+                yzminmaxs[i] = bucket.yzminmaxs[index];
+            }
+            xmins[indices.Length] = float.NaN;
+
+            for (int i = 0; i < indices.Length; i++)
+            {
+                var current = -yzminmaxs[i].zwxy;
+                var xmax    = xmaxs[i];
+                for (int j = i + 1; xmins[j] <= xmax; j++)
+                {
+                    if (math.bitmask(current < bucket.yzminmaxs[j]) == 0)
+                    {
+                        result.SetBucketRelativePairIndices(indices[i], indices[j]);
+                        processor.Execute(in result);
+                    }
+                }
+            }
+        }
+
+        static void SelfSweepDualIndices<T>(ref FindPairsResult result, in BucketSlices bucket, ReadOnlySpan<int> indicesA, ReadOnlySpan<int> indicesB, ref T processor)
+            where T : unmanaged, IFindPairsProcessor
+        {
+            int progressA = 0, progressB = 0;
+            while (true)
+            {
+                var indexA = indicesA[progressA];
+                var indexB = indicesB[progressB];
+                if (indexA < indexB)
+                {
+                    var current = -bucket.yzminmaxs[indexA].zwxy;
+                    var xmax    = bucket.xmaxs[indexA];
+                    for (int j = progressB; j < indicesB.Length && bucket.xmins[indicesB[j]] <= xmax; j++)
+                    {
+                        indexB = indicesB[j];
+                        if (math.bitmask(current < bucket.yzminmaxs[indexB]) == 0)
+                        {
+                            result.SetBucketRelativePairIndices(indexA, indexB);
+                            processor.Execute(in result);
+                        }
+                    }
+                    progressA++;
+                    if (progressA >= indicesA.Length)
+                        return;
+                }
+                else if (indexA > indexB)
+                {
+                    var current = -bucket.yzminmaxs[indexB].zwxy;
+                    var xmax    = bucket.xmaxs[indexB];
+                    for (int j = progressA; j < indicesA.Length && bucket.xmins[indicesA[j]] <= xmax; j++)
+                    {
+                        indexA = indicesA[j];
+                        if (math.bitmask(current < bucket.yzminmaxs[indexA]) == 0)
+                        {
+                            result.SetBucketRelativePairIndices(indexB, indexA);
+                            processor.Execute(in result);
+                        }
+                    }
+                    progressB++;
+                    if (progressB >= indicesB.Length)
+                        return;
+                }
+                else
+                {
+                    // indexA == indexB
+                    // We need to sweep ahead both indices list but exclude indexA/B
+                    var current = -bucket.yzminmaxs[indexA].zwxy;
+                    var xmax    = bucket.xmaxs[indexA];
+                    for (int j = progressB + 1; j < indicesB.Length && bucket.xmins[indicesB[j]] <= xmax; j++)
+                    {
+                        indexB = indicesB[j];
+                        if (math.bitmask(current < bucket.yzminmaxs[indexB]) == 0)
+                        {
+                            result.SetBucketRelativePairIndices(indexA, indexB);
+                            processor.Execute(in result);
+                        }
+                    }
+                    indexB = indexA;
+                    for (int j = progressA + 1; j < indicesA.Length && bucket.xmins[indicesA[j]] <= xmax; j++)
+                    {
+                        indexA = indicesA[j];
+                        if (math.bitmask(current < bucket.yzminmaxs[indexA]) == 0)
+                        {
+                            result.SetBucketRelativePairIndices(indexB, indexA);
+                            processor.Execute(in result);
+                        }
+                    }
+                    progressA++;
+                    progressB++;
+                    if (progressA >= indicesA.Length || progressB >= indicesB.Length)
+                        return;
                 }
             }
         }
@@ -611,6 +718,290 @@ namespace Latios.Psyshock
                         processor.Execute(in result);
                     }
                 }
+            }
+        }
+
+        static unsafe void BipartiteSweepDualIndices<T>(ref FindPairsResult result,
+                                                        in BucketSlices bucketA,
+                                                        ReadOnlySpan<int>        indicesA,
+                                                        in BucketSlices bucketB,
+                                                        ReadOnlySpan<int>        indicesB,
+                                                        ref T processor,
+                                                        ref ThreadStackAllocator allocator)
+            where T : unmanaged, IFindPairsProcessor
+        {
+            var xminsA     = allocator.Allocate<float>(indicesA.Length + 1);
+            var xmaxsA     = allocator.Allocate<float>(indicesA.Length);
+            var yzminmaxsA = allocator.Allocate<float4>(indicesA.Length);
+
+            for (int i = 0; i < indicesA.Length; i++)
+            {
+                var index     = indicesA[i];
+                xminsA[i]     = bucketA.xmins[index];
+                xmaxsA[i]     = bucketA.xmaxs[index];
+                yzminmaxsA[i] = bucketA.yzminmaxs[index];
+            }
+            xminsA[indicesA.Length] = float.NaN;
+
+            var xminsB     = allocator.Allocate<float>(indicesB.Length + 1);
+            var xmaxsB     = allocator.Allocate<float>(indicesB.Length);
+            var yzminmaxsB = allocator.Allocate<float4>(indicesB.Length);
+
+            for (int i = 0; i < indicesB.Length; i++)
+            {
+                var index     = indicesB[i];
+                xminsB[i]     = bucketB.xmins[index];
+                xmaxsB[i]     = bucketB.xmaxs[index];
+                yzminmaxsB[i] = bucketB.yzminmaxs[index];
+            }
+            xminsB[indicesB.Length] = float.NaN;
+
+            // Check for b starting in a's x range
+            int bstart = 0;
+            for (int i = 0; i < indicesA.Length; i++)
+            {
+                // Advance to b.xmin >= a.xmin
+                // Include equals case by stopping when equal
+                while (bstart < indicesB.Length && xminsB[bstart] < xminsA[i])
+                    bstart++;
+                if (bstart >= indicesB.Length)
+                    break;
+
+                var current = -yzminmaxsA[i].zwxy;
+                var xmax    = xmaxsA[i];
+                for (int j = bstart; j < indicesB.Length && xminsB[j] <= xmax; j++)
+                {
+                    if (math.bitmask(current < yzminmaxsB[j]) == 0)
+                    {
+                        result.SetBucketRelativePairIndices(indicesA[i], indicesB[j]);
+                        processor.Execute(in result);
+                    }
+                }
+            }
+
+            // Check for a starting in b's x range
+            int astart = 0;
+            for (int i = 0; i < indicesB.Length; i++)
+            {
+                // Advance to a.xmin > b.xmin
+                // Exclude equals case this time by continuing if equal
+                while (astart < indicesA.Length && bucketA.xmins[astart] <= xminsB[i])
+                    astart++;
+                if (astart >= indicesA.Length)
+                    break;
+
+                var current = -yzminmaxsB[i].zwxy;
+                var xmax    = xmaxsB[i];
+                for (int j = astart; j < indicesA.Length && bucketA.xmins[j] <= xmax; j++)
+                {
+                    if (math.bitmask(current < bucketA.yzminmaxs[j]) == 0)
+                    {
+                        result.SetBucketRelativePairIndices(indicesA[j], indicesB[i]);
+                        processor.Execute(in result);
+                    }
+                }
+            }
+        }
+
+        static unsafe void BipartiteSweepDualIndicesFilteredCross<T>(ref FindPairsResult result,
+                                                                     in BucketSlices bucketA,
+                                                                     ReadOnlySpan<int>        indicesA,
+                                                                     in BucketSlices bucketB,
+                                                                     ReadOnlySpan<int>        indicesB,
+                                                                     ref T processor,
+                                                                     in BucketAabb cellAabb,
+                                                                     bool cellIsB,
+                                                                     ref ThreadStackAllocator allocator)
+            where T : unmanaged, IFindPairsProcessor
+        {
+            var xminsA     = allocator.Allocate<float>(indicesA.Length + 1);
+            var xmaxsA     = allocator.Allocate<float>(indicesA.Length);
+            var yzminmaxsA = allocator.Allocate<float4>(indicesA.Length);
+            if (cellIsB)
+            {
+                var newIndices = allocator.Allocate<int>(indicesA.Length);
+                int newCount   = 0;
+                for (int i = 0; i < indicesA.Length; i++)
+                {
+                    var index = indicesA[i];
+                    if (cellAabb.xmax < bucketA.xmins[index])
+                        break;
+                    if (bucketA.xmaxs[i] < cellAabb.xmin)
+                        continue;
+                    if (math.bitmask((cellAabb.yzMinMaxFlipped < bucketA.yzminmaxs[i]) & cellAabb.finiteMask) == 0)
+                    {
+                        xminsA[newCount]     = bucketA.xmins[index];
+                        xmaxsA[newCount]     = bucketA.xmaxs[index];
+                        yzminmaxsA[newCount] = bucketA.yzminmaxs[index];
+                        newIndices[newCount] = index;
+                        newCount++;
+                    }
+                }
+                indicesA = new ReadOnlySpan<int>(newIndices, newCount);
+            }
+            else
+            {
+                for (int i = 0; i < indicesA.Length; i++)
+                {
+                    var index     = indicesA[i];
+                    xminsA[i]     = bucketA.xmins[index];
+                    xmaxsA[i]     = bucketA.xmaxs[index];
+                    yzminmaxsA[i] = bucketA.yzminmaxs[index];
+                }
+            }
+            xminsA[indicesA.Length] = float.NaN;
+
+            var xminsB     = allocator.Allocate<float>(indicesB.Length + 1);
+            var xmaxsB     = allocator.Allocate<float>(indicesB.Length);
+            var yzminmaxsB = allocator.Allocate<float4>(indicesB.Length);
+            if (!cellIsB)
+            {
+                var newIndices = allocator.Allocate<int>(indicesB.Length);
+                int newCount   = 0;
+                for (int i = 0; i < indicesB.Length; i++)
+                {
+                    var index = indicesB[i];
+                    if (cellAabb.xmax < bucketB.xmins[index])
+                        break;
+                    if (bucketB.xmaxs[i] < cellAabb.xmin)
+                        continue;
+                    if (math.bitmask((cellAabb.yzMinMaxFlipped < bucketB.yzminmaxs[i]) & cellAabb.finiteMask) == 0)
+                    {
+                        xminsB[newCount]     = bucketB.xmins[index];
+                        xmaxsB[newCount]     = bucketB.xmaxs[index];
+                        yzminmaxsB[newCount] = bucketB.yzminmaxs[index];
+                        newIndices[newCount] = index;
+                        newCount++;
+                    }
+                }
+                indicesB = new ReadOnlySpan<int>(newIndices, newCount);
+            }
+            else
+            {
+                for (int i = 0; i < indicesB.Length; i++)
+                {
+                    var index     = indicesB[i];
+                    xminsB[i]     = bucketB.xmins[index];
+                    xmaxsB[i]     = bucketB.xmaxs[index];
+                    yzminmaxsB[i] = bucketB.yzminmaxs[index];
+                }
+            }
+            xminsB[indicesB.Length] = float.NaN;
+
+            // Check for b starting in a's x range
+            int bstart = 0;
+            for (int i = 0; i < indicesA.Length; i++)
+            {
+                // Advance to b.xmin >= a.xmin
+                // Include equals case by stopping when equal
+                while (bstart < indicesB.Length && xminsB[bstart] < xminsA[i])
+                    bstart++;
+                if (bstart >= indicesB.Length)
+                    break;
+
+                var current = -yzminmaxsA[i].zwxy;
+                var xmax    = xmaxsA[i];
+                for (int j = bstart; j < indicesB.Length && xminsB[j] <= xmax; j++)
+                {
+                    if (math.bitmask(current < yzminmaxsB[j]) == 0)
+                    {
+                        result.SetBucketRelativePairIndices(indicesA[i], indicesB[j]);
+                        processor.Execute(in result);
+                    }
+                }
+            }
+
+            // Check for a starting in b's x range
+            int astart = 0;
+            for (int i = 0; i < indicesB.Length; i++)
+            {
+                // Advance to a.xmin > b.xmin
+                // Exclude equals case this time by continuing if equal
+                while (astart < indicesA.Length && bucketA.xmins[astart] <= xminsB[i])
+                    astart++;
+                if (astart >= indicesA.Length)
+                    break;
+
+                var current = -yzminmaxsB[i].zwxy;
+                var xmax    = xmaxsB[i];
+                for (int j = astart; j < indicesA.Length && bucketA.xmins[j] <= xmax; j++)
+                {
+                    if (math.bitmask(current < bucketA.yzminmaxs[j]) == 0)
+                    {
+                        result.SetBucketRelativePairIndices(indicesA[j], indicesB[i]);
+                        processor.Execute(in result);
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region Archetype Index Merging
+        static unsafe void GatherArchetypeIndicesGeneral(Span<int> result, Span<int2> startsAndCounts, ReadOnlySpan<int> archetypeBodyIndices)
+        {
+            // Allocate tournament tree levels and initialize first games
+            var levelCount        = math.ceillog2(startsAndCounts.Length);
+            var levels            = stackalloc ulong*[levelCount];
+            int combatantsInLevel = startsAndCounts.Length;
+            var winnersScratch    = stackalloc ulong[startsAndCounts.Length];
+            for (int i = 0; i < startsAndCounts.Length; i++)
+            {
+                var c               = (ulong)archetypeBodyIndices[startsAndCounts[i].x];
+                c                 <<= 32;
+                c                  |= (uint)i;
+                winnersScratch[i]   = c;
+            }
+
+            // Allocate and play first games for each level
+            for (int i = 0; i < levelCount; i++)
+            {
+                var games   = (combatantsInLevel + 1) / 2;
+                var inLevel = stackalloc ulong[games];
+                levels[i]   = inLevel;
+
+                for (int j = 0; j < games; j++)
+                {
+                    var a             = winnersScratch[2 * j];
+                    var bIndex        = 2 * j + 1;
+                    var b             = bIndex < combatantsInLevel ? winnersScratch[bIndex] : ulong.MaxValue;
+                    inLevel[j]        = math.max(a, b);
+                    winnersScratch[j] = math.min(a, b);
+                }
+                combatantsInLevel = games;
+            }
+
+            // Output first winner
+            var winner = winnersScratch[0];
+            result[0]  = (int)(winner >> 32);
+
+            // Stream all remaining games
+            for (int i = 1; i < result.Length; i++)
+            {
+                var     streamOfPrevious = (int)(winner & 0xffffffff);
+                ref var asac             = ref startsAndCounts[streamOfPrevious];
+                asac.y--;
+                asac.x++;
+                if (asac.y == 0)
+                    winner = ulong.MaxValue;
+                else
+                {
+                    winner   = (ulong)archetypeBodyIndices[asac.x];
+                    winner <<= 32;
+                    winner  |= (uint)streamOfPrevious;
+                }
+
+                var gameIndex = streamOfPrevious;
+                for (int j = 0; j < levelCount; j++)
+                {
+                    gameIndex          >>= 1;
+                    var previousWinner   = winner;
+                    var level            = levels[j];
+                    var otherCombatant   = level[gameIndex];
+                    winner               = math.min(otherCombatant, previousWinner);
+                    level[gameIndex]     = math.max(otherCombatant, previousWinner);
+                }
+
+                result[i] = (int)(winner >> 32);
             }
         }
         #endregion

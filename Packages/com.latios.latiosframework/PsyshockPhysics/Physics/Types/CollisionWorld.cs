@@ -241,6 +241,26 @@ namespace Latios.Psyshock
             [FieldOffset(8)]
             UnsafeList<short> longList;
 
+            public short CountArchetypes()
+            {
+                switch (mode)
+                {
+                    case Mode.Default:
+                    case Mode.Empty: return 0;
+                    case Mode.Bitmask:
+                    {
+                        int result = 0;
+                        for (int i = 0; i < 7; i++)
+                            result += math.countbits(bitmask[i]);
+                        result     += math.countbits(bitmaskFinal);
+                        return (short)result;
+                    }
+                    case Mode.ShortList: return (short)shortCount;
+                    case Mode.LongList: return (short)longList.Length;
+                    default: return 0;
+                }
+            }
+
             public Mask GetEnumerator() => this;
 
             public short Current => current;

@@ -83,7 +83,7 @@ namespace Latios.Kinemation.Authoring
                     {
                         var child = GetChild(bone, i);
                         if (GetComponent<SkinnedMeshRenderer>(child) == null && GetComponent<ExcludeFromSkeletonAuthoring>(child) == null &&
-                            GetComponent<BakingOnlyEntityAuthoring>() && GetComponentInParent<Animator>(child) == authoring)
+                            GetComponent<BakingOnlyEntityAuthoring>() == null && GetComponentInParent<Animator>(child) == authoring)
                             m_breadthQueue.Enqueue((child, currentIndex));
                     }
                 }
@@ -116,7 +116,7 @@ namespace Latios.Kinemation.Authoring
                 {
                     var child = GetChild(i);
                     if (GetComponent<SkinnedMeshRenderer>(child) != null || GetComponent<ExcludeFromSkeletonAuthoring>(child) != null ||
-                        GetComponent<BakingOnlyEntityAuthoring>(child) || GetComponent<Animator>(child) != null)
+                        GetComponent<BakingOnlyEntityAuthoring>(child) != null || GetComponent<Animator>(child) != null)
                         continue;
 
                     boneGoBuffer.Add(new ImportedSocketGameObjectRef { authoringGameObjectForBone = child });
