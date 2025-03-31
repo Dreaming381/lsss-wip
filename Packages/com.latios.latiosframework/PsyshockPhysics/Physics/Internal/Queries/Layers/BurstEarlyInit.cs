@@ -135,7 +135,7 @@ namespace Latios.Psyshock
             void Init();
         }
 
-        public struct FindPairsIniter<T> : IIniter where T : struct, IFindPairsProcessor
+        public struct FindPairsIniter<T> : IIniter where T : unmanaged, IFindPairsProcessor
         {
             public void Init()
             {

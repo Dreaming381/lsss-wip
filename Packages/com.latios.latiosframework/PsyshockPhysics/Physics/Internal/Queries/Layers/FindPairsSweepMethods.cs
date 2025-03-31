@@ -16,14 +16,13 @@ namespace Latios.Psyshock
                                             in BucketSlices bucket,
                                             int jobIndex,
                                             ref T processor,
-                                            bool isAThreadSafe,
-                                            bool isBThreadSafe,
-                                            bool isImmediateContext = false) where T : struct, IFindPairsProcessor
+                                            bool isThreadSafe,
+                                            bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             if (bucket.count < 2)
                 return;
 
-            var result = new FindPairsResult(in layer, in layer, in bucket, in bucket, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
+            var result = new FindPairsResult(in layer, in layer, in bucket, in bucket, jobIndex, isThreadSafe, isThreadSafe, isImmediateContext);
 
             if (X86.Avx.IsAvxSupported)
             {
@@ -39,11 +38,68 @@ namespace Latios.Psyshock
                                              in BucketSlices bucket,
                                              int jobIndex,
                                              ref T processor,
-                                             bool isAThreadSafe,
-                                             bool isBThreadSafe,
-                                             bool isImmediateContext = false) where T : struct, IFindPairsProcessor
+                                             bool isThreadSafe,
+                                             bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
-            SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isAThreadSafe, isBThreadSafe, isImmediateContext);
+            SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isImmediateContext);
+        }
+
+        public static unsafe void SelfSweepMask<T>(in CollisionWorld world,
+                                                   in WorldBucket bucket,
+                                                   CollisionWorld.Mask mask,
+                                                   int jobIndex,
+                                                   ref T processor,
+                                                   bool isThreadSafe,
+                                                   bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        {
+            int archetypeCount = 0;
+            int bodyCount      = 0;
+            foreach (var index in mask)
+            {
+                var asac = bucket.archetypeStartsAndCounts[index];
+                if (asac.y == 0)
+                    continue;
+                archetypeCount++;
+                bodyCount += asac.y;
+            }
+
+            if (bodyCount < 2)
+                return;
+
+            var       result    = new FindPairsResult(in world.layer, in world.layer, in bucket.slices, in bucket.slices, jobIndex, isThreadSafe, isThreadSafe, isImmediateContext);
+            using var allocator = ThreadStackAllocator.GetAllocator();
+
+            if (archetypeCount == 1)
+            {
+                int2 asac = default;
+                foreach (var index in mask)
+                {
+                    var candidate = bucket.archetypeStartsAndCounts[index];
+                    if (candidate.y != 0)
+                    {
+                        asac = candidate;
+                        break;
+                    }
+                }
+                var archetypeIndices = bucket.archetypeBodyIndices.GetSubArray(asac.x, asac.y).AsReadOnlySpan();
+                SelfSweepIndices(ref result, in bucket.slices, archetypeIndices, ref processor, allocator);
+                return;
+            }
+
+            var asacs      = allocator.AllocateAsSpan<int2>(archetypeCount);
+            archetypeCount = 0;
+            foreach (var index in mask)
+            {
+                var asac = bucket.archetypeStartsAndCounts[index];
+                if (asac.y != 0)
+                {
+                    asacs[archetypeCount] = asac;
+                    archetypeCount++;
+                }
+            }
+            var indices = allocator.AllocateAsSpan<int>(bodyCount);
+            GatherArchetypeIndicesGeneral(indices, asacs, bucket.archetypeBodyIndices);
+            SelfSweepIndices(ref result, in bucket.slices, indices, ref processor, allocator);
         }
 
         public static void BipartiteSweepCellCell<T>(in CollisionLayer layerA,
@@ -54,7 +110,7 @@ namespace Latios.Psyshock
                                                      ref T processor,
                                                      bool isAThreadSafe,
                                                      bool isBThreadSafe,
-                                                     bool isImmediateContext = false) where T : struct, IFindPairsProcessor
+                                                     bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             int countA = bucketA.xmins.Length;
             int countB = bucketB.xmins.Length;
@@ -81,7 +137,7 @@ namespace Latios.Psyshock
                                                       ref T processor,
                                                       bool isAThreadSafe,
                                                       bool isBThreadSafe,
-                                                      bool isImmediateContext = false) where T : struct, IFindPairsProcessor
+                                                      bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             int countA = bucketA.xmins.Length;
             int countB = bucketB.xmins.Length;
@@ -104,7 +160,7 @@ namespace Latios.Psyshock
                                                       ref T processor,
                                                       bool isAThreadSafe,
                                                       bool isBThreadSafe,
-                                                      bool isImmediateContext = false) where T : struct, IFindPairsProcessor
+                                                      bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             int countA = bucketA.xmins.Length;
             int countB = bucketB.xmins.Length;
@@ -127,7 +183,7 @@ namespace Latios.Psyshock
                                                        ref T processor,
                                                        bool isAThreadSafe,
                                                        bool isBThreadSafe,
-                                                       bool isImmediateContext = false) where T : struct, IFindPairsProcessor
+                                                       bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isAThreadSafe, isBThreadSafe, isImmediateContext);
         }
@@ -140,7 +196,7 @@ namespace Latios.Psyshock
                                                      int jobIndex,
                                                      ref T processor,
                                                      bool isAThreadSafe,
-                                                     bool isBThreadSafe) where T : struct, IFindPairsProcessor
+                                                     bool isBThreadSafe) where T : unmanaged, IFindPairsProcessor
         {
             if (!enumerator.MoveNext())
                 return 0;
@@ -190,7 +246,7 @@ namespace Latios.Psyshock
         #endregion
 
         #region Self Sweeps
-        static void SelfSweepWholeBucket<T>(ref FindPairsResult result, in BucketSlices bucket, ref T processor) where T : struct, IFindPairsProcessor
+        static void SelfSweepWholeBucket<T>(ref FindPairsResult result, in BucketSlices bucket, ref T processor) where T : unmanaged, IFindPairsProcessor
         {
             Hint.Assume(bucket.xmins.Length == bucket.xmaxs.Length);
             Hint.Assume(bucket.xmins.Length == bucket.yzminmaxs.Length);
@@ -260,7 +316,7 @@ namespace Latios.Psyshock
             }
         }
 
-        static unsafe void SelfSweepIndices<T>(ref FindPairsResult result, in BucketSlices bucket, ReadOnlySpan<int> indices, ref T processor, ref ThreadStackAllocator allocator)
+        static unsafe void SelfSweepIndices<T>(ref FindPairsResult result, in BucketSlices bucket, ReadOnlySpan<int> indices, ref T processor, ThreadStackAllocator allocator)
             where T : unmanaged, IFindPairsProcessor
         {
             var xmins     = allocator.Allocate<float>(indices.Length + 1);
@@ -545,7 +601,7 @@ namespace Latios.Psyshock
                                                                   in BucketSlices bucketA,
                                                                   in BucketSlices bucketB,
                                                                   ref T processor,
-                                                                  in BucketAabb bucketAabbForA) where T : struct, IFindPairsProcessor
+                                                                  in BucketAabb bucketAabbForA) where T : unmanaged, IFindPairsProcessor
         {
             Hint.Assume(bucketA.xmins.Length == bucketA.xmaxs.Length);
             Hint.Assume(bucketA.xmins.Length == bucketA.yzminmaxs.Length);
@@ -635,7 +691,7 @@ namespace Latios.Psyshock
                                                                   in BucketSlices bucketA,
                                                                   in BucketSlices bucketB,
                                                                   ref T processor,
-                                                                  in BucketAabb bucketAabbForB) where T : struct, IFindPairsProcessor
+                                                                  in BucketAabb bucketAabbForB) where T : unmanaged, IFindPairsProcessor
         {
             Hint.Assume(bucketA.xmins.Length == bucketA.xmaxs.Length);
             Hint.Assume(bucketA.xmins.Length == bucketA.yzminmaxs.Length);

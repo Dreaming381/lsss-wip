@@ -13,7 +13,7 @@ using UnityEngine.Scripting;
 //Todo: FilteredCache playback and inflations
 namespace Latios.Psyshock
 {
-    public partial struct FindPairsLayerSelfConfig<T> where T : struct, IFindPairsProcessor
+    public partial struct FindPairsLayerSelfConfig<T> where T : unmanaged, IFindPairsProcessor
     {
         internal enum ScheduleMode
         {
@@ -139,9 +139,9 @@ namespace Latios.Psyshock
                         if (processor.BeginBucket(in context))
                         {
                             if (index != IndexStrategies.CrossBucketIndex(layer.cellCount))
-                                FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, index, ref processor, isThreadSafe, isThreadSafe);
+                                FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, index, ref processor, isThreadSafe);
                             else
-                                FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, index, ref processor, isThreadSafe, isThreadSafe);
+                                FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, index, ref processor, isThreadSafe);
                             processor.EndBucket(in context);
                         }
                         Physics.kCellMarker.End();
@@ -194,9 +194,9 @@ namespace Latios.Psyshock
                             if (processor.BeginBucket(in context))
                             {
                                 if (index != layer.bucketCount - 1)
-                                    FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, index, ref processor, false, false);
+                                    FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, index, ref processor, false);
                                 else
-                                    FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, index, ref processor, false, false);
+                                    FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, index, ref processor, false);
                                 processor.EndBucket(in context);
                             }
                             Physics.kCellMarker.End();
@@ -265,9 +265,9 @@ namespace Latios.Psyshock
                     if (processor.BeginBucket(in context))
                     {
                         if (i != layer.bucketCount - 1)
-                            FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe, !isThreadSafe);
+                            FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
                         else
-                            FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isThreadSafe, !isThreadSafe);
+                            FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;
@@ -307,7 +307,7 @@ namespace Latios.Psyshock
         }
     }
 
-    public partial struct FindPairsLayerLayerConfig<T> where T : struct, IFindPairsProcessor
+    public partial struct FindPairsLayerLayerConfig<T> where T : unmanaged, IFindPairsProcessor
     {
         internal enum ScheduleMode
         {

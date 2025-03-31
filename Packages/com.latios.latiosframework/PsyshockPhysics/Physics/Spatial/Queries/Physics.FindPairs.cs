@@ -446,7 +446,7 @@ namespace Latios.Psyshock
         /// </summary>
         /// <param name="layer">The layer in which pairs should be detected</param>
         /// <param name="processor">The job-like struct which should process each pair found</param>
-        public static FindPairsLayerSelfConfig<T> FindPairs<T>(in CollisionLayer layer, in T processor) where T : struct, IFindPairsProcessor
+        public static FindPairsLayerSelfConfig<T> FindPairs<T>(in CollisionLayer layer, in T processor) where T : unmanaged, IFindPairsProcessor
         {
             return new FindPairsLayerSelfConfig<T>
             {
@@ -464,7 +464,7 @@ namespace Latios.Psyshock
         /// <param name="layerA">The first layer in which pairs should be detected</param>
         /// <param name="layerB">The second layer in which pairs should be detected</param>
         /// <param name="processor">The job-like struct which should process each pair found</param>
-        public static FindPairsLayerLayerConfig<T> FindPairs<T>(in CollisionLayer layerA, in CollisionLayer layerB, in T processor) where T : struct, IFindPairsProcessor
+        public static FindPairsLayerLayerConfig<T> FindPairs<T>(in CollisionLayer layerA, in CollisionLayer layerB, in T processor) where T : unmanaged, IFindPairsProcessor
         {
             CheckLayersAreCompatible(layerA, layerB);
             return new FindPairsLayerLayerConfig<T>
@@ -531,7 +531,7 @@ namespace Latios.Psyshock
         #endregion
     }
 
-    public partial struct FindPairsLayerSelfConfig<T> where T : struct, IFindPairsProcessor
+    public partial struct FindPairsLayerSelfConfig<T> where T : unmanaged, IFindPairsProcessor
     {
         internal T processor;
 
@@ -647,7 +647,7 @@ namespace Latios.Psyshock
         #endregion Schedulers
     }
 
-    public partial struct FindPairsLayerLayerConfig<T> where T : struct, IFindPairsProcessor
+    public partial struct FindPairsLayerLayerConfig<T> where T : unmanaged, IFindPairsProcessor
     {
         internal T processor;
 
