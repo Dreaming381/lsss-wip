@@ -6,6 +6,7 @@ using Unity.Mathematics;
 
 namespace Latios.Calligraphics.Systems
 {
+    [DisableAutoCreation]
     public partial class AnimateGlyphsSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
@@ -14,6 +15,7 @@ namespace Latios.Calligraphics.Systems
         }
     }
 
+    [DisableAutoCreation]
     public partial class CalligraphicsUpdateSuperSystem : SuperSystem
     {
         protected override void CreateSystems()

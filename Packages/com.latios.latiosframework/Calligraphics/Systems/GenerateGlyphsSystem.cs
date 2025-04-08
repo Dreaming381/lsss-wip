@@ -6,6 +6,7 @@ using Unity.Mathematics;
 
 namespace Latios.Calligraphics
 {
+    [DisableAutoCreation]
     [BurstCompile]
     public partial struct GenerateGlyphsSystem : ISystem
     {
