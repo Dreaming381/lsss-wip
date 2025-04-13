@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace Latios.Calligraphics
+namespace Latios.Calligraphics.Systems
 {
     [DisableAutoCreation]
     [BurstCompile]
@@ -16,6 +16,13 @@ namespace Latios.Calligraphics
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
+
+            state.Fluent().With<CalliByte, CalliByteChangedFlag, TextBaseConfiguration>(true).Build();
+
+            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new FontTable
+            {
+                // Todo:
+            });
         }
 
         [BurstCompile]
@@ -26,6 +33,7 @@ namespace Latios.Calligraphics
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var fontTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<FontTable>(false);
         }
     }
 }

@@ -5,8 +5,9 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace Latios.Calligraphics
+namespace Latios.Calligraphics.Systems
 {
+    [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
     public unsafe partial struct SystemFontRegistrationSystem : ISystem
@@ -18,7 +19,7 @@ namespace Latios.Calligraphics
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            state.RequireForUpdate<CalliByte>();
+            state.Fluent().With<CalliByte, CalliByteChangedFlag, TextBaseConfiguration>(true).Build();
         }
 
         [BurstCompile]

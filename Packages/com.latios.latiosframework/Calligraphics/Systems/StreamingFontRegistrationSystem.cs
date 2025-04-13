@@ -7,7 +7,7 @@ using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
 
-namespace Latios.Calligraphics
+namespace Latios.Calligraphics.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
@@ -21,8 +21,9 @@ namespace Latios.Calligraphics
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld           = state.GetLatiosWorldUnmanaged();
-            m_query               = state.Fluent().With<FontCollectionBlobReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+            m_query     = state.Fluent().With<FontCollectionBlobReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            m_query.AddChangedVersionFilter(ComponentType.ReadOnly<FontCollectionBlobReference>());
             blobsAlreadyProcessed = new NativeHashSet<BlobAssetReference<FontCollectionBlob> >(16, Allocator.Persistent);
         }
 
