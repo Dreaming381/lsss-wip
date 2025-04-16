@@ -99,7 +99,7 @@ namespace Latios.Kinemation.Authoring
                 m_bones[i]       = bone;
             }
 
-            shadow.Dispose();
+            shadow.Dispose(true);
         }
     }
 

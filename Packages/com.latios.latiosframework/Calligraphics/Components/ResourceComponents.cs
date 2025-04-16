@@ -52,5 +52,15 @@ namespace Latios.Calligraphics
 
         public BlobArray<Fallback> fallbacks;
     }
+
+    // Todo: Blob asset and blob refs
+    public struct TextColorGradient
+    {
+        public int   nameHash;  // Todo: Make 64-bit?
+        public half4 topLeft;
+        public half4 topRight;
+        public half4 bottomLeft;
+        public half4 bottomRight;
+    }
 }
 

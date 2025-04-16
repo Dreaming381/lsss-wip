@@ -31,6 +31,8 @@ namespace Latios.Calligraphics
             public short z;
             public short width;
             public short height;
+            public short xBearing;
+            public short yBearing;
 
             public bool isInAtlas => x >= 0;
             // Todo:

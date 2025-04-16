@@ -145,11 +145,10 @@ namespace Latios.Calligraphics
         /// <remarks>
         /// In an enumerator's initial state, its index is invalid. The first <see cref="MoveNext"/> call advances the enumerator's index to the first character.
         /// </remarks>
-        public struct Enumerator : IEnumerator<Unicode.Rune>
+        public struct Enumerator
         {
             CalliString  target;
-            int          m_currentByteIndex;
-            int          m_currentCharIndex;
+            int          nextByteIndex;
             Unicode.Rune current;
 
             /// <summary>
@@ -158,17 +157,9 @@ namespace Latios.Calligraphics
             /// <param name="source">A NativeText for which to create an enumerator.</param>
             public Enumerator(CalliString source)
             {
-                target             = source;
-                m_currentByteIndex = 0;
-                m_currentCharIndex = 0;
-                current            = default;
-            }
-
-            /// <summary>
-            /// Does nothing.
-            /// </summary>
-            public void Dispose()
-            {
+                target        = source;
+                nextByteIndex = 0;
+                current       = default;
             }
 
             /// <summary>
@@ -181,7 +172,7 @@ namespace Latios.Calligraphics
                 if (bytePosition >= target.Length)
                     return false;
 
-                m_currentByteIndex = bytePosition;
+                nextByteIndex = bytePosition;
 
                 return true;
             }
@@ -191,25 +182,21 @@ namespace Latios.Calligraphics
             /// </summary>
             /// <returns>True if <see cref="Current"/> is valid to read after the call.</returns>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool MoveNext()
+            public unsafe bool MoveNext()
             {
-                if (m_currentByteIndex >= target.Length)
+                if (nextByteIndex >= target.Length)
                     return false;
 
-                unsafe
-                {
-                    Unicode.Utf8ToUcs(out current, target.GetUnsafeReadOnlyPtr(), ref m_currentByteIndex, target.Length);
-                    m_currentCharIndex += 1;
-                }
+                Unicode.Utf8ToUcs(out current, target.GetUnsafeReadOnlyPtr(), ref nextByteIndex, target.Length);
 
                 return true;
             }
 
             public bool MovePrevious()
             {
-                if (m_currentByteIndex >= current.LengthInUtf8Bytes())
+                if (nextByteIndex >= current.LengthInUtf8Bytes())
                 {
-                    m_currentByteIndex -= current.LengthInUtf8Bytes();
+                    nextByteIndex -= current.LengthInUtf8Bytes();
                     return true;
                 }
                 return false;
@@ -220,14 +207,8 @@ namespace Latios.Calligraphics
             /// </summary>
             public void Reset()
             {
-                m_currentByteIndex = 0;
-                current            = default;
-            }
-
-            object IEnumerator.Current
-            {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => Current;
+                nextByteIndex = 0;
+                current       = default;
             }
 
             /// <summary>
@@ -240,12 +221,13 @@ namespace Latios.Calligraphics
             /// The startIndex in bytes of the current character.
             /// </summary>
             /// <value>The current character byte index.</value>
-            public int CurrentByteIndex => m_currentByteIndex;
+            public int CurrentByteIndex => nextByteIndex;
+
             /// <summary>
-            /// The index of the current character in chars.
+            /// The startIndex in bytes of the next character.
             /// </summary>
-            /// <value>The current character char index</value>
-            public int CurrentCharIndex => m_currentCharIndex;
+            /// <value>The next character byte index.</value>
+            public int NextByteIndex => nextByteIndex;
         }
 
         /// <summary>

@@ -32,7 +32,7 @@ namespace Latios.Calligraphics
         /// <summary>
         /// The size of the font, in point sizes
         /// </summary>
-        public half pointSize;
+        public half fontSize;
 
         /// <summary>
         /// Additional word spacing in font units where a value of 1 equals 0.01 em
@@ -82,13 +82,36 @@ namespace Latios.Calligraphics
             set => Bits.SetBits(ref packed, 12, 4, (uint)value);
         }
 
+        public float fontWidthValue => fontWidth switch
+        {
+            FontWidth.UltraCondensed => 50f,
+            FontWidth.ExtraCondensed => 62.5f,
+            FontWidth.Narrow => 75f,
+            FontWidth.SemiCondensed => 87.5f,
+            FontWidth.Normal => 100f,
+            FontWidth.SemiExpanded => 112.5f,
+            FontWidth.Expanded => 125f,
+            FontWidth.ExtraExpanded => 150f,
+            FontWidth.UltraExpanded => 200f,
+            _ => float.NaN,
+        };
+
         /// <summary>
         /// The various font styling flags
         /// </summary>
-        public FontStyles fontStyle
+        public FontStyles fontStyles
         {
             get => (FontStyles)Bits.GetBits(packed, 16, 11);
             set => Bits.SetBits(ref packed, 16, 11, (uint)value);
+        }
+
+        /// <summary>
+        /// The size of the characters in the texture
+        /// </summary>
+        public FontTextureSize fontTextureSize
+        {
+            get => (FontTextureSize)Bits.GetBits(packed, 27, 2);
+            set => Bits.SetBits(ref packed, 27, 2, (uint)value);
         }
 
         /// <summary>
@@ -108,6 +131,16 @@ namespace Latios.Calligraphics
             get => Bits.GetBit(packed, 31);
             set => Bits.SetBit(ref packed, 31, value);
         }
+
+        // Todo: It would be nice if we could split this based on glyph type, but currently glyph generation
+        // is dependent on the base configuration font
+        internal int samplingSize => fontTextureSize switch
+        {
+            FontTextureSize.Normal => 64,  // Todo: 64 SDF8, 128 color
+            FontTextureSize.Big => 256,  // Todo: 256 SDF16, 512 color
+            FontTextureSize.Massive => 4096,  // Todo: 1024 SDF16, 4096 color
+            _ => 64
+        };
     }
 
     /// <summary>
@@ -192,6 +225,13 @@ namespace Latios.Calligraphics
         [InspectorName("x₂")] Subscript = 0x100,
         //[InspectorName("[]")] Highlight = 0x200,
         [InspectorName("½")] Fraction = 0x400,
+    }
+
+    public enum FontTextureSize
+    {
+        Normal = 0,
+        Big = 1,
+        Massive = 2,
     }
 }
 
