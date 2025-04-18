@@ -457,6 +457,42 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
+        /// Request a FindPairs broadphase operation to report pairs within the CollisionWorld filtered by the specified EntityQueryMask.
+        /// This is the start of a fluent expression.
+        /// </summary>
+        /// <param name="world">The CollisionWorld in which pairs should be detected</param>
+        /// <param name="queryMask">The EntityQueryMask that both entities in each pair should match</param>
+        /// <param name="processor">The job-like struct which should process each pair found</param>
+        public static FindPairsWorldSelfConfig<T> FindPairs<T>(in CollisionWorld world, in EntityQueryMask queryMask, in T processor) where T : unmanaged, IFindPairsProcessor
+        {
+            return new FindPairsWorldSelfConfig<T>
+            {
+                job           = new FindPairsWorldSelfConfig<T>.FindPairsInternal.WorldSelfJob(in world, in queryMask, in processor),
+                useCrossCache = false
+            };
+        }
+
+        /// <summary>
+        /// Request a FindPairs broadphase operation to report pairs between two entity queries within the CollisionWorld.
+        /// If two entities match both queries, they will be tested against each other twice and may report two results.
+        /// In that case, the results will be reported as (entity1, entity2) and then later as (entity2, entity1).
+        /// This is the start of a fluent expression.
+        /// </summary>
+        /// <param name="world">The CollisionWorld in which pairs should be detected</param>
+        /// <param name="queryMaskA">The EntityQueryMask that the first entity in each pair should match</param>
+        /// <param name="queryMaskB">The EntityQueryMask that the second entity in each pair should match</param>
+        /// <param name="processor">The job-like struct which should process each pair found</param>
+        public static FindPairsWorldSelfConfig<T> FindPairs<T>(in CollisionWorld world, in EntityQueryMask queryMaskA, in EntityQueryMask queryMaskB,
+                                                               in T processor) where T : unmanaged, IFindPairsProcessor
+        {
+            return new FindPairsWorldSelfConfig<T>
+            {
+                job           = new FindPairsWorldSelfConfig<T>.FindPairsInternal.WorldSelfJob(in world, in queryMaskA, in queryMaskB, in processor),
+                useCrossCache = false
+            };
+        }
+
+        /// <summary>
         /// Request a FindPairs broadphase operation to report pairs between the two layers.
         /// Only pairs containing one element from layerA and one element from layerB will be reported.
         /// This is the start of a fluent expression.
@@ -643,6 +679,92 @@ namespace Latios.Psyshock
                 Physics.WarnCrossCacheUnused();
             }
             return new FindPairsInternal.LayerSelfJob(in layer, in processor).ScheduleParallel(inputDeps, ScheduleMode.ParallelUnsafe);
+        }
+        #endregion Schedulers
+    }
+
+    public partial struct FindPairsWorldSelfConfig<T> where T : unmanaged, IFindPairsProcessor
+    {
+        internal FindPairsInternal.WorldSelfJob job;
+        internal bool                           useCrossCache;
+
+        #region Settings
+        #endregion
+
+        #region Schedulers
+        /// <summary>
+        /// Run the FindPairs operation without using a job. This method can be invoked from inside a job.
+        /// </summary>
+        public void RunImmediate()
+        {
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
+            job.RunImmediate();
+        }
+
+        /// <summary>
+        /// Run the FindPairs operation on the main thread using a Bursted job.
+        /// </summary>
+        public void Run()
+        {
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
+            job.Run();
+        }
+
+        /// <summary>
+        /// Run the FindPairs operation on a single worker thread.
+        /// </summary>
+        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
+        /// <returns>A JobHandle for the scheduled job</returns>
+        public JobHandle ScheduleSingle(JobHandle inputDeps = default)
+        {
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
+            return job.ScheduleSingle(inputDeps);
+        }
+
+        /// <summary>
+        /// Run the FindPairs operation using multiple worker threads in multiple phases.
+        /// If the CollisionLayer only contains a single cell (all subdivisions == 1), this falls back to ScheduleSingle().
+        /// </summary>
+        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
+        /// <returns>The final JobHandle for the scheduled jobs</returns>
+        public JobHandle ScheduleParallel(JobHandle inputDeps = default)
+        {
+            if (IndexStrategies.ScheduleParallelShouldActuallyBeSingle(job.cellCount))
+                return ScheduleSingle(inputDeps);
+
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
+            var jh = job.ScheduleParallel(inputDeps, ScheduleMode.ParallelPart1);
+            return job.ScheduleParallel(jh, ScheduleMode.ParallelPart2);
+        }
+
+        /// <summary>
+        /// Run the FindPairs operation using multiple worker threads all at once without entity or body index thread-safety.
+        /// If the CollisionLayer only contains a single cell (all subdivisions == 1), this falls back to ScheduleSingle().
+        /// </summary>
+        /// <param name="inputDeps">The input dependencies for any layers or processors used in the FindPairs operation</param>
+        /// <returns>A JobHandle for the scheduled job</returns>
+        public JobHandle ScheduleParallelUnsafe(JobHandle inputDeps = default)
+        {
+            if (IndexStrategies.ScheduleParallelShouldActuallyBeSingle(job.cellCount))
+                return ScheduleSingle(inputDeps);
+
+            if (useCrossCache)
+            {
+                Physics.WarnCrossCacheUnused();
+            }
+            return job.ScheduleParallel(inputDeps, ScheduleMode.ParallelUnsafe);
         }
         #endregion Schedulers
     }

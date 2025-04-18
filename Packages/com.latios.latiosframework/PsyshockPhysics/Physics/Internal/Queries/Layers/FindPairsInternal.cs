@@ -111,7 +111,7 @@ namespace Latios.Psyshock
                 [BurstDiscard]
                 static void GetProcessorNameNoBurst(ref FixedString128Bytes name)
                 {
-                    name = nameof(T);
+                    name = typeof(T).FullName;
                 }
                 #endregion
 
@@ -138,10 +138,7 @@ namespace Latios.Psyshock
                                                                  isThreadSafe);
                         if (processor.BeginBucket(in context))
                         {
-                            if (index != IndexStrategies.CrossBucketIndex(layer.cellCount))
-                                FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, index, ref processor, isThreadSafe);
-                            else
-                                FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, index, ref processor, isThreadSafe);
+                            FindPairsSweepMethods.SelfSweep(in layer, in bucket, index, ref processor, isThreadSafe);
                             processor.EndBucket(in context);
                         }
                         Physics.kCellMarker.End();
@@ -193,10 +190,7 @@ namespace Latios.Psyshock
                                                                      false);
                             if (processor.BeginBucket(in context))
                             {
-                                if (index != layer.bucketCount - 1)
-                                    FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, index, ref processor, false);
-                                else
-                                    FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, index, ref processor, false);
+                                FindPairsSweepMethods.SelfSweep(in layer, in bucket, index, ref processor, false);
                                 processor.EndBucket(in context);
                             }
                             Physics.kCellMarker.End();
@@ -264,10 +258,7 @@ namespace Latios.Psyshock
                                                              !isThreadSafe);
                     if (processor.BeginBucket(in context))
                     {
-                        if (i != layer.bucketCount - 1)
-                            FindPairsSweepMethods.SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
-                        else
-                            FindPairsSweepMethods.SelfSweepCross(in layer, in bucket, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
+                        FindPairsSweepMethods.SelfSweep(in layer, in bucket, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;
@@ -294,6 +285,436 @@ namespace Latios.Psyshock
                                                                       in layer,
                                                                       in bucket,
                                                                       in crossBucket,
+                                                                      jobIndex,
+                                                                      ref processor,
+                                                                      isThreadSafe,
+                                                                      isThreadSafe,
+                                                                      !isThreadSafe);
+                        processor.EndBucket(in context);
+                    }
+                    jobIndex++;
+                }
+            }
+        }
+    }
+
+    public partial struct FindPairsWorldSelfConfig<T> where T : unmanaged, IFindPairsProcessor
+    {
+        internal enum ScheduleMode
+        {
+            Single,
+            ParallelPart1,
+            ParallelPart2,
+            ParallelUnsafe
+        }
+
+        internal static class FindPairsInternal
+        {
+            [BurstCompile]
+            public struct WorldSelfJob : IJobFor
+            {
+                [ReadOnly] CollisionWorld      world;
+                EntityQueryMask                queryMaskA;
+                EntityQueryMask                queryMaskB;
+                CollisionWorld.Mask            maskA;
+                CollisionWorld.Mask            maskB;
+                bool                           usesBothMasks;
+                T                              processor;
+                ScheduleMode                   scheduleMode;
+                Unity.Profiling.ProfilerMarker modeAndTMarker;
+
+                #region Construction and Scheduling
+                public WorldSelfJob(in CollisionWorld world, in EntityQueryMask queryMask, in T processor)
+                {
+                    this.world     = world;
+                    queryMaskA     = queryMask;
+                    queryMaskB     = default;
+                    maskA          = default;
+                    maskB          = default;
+                    usesBothMasks  = false;
+                    this.processor = processor;
+                    scheduleMode   = default;
+                    modeAndTMarker = default;
+                }
+
+                public WorldSelfJob(in CollisionWorld world, in EntityQueryMask queryMaskA, in EntityQueryMask queryMaskB, in T processor)
+                {
+                    this.world      = world;
+                    this.queryMaskA = queryMaskA;
+                    this.queryMaskB = queryMaskB;
+                    maskA           = default;
+                    maskB           = default;
+                    usesBothMasks   = true;
+                    this.processor  = processor;
+                    scheduleMode    = default;
+                    modeAndTMarker  = default;
+                }
+
+                public int cellCount => world.layer.cellCount;
+
+                public void RunImmediate()
+                {
+                    if (usesBothMasks)
+                        FindPairsInternal.RunImmediate(in world, in maskA, in maskB, ref processor, false);
+                    else
+                        FindPairsInternal.RunImmediate(in world, in maskA, ref processor, false);
+                }
+
+                public void Run()
+                {
+                    SetScheduleMode(ScheduleMode.Single);
+                    this.Run(1);
+                }
+
+                public JobHandle ScheduleSingle(JobHandle inputDeps)
+                {
+                    SetScheduleMode(ScheduleMode.Single);
+                    return this.Schedule(1, inputDeps);
+                }
+
+                public JobHandle ScheduleParallel(JobHandle inputDeps, ScheduleMode scheduleMode)
+                {
+                    SetScheduleMode(scheduleMode);
+                    if (scheduleMode == ScheduleMode.ParallelPart1)
+                        return this.ScheduleParallel(IndexStrategies.Part1Count(world.layer.cellCount), 1, inputDeps);
+                    if (scheduleMode == ScheduleMode.ParallelPart2)
+                        return this.ScheduleParallel(1, 1, inputDeps);
+                    if (scheduleMode == ScheduleMode.ParallelUnsafe)
+                        return this.ScheduleParallel(IndexStrategies.JobIndicesFromSingleLayerFindPairs(world.layer.cellCount), 1, inputDeps);
+                    return inputDeps;
+                }
+
+                void SetScheduleMode(ScheduleMode scheduleMode)
+                {
+                    this.scheduleMode             = scheduleMode;
+                    FixedString32Bytes modeString = default;
+                    if (scheduleMode == ScheduleMode.Single)
+                        modeString = "Single";
+                    else if (scheduleMode == ScheduleMode.ParallelPart1)
+                        modeString = "ParallelPart1";
+                    else if (scheduleMode == ScheduleMode.ParallelPart2)
+                        modeString = "ParallelPart2";
+                    else if (scheduleMode == ScheduleMode.ParallelUnsafe)
+                        modeString = "ParallelUnsafe";
+                    FixedString32Bytes maskString;
+                    if (usesBothMasks)
+                        maskString = "DualMasks";
+                    else
+                        maskString = "Mask";
+
+                    bool isBurst = true;
+                    IsBurst(ref isBurst);
+                    if (isBurst)
+                    {
+                        modeAndTMarker = new Unity.Profiling.ProfilerMarker($"{modeString}_{maskString}_{processor}");
+                    }
+                    else
+                    {
+                        FixedString128Bytes processorName = default;
+                        GetProcessorNameNoBurst(ref processorName);
+                        modeAndTMarker = new Unity.Profiling.ProfilerMarker($"{modeString}_{maskString}_{processorName}");
+                    }
+                }
+
+                [BurstDiscard]
+                static void IsBurst(ref bool isBurst) => isBurst = false;
+
+                [BurstDiscard]
+                static void GetProcessorNameNoBurst(ref FixedString128Bytes name)
+                {
+                    name = typeof(T).FullName;
+                }
+                #endregion
+
+                #region Job Processing
+                public void Execute(int index)
+                {
+                    if (!maskA.isCreated)
+                    {
+                        maskA = world.CreateMask(queryMaskA);
+                        if (usesBothMasks)
+                            maskB = world.CreateMask(queryMaskB);
+                    }
+
+                    using var jobName = modeAndTMarker.Auto();
+                    if (scheduleMode == ScheduleMode.Single)
+                    {
+                        if (usesBothMasks)
+                            FindPairsInternal.RunImmediate(in world, in maskA, in maskB, ref processor, true);
+                        else
+                            FindPairsInternal.RunImmediate(in world, in maskA, ref processor, true);
+                        return;
+                    }
+                    if (scheduleMode == ScheduleMode.ParallelPart1)
+                    {
+                        Physics.kCellMarker.Begin();
+                        var bucket  = world.GetBucket(index);
+                        var context = new FindPairsBucketContext(in world.layer,
+                                                                 in world.layer,
+                                                                 in bucket.slices,
+                                                                 in bucket.slices,
+                                                                 index,
+                                                                 true,
+                                                                 true);
+                        if (processor.BeginBucket(in context))
+                        {
+                            if (usesBothMasks)
+                                FindPairsSweepMethods.SelfSweep(in world.layer, in bucket, in maskA, in maskB, index, ref processor, true);
+                            else
+                                FindPairsSweepMethods.SelfSweep(in world.layer, in bucket, in maskA, index, ref processor, true);
+
+                            processor.EndBucket(in context);
+                        }
+                        Physics.kCellMarker.End();
+                        return;
+                    }
+                    if (scheduleMode == ScheduleMode.ParallelPart2)
+                    {
+                        Physics.kCrossMarker.Begin();
+                        var crossBucket = world.GetBucket(IndexStrategies.CrossBucketIndex(world.layer.cellCount));
+                        for (int i = 0; i < IndexStrategies.SingleLayerPart2Count(world.layer.cellCount); i++)
+                        {
+                            var bucket   = world.GetBucket(i);
+                            var jobIndex = IndexStrategies.Part1Count(world.layer.cellCount) + i;
+                            var context  = new FindPairsBucketContext(in world.layer,
+                                                                      in world.layer,
+                                                                      in bucket.slices,
+                                                                      in crossBucket.slices,
+                                                                      jobIndex,
+                                                                      true,
+                                                                      true);
+                            if (processor.BeginBucket(in context))
+                            {
+                                if (usesBothMasks)
+                                {
+                                    FindPairsSweepMethods.BipartiteSweepCellCross(in world.layer,
+                                                                                  in world.layer,
+                                                                                  in bucket,
+                                                                                  in crossBucket,
+                                                                                  in maskA,
+                                                                                  in maskB,
+                                                                                  jobIndex,
+                                                                                  ref processor,
+                                                                                  true,
+                                                                                  true);
+                                    FindPairsSweepMethods.BipartiteSweepCrossCell(in world.layer,
+                                                                                  in world.layer,
+                                                                                  in crossBucket,
+                                                                                  in bucket,
+                                                                                  in maskA,
+                                                                                  in maskB,
+                                                                                  jobIndex,
+                                                                                  ref processor,
+                                                                                  true,
+                                                                                  true);
+                                }
+                                else
+                                    FindPairsSweepMethods.BipartiteSweepCellCross(in world.layer,
+                                                                                  in world.layer,
+                                                                                  in bucket,
+                                                                                  in crossBucket,
+                                                                                  in maskA,
+                                                                                  in maskA,
+                                                                                  jobIndex,
+                                                                                  ref processor,
+                                                                                  true,
+                                                                                  true);
+
+                                processor.EndBucket(in context);
+                            }
+                        }
+                        Physics.kCrossMarker.End();
+                        return;
+                    }
+                    if (scheduleMode == ScheduleMode.ParallelUnsafe)
+                    {
+                        if (index < IndexStrategies.Part1Count(world.layer.cellCount))
+                        {
+                            Physics.kCellMarker.Begin();
+                            var bucket  = world.GetBucket(index);
+                            var context = new FindPairsBucketContext(in world.layer,
+                                                                     in world.layer,
+                                                                     in bucket.slices,
+                                                                     in bucket.slices,
+                                                                     index,
+                                                                     false,
+                                                                     false);
+                            if (processor.BeginBucket(in context))
+                            {
+                                if (usesBothMasks)
+                                    FindPairsSweepMethods.SelfSweep(in world.layer, in bucket, in maskA, in maskB, index, ref processor, false);
+                                else
+                                    FindPairsSweepMethods.SelfSweep(in world.layer, in bucket, in maskA, index, ref processor, false);
+                                processor.EndBucket(in context);
+                            }
+                            Physics.kCellMarker.End();
+                        }
+                        else
+                        {
+                            Physics.kCrossMarker.Begin();
+                            var i           = index - world.layer.bucketCount;
+                            var bucket      = world.GetBucket(i);
+                            var crossBucket = world.GetBucket(IndexStrategies.CrossBucketIndex(world.layer.cellCount));
+                            var jobIndex    = IndexStrategies.Part1Count(world.layer.cellCount) + i;
+                            var context     = new FindPairsBucketContext(in world.layer,
+                                                                         in world.layer,
+                                                                         in bucket.slices,
+                                                                         in crossBucket.slices,
+                                                                         jobIndex,
+                                                                         false,
+                                                                         false);
+                            if (processor.BeginBucket(in context))
+                            {
+                                if (usesBothMasks)
+                                {
+                                    FindPairsSweepMethods.BipartiteSweepCellCross(world.layer,
+                                                                                  world.layer,
+                                                                                  in bucket,
+                                                                                  in crossBucket,
+                                                                                  in maskA,
+                                                                                  in maskB,
+                                                                                  jobIndex,
+                                                                                  ref processor,
+                                                                                  false,
+                                                                                  false);
+                                    FindPairsSweepMethods.BipartiteSweepCrossCell(world.layer,
+                                                                                  world.layer,
+                                                                                  in crossBucket,
+                                                                                  in bucket,
+                                                                                  in maskA,
+                                                                                  in maskB,
+                                                                                  jobIndex,
+                                                                                  ref processor,
+                                                                                  false,
+                                                                                  false);
+                                }
+                                processor.EndBucket(in context);
+                            }
+                            Physics.kCrossMarker.End();
+                        }
+                    }
+                }
+                #endregion
+
+                [Preserve]
+                void RequireEarlyJobInit()
+                {
+                    new InitJobsForProcessors.FindPairsIniter<T>().Init();
+                }
+            }
+
+            public static void RunImmediate(in CollisionWorld world, in CollisionWorld.Mask mask, ref T processor, bool isThreadSafe)
+            {
+                int jobIndex = 0;
+                for (int i = 0; i < IndexStrategies.Part1Count(world.layer.cellCount); i++)
+                {
+                    var bucket  = world.GetBucket(i);
+                    var context = new FindPairsBucketContext(in world.layer,
+                                                             in world.layer,
+                                                             in bucket.slices,
+                                                             in bucket.slices,
+                                                             jobIndex,
+                                                             isThreadSafe,
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
+                    if (processor.BeginBucket(in context))
+                    {
+                        FindPairsSweepMethods.SelfSweep(in world.layer, in bucket, in mask, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
+                        processor.EndBucket(in context);
+                    }
+                    jobIndex++;
+                }
+
+                if (IndexStrategies.ScheduleParallelShouldActuallyBeSingle(world.layer.cellCount))
+                    return;
+
+                var crossBucket = world.GetBucket(IndexStrategies.CrossBucketIndex(world.layer.cellCount));
+                for (int i = 0; i < IndexStrategies.SingleLayerPart2Count(world.layer.cellCount); i++)
+                {
+                    var bucket  = world.GetBucket(i);
+                    var context = new FindPairsBucketContext(in world.layer,
+                                                             in world.layer,
+                                                             in bucket.slices,
+                                                             in crossBucket.slices,
+                                                             jobIndex,
+                                                             isThreadSafe,
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
+                    if (processor.BeginBucket(in context))
+                    {
+                        FindPairsSweepMethods.BipartiteSweepCellCross(in world.layer,
+                                                                      in world.layer,
+                                                                      in bucket,
+                                                                      in crossBucket,
+                                                                      in mask,
+                                                                      in mask,
+                                                                      jobIndex,
+                                                                      ref processor,
+                                                                      isThreadSafe,
+                                                                      isThreadSafe,
+                                                                      !isThreadSafe);
+                        processor.EndBucket(in context);
+                    }
+                    jobIndex++;
+                }
+            }
+
+            public static void RunImmediate(in CollisionWorld world, in CollisionWorld.Mask maskA, in CollisionWorld.Mask maskB, ref T processor, bool isThreadSafe)
+            {
+                int jobIndex = 0;
+                for (int i = 0; i < IndexStrategies.Part1Count(world.layer.cellCount); i++)
+                {
+                    var bucket  = world.GetBucket(i);
+                    var context = new FindPairsBucketContext(in world.layer,
+                                                             in world.layer,
+                                                             in bucket.slices,
+                                                             in bucket.slices,
+                                                             jobIndex,
+                                                             isThreadSafe,
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
+                    if (processor.BeginBucket(in context))
+                    {
+                        FindPairsSweepMethods.SelfSweep(in world.layer, in bucket, in maskA, in maskB, jobIndex, ref processor, isThreadSafe, !isThreadSafe);
+                        processor.EndBucket(in context);
+                    }
+                    jobIndex++;
+                }
+
+                if (IndexStrategies.ScheduleParallelShouldActuallyBeSingle(world.layer.cellCount))
+                    return;
+
+                var crossBucket = world.GetBucket(IndexStrategies.CrossBucketIndex(world.layer.cellCount));
+                for (int i = 0; i < IndexStrategies.SingleLayerPart2Count(world.layer.cellCount); i++)
+                {
+                    var bucket  = world.GetBucket(i);
+                    var context = new FindPairsBucketContext(in world.layer,
+                                                             in world.layer,
+                                                             in bucket.slices,
+                                                             in crossBucket.slices,
+                                                             jobIndex,
+                                                             isThreadSafe,
+                                                             isThreadSafe,
+                                                             !isThreadSafe);
+                    if (processor.BeginBucket(in context))
+                    {
+                        FindPairsSweepMethods.BipartiteSweepCellCross(in world.layer,
+                                                                      in world.layer,
+                                                                      in bucket,
+                                                                      in crossBucket,
+                                                                      in maskA,
+                                                                      in maskB,
+                                                                      jobIndex,
+                                                                      ref processor,
+                                                                      isThreadSafe,
+                                                                      isThreadSafe,
+                                                                      !isThreadSafe);
+                        FindPairsSweepMethods.BipartiteSweepCrossCell(in world.layer,
+                                                                      in world.layer,
+                                                                      in crossBucket,
+                                                                      in bucket,
+                                                                      in maskA,
+                                                                      in maskB,
                                                                       jobIndex,
                                                                       ref processor,
                                                                       isThreadSafe,
@@ -458,7 +879,7 @@ namespace Latios.Psyshock
                 [BurstDiscard]
                 static void GetProcessorNameNoBurst(ref FixedString128Bytes name)
                 {
-                    name = nameof(T);
+                    name = typeof(T).FullName;
                 }
                 #endregion
 
@@ -490,7 +911,7 @@ namespace Latios.Psyshock
                             if (index != IndexStrategies.CrossBucketIndex(layerA.cellCount))
                                 FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, isThreadSafe, isThreadSafe);
                             else
-                                FindPairsSweepMethods.BipartiteSweepCrossCross(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, isThreadSafe, isThreadSafe);
+                                FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, isThreadSafe, isThreadSafe);
                             processor.EndBucket(in context);
                         }
                         Physics.kCellMarker.End();
@@ -585,7 +1006,7 @@ namespace Latios.Psyshock
                             if (index != crossBucketIndex)
                                 FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, isThreadSafe, false);
                             else
-                                FindPairsSweepMethods.BipartiteSweepCrossCross(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, isThreadSafe, false);
+                                FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, isThreadSafe, false);
                             processor.EndBucket(in context);
                         }
                         Physics.kCellMarker.End();
@@ -696,7 +1117,7 @@ namespace Latios.Psyshock
                                 if (index != crossBucketIndex)
                                     FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, false, false);
                                 else
-                                    FindPairsSweepMethods.BipartiteSweepCrossCross(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, false, false);
+                                    FindPairsSweepMethods.BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, index, ref processor, false, false);
                                 processor.EndBucket(in context);
                             }
                             Physics.kCellMarker.End();
@@ -829,15 +1250,15 @@ namespace Latios.Psyshock
                                                                          isThreadSafe,
                                                                          !isThreadSafe);
                         else
-                            FindPairsSweepMethods.BipartiteSweepCrossCross(in layerA,
-                                                                           in layerB,
-                                                                           in bucketA,
-                                                                           in bucketB,
-                                                                           jobIndex,
-                                                                           ref processor,
-                                                                           isThreadSafe,
-                                                                           isThreadSafe,
-                                                                           !isThreadSafe);
+                            FindPairsSweepMethods.BipartiteSweepCellCell(in layerA,
+                                                                         in layerB,
+                                                                         in bucketA,
+                                                                         in bucketB,
+                                                                         jobIndex,
+                                                                         ref processor,
+                                                                         isThreadSafe,
+                                                                         isThreadSafe,
+                                                                         !isThreadSafe);
                         processor.EndBucket(in context);
                     }
                     jobIndex++;

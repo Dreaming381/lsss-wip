@@ -12,12 +12,12 @@ namespace Latios.Psyshock
     internal static class FindPairsSweepMethods
     {
         #region Dispatchers
-        public static void SelfSweepCell<T>(in CollisionLayer layer,
-                                            in BucketSlices bucket,
-                                            int jobIndex,
-                                            ref T processor,
-                                            bool isThreadSafe,
-                                            bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        public static void SelfSweep<T>(in CollisionLayer layer,
+                                        in BucketSlices bucket,
+                                        int jobIndex,
+                                        ref T processor,
+                                        bool isThreadSafe,
+                                        bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             if (bucket.count < 2)
                 return;
@@ -34,23 +34,13 @@ namespace Latios.Psyshock
             }
         }
 
-        public static void SelfSweepCross<T>(in CollisionLayer layer,
-                                             in BucketSlices bucket,
-                                             int jobIndex,
-                                             ref T processor,
-                                             bool isThreadSafe,
-                                             bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
-        {
-            SelfSweepCell(in layer, in bucket, jobIndex, ref processor, isThreadSafe, isImmediateContext);
-        }
-
-        public static unsafe void SelfSweepMask<T>(in CollisionWorld world,
-                                                   in WorldBucket bucket,
-                                                   CollisionWorld.Mask mask,
-                                                   int jobIndex,
-                                                   ref T processor,
-                                                   bool isThreadSafe,
-                                                   bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        public static unsafe void SelfSweep<T>(in CollisionLayer layer,
+                                               in WorldBucket bucket,
+                                               in CollisionWorld.Mask mask,
+                                               int jobIndex,
+                                               ref T processor,
+                                               bool isThreadSafe,
+                                               bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
             int archetypeCount = 0;
             int bodyCount      = 0;
@@ -66,7 +56,7 @@ namespace Latios.Psyshock
             if (bodyCount < 2)
                 return;
 
-            var       result    = new FindPairsResult(in world.layer, in world.layer, in bucket.slices, in bucket.slices, jobIndex, isThreadSafe, isThreadSafe, isImmediateContext);
+            var       result    = new FindPairsResult(in layer, in layer, in bucket.slices, in bucket.slices, jobIndex, isThreadSafe, isThreadSafe, isImmediateContext);
             using var allocator = ThreadStackAllocator.GetAllocator();
 
             if (archetypeCount == 1)
@@ -102,6 +92,22 @@ namespace Latios.Psyshock
             SelfSweepIndices(ref result, in bucket.slices, indices, ref processor, allocator);
         }
 
+        public static unsafe void SelfSweep<T>(in CollisionLayer layer,
+                                               in WorldBucket bucket,
+                                               in CollisionWorld.Mask maskA,
+                                               in CollisionWorld.Mask maskB,
+                                               int jobIndex,
+                                               ref T processor,
+                                               bool isThreadSafe,
+                                               bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        {
+            using var allocator = ThreadStackAllocator.GetAllocator();
+            if (!GatherBothIndicesSets(in bucket, in maskA, out var indicesA, in bucket, in maskB, out var indicesB, allocator))
+                return;
+            var result = new FindPairsResult(in layer, in layer, in bucket.slices, in bucket.slices, jobIndex, isThreadSafe, isThreadSafe, isImmediateContext);
+            SelfSweepDualIndices(ref result, in bucket.slices, indicesA, indicesB, ref processor);
+        }
+
         public static void BipartiteSweepCellCell<T>(in CollisionLayer layerA,
                                                      in CollisionLayer layerB,
                                                      in BucketSlices bucketA,
@@ -129,6 +135,25 @@ namespace Latios.Psyshock
             }
         }
 
+        public static unsafe void BipartiteSweepCellCell<T>(in CollisionLayer layerA,
+                                                            in CollisionLayer layerB,
+                                                            in WorldBucket bucketA,
+                                                            in WorldBucket bucketB,
+                                                            in CollisionWorld.Mask maskA,
+                                                            in CollisionWorld.Mask maskB,
+                                                            int jobIndex,
+                                                            ref T processor,
+                                                            bool isAThreadSafe,
+                                                            bool isBThreadSafe,
+                                                            bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        {
+            using var allocator = ThreadStackAllocator.GetAllocator();
+            if (!GatherBothIndicesSets(in bucketA, in maskA, out var indicesA, in bucketB, in maskB, out var indicesB, allocator))
+                return;
+            var result = new FindPairsResult(in layerA, in layerB, in bucketA.slices, in bucketB.slices, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
+            BipartiteSweepDualIndices(ref result, in bucketA.slices, indicesA, in bucketB.slices, indicesB, ref processor, allocator);
+        }
+
         public static void BipartiteSweepCellCross<T>(in CollisionLayer layerA,
                                                       in CollisionLayer layerB,
                                                       in BucketSlices bucketA,
@@ -150,6 +175,26 @@ namespace Latios.Psyshock
                 BipartiteSweepWholeBucket(ref result, in bucketA, in bucketB, ref processor);
             else
                 BipartiteSweepBucketVsFilteredCross(ref result, in bucketA, in bucketB, ref processor, new BucketAabb(in layerA, bucketA.bucketIndex));
+        }
+
+        public static void BipartiteSweepCellCross<T>(in CollisionLayer layerA,
+                                                      in CollisionLayer layerB,
+                                                      in WorldBucket bucketA,
+                                                      in WorldBucket bucketB,
+                                                      in CollisionWorld.Mask maskA,
+                                                      in CollisionWorld.Mask maskB,
+                                                      int jobIndex,
+                                                      ref T processor,
+                                                      bool isAThreadSafe,
+                                                      bool isBThreadSafe,
+                                                      bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        {
+            using var allocator = ThreadStackAllocator.GetAllocator();
+            if (!GatherBothIndicesSets(in bucketA, in maskA, out var indicesA, in bucketB, in maskB, out var indicesB, allocator))
+                return;
+            var result     = new FindPairsResult(in layerA, in layerB, in bucketA.slices, in bucketB.slices, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
+            var bucketAabb = new BucketAabb(layerA, bucketA.slices.bucketIndex);
+            BipartiteSweepDualIndicesFilteredCross(ref result, in bucketA.slices, indicesA, in bucketB.slices, indicesB, ref processor, in bucketAabb, false, allocator);
         }
 
         public static void BipartiteSweepCrossCell<T>(in CollisionLayer layerA,
@@ -175,17 +220,24 @@ namespace Latios.Psyshock
                 BipartiteSweepFilteredCrossVsBucket(ref result, in bucketA, in bucketB, ref processor, new BucketAabb(in layerB, bucketB.bucketIndex));
         }
 
-        public static void BipartiteSweepCrossCross<T>(in CollisionLayer layerA,
-                                                       in CollisionLayer layerB,
-                                                       in BucketSlices bucketA,
-                                                       in BucketSlices bucketB,
-                                                       int jobIndex,
-                                                       ref T processor,
-                                                       bool isAThreadSafe,
-                                                       bool isBThreadSafe,
-                                                       bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
+        public static void BipartiteSweepCrossCell<T>(in CollisionLayer layerA,
+                                                      in CollisionLayer layerB,
+                                                      in WorldBucket bucketA,
+                                                      in WorldBucket bucketB,
+                                                      in CollisionWorld.Mask maskA,
+                                                      in CollisionWorld.Mask maskB,
+                                                      int jobIndex,
+                                                      ref T processor,
+                                                      bool isAThreadSafe,
+                                                      bool isBThreadSafe,
+                                                      bool isImmediateContext = false) where T : unmanaged, IFindPairsProcessor
         {
-            BipartiteSweepCellCell(in layerA, in layerB, in bucketA, in bucketB, jobIndex, ref processor, isAThreadSafe, isBThreadSafe, isImmediateContext);
+            using var allocator = ThreadStackAllocator.GetAllocator();
+            if (!GatherBothIndicesSets(in bucketA, in maskA, out var indicesA, in bucketB, in maskB, out var indicesB, allocator))
+                return;
+            var result     = new FindPairsResult(in layerA, in layerB, in bucketA.slices, in bucketB.slices, jobIndex, isAThreadSafe, isBThreadSafe, isImmediateContext);
+            var bucketAabb = new BucketAabb(layerB, bucketB.slices.bucketIndex);
+            BipartiteSweepDualIndicesFilteredCross(ref result, in bucketA.slices, indicesA, in bucketB.slices, indicesB, ref processor, in bucketAabb, true, allocator);
         }
 
         public static int BipartiteSweepPlayCache<T>(UnsafeIndexedBlockList.Enumerator enumerator,
@@ -779,11 +831,11 @@ namespace Latios.Psyshock
 
         static unsafe void BipartiteSweepDualIndices<T>(ref FindPairsResult result,
                                                         in BucketSlices bucketA,
-                                                        ReadOnlySpan<int>        indicesA,
+                                                        ReadOnlySpan<int>    indicesA,
                                                         in BucketSlices bucketB,
-                                                        ReadOnlySpan<int>        indicesB,
+                                                        ReadOnlySpan<int>    indicesB,
                                                         ref T processor,
-                                                        ref ThreadStackAllocator allocator)
+                                                        ThreadStackAllocator allocator)
             where T : unmanaged, IFindPairsProcessor
         {
             var xminsA     = allocator.Allocate<float>(indicesA.Length + 1);
@@ -861,13 +913,13 @@ namespace Latios.Psyshock
 
         static unsafe void BipartiteSweepDualIndicesFilteredCross<T>(ref FindPairsResult result,
                                                                      in BucketSlices bucketA,
-                                                                     ReadOnlySpan<int>        indicesA,
+                                                                     ReadOnlySpan<int>    indicesA,
                                                                      in BucketSlices bucketB,
-                                                                     ReadOnlySpan<int>        indicesB,
+                                                                     ReadOnlySpan<int>    indicesB,
                                                                      ref T processor,
                                                                      in BucketAabb cellAabb,
                                                                      bool cellIsB,
-                                                                     ref ThreadStackAllocator allocator)
+                                                                     ThreadStackAllocator allocator)
             where T : unmanaged, IFindPairsProcessor
         {
             var xminsA     = allocator.Allocate<float>(indicesA.Length + 1);
@@ -993,6 +1045,111 @@ namespace Latios.Psyshock
         #endregion
 
         #region Archetype Index Merging
+        static unsafe bool GatherBothIndicesSets(in WorldBucket bucketA,
+                                                 in CollisionWorld.Mask maskA,
+                                                 out ReadOnlySpan<int>  indicesA,
+                                                 in WorldBucket bucketB,
+                                                 in CollisionWorld.Mask maskB,
+                                                 out ReadOnlySpan<int>  indicesB,
+                                                 ThreadStackAllocator allocator)
+        {
+            indicesA            = default;
+            indicesB            = default;
+            int archetypeCountA = 0;
+            int bodyCountA      = 0;
+            foreach (var index in maskA)
+            {
+                var asac = bucketA.archetypeStartsAndCounts[index];
+                if (asac.y == 0)
+                    continue;
+                archetypeCountA++;
+                bodyCountA += asac.y;
+            }
+
+            if (bodyCountA == 0)
+                return false;
+
+            int archetypeCountB = 0;
+            int bodyCountB      = 0;
+            foreach (var index in maskB)
+            {
+                var asac = bucketB.archetypeStartsAndCounts[index];
+                if (asac.y == 0)
+                    continue;
+                archetypeCountB++;
+                bodyCountB += asac.y;
+            }
+
+            if (bodyCountB == 0)
+                return false;
+
+            if (archetypeCountA == 1)
+            {
+                int2 asac = default;
+                foreach (var index in maskA)
+                {
+                    var candidate = bucketA.archetypeStartsAndCounts[index];
+                    if (candidate.y != 0)
+                    {
+                        asac = candidate;
+                        break;
+                    }
+                }
+                indicesA = bucketA.archetypeBodyIndices.GetSubArray(asac.x, asac.y).AsReadOnlySpan();
+            }
+            else
+            {
+                var asacs       = allocator.AllocateAsSpan<int2>(archetypeCountA);
+                archetypeCountA = 0;
+                foreach (var index in maskA)
+                {
+                    var asac = bucketA.archetypeStartsAndCounts[index];
+                    if (asac.y != 0)
+                    {
+                        asacs[archetypeCountA] = asac;
+                        archetypeCountA++;
+                    }
+                }
+                var indices = allocator.AllocateAsSpan<int>(bodyCountA);
+                GatherArchetypeIndicesGeneral(indices, asacs, bucketA.archetypeBodyIndices);
+                indicesA = indices;
+            }
+
+            if (archetypeCountB == 1)
+            {
+                int2 asac = default;
+                foreach (var index in maskB)
+                {
+                    var candidate = bucketB.archetypeStartsAndCounts[index];
+                    if (candidate.y != 0)
+                    {
+                        asac = candidate;
+                        break;
+                    }
+                }
+                indicesB = bucketB.archetypeBodyIndices.GetSubArray(asac.x, asac.y).AsReadOnlySpan();
+            }
+            else
+            {
+                var asacs       = allocator.AllocateAsSpan<int2>(archetypeCountB);
+                archetypeCountB = 0;
+                foreach (var index in maskB)
+                {
+                    var asac = bucketB.archetypeStartsAndCounts[index];
+                    if (asac.y != 0)
+                    {
+                        asacs[archetypeCountB] = asac;
+                        archetypeCountB++;
+                    }
+                }
+                var indices = allocator.AllocateAsSpan<int>(bodyCountB);
+                GatherArchetypeIndicesGeneral(indices, asacs, bucketB.archetypeBodyIndices);
+                indicesB = indices;
+            }
+
+            return true;
+        }
+
         static unsafe void GatherArchetypeIndicesGeneral(Span<int> result, Span<int2> startsAndCounts, ReadOnlySpan<int> archetypeBodyIndices)
         {
             // Allocate tournament tree levels and initialize first games
