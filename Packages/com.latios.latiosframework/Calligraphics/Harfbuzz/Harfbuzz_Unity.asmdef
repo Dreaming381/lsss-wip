@@ -1,0 +1,20 @@
+{
+    "name": "Harfbuzz_Unity",
+    "rootNamespace": "HarfbuzzUnity",
+    "references": [
+        "Unity.Collections",
+        "Unity.Burst",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "!LATIOS_DISABLE_ACL"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -11,7 +11,8 @@
         "Unity.Mathematics",
         "Unity.Mathematics.Extensions",
         "Unity.Burst",
-        "Unity.Entities.Graphics"
+        "Unity.Entities.Graphics",
+        "Harfbuzz_Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

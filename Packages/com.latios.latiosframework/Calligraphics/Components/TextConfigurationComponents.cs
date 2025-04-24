@@ -22,7 +22,7 @@ namespace Latios.Calligraphics
         /// </summary>
         public float maxLineWidth;
 
-        internal uint packed;  // 4 bits left unused
+        internal uint packed;  // 2 bits left unused
 
         /// <summary>
         /// The color of the rendered text
@@ -132,15 +132,7 @@ namespace Latios.Calligraphics
             set => Bits.SetBit(ref packed, 31, value);
         }
 
-        // Todo: It would be nice if we could split this based on glyph type, but currently glyph generation
-        // is dependent on the base configuration font
-        internal int samplingSize => fontTextureSize switch
-        {
-            FontTextureSize.Normal => 64,  // Todo: 64 SDF8, 128 color
-            FontTextureSize.Big => 256,  // Todo: 256 SDF16, 512 color
-            FontTextureSize.Massive => 4096,  // Todo: 1024 SDF16, 4096 color
-            _ => 64
-        };
+        internal int samplingSize => fontTextureSize.GetSamplingSize();
     }
 
     /// <summary>

@@ -127,8 +127,7 @@ namespace Latios.Calligraphics
                                                             bottomAnchor);
 
                     #region Look up Character Data
-                    // Todo: This is not the correct key access.
-                    if (!glyphTable.glyphHashToIdMap.TryGetValue(glyphOTF.codepoint, out var id))
+                    if (!glyphTable.glyphHashToIdMap.TryGetValue(glyphOTF.glyphKey, out var id))
                     {
                         UnityEngine.Debug.LogError($"Glyph {currentRune.value} has not yet been added to texture atlas");
                         continue;
@@ -545,7 +544,7 @@ namespace Latios.Calligraphics
                         mappingWriter.AddWordStart(renderGlyphs.Length);
                     }
 
-                    if (glyphOTF.codepoint == 1)
+                    if (glyphOTF.glyphKey.glyphIndex == 1)
                     {
                         accumulatedSpaces++;
                     }

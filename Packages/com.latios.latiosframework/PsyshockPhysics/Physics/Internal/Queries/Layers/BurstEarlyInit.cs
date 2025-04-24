@@ -141,6 +141,7 @@ namespace Latios.Psyshock
             {
                 IJobForExtensions.EarlyJobInit<FindPairsLayerSelfConfig<T>.FindPairsInternal.LayerSelfJob>();
                 IJobForExtensions.EarlyJobInit<FindPairsLayerLayerConfig<T>.FindPairsInternal.LayerLayerJob>();
+                IJobForExtensions.EarlyJobInit<FindPairsWorldSelfConfig<T>.FindPairsInternal.WorldSelfJob>();
             }
         }
 

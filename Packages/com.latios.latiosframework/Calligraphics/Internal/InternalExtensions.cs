@@ -65,6 +65,19 @@ namespace Latios.Calligraphics
                    value == 0x3000  // IDEOGRAPHIC SPACE
             ;
         }
+
+        public static int GetSamplingSize(this FontTextureSize fontTextureSize)
+        {
+            // Todo: It would be nice if we could split this based on glyph type, but currently glyph generation
+            // is dependent on the base configuration font
+            return fontTextureSize switch
+                   {
+                       FontTextureSize.Normal => 64,  // Todo: 64 SDF8, 128 color
+                       FontTextureSize.Big => 256,  // Todo: 256 SDF16, 512 color
+                       FontTextureSize.Massive => 4096,  // Todo: 1024 SDF16, 4096 color
+                       _ => 64
+                   };
+        }
     }
 }
 

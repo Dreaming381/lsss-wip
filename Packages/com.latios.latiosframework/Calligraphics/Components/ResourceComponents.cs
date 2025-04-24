@@ -15,6 +15,11 @@ namespace Latios.Calligraphics
         public BlobAssetReference<FontFallbackStrategyBlob> blob;
     }
 
+    public struct TextColorGradientCollectionBlobReference : IComponentData
+    {
+        public BlobAssetReference<TextColorGradientCollectionBlob> blob;
+    }
+
     public struct FontCollectionBlob
     {
         public struct StreamingTtc
@@ -53,7 +58,11 @@ namespace Latios.Calligraphics
         public BlobArray<Fallback> fallbacks;
     }
 
-    // Todo: Blob asset and blob refs
+    public struct TextColorGradientCollectionBlob
+    {
+        public BlobArray<TextColorGradient> gradients;
+    }
+
     public struct TextColorGradient
     {
         public int   nameHash;  // Todo: Make 64-bit?
