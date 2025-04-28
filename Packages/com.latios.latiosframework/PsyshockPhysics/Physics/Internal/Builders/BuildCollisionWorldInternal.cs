@@ -54,8 +54,9 @@ namespace Latios.Psyshock
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<int>             layerIndices;
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<ColliderAoSData> colliderAoS;
             [NoAlias, NativeDisableParallelForRestriction] public NativeArray<float2>          xMinMaxs;
-            [ReadOnly] public BuildCollisionWorldTypeHandles                                   typeGroup;
             [ReadOnly] public NativeArray<BuildCollisionLayerInternal.FilteredChunkCache>      filteredChunkCache;
+
+            public BuildCollisionWorldTypeHandles typeGroup;
 
             public void Execute(int chunkIndex)
             {

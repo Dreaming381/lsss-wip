@@ -118,6 +118,14 @@ namespace Latios.Psyshock
         /// Gets an Aabb for an associated index in the collision layer ordered by bodyIndex
         /// </summary>
         public Aabb GetAabb(int index) => layer.GetAabb(index);
+        /// <summary>
+        /// The number of unique entity archetypes that were found in the CollisionWorld
+        /// </summary>
+        public int archetypeCount => archetypesInLayer.Length;
+        /// <summary>
+        /// Read-Only access to each body's archetype index within the CollisionWorld ordered by bodyIndex.
+        /// </summary>
+        public NativeArray<short>.ReadOnly archetypeIndices => archetypeIndicesByBody.AsReadOnly();
 
         /// <summary>
         /// Creates a mask that can be used when performing query operations on this CollisionWorld

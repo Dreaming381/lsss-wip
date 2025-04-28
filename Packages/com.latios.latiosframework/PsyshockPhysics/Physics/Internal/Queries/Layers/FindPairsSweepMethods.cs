@@ -433,7 +433,7 @@ namespace Latios.Psyshock
                         indexA = indicesA[j];
                         if (math.bitmask(current < bucket.yzminmaxs[indexA]) == 0)
                         {
-                            result.SetBucketRelativePairIndices(indexB, indexA);
+                            result.SetBucketRelativePairIndices(indexA, indexB);
                             processor.Execute(in result);
                         }
                     }
@@ -462,7 +462,7 @@ namespace Latios.Psyshock
                         indexA = indicesA[j];
                         if (math.bitmask(current < bucket.yzminmaxs[indexA]) == 0)
                         {
-                            result.SetBucketRelativePairIndices(indexB, indexA);
+                            result.SetBucketRelativePairIndices(indexA, indexB);
                             processor.Execute(in result);
                         }
                     }
