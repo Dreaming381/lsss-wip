@@ -15,26 +15,22 @@ namespace Lsss.Authoring
     [DisallowMultipleComponent]
     [RequireComponent(typeof(AudioSourceAuthoring))]
     [AddComponentMenu("LSSS/Behaviors/Sound Effect")]
-    public class SoundEffectAuthoring : AudioClipOverrideBase
+    public class SoundEffectAuthoring : MonoBehaviour, IAudioClipOverride
     {
         public SfxrParams effectSettings;
+
+        public SmartBlobberHandle<AudioClipBlob> BakeClip(IBaker baker, Entity entity)
+        {
+            var blobHandle                                                 = baker.RequestCreateBlobAsset(baker.GetName(), 44100, 1, out var blobEntity);
+            baker.AddComponent(blobEntity, new SfxrParameters { sfxrParams = effectSettings });
+            return blobHandle;
+        }
     }
 
     [TemporaryBakingType]
     struct SfxrParameters : IComponentData
     {
         public SfxrParams sfxrParams;
-    }
-
-    public class SoundEffectBaker : Baker<SoundEffectAuthoring>
-    {
-        public override void Bake(SoundEffectAuthoring authoring)
-        {
-            var entity                                               = GetEntity(TransformUsageFlags.None);
-            var blobHandle                                           = this.RequestCreateBlobAsset(GetName(), 44100, 1, out var blobEntity);
-            AddComponent(blobEntity, new SfxrParameters { sfxrParams = authoring.effectSettings });
-            AddComponent(entity,     new AudioClipOverrideRequest(blobHandle));
-        }
     }
 
     [BurstCompile]
