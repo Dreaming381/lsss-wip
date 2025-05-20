@@ -39,7 +39,9 @@ namespace Latios.Myri
                     // Compute required offsets and total size of source
                     int sourceSize = 0;
                     if (sourceHeader.HasFlag(CapturedSourceHeader.Features.Clip))
-                        sourceSize              += CollectionHelper.Align(UnsafeUtility.SizeOf<AudioSourceClip>(), 8);
+                        sourceSize += CollectionHelper.Align(UnsafeUtility.SizeOf<AudioSourceClip>(), 8);
+                    if (sourceHeader.HasFlag(CapturedSourceHeader.Features.SampleRateMultiplier))
+                        sourceSize              += 8;
                     var sourceBatchingByteCount  = sourceSize;
 
                     var transformOffset = sourceSize;

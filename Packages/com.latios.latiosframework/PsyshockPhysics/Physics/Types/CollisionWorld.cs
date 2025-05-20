@@ -38,7 +38,7 @@ namespace Latios.Psyshock
         /// <param name="allocator">The Allocator to use for this world. Despite being empty, this world is still allocated and may require disposal.</param>
         /// <param name="worldIndex">An index allocated to the world which may be stored in a CollisionWorldIndex component on an entity</param>
         /// <returns>A CollisionWorld with zero bodies, but with the bucket distribution matching the specified settings</returns>
-        public static CollisionWorld CreateEmptyCollisionLayer(CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator, byte worldIndex = 1)
+        public static CollisionWorld CreateEmptyCollisionWorld(CollisionLayerSettings settings, AllocatorManager.AllocatorHandle allocator, byte worldIndex = 1)
         {
             CheckWorldIndexIsValid(worldIndex);
 
@@ -126,6 +126,11 @@ namespace Latios.Psyshock
         /// Read-Only access to each body's archetype index within the CollisionWorld ordered by bodyIndex.
         /// </summary>
         public NativeArray<short>.ReadOnly archetypeIndices => archetypeIndicesByBody.AsReadOnly();
+
+        /// <summary>
+        /// The underlying CollisionLayer, intended for read-only access.
+        /// </summary>
+        public CollisionLayer collisionLayer => layer;
 
         /// <summary>
         /// Creates a mask that can be used when performing query operations on this CollisionWorld

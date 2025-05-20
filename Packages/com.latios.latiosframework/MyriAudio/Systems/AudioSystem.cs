@@ -237,19 +237,20 @@ namespace Latios.Myri.Systems
 
             var updateSourcesJH = new InitUpdateDestroy.UpdateClipAudioSourcesJob
             {
-                audioFrame            = m_audioFrame,
-                lastPlayedAudioFrame  = m_lastPlayedAudioFrame,
-                bufferId              = m_currentBufferId,
-                clipHandle            = GetComponentTypeHandle<AudioSourceClip>(false),
-                distanceFalloffHandle = GetComponentTypeHandle<AudioSourceDistanceFalloff>(true),
-                emitterConeHandle     = GetComponentTypeHandle<AudioSourceEmitterCone>(true),
-                expireHandle          = GetComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished>(false),
-                lastConsumedBufferId  = m_lastReadBufferId,
-                sampleRate            = m_sampleRate,
-                samplesPerFrame       = m_samplesPerFrame,
-                stream                = capturedSourcesStream.AsWriter(),
-                volumeHandle          = GetComponentTypeHandle<AudioSourceVolume>(true),
-                worldTransformHandle  = m_worldTransformHandle
+                audioFrame                 = m_audioFrame,
+                lastPlayedAudioFrame       = m_lastPlayedAudioFrame,
+                bufferId                   = m_currentBufferId,
+                clipHandle                 = GetComponentTypeHandle<AudioSourceClip>(false),
+                distanceFalloffHandle      = GetComponentTypeHandle<AudioSourceDistanceFalloff>(true),
+                emitterConeHandle          = GetComponentTypeHandle<AudioSourceEmitterCone>(true),
+                expireHandle               = GetComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished>(false),
+                lastConsumedBufferId       = m_lastReadBufferId,
+                sampleRate                 = m_sampleRate,
+                sampleRateMultiplierHandle = GetComponentTypeHandle<AudioSourceSampleRateMultiplier>(true),
+                samplesPerFrame            = m_samplesPerFrame,
+                stream                     = capturedSourcesStream.AsWriter(),
+                volumeHandle               = GetComponentTypeHandle<AudioSourceVolume>(true),
+                worldTransformHandle       = m_worldTransformHandle
             }.ScheduleParallel(m_sourcesQuery, JobHandle.CombineDependencies(captureFrameJH, ecsJH));
 
             state.Dependency = JobHandle.CombineDependencies(updateListenersGraphJH, updateSourcesJH);  // updateListenersGraphJH includes captureListener and captureFrame jobs

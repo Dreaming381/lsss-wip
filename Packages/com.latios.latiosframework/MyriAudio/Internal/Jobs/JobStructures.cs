@@ -12,10 +12,11 @@ namespace Latios.Myri
         {
             None = 0x0,
             Clip = 0x1,
+            SampleRateMultiplier = 0x2,
             Transform = 0x20000000,
             DistanceFalloff = 0x40000000,
             Cone = 0x80000000,
-            BatchingFeatures = Clip,
+            BatchingFeatures = Clip | SampleRateMultiplier,
         }
 
         public Features features;

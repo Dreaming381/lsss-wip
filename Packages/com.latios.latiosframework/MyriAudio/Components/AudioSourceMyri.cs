@@ -125,145 +125,6 @@ namespace Latios.Myri
     }
 
     /// <summary>
-    /// An audio source which plays in a continuous loop synchronized with the global DSP Time.
-    /// </summary>
-    public struct AudioSourceLooped : IComponentData
-    {
-        //Internal until we can detect changes. Will likely require a separate component.
-        internal BlobAssetReference<AudioClipBlob> m_clip;
-        internal int                               m_loopOffset;
-        /// <summary>
-        /// The raw volume multiplier for the source. This is not in decibels.
-        /// </summary>
-        public float volume;
-        /// <summary>
-        /// When the listener is within this distance, no distance-based attenuation is applied to this audio source.
-        /// </summary>
-        public float innerRange;
-        /// <summary>
-        /// When the listener is outside of this distance, the audio source is not heard.
-        /// </summary>
-        public float outerRange;
-        /// <summary>
-        /// As the listener nears the outerRange, additional damping is applied to help the perceived volume smoothly transition to zero.
-        /// This value dictates the width of the region where this damping takes affect.
-        /// </summary>
-        public float    rangeFadeMargin;
-        internal short  m_spawnBufferLow16;
-        internal ushort m_flags;
-
-        /// <summary>
-        /// The audio clip to play on loop. Setting this value with a new clip resets the playhead.
-        /// </summary>
-        public BlobAssetReference<AudioClipBlob> clip
-        {
-            get => m_clip;
-            set
-            {
-                if (m_clip != value)
-                {
-                    initialized  = false;
-                    offsetLocked = false;
-                    m_loopOffset = 0;
-                    m_clip       = value;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Resets the clip's playhead.
-        /// </summary>
-        public void ResetPlaybackState()
-        {
-            var c = clip;
-            clip  = default;
-            clip  = c;
-        }
-
-        /// <summary>
-        /// If true, the clip plays from the beginning at the time of spawn. Otherwise it plays using a random offset based on the number of voices.
-        /// </summary>
-        public bool offsetIsBasedOnSpawn
-        {
-            get => (m_flags & 0x4) != 0;
-            set
-            {
-                ResetPlaybackState();
-                m_flags = (ushort)math.select(m_flags & ~0x4, m_flags | 0x4, value);
-            }
-        }
-
-        internal bool initialized
-        {
-            get => (m_flags & 0x1) != 0;
-            set => m_flags = (ushort)math.select(m_flags & ~0x1, m_flags | 0x1, value);
-        }
-
-        internal bool offsetLocked
-        {
-            get => (m_flags & 0x2) != 0;
-            set => m_flags = (ushort)math.select(m_flags & ~0x2, m_flags | 0x2, value);
-        }
-    }
-
-    /// <summary>
-    /// An audio source which plays only once, starting from the beginning when spawned.
-    /// </summary>
-    public struct AudioSourceOneShot : IComponentData
-    {
-        internal BlobAssetReference<AudioClipBlob> m_clip;
-        internal int                               m_spawnedAudioFrame;
-        internal int                               m_spawnedBufferId;
-
-        /// <summary>
-        /// The raw volume multiplier for the source. This is not in decibels.
-        /// </summary>
-        public float volume;
-        /// <summary>
-        /// When the listener is within this distance, no distance-based attenuation is applied to this audio source.
-        /// </summary>
-        public float innerRange;
-        /// <summary>
-        /// When the listener is outside of this distance, the audio source is not heard.
-        /// </summary>
-        public float outerRange;
-        /// <summary>
-        /// As the listener nears the outerRange, additional damping is applied to help the perceived volume smoothly transition to zero.
-        /// This value dictates the width of the region where this damping takes affect.
-        /// </summary>
-        public float rangeFadeMargin;
-
-        /// <summary>
-        /// The audio clip to play. Setting this value with a new clip resets the playhead back to the beginning.
-        /// </summary>
-        public BlobAssetReference<AudioClipBlob> clip
-        {
-            get => m_clip;
-            set
-            {
-                if (m_clip != value)
-                {
-                    m_spawnedAudioFrame = 0;
-                    m_spawnedBufferId   = 0;
-                    m_clip              = value;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Resets the clips playhead back to the beginning.
-        /// </summary>
-        public void ResetPlaybackState()
-        {
-            var c = clip;
-            clip  = default;
-            clip  = c;
-        }
-
-        internal bool isInitialized => (m_spawnedBufferId != 0) | (m_spawnedBufferId != m_spawnedAudioFrame);
-    }
-
-    /// <summary>
     /// An attenuation cone for an audio source. When present on an entity with an audio source, directional attenuation is applied.
     /// The cone's center axis is aligned to the audio source's transform's forward direction.
     /// </summary>
@@ -288,6 +149,16 @@ namespace Latios.Myri
     /// This is conservatively computed based on values from the audio thread, so the entity may not be destroyed until multiple frames later.
     /// </summary>
     public struct AudioSourceDestroyOneShotWhenFinished : IComponentData, IAutoDestroyExpirable { }
+
+    /// <summary>
+    /// A modifier component that can scale the sample rate. This is a cheap trick to add variation in pitch and duration of audio clips.
+    /// However, it is not designed to be animated, and should be left untouched once the clip starts playing.
+    /// Randomizing the value of this component will very likely prevent voice combining.
+    /// </summary>
+    public struct AudioSourceSampleRateMultiplier : IComponentData
+    {
+        public float multiplier;
+    }
 
     /// <summary>
     /// An audio clip representation accessible in Burst jobs.

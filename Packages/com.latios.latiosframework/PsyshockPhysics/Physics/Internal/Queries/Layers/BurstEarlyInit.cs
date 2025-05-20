@@ -71,6 +71,7 @@ namespace Latios.Psyshock
         static void InitProcessors(IEnumerable<Type> findPairsTypes, IEnumerable<Type> findObjectsTypes, IEnumerable<Type> foreachTypes)
         {
             RuntimeConstants.InitConstants();
+            PhysicsDebug.Initialize();
 
             var pairIniterType = typeof(FindPairsIniter<>);
 

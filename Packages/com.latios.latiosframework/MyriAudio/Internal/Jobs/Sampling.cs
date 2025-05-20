@@ -1,5 +1,6 @@
 ﻿using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -33,12 +34,18 @@ namespace Latios.Myri
                 var sourceCount = channelStreams.BeginForEachIndex(channelIndex);
                 for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++)
                 {
-                    var     streamSource = channelStreams.Read<ChannelStreamSource>();
-                    var     clip         = *(AudioSourceClip*)streamSource.sourceDataPtr;
-                    ref var blob         = ref clip.m_clip.Value;
+                    var     streamSource         = channelStreams.Read<ChannelStreamSource>();
+                    var     clip                 = *(AudioSourceClip*)streamSource.sourceDataPtr;
+                    ref var blob                 = ref clip.m_clip.Value;
+                    double  sampleRateMultiplier = 1.0;
+                    if (streamSource.sourceHeader.HasFlag(CapturedSourceHeader.Features.SampleRateMultiplier))
+                    {
+                        var offset           = streamSource.sourceDataPtr + CollectionHelper.Align(UnsafeUtility.SizeOf<AudioSourceClip>(), 8);
+                        sampleRateMultiplier = *(double*)offset;
+                    }
 
-                    double itdMaxOffset        = blob.sampleRate * ITD_TIME;
-                    double clipSampleStride    = blob.sampleRate / (double)sampleRate;
+                    double itdMaxOffset        = blob.sampleRate * sampleRateMultiplier * ITD_TIME;
+                    double clipSampleStride    = blob.sampleRate * sampleRateMultiplier / sampleRate;
                     double clipSamplesPerFrame = clipSampleStride * samplesPerFrame;
 
                     double itdOffset = math.lerp(0, -itdMaxOffset, streamSource.itdIndex / (double)(streamSource.itdCount - 1));
@@ -48,7 +55,7 @@ namespace Latios.Myri
 
                     if (clip.looping)
                     {
-                        if (blob.sampleRate == sampleRate)
+                        if (blob.sampleRate == sampleRate && sampleRateMultiplier == 1.0)
                         {
                             int clipStart = (int)((samplesPlayed + (ulong)clip.m_loopOffset) % (ulong)blob.samplesLeftOrMono.Length) + (int)math.round(itdOffset);
                             SampleMatchedRateLooped(ref blob, clipStart, streamSource.isRightChannel, streamSource.sourceHeader.volume, outputSamples);
@@ -64,7 +71,7 @@ namespace Latios.Myri
                     {
                         int jumpFrames = audioFrame.Value - clip.m_spawnedAudioFrame;
 
-                        if (blob.sampleRate == sampleRate)
+                        if (blob.sampleRate == sampleRate && sampleRateMultiplier == 1.0)
                         {
                             int clipStart = jumpFrames * samplesPerFrame + (int)math.round(itdOffset);
                             SampleMatchedRateOneshot(ref blob, clipStart, streamSource.isRightChannel, streamSource.sourceHeader.volume, outputSamples);

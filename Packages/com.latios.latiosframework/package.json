@@ -19,5 +19,12 @@
   "author": {
     "name": "Dreaming I'm Latios"
   },
-  "hideInEditor": false
+  "hideInEditor": false,
+  "samples": [
+    {
+      "displayName": "LifeFX VFX Subgraphs",
+      "description": "Contains VFX Graph Subgraphs for working with framework-defined types",
+      "path": "Samples~/LifeFX VFX Subgraphs"
+    }
+  ]
 }

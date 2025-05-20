@@ -152,7 +152,7 @@ namespace Latios.Psyshock
                                          float3 contactNormal, ReadOnlySpan<ContactsBetweenResult.ContactOnB> contacts,
                                          float coefficientOfRestitution, float coefficientOfFriction,
                                          float maxDepenetrationVelocity, float gravityAgainstContactNormal,
-                                         float substep, float inverseSubstep, int numSubsteps)
+                                         float substep, float inverseSubstep, int numSubsteps = 1)
         {
             CheckContactAndJacobianSpanLengthsEqual(perContactParameters.Length, contacts.Length);
 
@@ -397,6 +397,7 @@ namespace Latios.Psyshock
                 // applyImpulse is required check for substepping because having a contact is not guaranteed. We need to check if the contact point has been reached this step
                 // (when ContactDistance <= 0), otherwise, we need to ensure that no impulse will be applied.
                 var dv = jacAngular.applyImpulse ? CalculateRelativeVelocityAlongNormal(in velocityA, in velocityB, in jacAngular, bodyParameters.contactNormal, out _) : 0f;
+                //var dv = CalculateRelativeVelocityAlongNormal(in velocityA, in velocityB, in jacAngular, bodyParameters.contactNormal, out var relVel);
 
                 float impulse = dv * jacAngular.jacobianAngular.effectiveMass;
 
@@ -407,6 +408,11 @@ namespace Latios.Psyshock
                     float deltaImpulse = accumulatedImpulse - contactImpulse;
                     ApplyImpulse(deltaImpulse, bodyParameters.contactNormal, jacAngular.jacobianAngular, ref tempVelocityA, ref tempVelocityB, in massA, in massB,
                                  motionStabilizationSolverInputA.inverseInertiaScale, motionStabilizationSolverInputB.inverseInertiaScale);
+                    //if (math.abs(tempVelocityA.linear.z) > 0.25f)
+                    //{
+                    //    UnityEngine.Debug.Log(
+                    //        $"Contact is culprit. z = {tempVelocityA.linear.z}, before: {velocityA.linear.z}, contactNormal: {bodyParameters.contactNormal}, relVel: {relVel}, velToContactPlane: {jacAngular.velocityToReachContactPlane}");
+                    //}
                 }
 
                 contactImpulse                               = accumulatedImpulse;
@@ -420,6 +426,9 @@ namespace Latios.Psyshock
 
             // Export collision event
             hasCollisionEvent |= outputImpulses.combinedContactPointsImpulse > 0.0f;
+
+            // Todo: sumImpulses is used to model friction. However, if each contact ends up on a different triangle,
+            // friction is applied before values can cancel out, which creates a biased slide effect.
 
             // Solve friction
             if (sumImpulses > 0.0f)
@@ -472,6 +481,8 @@ namespace Latios.Psyshock
 
                     // Calculate the impulse
                     imp = math.mul(effectiveMass, new float3(dv0, dv1, dva));
+                    //UnityEngine.Debug.Log(
+                    //    $"effectiveMass: {effectiveMass}, dv01a: {new float3(dv0, dv1, dva)}, surfaceVel: {bodyParameters.surfaceVelocityDv}, friction1: {bodyParameters.friction1.angularA}, {bodyParameters.friction1.angularB}, linVels: {frictionLinVelA}, {frictionAngVelA}, {frictionLinVelB}, {frictionAngVelB}");
                 }
 
                 // Clip TODO.ma calculate some contact radius and use it to influence balance between linear and angular friction
@@ -480,12 +491,16 @@ namespace Latios.Psyshock
                 imp                          *= math.min(1.0f, maxImpulse * math.rsqrt(frictionImpulseSquared));
 
                 // Apply impulses
+                var beforeFriction = tempVelocityA.linear.z;
                 ApplyImpulse(imp.x, frictionDir0, bodyParameters.friction0, ref tempVelocityA, ref tempVelocityB,
                              in massA, in massB,
                              motionStabilizationSolverInputA.inverseInertiaScale, motionStabilizationSolverInputB.inverseInertiaScale);
                 ApplyImpulse(imp.y, frictionDir1, bodyParameters.friction1, ref tempVelocityA, ref tempVelocityB,
                              in massA, in massB,
                              motionStabilizationSolverInputA.inverseInertiaScale, motionStabilizationSolverInputB.inverseInertiaScale);
+                //if (math.abs(tempVelocityA.linear.z) > 0.25f)
+                //    UnityEngine.Debug.Log(
+                //        $"Friction is culprit. z = {tempVelocityA.linear.z}, before: {beforeFriction}, beginning: {velocityA.linear.z}, imp: {imp}, frictionDir0: {frictionDir0}, frictionDir1: {frictionDir1}, maxImpulse: {maxImpulse}, frictionImpulseSq: {frictionImpulseSquared}");
 
                 tempVelocityA.angular += imp.z * bodyParameters.angularFriction.angularA * motionStabilizationSolverInputA.inverseInertiaScale * massA.inverseInertia;
                 tempVelocityB.angular += imp.z * bodyParameters.angularFriction.angularB * motionStabilizationSolverInputB.inverseInertiaScale * massB.inverseInertia;

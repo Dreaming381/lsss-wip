@@ -49,53 +49,60 @@ namespace Latios.Myri
         [BurstCompile]
         public struct UpdateClipAudioSourcesJob : IJobChunk
         {
-            public NativeStream.Writer                                        stream;
-            public ComponentTypeHandle<AudioSourceClip>                       clipHandle;
-            public ComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished> expireHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceVolume>          volumeHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceDistanceFalloff> distanceFalloffHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceEmitterCone>     emitterConeHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle         worldTransformHandle;
-            [ReadOnly] public NativeReference<int>                            audioFrame;
-            [ReadOnly] public NativeReference<int>                            lastPlayedAudioFrame;
-            [ReadOnly] public NativeReference<int>                            lastConsumedBufferId;
-            public int                                                        bufferId;
-            public int                                                        sampleRate;
-            public int                                                        samplesPerFrame;
+            public NativeStream.Writer                                             stream;
+            public ComponentTypeHandle<AudioSourceClip>                            clipHandle;
+            public ComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished>      expireHandle;
+            [ReadOnly] public ComponentTypeHandle<AudioSourceVolume>               volumeHandle;
+            [ReadOnly] public ComponentTypeHandle<AudioSourceSampleRateMultiplier> sampleRateMultiplierHandle;
+            [ReadOnly] public ComponentTypeHandle<AudioSourceDistanceFalloff>      distanceFalloffHandle;
+            [ReadOnly] public ComponentTypeHandle<AudioSourceEmitterCone>          emitterConeHandle;
+            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle              worldTransformHandle;
+            [ReadOnly] public NativeReference<int>                                 audioFrame;
+            [ReadOnly] public NativeReference<int>                                 lastPlayedAudioFrame;
+            [ReadOnly] public NativeReference<int>                                 lastConsumedBufferId;
+            public int                                                             bufferId;
+            public int                                                             sampleRate;
+            public int                                                             samplesPerFrame;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var rng        = new Rng.RngSequence(math.asuint(new int2(audioFrame.Value, unfilteredChunkIndex)));
-                var volumes    = (AudioSourceVolume*)chunk.GetRequiredComponentDataPtrRO(ref volumeHandle);
-                var clips      = (AudioSourceClip*)chunk.GetRequiredComponentDataPtrRW(ref clipHandle);
-                var transforms = worldTransformHandle.Resolve(chunk);
-                var falloffs   = chunk.GetComponentDataPtrRO(ref distanceFalloffHandle);
-                var cones      = chunk.GetComponentDataPtrRO(ref emitterConeHandle);
-                var expireMask = chunk.GetEnabledMask(ref expireHandle);
+                var rng                   = new Rng.RngSequence(math.asuint(new int2(audioFrame.Value, unfilteredChunkIndex)));
+                var volumes               = (AudioSourceVolume*)chunk.GetRequiredComponentDataPtrRO(ref volumeHandle);
+                var clips                 = (AudioSourceClip*)chunk.GetRequiredComponentDataPtrRW(ref clipHandle);
+                var transforms            = worldTransformHandle.Resolve(chunk);
+                var sampleRateMultipliers = chunk.GetComponentDataPtrRO(ref sampleRateMultiplierHandle);
+                var falloffs              = chunk.GetComponentDataPtrRO(ref distanceFalloffHandle);
+                var cones                 = chunk.GetComponentDataPtrRO(ref emitterConeHandle);
+                var expireMask            = chunk.GetEnabledMask(ref expireHandle);
 
                 stream.BeginForEachIndex(unfilteredChunkIndex);
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     // Clip
                     ref var clip = ref clips[i];
+
+                    if (!clip.m_clip.IsCreated)
+                        continue;
+
+                    double sampleRateMultiplier = sampleRateMultipliers != null ? sampleRateMultipliers[i].multiplier : 1.0;
                     if (clip.looping)
                     {
+                        if (sampleRateMultiplier <= 0.0)
+                            continue;
+
                         if (!clip.m_initialized)
                         {
-                            if (!clip.m_clip.IsCreated)
-                                continue;
-
                             if (clip.offsetIsBasedOnSpawn)
                             {
                                 ulong samplesPlayed = (ulong)samplesPerFrame * (ulong)audioFrame.Value;
-                                if (sampleRate == clip.m_clip.Value.sampleRate)
+                                if (sampleRate == clip.m_clip.Value.sampleRate && sampleRateMultiplier == 1.0)
                                 {
                                     int clipStart     = (int)(samplesPlayed % (ulong)clip.m_clip.Value.samplesLeftOrMono.Length);
                                     clip.m_loopOffset = (uint)(clip.m_clip.Value.samplesLeftOrMono.Length - clipStart);
                                 }
                                 else
                                 {
-                                    double clipSampleStride             = clip.m_clip.Value.sampleRate / (double)sampleRate;
+                                    double clipSampleStride             = clip.m_clip.Value.sampleRate * sampleRateMultiplier / sampleRate;
                                     double samplesPlayedInSourceSamples = samplesPlayed * clipSampleStride;
                                     double clipStart                    = samplesPlayedInSourceSamples % clip.m_clip.Value.samplesLeftOrMono.Length;
                                     // We can't get exact due to the mismatched rate, so we choose a rounded start point between
@@ -121,7 +128,7 @@ namespace Latios.Myri
                             {
                                 // This check compares if the playhead loop advanced past the target start point in the loop
                                 ulong  samplesPlayed                = (ulong)samplesPerFrame * (ulong)audioFrame.Value;
-                                double clipSampleStride             = clip.m_clip.Value.sampleRate / (double)sampleRate;
+                                double clipSampleStride             = clip.m_clip.Value.sampleRate * sampleRateMultiplier / sampleRate;
                                 double samplesPlayedInSourceSamples = samplesPlayed * clipSampleStride;
                                 double clipStart                    = (samplesPlayedInSourceSamples + clip.m_loopOffset) % clip.m_clip.Value.samplesLeftOrMono.Length;
                                 // We add a one sample tolerance in case we are regenerating the same audio frame, in which case the old values are fine.
@@ -137,8 +144,13 @@ namespace Latios.Myri
                     }
                     else
                     {
-                        if (!clip.m_clip.IsCreated)
+                        // If the sample rate is invalid, prefer to just kill this oneshot.
+                        if (sampleRateMultiplier <= 0.0)
+                        {
+                            if (expireMask.EnableBit.IsValid)
+                                expireMask[i] = false;
                             continue;
+                        }
 
                         var framesPlayed = lastPlayedAudioFrame.Value - clip.m_spawnedAudioFrame;
                         // There's a chance the one shot spawned last game frame but the dsp missed the audio frame.
@@ -153,7 +165,7 @@ namespace Latios.Myri
                         }
                         else
                         {
-                            double resampleRate = clip.m_clip.Value.sampleRate / (double)sampleRate;
+                            double resampleRate = clip.m_clip.Value.sampleRate * sampleRateMultiplier / sampleRate;
                             if (clip.m_initialized && clip.m_clip.Value.samplesLeftOrMono.Length < resampleRate * framesPlayed * samplesPerFrame)
                             {
                                 if (expireMask.EnableBit.IsValid)
@@ -175,6 +187,11 @@ namespace Latios.Myri
                     int byteCount  = 0;
                     var features   = CapturedSourceHeader.Features.Clip;
                     byteCount     += CollectionHelper.Align(UnsafeUtility.SizeOf<AudioSourceClip>(), 8);
+                    if (sampleRateMultiplier != 1.0)
+                    {
+                        features  |= CapturedSourceHeader.Features.SampleRateMultiplier;
+                        byteCount += 8;  // double is 8 bytes
+                    }
                     if (falloffs != null)
                     {
                         features  |= CapturedSourceHeader.Features.Transform | CapturedSourceHeader.Features.DistanceFalloff;
@@ -194,6 +211,11 @@ namespace Latios.Myri
                     UnsafeUtility.MemClear(ptr, byteCount);
                     UnsafeUtility.CopyStructureToPtr(ref batchableClip, ptr);
                     ptr += CollectionHelper.Align(UnsafeUtility.SizeOf<AudioSourceClip>(), 8);
+                    if (sampleRateMultiplier != 1.0)
+                    {
+                        UnsafeUtility.CopyStructureToPtr(ref sampleRateMultiplier, ptr);
+                        ptr += 8;
+                    }
                     if (falloffs != null)
                     {
                         var transform = transforms[i].worldTransformQvvs;
