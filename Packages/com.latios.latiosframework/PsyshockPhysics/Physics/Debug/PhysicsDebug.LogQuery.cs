@@ -37,9 +37,19 @@ namespace Latios.Psyshock
             return context.result;
         }
 
-        public static void LogWarning(NativeText textToLog)
+        public static void WriteToFile(NativeText text, FixedString512Bytes filepath)
         {
-            DoManagedExecute((IntPtr)(&textToLog), 2);
+            var context = new WriteToFileContext
+            {
+                text = text,
+                path = filepath
+            };
+            DoManagedExecute((IntPtr)(&context), 2);
+        }
+
+        internal static void LogWarning(NativeText textToLog)
+        {
+            DoManagedExecute((IntPtr)(&textToLog), 3);
         }
 
         struct StaticTag { }
@@ -88,6 +98,12 @@ namespace Latios.Psyshock
                     }
                     case 2:
                     {
+                        ref var ctx = ref *(WriteToFileContext*)context;
+                        System.IO.File.WriteAllText(ctx.path.ToString(), ctx.text.ToString());
+                        break;
+                    }
+                    case 3:
+                    {
                         ref var text = ref *(NativeText*)context;
                         UnityEngine.Debug.LogWarning($"{text}");
                         break;
@@ -109,6 +125,12 @@ namespace Latios.Psyshock
             public float         maxDistance;
             public Allocator     allocator;
             public NativeText    result;
+        }
+
+        struct WriteToFileContext
+        {
+            public NativeText          text;
+            public FixedString512Bytes path;
         }
 
         enum QueryType : byte
