@@ -684,6 +684,7 @@ MonoBehaviour:
     m_hostScene: Subscene
     m_editorSceneAsset: {fileID: 102900000, guid: d408d0ed5dccaec4abcde4eb6af9be63, type: 3}
     m_editorGameObjectName: CameraManager
+  enableTransformSyncing: 1
   useUniformScale: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

@@ -11,15 +11,16 @@ namespace Latios.Myri.Authoring
     {
         [Header("Master Output")]
         [Tooltip("The final output volume for everything in Myri, clamped to the range [0, 1]")]
-        public float masterVolume = 1f;
+        public float volume = 1f;
         [Tooltip("A gain value that is applied to the mixed audio signal before the final limiter is applied")]
-        public float masterGain = 1f;
+        public float gain = 1f;
         [Tooltip("How quickly the volume should recover after an audio spike, in decibels per second")]
-        public float masterLimiterDBRelaxPerSecond = BrickwallLimiter.kDefaultReleaseDBPerSample * 48000f;
+        [InspectorName("Limiter dB Relax Rate")]
+        public float limiterDBRelaxPerSecond = BrickwallLimiter.kDefaultReleaseDBPerSample * 48000f;
         [Tooltip(
              "The amount of time in advance in seconds that the final limiter should examine samples for spikes so that it can begin ramping down the volume. Larger values result in smoother transitions but add latency to the final output.")
         ]
-        public float masterLimiterLookaheadTime = 255.9f / 48000f;
+        public float limiterLookaheadTime = 255.9f / 48000f;
 
         [Header("Buffering")]
         [Tooltip("The number of additional audio frames to generate in case the main thread stalls")]
@@ -39,10 +40,10 @@ namespace Latios.Myri.Authoring
             var entity = GetEntity(TransformUsageFlags.None);
             AddComponent(entity, new AudioSettings
             {
-                masterVolume                  = authoring.masterVolume,
-                masterGain                    = authoring.masterGain,
-                masterLimiterDBRelaxPerSecond = authoring.masterLimiterDBRelaxPerSecond,
-                masterLimiterLookaheadTime    = authoring.masterLimiterLookaheadTime,
+                masterVolume                  = authoring.volume,
+                masterGain                    = authoring.gain,
+                masterLimiterDBRelaxPerSecond = authoring.limiterDBRelaxPerSecond,
+                masterLimiterLookaheadTime    = authoring.limiterLookaheadTime,
                 safetyAudioFrames             = authoring.safetyAudioFrames,
                 audioFramesPerUpdate          = authoring.audioFramesPerUpdate,
                 lookaheadAudioFrames          = authoring.lookaheadAudioFrames,

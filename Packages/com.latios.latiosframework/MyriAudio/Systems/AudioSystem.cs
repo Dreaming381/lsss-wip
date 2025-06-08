@@ -25,13 +25,10 @@ namespace Latios.Myri.Systems
         private int      m_sampleRate;
         private int      m_samplesPerFrame;
 
-        private DSPNode              m_mixNode;
-        private DSPConnection        m_mixToLimiterMasterConnection;
-        private NativeList<int>      m_mixNodePortFreelist;
-        private NativeReference<int> m_mixNodePortCount;
-
-        private DSPNode       m_limiterMasterNode;
-        private DSPConnection m_limiterMasterToOutputConnection;
+        private DSPNode              m_masterMixNode;
+        private DSPConnection        m_masterMixToOutputConnection;
+        private NativeList<int>      m_masterMixNodePortFreelist;
+        private NativeReference<int> m_masterMixNodePortCount;
 
         private DSPNode                                     m_ildNode;
         private NativeReference<int>                        m_ildNodePortCount;
@@ -93,8 +90,8 @@ namespace Latios.Myri.Systems
             m_initialized = true;
 
             // Initialize containers first
-            m_mixNodePortFreelist          = new NativeList<int>(Allocator.Persistent);
-            m_mixNodePortCount             = new NativeReference<int>(Allocator.Persistent);
+            m_masterMixNodePortFreelist    = new NativeList<int>(Allocator.Persistent);
+            m_masterMixNodePortCount       = new NativeReference<int>(Allocator.Persistent);
             m_ildNodePortCount             = new NativeReference<int>(Allocator.Persistent);
             m_packedFrameCounterBufferId   = new NativeReference<long>(Allocator.Persistent);
             m_audioFrame                   = new NativeReference<int>(Allocator.Persistent);
@@ -113,14 +110,10 @@ namespace Latios.Myri.Systems
             m_driverKey  = DriverManager.RegisterGraph(ref m_graph);
 
             var commandBlock = m_graph.CreateCommandBlock();
-            m_mixNode        = commandBlock.CreateDSPNode<MixStereoPortsNode.Parameters, MixStereoPortsNode.SampleProviders, MixStereoPortsNode>();
-            commandBlock.AddOutletPort(m_mixNode, 2);
-            m_limiterMasterNode = commandBlock.CreateDSPNode<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders, BrickwallLimiterNode>();
-            commandBlock.AddInletPort(m_limiterMasterNode, 2);
-            commandBlock.AddOutletPort(m_limiterMasterNode, 2);
-            m_mixToLimiterMasterConnection    = commandBlock.Connect(m_mixNode, 0, m_limiterMasterNode, 0);
-            m_limiterMasterToOutputConnection = commandBlock.Connect(m_limiterMasterNode, 0, m_graph.RootDSP, 0);
-            m_ildNode                         = commandBlock.CreateDSPNode<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>();
+            m_masterMixNode  = commandBlock.CreateDSPNode<MasterMixNode.Parameters, MasterMixNode.SampleProviders, MasterMixNode>();
+            commandBlock.AddOutletPort(m_masterMixNode, 2);
+            m_masterMixToOutputConnection = commandBlock.Connect(m_masterMixNode, 0, m_graph.RootDSP, 0);
+            m_ildNode                     = commandBlock.CreateDSPNode<ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>();
             unsafe
             {
                 commandBlock.UpdateAudioKernel<SetReadIldBuffersNodePackedFrameBufferId, ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>(
@@ -136,6 +129,10 @@ namespace Latios.Myri.Systems
             commandBlock.UpdateAudioKernel<MixPortsToStereoNodeUpdate, MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>(
                 new MixPortsToStereoNodeUpdate { leftChannelCount = 0 },
                 dummyNode);
+            commandBlock.UpdateAudioKernel<MasterMixNodeUpdate, MasterMixNode.Parameters, MasterMixNode.SampleProviders, MasterMixNode>(new MasterMixNodeUpdate {
+                settings = default
+            },
+                                                                                                                                        m_masterMixNode);
             commandBlock.UpdateAudioKernel<ReadIldBuffersNodeUpdate, ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>(new ReadIldBuffersNodeUpdate
             {
                 ildBuffer = new IldBuffer(),
@@ -227,9 +224,9 @@ namespace Latios.Myri.Systems
                 worldBlackboardEntity           = latiosWorld.worldBlackboardEntity,
                 audioFrame                      = m_audioFrame,
                 audioFrameHistory               = m_audioFrameHistory,
-                systemMixNodePortFreelist       = m_mixNodePortFreelist,
-                systemMixNodePortCount          = m_mixNodePortCount,
-                systemMixNode                   = m_mixNode,
+                systemMasterMixNodePortFreelist = m_masterMixNodePortFreelist,
+                systemMasterMixNodePortCount    = m_masterMixNodePortCount,
+                systemMasterMixNode             = m_masterMixNode,
                 systemIldNodePortCount          = m_ildNodePortCount,
                 systemIldNode                   = m_ildNode,
                 commandBlock                    = dspCommandBlock,
@@ -239,7 +236,6 @@ namespace Latios.Myri.Systems
                 bufferId                        = m_currentBufferId,
                 samplesPerFrame                 = m_samplesPerFrame,
                 sampleRate                      = m_sampleRate,
-                systemBrickwallLimiterNode      = m_limiterMasterNode
             }.Schedule(JobHandle.CombineDependencies(captureListenersJH, captureFrameJH));
 
             var updateSourcesJH = new InitUpdateDestroy.UpdateClipAudioSourcesJob
@@ -346,17 +342,15 @@ namespace Latios.Myri.Systems
                 s.ildConnections.Dispose();
                 s.connections.Dispose();
             }
-            commandBlock.Disconnect(m_mixToLimiterMasterConnection);
-            commandBlock.Disconnect(m_limiterMasterToOutputConnection);
+            commandBlock.Disconnect(m_masterMixToOutputConnection);
             commandBlock.ReleaseDSPNode(m_ildNode);
-            commandBlock.ReleaseDSPNode(m_mixNode);
-            commandBlock.ReleaseDSPNode(m_limiterMasterNode);
+            commandBlock.ReleaseDSPNode(m_masterMixNode);
             commandBlock.Complete();
             DriverManager.DeregisterAndDisposeGraph(m_driverKey);
 
             m_lastUpdateJobHandle.Complete();
-            m_mixNodePortFreelist.Dispose();
-            m_mixNodePortCount.Dispose();
+            m_masterMixNodePortFreelist.Dispose();
+            m_masterMixNodePortCount.Dispose();
             m_ildNodePortCount.Dispose();
             m_packedFrameCounterBufferId.Dispose();
             m_audioFrame.Dispose();

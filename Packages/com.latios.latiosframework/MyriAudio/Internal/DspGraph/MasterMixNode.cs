@@ -7,7 +7,7 @@ using Unity.Mathematics;
 namespace Latios.Myri
 {
     [BurstCompile(CompileSynchronously = true)]
-    public struct BrickwallLimiterNode : IAudioKernel<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders>
+    internal unsafe struct MasterMixNode : IAudioKernel<MasterMixNode.Parameters, MasterMixNode.SampleProviders>
     {
         public enum Parameters
         {
@@ -35,22 +35,29 @@ namespace Latios.Myri
 
         public void Execute(ref ExecuteContext<Parameters, SampleProviders> context)
         {
-            // Assume stereo in, stereo out
             if (context.Outputs.Count <= 0)
                 return;
             var outputBuffer = context.Outputs.GetSampleBuffer(0);
+
+            for (int input = 0; input < context.Inputs.Count; input++)
+            {
+                var inputBuffer = context.Inputs.GetSampleBuffer(input);
+                for (int c = 0; c < math.min(outputBuffer.Channels, inputBuffer.Channels); c++)
+                {
+                    var inputSamples  = inputBuffer.GetBuffer(c);
+                    var outputSamples = outputBuffer.GetBuffer(c);
+                    for (int i = 0; i < outputSamples.Length; i++)
+                    {
+                        outputSamples[i] += inputSamples[i];
+                    }
+                }
+            }
             if (outputBuffer.Channels <= 1)
             {
                 ZeroSampleBuffer(outputBuffer);
                 return;
             }
             if (context.Inputs.Count <= 0)
-            {
-                ZeroSampleBuffer(outputBuffer);
-                return;
-            }
-            var inputBuffer = context.Inputs.GetSampleBuffer(0);
-            if (inputBuffer.Channels <= 1)
             {
                 ZeroSampleBuffer(outputBuffer);
                 return;
@@ -62,15 +69,13 @@ namespace Latios.Myri
                 m_expectedSampleBufferSize    = context.DSPBufferSize;
             }
 
-            var inputL  = inputBuffer.GetBuffer(0);
-            var inputR  = inputBuffer.GetBuffer(1);
             var outputL = outputBuffer.GetBuffer(0);
             var outputR = outputBuffer.GetBuffer(1);
             int length  = outputL.Length;
 
             for (int i = 0; i < length; i++)
             {
-                m_limiter.ProcessSample(inputL[i], inputR[i], out var leftOut, out var rightOut);
+                m_limiter.ProcessSample(outputL[i], outputR[i], out var leftOut, out var rightOut);
                 outputL[i] = leftOut;
                 outputR[i] = rightOut;
             }
@@ -87,11 +92,11 @@ namespace Latios.Myri
     }
 
     [BurstCompile(CompileSynchronously = true)]
-    public struct BrickwallLimiterNodeUpdate : IAudioKernelUpdate<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders, BrickwallLimiterNode>
+    internal struct MasterMixNodeUpdate : IAudioKernelUpdate<MasterMixNode.Parameters, MasterMixNode.SampleProviders, MasterMixNode>
     {
         internal BrickwallLimiterSettings settings;
 
-        public void Update(ref BrickwallLimiterNode audioKernel)
+        public void Update(ref MasterMixNode audioKernel)
         {
             audioKernel.m_limiter.preGain            = settings.preGain;
             audioKernel.m_limiter.volume             = settings.volume;

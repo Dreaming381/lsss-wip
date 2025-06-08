@@ -65,15 +65,12 @@ namespace Latios.Myri
             [ReadOnly] public NativeReference<int>             audioFrame;
             public NativeQueue<AudioFrameBufferHistoryElement> audioFrameHistory;
 
-            public NativeList<int>      systemMixNodePortFreelist;
-            public NativeReference<int> systemMixNodePortCount;
-            public DSPNode              systemMixNode;
+            public NativeList<int>      systemMasterMixNodePortFreelist;
+            public NativeReference<int> systemMasterMixNodePortCount;
+            public DSPNode              systemMasterMixNode;
 
             public NativeReference<int> systemIldNodePortCount;
             public DSPNode              systemIldNode;
-
-            public DSPNode systemBrickwallLimiterNode;
-            public int     sampleRate;
 
             public DSPCommandBlock commandBlock;
 
@@ -82,6 +79,7 @@ namespace Latios.Myri
             public NativeList<IldBufferChannel>          outputSamplesMegaBufferChannels;
 
             public int samplesPerFrame;
+            public int sampleRate;
             public int bufferId;
 
             public unsafe void Execute()
@@ -106,7 +104,7 @@ namespace Latios.Myri
                     dirty                        = true;
                     var listenerOutputGraphState = listenerOutputGraphStateLookup[entity];
                     commandBlock.Disconnect(listenerOutputGraphState.connection);
-                    systemMixNodePortFreelist.Add(listenerOutputGraphState.portIndex);
+                    systemMasterMixNodePortFreelist.Add(listenerOutputGraphState.portIndex);
 
                     var listenerGraphState = listenerGraphStateLookup[entity];
                     for (int j = 0; j < listenerGraphState.connections.Length; j++)
@@ -150,16 +148,16 @@ namespace Latios.Myri
 
                         //Create the output MixPortsToStereoNode and tie it to the final mix
                         int mixNodePortIndex;
-                        if (systemMixNodePortFreelist.Length > 0)
+                        if (systemMasterMixNodePortFreelist.Length > 0)
                         {
-                            mixNodePortIndex = systemMixNodePortFreelist[systemMixNodePortFreelist.Length - 1];
-                            systemMixNodePortFreelist.RemoveAt(systemMixNodePortFreelist.Length - 1);
+                            mixNodePortIndex = systemMasterMixNodePortFreelist[systemMasterMixNodePortFreelist.Length - 1];
+                            systemMasterMixNodePortFreelist.RemoveAt(systemMasterMixNodePortFreelist.Length - 1);
                         }
                         else
                         {
-                            mixNodePortIndex = systemMixNodePortCount.Value;
-                            commandBlock.AddInletPort(systemMixNode, 2);
-                            systemMixNodePortCount.Value++;
+                            mixNodePortIndex = systemMasterMixNodePortCount.Value;
+                            commandBlock.AddInletPort(systemMasterMixNode, 2);
+                            systemMasterMixNodePortCount.Value++;
                         }
                         var listenerMixNode = commandBlock.CreateDSPNode<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>();
                         commandBlock.AddOutletPort(listenerMixNode, 2);
@@ -167,7 +165,7 @@ namespace Latios.Myri
                         listenerGraphState.nodes.Add(listenerMixNode);
                         var listenerOutputGraphState = new EntityOutputGraphState
                         {
-                            connection = commandBlock.Connect(listenerMixNode, 0, systemMixNode, mixNodePortIndex),
+                            connection = commandBlock.Connect(listenerMixNode, 0, systemMasterMixNode, mixNodePortIndex),
                             portIndex  = mixNodePortIndex
                         };
 
@@ -205,7 +203,7 @@ namespace Latios.Myri
                                 commandBlock.CreateDSPNode<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>();
                             commandBlock.AddOutletPort(listenerMixNode, 2);
                             commandBlock.Disconnect(listenerOutputGraphState.connection);
-                            listenerOutputGraphState.connection = commandBlock.Connect(listenerMixNode, 0, systemMixNode, listenerOutputGraphState.portIndex);
+                            listenerOutputGraphState.connection = commandBlock.Connect(listenerMixNode, 0, systemMasterMixNode, listenerOutputGraphState.portIndex);
 
                             //Destroy the old graph
                             for (int j = 0; j < listenerGraphState.connections.Length; j++)
@@ -382,8 +380,8 @@ namespace Latios.Myri
                                                                                                        systemIldNode);
 
                 // Update master limiter
-                commandBlock.UpdateAudioKernel<BrickwallLimiterNodeUpdate, BrickwallLimiterNode.Parameters,
-                                               BrickwallLimiterNode.SampleProviders, BrickwallLimiterNode>(new BrickwallLimiterNodeUpdate
+                commandBlock.UpdateAudioKernel<MasterMixNodeUpdate, MasterMixNode.Parameters,
+                                               MasterMixNode.SampleProviders, MasterMixNode>(new MasterMixNodeUpdate
                 {
                     settings = new BrickwallLimiterSettings
                     {
@@ -393,7 +391,7 @@ namespace Latios.Myri
                         lookaheadSampleCount = (int)math.ceil(audioSettings.masterLimiterLookaheadTime * sampleRate)
                     }
                 },
-                                                                                                           systemBrickwallLimiterNode);
+                                                                                             systemMasterMixNode);
             }
         }
 
