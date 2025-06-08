@@ -62,7 +62,7 @@ namespace Latios.Myri.Systems
             {
                 safetyAudioFrames             = 2,
                 audioFramesPerUpdate          = 1,
-                lookaheadAudioFrames          = 0,
+                lookaheadAudioFrames          = 1,
                 logWarningIfBuffersAreStarved = false
             });
 
