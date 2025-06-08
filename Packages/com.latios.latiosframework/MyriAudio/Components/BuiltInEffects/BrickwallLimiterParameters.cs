@@ -9,7 +9,7 @@ namespace Latios.Myri
     {
         public float preGain;
         public float volume;
-        public float releaseDBPerSample;
+        public float releasePerSampleDB;
         public int   lookaheadSampleCount;
     }
 }

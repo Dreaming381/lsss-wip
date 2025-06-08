@@ -72,6 +72,9 @@ namespace Latios.Myri
             public NativeReference<int> systemIldNodePortCount;
             public DSPNode              systemIldNode;
 
+            public DSPNode systemBrickwallLimiterNode;
+            public int     sampleRate;
+
             public DSPCommandBlock commandBlock;
 
             public NativeArray<ListenerBufferParameters> listenerBufferParameters;
@@ -362,7 +365,8 @@ namespace Latios.Myri
                     bufferId                = bufferId,
                     expectedNextUpdateFrame = audioFrame.Value + audioSettings.audioFramesPerUpdate
                 });
-                commandBlock.UpdateAudioKernel<ReadIldBuffersNodeUpdate, ReadIldBuffersNode.Parameters, ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>(new ReadIldBuffersNodeUpdate
+                commandBlock.UpdateAudioKernel<ReadIldBuffersNodeUpdate, ReadIldBuffersNode.Parameters,
+                                               ReadIldBuffersNode.SampleProviders, ReadIldBuffersNode>(new ReadIldBuffersNodeUpdate
                 {
                     ildBuffer = new IldBuffer
                     {
@@ -375,7 +379,21 @@ namespace Latios.Myri
                         warnIfStarved   = audioSettings.logWarningIfBuffersAreStarved
                     },
                 },
-                                                                                                                                                                systemIldNode);
+                                                                                                       systemIldNode);
+
+                // Update master limiter
+                commandBlock.UpdateAudioKernel<BrickwallLimiterNodeUpdate, BrickwallLimiterNode.Parameters,
+                                               BrickwallLimiterNode.SampleProviders, BrickwallLimiterNode>(new BrickwallLimiterNodeUpdate
+                {
+                    settings = new BrickwallLimiterSettings
+                    {
+                        volume               = math.saturate(audioSettings.masterVolume),
+                        preGain              = audioSettings.masterGain,
+                        releasePerSampleDB   = audioSettings.masterLimiterDBRelaxPerSecond / sampleRate,
+                        lookaheadSampleCount = (int)math.ceil(audioSettings.masterLimiterLookaheadTime * sampleRate)
+                    }
+                },
+                                                                                                           systemBrickwallLimiterNode);
             }
         }
 

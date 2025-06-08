@@ -1,4 +1,5 @@
 ﻿using Latios.Myri.Driver;
+using Latios.Myri.DSP;
 using Latios.Transforms.Abstract;
 using Unity.Audio;
 using Unity.Burst;
@@ -60,6 +61,10 @@ namespace Latios.Myri.Systems
 
             latiosWorld.worldBlackboardEntity.AddComponentDataIfMissing(new AudioSettings
             {
+                masterVolume                  = 1f,
+                masterGain                    = 1f,
+                masterLimiterDBRelaxPerSecond = BrickwallLimiter.kDefaultReleaseDBPerSample * 48000f,
+                masterLimiterLookaheadTime    = 255.9f / 48000f,
                 safetyAudioFrames             = 2,
                 audioFramesPerUpdate          = 1,
                 lookaheadAudioFrames          = 1,
@@ -232,7 +237,9 @@ namespace Latios.Myri.Systems
                 outputSamplesMegaBuffer         = ildBuffer.buffer,
                 outputSamplesMegaBufferChannels = ildBuffer.channels,
                 bufferId                        = m_currentBufferId,
-                samplesPerFrame                 = m_samplesPerFrame
+                samplesPerFrame                 = m_samplesPerFrame,
+                sampleRate                      = m_sampleRate,
+                systemBrickwallLimiterNode      = m_limiterMasterNode
             }.Schedule(JobHandle.CombineDependencies(captureListenersJH, captureFrameJH));
 
             var updateSourcesJH = new InitUpdateDestroy.UpdateClipAudioSourcesJob
@@ -259,7 +266,7 @@ namespace Latios.Myri.Systems
 
             // If there are no sources, then we should early out. Otherwise NativeStream has a bad time.
             JobHandle shipItJH = state.Dependency;
-            if (sourcesChunkCount > 0)
+            if (sourcesChunkCount > 0 && aliveListenerEntities.Length > 0)
             {
                 // Deferred Containers
                 var allocateChunkChannelStreamsJH = NativeStream.ScheduleConstruct(out var chunkChannelStreams, chunkChannelCount, captureListenersJH, state.WorldUpdateAllocator);

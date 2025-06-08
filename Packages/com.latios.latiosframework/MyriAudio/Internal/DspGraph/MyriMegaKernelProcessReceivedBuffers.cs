@@ -542,7 +542,7 @@ namespace Latios.Myri.DSP
         {
             m_masterLimiter.preGain            = dspUpdateBuffer.masterLimiterSettings.preGain;
             m_masterLimiter.volume             = dspUpdateBuffer.masterLimiterSettings.volume;
-            m_masterLimiter.releasePerSampleDB = dspUpdateBuffer.masterLimiterSettings.releaseDBPerSample;
+            m_masterLimiter.releasePerSampleDB = dspUpdateBuffer.masterLimiterSettings.releasePerSampleDB;
             m_masterLimiter.SetLookaheadSampleCount(dspUpdateBuffer.masterLimiterSettings.lookaheadSampleCount);
         }
         #endregion

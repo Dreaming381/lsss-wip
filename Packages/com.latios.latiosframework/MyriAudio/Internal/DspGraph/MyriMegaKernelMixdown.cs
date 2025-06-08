@@ -39,7 +39,7 @@ namespace Latios.Myri.DSP
 
                     listener.limiter = new BrickwallLimiter(listenerMeta.limiterSettings.preGain,
                                                             listenerMeta.limiterSettings.volume,
-                                                            listenerMeta.limiterSettings.releaseDBPerSample,
+                                                            listenerMeta.limiterSettings.releasePerSampleDB,
                                                             listenerMeta.limiterSettings.lookaheadSampleCount,
                                                             Allocator.AudioKernel);
                 }
@@ -47,7 +47,7 @@ namespace Latios.Myri.DSP
                 {
                     listener.limiter.preGain            = listenerMeta.limiterSettings.preGain;
                     listener.limiter.volume             = listenerMeta.limiterSettings.volume;
-                    listener.limiter.releasePerSampleDB = listenerMeta.limiterSettings.releaseDBPerSample;
+                    listener.limiter.releasePerSampleDB = listenerMeta.limiterSettings.releasePerSampleDB;
                     listener.limiter.SetLookaheadSampleCount(listenerMeta.limiterSettings.lookaheadSampleCount);
                 }
 

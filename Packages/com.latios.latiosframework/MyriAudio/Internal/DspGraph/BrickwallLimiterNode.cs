@@ -7,7 +7,7 @@ using Unity.Mathematics;
 namespace Latios.Myri
 {
     [BurstCompile(CompileSynchronously = true)]
-    public unsafe struct BrickwallLimiterNode : IAudioKernel<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders>
+    public struct BrickwallLimiterNode : IAudioKernel<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders>
     {
         public enum Parameters
         {
@@ -18,8 +18,8 @@ namespace Latios.Myri
             Unused
         }
 
-        BrickwallLimiter m_limiter;
-        int              m_expectedSampleBufferSize;
+        internal BrickwallLimiter m_limiter;
+        int                       m_expectedSampleBufferSize;
 
         public void Initialize()
         {
@@ -58,7 +58,7 @@ namespace Latios.Myri
 
             if (context.DSPBufferSize != m_expectedSampleBufferSize)
             {
-                m_limiter.releasePerSampleDB *= (float)context.DSPBufferSize / m_expectedSampleBufferSize;
+                m_limiter.releasePerSampleDB *= (float)m_expectedSampleBufferSize / context.DSPBufferSize;
                 m_expectedSampleBufferSize    = context.DSPBufferSize;
             }
 
@@ -83,6 +83,20 @@ namespace Latios.Myri
                 var b = sb.GetBuffer(c);
                 b.AsSpan().Clear();
             }
+        }
+    }
+
+    [BurstCompile(CompileSynchronously = true)]
+    public struct BrickwallLimiterNodeUpdate : IAudioKernelUpdate<BrickwallLimiterNode.Parameters, BrickwallLimiterNode.SampleProviders, BrickwallLimiterNode>
+    {
+        internal BrickwallLimiterSettings settings;
+
+        public void Update(ref BrickwallLimiterNode audioKernel)
+        {
+            audioKernel.m_limiter.preGain            = settings.preGain;
+            audioKernel.m_limiter.volume             = settings.volume;
+            audioKernel.m_limiter.releasePerSampleDB = settings.releasePerSampleDB;
+            audioKernel.m_limiter.SetLookaheadSampleCount(settings.lookaheadSampleCount);
         }
     }
 }
