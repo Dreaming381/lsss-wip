@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Latios.Myri.DSP;
+using Unity.Entities;
 using UnityEngine;
 
 namespace Latios.Myri.Authoring
@@ -7,9 +8,20 @@ namespace Latios.Myri.Authoring
     [AddComponentMenu("Latios/Myri/Audio Listener (Myri)")]
     public class AudioListenerAuthoring : MonoBehaviour
     {
+        [Header("Output")]
         [Tooltip("The raw volume applied to everything the listener hears. This value is not in decibels.")]
         public float volume = 1f;
+        [Tooltip("A gain value that is applied to the mixed audio signal before the listener limiter is applied. This value is not in decibels.")]
+        public float gain = 1f;
+        [Tooltip("How quickly the volume should recover after an audio spike, in decibels per second")]
+        [InspectorName("Limiter dB Relax Rate")]
+        public float limiterDBRelaxPerSecond = BrickwallLimiter.kDefaultReleaseDBPerSample * 48000f;
+        [Tooltip(
+             "The amount of time in advance in seconds that the final limiter should examine samples for spikes so that it can begin ramping down the volume. Larger values result in smoother transitions but add latency to the final output.")
+        ]
+        public float limiterLookaheadTime = 255.9f / 48000f;
 
+        [Header("Spatialization")]
         [Tooltip("The resolution of time-based spatialization. Increasing this value incurs a higher cost but may increase the player's sense of direction.")]
         [Range(0, 15)]
         public int interauralTimeDifferenceResolution = 2;
@@ -34,9 +46,12 @@ namespace Latios.Myri.Authoring
             var entity = GetEntity(TransformUsageFlags.Renderable);
             AddComponent(entity, new AudioListener
             {
-                ildProfile    = blob,
-                itdResolution = authoring.interauralTimeDifferenceResolution,
-                volume        = authoring.volume
+                ildProfile              = blob,
+                itdResolution           = authoring.interauralTimeDifferenceResolution,
+                volume                  = authoring.volume,
+                gain                    = authoring.gain,
+                limiterDBRelaxPerSecond = authoring.limiterDBRelaxPerSecond,
+                limiterLookaheadTime    = authoring.limiterLookaheadTime
             });
         }
     }

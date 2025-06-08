@@ -2,12 +2,14 @@
 using Unity.Audio;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace Latios.Myri
 {
     [BurstCompile(CompileSynchronously = true)]
-    internal unsafe struct MasterMixNode : IAudioKernel<MasterMixNode.Parameters, MasterMixNode.SampleProviders>
+    internal unsafe struct ListenerMixNode : IAudioKernel<ListenerMixNode.Parameters, ListenerMixNode.SampleProviders>
     {
         public enum Parameters
         {
@@ -20,6 +22,7 @@ namespace Latios.Myri
 
         internal BrickwallLimiter m_limiter;
         int                       m_expectedSampleBufferSize;
+        internal int              m_leftChannelCount;
 
         public void Initialize()
         {
@@ -37,30 +40,29 @@ namespace Latios.Myri
         {
             if (context.Outputs.Count <= 0)
                 return;
-            var outputBuffer = context.Outputs.GetSampleBuffer(0);
+            var mixedOutputSampleBuffer = context.Outputs.GetSampleBuffer(0);
+            ZeroSampleBuffer(mixedOutputSampleBuffer);
+            if (mixedOutputSampleBuffer.Channels < 2)
+                return;
 
-            for (int input = 0; input < context.Inputs.Count; input++)
+            var leftBuffer = mixedOutputSampleBuffer.GetBuffer(0);
+            for (int c = 0; c < math.min(context.Inputs.Count, m_leftChannelCount); c++)
             {
-                var inputBuffer = context.Inputs.GetSampleBuffer(input);
-                for (int c = 0; c < math.min(outputBuffer.Channels, inputBuffer.Channels); c++)
+                var inputBuffer = context.Inputs.GetSampleBuffer(c).GetBuffer(0);
+                for (int i = 0; i < leftBuffer.Length; i++)
                 {
-                    var inputSamples  = inputBuffer.GetBuffer(c);
-                    var outputSamples = outputBuffer.GetBuffer(c);
-                    for (int i = 0; i < outputSamples.Length; i++)
-                    {
-                        outputSamples[i] += inputSamples[i];
-                    }
+                    leftBuffer[i] += inputBuffer[i];
                 }
             }
-            if (outputBuffer.Channels <= 1)
+
+            var rightBuffer = mixedOutputSampleBuffer.GetBuffer(1);
+            for (int c = m_leftChannelCount; c < context.Inputs.Count; c++)
             {
-                ZeroSampleBuffer(outputBuffer);
-                return;
-            }
-            if (context.Inputs.Count <= 0)
-            {
-                ZeroSampleBuffer(outputBuffer);
-                return;
+                var inputBuffer = context.Inputs.GetSampleBuffer(c).GetBuffer(0);
+                for (int i = 0; i < rightBuffer.Length; i++)
+                {
+                    rightBuffer[i] += inputBuffer[i];
+                }
             }
 
             if (context.DSPBufferSize != m_expectedSampleBufferSize)
@@ -69,15 +71,12 @@ namespace Latios.Myri
                 m_expectedSampleBufferSize    = context.DSPBufferSize;
             }
 
-            var outputL = outputBuffer.GetBuffer(0);
-            var outputR = outputBuffer.GetBuffer(1);
-            int length  = outputL.Length;
-
+            var length = leftBuffer.Length;
             for (int i = 0; i < length; i++)
             {
-                m_limiter.ProcessSample(outputL[i], outputR[i], out var leftOut, out var rightOut);
-                outputL[i] = leftOut;
-                outputR[i] = rightOut;
+                m_limiter.ProcessSample(leftBuffer[i], rightBuffer[i], out var leftOut, out var rightOut);
+                leftBuffer[i]  = leftOut;
+                rightBuffer[i] = rightOut;
             }
         }
 
@@ -92,11 +91,22 @@ namespace Latios.Myri
     }
 
     [BurstCompile(CompileSynchronously = true)]
-    internal struct MasterMixNodeUpdate : IAudioKernelUpdate<MasterMixNode.Parameters, MasterMixNode.SampleProviders, MasterMixNode>
+    internal unsafe struct ListenerMixNodeChannelUpdate : IAudioKernelUpdate<ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>
+    {
+        public int leftChannelCount;
+
+        public void Update(ref ListenerMixNode audioKernel)
+        {
+            audioKernel.m_leftChannelCount = leftChannelCount;
+        }
+    }
+
+    [BurstCompile(CompileSynchronously = true)]
+    internal unsafe struct ListenerMixNodeVolumeUpdate : IAudioKernelUpdate<ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>
     {
         public BrickwallLimiterSettings settings;
 
-        public void Update(ref MasterMixNode audioKernel)
+        public void Update(ref ListenerMixNode audioKernel)
         {
             audioKernel.m_limiter.preGain            = settings.preGain;
             audioKernel.m_limiter.volume             = settings.volume;

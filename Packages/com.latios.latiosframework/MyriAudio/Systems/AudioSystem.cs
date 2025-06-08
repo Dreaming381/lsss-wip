@@ -124,10 +124,10 @@ namespace Latios.Myri.Systems
 
             // Force initialization of Burst
             commandBlock  = m_graph.CreateCommandBlock();
-            var dummyNode = commandBlock.CreateDSPNode<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>();
+            var dummyNode = commandBlock.CreateDSPNode<ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>();
             StateVariableFilterNode.Create(commandBlock, StateVariableFilterNode.FilterType.Bandpass, 0f, 0f, 0f, 1);
-            commandBlock.UpdateAudioKernel<MixPortsToStereoNodeUpdate, MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>(
-                new MixPortsToStereoNodeUpdate { leftChannelCount = 0 },
+            commandBlock.UpdateAudioKernel<ListenerMixNodeChannelUpdate, ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>(
+                new ListenerMixNodeChannelUpdate { leftChannelCount = 0 },
                 dummyNode);
             commandBlock.UpdateAudioKernel<MasterMixNodeUpdate, MasterMixNode.Parameters, MasterMixNode.SampleProviders, MasterMixNode>(new MasterMixNodeUpdate {
                 settings = default

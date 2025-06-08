@@ -16,6 +16,20 @@ namespace Latios.Myri
         /// This value is not in decibels.
         /// </summary>
         public float volume;
+        /// <summary>
+        /// A gain value that is applied to the mixed audio signal before the listener limiter is applied.
+        /// </summary>
+        public float gain;
+        /// <summary>
+        ///  How quickly the volume should recover after an audio spike.
+        /// </summary>
+        public float limiterDBRelaxPerSecond;
+        /// <summary>
+        /// The amount of time in advance that the limiter should examine samples for spikes so
+        /// that it can begin ramping down the volume. Larger values result in smoother transitions
+        /// but add latency to the final output.
+        /// </summary>
+        public float limiterLookaheadTime;
 
         /// <summary>
         /// The resolution of time-based spatialization to apply between the range of 0 and 15.

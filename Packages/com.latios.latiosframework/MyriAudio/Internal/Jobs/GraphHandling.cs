@@ -159,8 +159,19 @@ namespace Latios.Myri
                             commandBlock.AddInletPort(systemMasterMixNode, 2);
                             systemMasterMixNodePortCount.Value++;
                         }
-                        var listenerMixNode = commandBlock.CreateDSPNode<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>();
+                        var listenerMixNode = commandBlock.CreateDSPNode<ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>();
                         commandBlock.AddOutletPort(listenerMixNode, 2);
+                        commandBlock.UpdateAudioKernel<ListenerMixNodeVolumeUpdate, ListenerMixNode.Parameters,
+                                                       ListenerMixNode.SampleProviders, ListenerMixNode>(new ListenerMixNodeVolumeUpdate
+                        {
+                            settings = new BrickwallLimiterSettings
+                            {
+                                volume               = listener.volume,
+                                preGain              = listener.gain,
+                                releasePerSampleDB   = listener.limiterDBRelaxPerSecond / sampleRate,
+                                lookaheadSampleCount = (int)math.ceil(listener.limiterLookaheadTime * sampleRate)
+                            }
+                        }, listenerMixNode);
 
                         listenerGraphState.nodes.Add(listenerMixNode);
                         var listenerOutputGraphState = new EntityOutputGraphState
@@ -200,7 +211,7 @@ namespace Latios.Myri
                             //Swap the old MixPortsToStereoNode with a new one
                             var listenerOutputGraphState = listenerOutputGraphStateLookup[entity];
                             var listenerMixNode          =
-                                commandBlock.CreateDSPNode<MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>();
+                                commandBlock.CreateDSPNode<ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>();
                             commandBlock.AddOutletPort(listenerMixNode, 2);
                             commandBlock.Disconnect(listenerOutputGraphState.connection);
                             listenerOutputGraphState.connection = commandBlock.Connect(listenerMixNode, 0, systemMasterMixNode, listenerOutputGraphState.portIndex);
@@ -232,6 +243,17 @@ namespace Latios.Myri
                             listenerGraphStateLookup[entity]       = listenerGraphState;
                             listenerOutputGraphStateLookup[entity] = listenerOutputGraphState;
                         }
+                        commandBlock.UpdateAudioKernel<ListenerMixNodeVolumeUpdate, ListenerMixNode.Parameters,
+                                                       ListenerMixNode.SampleProviders, ListenerMixNode>(new ListenerMixNodeVolumeUpdate
+                        {
+                            settings = new BrickwallLimiterSettings
+                            {
+                                volume               = listener.volume,
+                                preGain              = listener.gain,
+                                releasePerSampleDB   = listener.limiterDBRelaxPerSecond / sampleRate,
+                                lookaheadSampleCount = (int)math.ceil(listener.limiterLookaheadTime * sampleRate)
+                            }
+                        }, listenerGraphState.nodes[0]);
                         existingEntities.Add(entity);
                         statesToDisposeThisFrame.Add(in listenerGraphState);
 
@@ -487,8 +509,8 @@ namespace Latios.Myri
                     });
                 }
             }
-            commandBlock.UpdateAudioKernel<MixPortsToStereoNodeUpdate, MixPortsToStereoNode.Parameters, MixPortsToStereoNode.SampleProviders, MixPortsToStereoNode>(
-                new MixPortsToStereoNodeUpdate { leftChannelCount = listenerMixPortCount },
+            commandBlock.UpdateAudioKernel<ListenerMixNodeChannelUpdate, ListenerMixNode.Parameters, ListenerMixNode.SampleProviders, ListenerMixNode>(
+                new ListenerMixNodeChannelUpdate { leftChannelCount = listenerMixPortCount },
                 listenerMixNode);
             for (int i = 0; i < profile.passthroughFractionsPerRightChannel.Length; i++)
             {

@@ -209,7 +209,7 @@ namespace Latios.Myri
 
         private static void ComputeWeights(ref Weights weights, in EmitterParameters emitter, in ListenerWithTransform listener, ref UnsafeList<float4> scratchCache)
         {
-            float volume = emitter.volume * listener.listener.volume;
+            float volume = emitter.volume;
 
             var emitterInListenerSpace    = math.mul(math.inverse(listener.transform), emitter.transform);
             var emitterPositionNormalized = math.normalizesafe(emitterInListenerSpace.pos, float3.zero);
