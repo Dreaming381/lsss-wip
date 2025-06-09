@@ -1,5 +1,6 @@
 ﻿using Latios.Myri.DSP;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Latios.Myri.Authoring
@@ -22,6 +23,9 @@ namespace Latios.Myri.Authoring
         public float limiterLookaheadTime = 255.9f / 48000f;
 
         [Header("Spatialization")]
+        [Tooltip("A scale factor for all spatial ranges. Increasing this value allows the listener to hear sources farther away.")]
+        public float rangeMultiplier = 1f;
+
         [Tooltip("The resolution of time-based spatialization. Increasing this value incurs a higher cost but may increase the player's sense of direction.")]
         [Range(0, 15)]
         public int interauralTimeDifferenceResolution = 2;
@@ -48,6 +52,7 @@ namespace Latios.Myri.Authoring
             {
                 ildProfile              = blob,
                 itdResolution           = authoring.interauralTimeDifferenceResolution,
+                rangeMultiplier         = (half)authoring.rangeMultiplier,
                 volume                  = authoring.volume,
                 gain                    = authoring.gain,
                 limiterDBRelaxPerSecond = authoring.limiterDBRelaxPerSecond,

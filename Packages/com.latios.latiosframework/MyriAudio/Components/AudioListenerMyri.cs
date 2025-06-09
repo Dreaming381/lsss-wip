@@ -32,10 +32,22 @@ namespace Latios.Myri
         public float limiterLookaheadTime;
 
         /// <summary>
+        /// A multiplier that should be applied to all source spatial ranges.
+        /// </summary>
+        public half rangeMultiplier;
+
+        internal ushort packed;
+        internal int    unused;
+
+        /// <summary>
         /// The resolution of time-based spatialization to apply between the range of 0 and 15.
         /// Higher values are more expensive but may provide a better sense of direction for the listener.
         /// </summary>
-        public int itdResolution;
+        public int itdResolution
+        {
+            get => Bits.GetBits(packed, 0, 4);
+            set => Bits.SetBits(ref packed, 0, 4, (byte)math.clamp(value, 0, 15));
+        }
         /// <summary>
         /// The profile which specifies volume and frequency-based filtering spatialization.
         /// </summary>

@@ -34,7 +34,6 @@ namespace Latios.Myri
                     //Todo: Figure out how to bring this optimization back.
                     //if (l.volume > 0f)
                     {
-                        l.itdResolution                                                  = math.clamp(l.itdResolution, 0, 15);
                         var transform                                                    = new RigidTransform(worldTransforms[i].rotation, worldTransforms[i].position);
                         listenersWithTransforms.Add(new ListenerWithTransform { listener = l, transform = transform });
 
