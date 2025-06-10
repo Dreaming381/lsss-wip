@@ -174,6 +174,7 @@ namespace Latios.Myri.Systems
             var ecb                      = latiosWorld.syncPoint.CreateEntityCommandBuffer();
             var dspCommandBlock          = m_graph.CreateCommandBlock();
             var listenersWithTransforms  = new NativeList<ListenerWithTransform>(aliveListenerEntities.Length, state.WorldUpdateAllocator);
+            var listenersChannelIDs      = new NativeList<AudioSourceChannelID>(aliveListenerEntities.Length, state.WorldUpdateAllocator);
             var listenerBufferParameters = CollectionHelper.CreateNativeArray<ListenerBufferParameters>(aliveListenerEntities.Length,
                                                                                                         state.WorldUpdateAllocator,
                                                                                                         NativeArrayOptions.UninitializedMemory);
@@ -193,8 +194,10 @@ namespace Latios.Myri.Systems
             var captureListenersJH = new InitUpdateDestroy.UpdateListenersJob
             {
                 listenerHandle          = GetComponentTypeHandle<AudioListener>(true),
+                channelGuidHandle       = GetBufferTypeHandle<AudioListenerChannelID>(true),
                 worldTransformHandle    = m_worldTransformHandle,
                 listenersWithTransforms = listenersWithTransforms,
+                listenersChannelIDs     = listenersChannelIDs,
                 channelCount            = channelCount,
                 sourceChunkChannelCount = chunkChannelCount,
                 sourceChunkCount        = sourcesChunkCount
@@ -243,6 +246,7 @@ namespace Latios.Myri.Systems
                 audioFrame                 = m_audioFrame,
                 lastPlayedAudioFrame       = m_lastPlayedAudioFrame,
                 bufferId                   = m_currentBufferId,
+                channelIDHandle            = GetComponentTypeHandle<AudioSourceChannelID>(true),
                 clipHandle                 = GetComponentTypeHandle<AudioSourceClip>(false),
                 distanceFalloffHandle      = GetComponentTypeHandle<AudioSourceDistanceFalloff>(true),
                 emitterConeHandle          = GetComponentTypeHandle<AudioSourceEmitterCone>(true),
@@ -273,7 +277,8 @@ namespace Latios.Myri.Systems
                     capturedSources         = capturedSourcesStream.AsReader(),
                     channelCount            = channelCount,
                     chunkChannelStreams     = chunkChannelStreams.AsWriter(),
-                    listenersWithTransforms = listenersWithTransforms.AsDeferredJobArray()
+                    listenersWithTransforms = listenersWithTransforms.AsDeferredJobArray(),
+                    listenersChannelIDs     = listenersChannelIDs.AsDeferredJobArray(),
                 }.ScheduleParallel(sourcesChunkCount, 1, JobHandle.CombineDependencies(allocateChunkChannelStreamsJH, updateSourcesJH));
 
                 var batchingJH = new Batching.BatchJob

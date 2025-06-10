@@ -1,4 +1,5 @@
-﻿using Latios.Myri.DSP;
+﻿using System.Collections.Generic;
+using Latios.Myri.DSP;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -25,13 +26,17 @@ namespace Latios.Myri.Authoring
         [Header("Spatialization")]
         [Tooltip("A scale factor for all spatial ranges. Increasing this value allows the listener to hear sources farther away.")]
         public float rangeMultiplier = 1f;
-
         [Tooltip("The resolution of time-based spatialization. Increasing this value incurs a higher cost but may increase the player's sense of direction.")]
         [Range(0, 15)]
         public int interauralTimeDifferenceResolution = 2;
-
         [Tooltip("A custom volume and frequency spatialization profile. If empty, a default profile will be used.")]
         public ListenerProfileBuilder listenerResponseProfile;
+
+        [Header("Channels")]
+        [Tooltip("Include sources which don't specify a channel")]
+        public bool includeSourcesWithoutAChannel = true;
+        [Tooltip("The channels to listen to")]
+        public List<AudioChannelAsset> channels;
     }
 
     public class AudioListenerBaker : Baker<AudioListenerAuthoring>
@@ -58,6 +63,21 @@ namespace Latios.Myri.Authoring
                 limiterDBRelaxPerSecond = authoring.limiterDBRelaxPerSecond,
                 limiterLookaheadTime    = authoring.limiterLookaheadTime
             });
+
+            if (authoring.includeSourcesWithoutAChannel || (authoring.channels != null && authoring.channels.Count > 0))
+            {
+                var buffer = AddBuffer<AudioListenerChannelID>(entity);
+                if (authoring.channels != null)
+                {
+                    foreach (var channel in authoring.channels)
+                    {
+                        if (channel != null)
+                            buffer.Add(new AudioListenerChannelID { channel = channel.GetChannelID(this) });
+                    }
+                }
+                if (authoring.includeSourcesWithoutAChannel)
+                    buffer.Add(default);
+            }
         }
     }
 }

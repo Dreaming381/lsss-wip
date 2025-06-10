@@ -25,13 +25,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7945271230694290733}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3705896388362581495
 MonoBehaviour:
@@ -46,8 +46,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   volume: 1
+  gain: 1
+  limiterDBRelaxPerSecond: 7.8125
+  limiterLookaheadTime: 0.00533125
+  rangeMultiplier: 1
   interauralTimeDifferenceResolution: 2
   listenerResponseProfile: {fileID: 0}
+  includeSourcesWithoutAChannel: 1
+  channels: []
 --- !u!114 &986942699664514201
 MonoBehaviour:
   m_ObjectHideFlags: 0

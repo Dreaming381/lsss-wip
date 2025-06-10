@@ -15,6 +15,7 @@ namespace Latios.Myri
         public struct CullAndWeightJob : IJobFor
         {
             [ReadOnly] public NativeArray<ListenerWithTransform>             listenersWithTransforms;
+            [ReadOnly] public NativeArray<AudioSourceChannelID>              listenersChannelIDs;
             [ReadOnly] public NativeStream.Reader                            capturedSources;
             [ReadOnly] public NativeArray<int>                               channelCount;
             [NativeDisableParallelForRestriction] public NativeStream.Writer chunkChannelStreams;
@@ -44,7 +45,10 @@ namespace Latios.Myri
                         sourceSize              += 8;
                     var sourceBatchingByteCount  = sourceSize;
 
-                    var transformOffset = sourceSize;
+                    var channelIDOffset = sourceSize;
+                    if (sourceHeader.HasFlag(CapturedSourceHeader.Features.ChannelID))
+                        sourceSize      += CollectionHelper.Align(UnsafeUtility.SizeOf<AudioSourceChannelID>(), 8);
+                    var transformOffset  = sourceSize;
                     if (sourceHeader.HasFlag(CapturedSourceHeader.Features.Transform))
                         sourceSize            += CollectionHelper.Align(UnsafeUtility.SizeOf<TransformQvvs>(), 8);
                     var distanceFalloffOffset  = sourceSize;
@@ -77,16 +81,25 @@ namespace Latios.Myri
                         e.cone    = *(AudioSourceEmitterCone*)(sourceDataPtr + coneOffset);
                     }
 
+                    var channelID = sourceHeader.HasFlag(CapturedSourceHeader.Features.ChannelID) ? *(AudioSourceChannelID*)(sourceDataPtr + channelIDOffset) : default;
+
                     // Iterate through listeners, and track channels incrementally
                     int listenerFirstChannelIndex = 0;
                     int listenerChannelCount      = 1;
                     for (int listenerIndex = 0; listenerIndex < listenersWithTransforms.Length; listenerIndex++, listenerFirstChannelIndex += listenerChannelCount)
                     {
-                        var     listener     = listenersWithTransforms[listenerIndex];
+                        var listener = listenersWithTransforms[listenerIndex];
+                        if (listener.channelIDsRange.y == 0)
+                            continue;
+
                         ref var blob         = ref listener.listener.ildProfile.Value;
                         listenerChannelCount = blob.anglesPerLeftChannel.Length + blob.anglesPerRightChannel.Length;
                         var rangeSq          = math.square(e.outerRange * listener.listener.rangeMultiplier);
                         if (listener.listener.volume <= 0f || math.distancesq(e.transform.pos, listener.transform.pos) >= rangeSq)
+                            continue;
+
+                        var listenerChannelIDs = listenersChannelIDs.GetSubArray(listener.channelIDsRange.x, listener.channelIDsRange.y);
+                        if (!listenerChannelIDs.Contains(channelID))
                             continue;
 
                         // Todo: Make Weights be based on Spans and indices to optimize the processing below.

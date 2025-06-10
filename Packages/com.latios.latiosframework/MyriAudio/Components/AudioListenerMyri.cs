@@ -55,6 +55,16 @@ namespace Latios.Myri
     }
 
     /// <summary>
+    /// A list of audio source channels represented as GUIDs that this listener can hear.
+    /// A default entry allows it to hear sources without an AudioSourceChannelGuid.
+    /// </summary>
+    [InternalBufferCapacity(3)]  // Make this fill a full cache line, since there aren't many listeners to concern ourselves with chunk occupancy.
+    public struct AudioListenerChannelID : IBufferElementData
+    {
+        public AudioSourceChannelID channel;
+    }
+
+    /// <summary>
     /// A volume and frequency-based filtering spatialization profile.
     /// A custom variant can be constructed by overriding AudioIldProfileBuilder.
     /// </summary>
