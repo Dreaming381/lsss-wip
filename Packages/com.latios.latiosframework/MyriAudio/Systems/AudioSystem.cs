@@ -46,6 +46,8 @@ namespace Latios.Myri.Systems
         private EntityQuery m_deadListenersQuery;
         private EntityQuery m_sourcesQuery;
 
+        BlobRetainer m_blobRetainer;
+
         WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
 
         LatiosWorldUnmanaged latiosWorld;
@@ -100,6 +102,8 @@ namespace Latios.Myri.Systems
             m_buffersInFlight              = new NativeList<OwnedIldBuffer>(Allocator.Persistent);
             m_audioFrameHistory            = new NativeQueue<AudioFrameBufferHistoryElement>(Allocator.Persistent);
             m_listenerGraphStatesToDispose = new NativeList<ListenerGraphState>(Allocator.Persistent);
+
+            m_blobRetainer.Init();
 
             // Create graph and driver
             var format   = ChannelEnumConverter.GetSoundFormatFromSpeakerMode(UnityEngine.AudioSettings.speakerMode);
@@ -324,6 +328,8 @@ namespace Latios.Myri.Systems
             m_lastUpdateJobHandle = JobHandle.CombineDependencies(disposeJobHandles.AsArray());
 
             m_buffersInFlight.Add(ildBuffer);
+
+            m_blobRetainer.Update(state.EntityManager, ildBuffer.bufferId, lastReadIldBufferFromMainThread);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -370,6 +376,8 @@ namespace Latios.Myri.Systems
                 buffer.channels.Dispose();
             }
             m_buffersInFlight.Dispose();
+
+            m_blobRetainer.Dispose();
         }
 
         private struct OwnedIldBuffer
