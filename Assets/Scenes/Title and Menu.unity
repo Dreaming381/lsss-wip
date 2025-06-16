@@ -577,7 +577,6 @@ GameObject:
   - component: {fileID: 264026024}
   - component: {fileID: 264026023}
   - component: {fileID: 264026022}
-  - component: {fileID: 264026025}
   m_Layer: 0
   m_Name: UsfxrConverter
   m_TagString: Untagged
@@ -710,14 +709,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!81 &264026025
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 264026021}
-  m_Enabled: 1
 --- !u!1 &273003336
 GameObject:
   m_ObjectHideFlags: 0
@@ -2699,6 +2690,7 @@ MonoBehaviour:
     m_hostScene: 
     m_editorSceneAsset: {fileID: 0}
     m_editorGameObjectName: 
+  enableTransformSyncing: 1
   useUniformScale: 0
 --- !u!1 &897107237
 GameObject:
