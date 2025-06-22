@@ -374,9 +374,8 @@ namespace Latios.Kinemation
                 var indexBuffers    = chunk.chunk.GetBufferAccessor(ref indexHandle);
                 var submeshBuffers  = chunk.chunk.GetBufferAccessor(ref submeshHandle);
 
-                int meshIndex  = chunk.prefixSum;
                 var enumerator = new ChunkEntityEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
-                while (enumerator.NextEntityIndex(out var entityIndex))
+                for (int meshIndex = chunk.prefixSum; enumerator.NextEntityIndex(out var entityIndex); meshIndex++)
                 {
                     var config = configurations[entityIndex];
 
