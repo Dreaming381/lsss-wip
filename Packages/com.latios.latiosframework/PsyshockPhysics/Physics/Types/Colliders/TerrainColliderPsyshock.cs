@@ -7,9 +7,12 @@ using Unity.Mathematics;
 
 namespace Latios.Psyshock
 {
+    /// <summary>
+    /// A heightmap terrain collider shape that can be scaled, stretched, and offset in local space efficiently.
+    /// </summary>
     [Serializable]
     [StructLayout(LayoutKind.Explicit, Size = 32)]
-    internal struct TerrainCollider
+    public struct TerrainCollider
     {
         /// <summary>
         /// The blob asset containing the raw terrain hull data
@@ -38,7 +41,10 @@ namespace Latios.Psyshock
         }
     }
 
-    internal struct TerrainColliderBlob
+    /// <summary>
+    /// The definition of precomputed terrain data and associated acceleration structures
+    /// </summary>
+    public struct TerrainColliderBlob
     {
         /// <summary>
         /// Constructs a Blob Asset for the specified heightmap terrain information. The user is responsible for the lifecycle
@@ -88,14 +94,14 @@ namespace Latios.Psyshock
             {
                 for (int patchInRow = 0; patchInRow < root.patchesPerRow; patchInRow++)
                 {
-                    ref var patch               = ref patchesArray[patchRow * root.patchesPerRow + patchInRow];
-                    patch.min                   = short.MaxValue;
-                    patch.max                   = short.MinValue;
-                    patch.startX                = (short)(8 * patchInRow);
-                    patch.startY                = (short)(8 * patchRow);
-                    patch.triangleSplitParity   = 0;
-                    patch.isFirstTriangleValid  = 0;
-                    patch.isSecondTriangleValid = 0;
+                    ref var patch                          = ref patchesArray[patchRow * root.patchesPerRow + patchInRow];
+                    patch.min                              = short.MaxValue;
+                    patch.max                              = short.MinValue;
+                    patch.startX                           = (short)(8 * patchInRow);
+                    patch.startY                           = (short)(8 * patchRow);
+                    patch.triangleSplitParity              = 0;
+                    patch.isFirstTriangleOrChildPatchValid = 0;
+                    patch.isSecondTriangleValid            = 0;
                     for (int quadRow = 0; quadRow < 8; quadRow++)
                     {
                         ref var min8 = ref patch.minA;
@@ -142,10 +148,10 @@ namespace Latios.Psyshock
 
                             var quadElement = quadOffset / 32;
                             var parityBit   = quadOffset % 32;
-                            Bits.SetBit(ref patch.triangleSplitParity,   quadInPatch, quadTriangleSplitParitiesRowMajor[quadElement].IsSet(parityBit));
+                            Bits.SetBit(ref patch.triangleSplitParity,              quadInPatch, quadTriangleSplitParitiesRowMajor[quadElement].IsSet(parityBit));
                             var triangleFirstBit = parityBit * 2;
-                            Bits.SetBit(ref patch.isFirstTriangleValid,  quadInPatch, valid && trianglesValid[quadElement].IsSet(triangleFirstBit));
-                            Bits.SetBit(ref patch.isSecondTriangleValid, quadInPatch, valid && trianglesValid[quadElement].IsSet(triangleFirstBit + 1));
+                            Bits.SetBit(ref patch.isFirstTriangleOrChildPatchValid, quadInPatch, valid && trianglesValid[quadElement].IsSet(triangleFirstBit));
+                            Bits.SetBit(ref patch.isSecondTriangleValid,            quadInPatch, valid && trianglesValid[quadElement].IsSet(triangleFirstBit + 1));
 
                             var heightA    = heightsRowMajor[quadOffset];
                             var heightB    = heightsRowMajor[quadOffset + 1];
@@ -210,13 +216,13 @@ namespace Latios.Psyshock
                 {
                     for (int currentInRow = 0; currentInRow < currentPerRow; currentInRow++)
                     {
-                        ref var patch              = ref currentLevel[currentRow * currentPerRow + currentInRow];
-                        patch.min                  = short.MaxValue;
-                        patch.max                  = short.MinValue;
-                        patch.startX               = (short)(8 * currentInRow);
-                        patch.startY               = (short)(8 * currentRow);
-                        patch.triangleSplitParity  = 0;
-                        patch.isFirstTriangleValid = 0;
+                        ref var patch                          = ref currentLevel[currentRow * currentPerRow + currentInRow];
+                        patch.min                              = short.MaxValue;
+                        patch.max                              = short.MinValue;
+                        patch.startX                           = (short)(8 * currentInRow);
+                        patch.startY                           = (short)(8 * currentRow);
+                        patch.triangleSplitParity              = 0;
+                        patch.isFirstTriangleOrChildPatchValid = 0;
                         for (int quadRow = 0; quadRow < 8; quadRow++)
                         {
                             ref var min8 = ref patch.minA;
@@ -262,8 +268,8 @@ namespace Latios.Psyshock
                                 ref var lowerQuadPatch = ref previousLevel[quadOffset];
                                 bool    valid          = patch.startX + quadInRow < previousPerRow;
 
-                                Bits.SetBit(ref patch.isFirstTriangleValid, quadInPatch,
-                                            valid && (lowerQuadPatch.isFirstTriangleValid | lowerQuadPatch.isSecondTriangleValid) != 0);
+                                Bits.SetBit(ref patch.isFirstTriangleOrChildPatchValid, quadInPatch,
+                                            valid && (lowerQuadPatch.isFirstTriangleOrChildPatchValid | lowerQuadPatch.isSecondTriangleValid) != 0);
 
                                 patch.min = (short)math.min(patch.min, lowerQuadPatch.min);
                                 patch.max = (short)math.max(patch.max, lowerQuadPatch.max);
@@ -343,7 +349,7 @@ namespace Latios.Psyshock
         internal interface IFindTrianglesProcessor
         {
             ulong FilterPatch(ref Patch patch, ulong borderMask, short quadsPerBit);
-            void Execute(ref TerrainColliderBlob blob, int3 triangleHeightIndices);
+            void Execute(ref TerrainColliderBlob blob, int3 triangleHeightIndices, int triangleIndex);
         }
 
         [StructLayout(LayoutKind.Explicit, Size = 320)]  // 5 cache lines
@@ -354,7 +360,7 @@ namespace Latios.Psyshock
             [FieldOffset(4)]   public short startX;
             [FieldOffset(6)]   public short startY;
             [FieldOffset(8)]   public ulong triangleSplitParity;  // (0, 0) is bottom left, (1, 1) is top right, which both have parity 0, thus bl -> tr split edge is partity 0.
-            [FieldOffset(16)]  public ulong isFirstTriangleValid;
+            [FieldOffset(16)]  public ulong isFirstTriangleOrChildPatchValid;
             [FieldOffset(24)]  public ulong isSecondTriangleValid;
             [FieldOffset(32)]  public v128  minA;
             [FieldOffset(48)]  public v128  minC;  // Ordering is a little weird to optimize AVX2
@@ -401,7 +407,7 @@ namespace Latios.Psyshock
                     var d       = X86.Avx2.mm256_or_si256(X86.Avx2.mm256_cmpgt_epi16(new v256(minF, minH), maxs), X86.Avx2.mm256_cmpgt_epi16(mins, new v256(maxF, maxH)));
                     result     |= ((ulong)X86.Avx2.mm256_movemask_epi8(X86.Avx2.mm256_packs_epi16(c, d))) << 32;
                     result      = ~result;
-                    return result & (isFirstTriangleValid | isSecondTriangleValid);
+                    return result & (isFirstTriangleOrChildPatchValid | isSecondTriangleValid);
                 }
                 else if (X86.Sse2.IsSse2Supported)
                 {
@@ -421,7 +427,7 @@ namespace Latios.Psyshock
                     var h       = X86.Sse2.or_si128(X86.Sse2.cmpgt_epi16(minH, maxs), X86.Sse2.cmplt_epi16(maxH, mins));
                     result     |= ((ulong)X86.Sse2.movemask_epi8(X86.Sse2.packs_epi16(g, h))) << 48;
                     result      = ~result;
-                    return result & (isFirstTriangleValid | isSecondTriangleValid);
+                    return result & (isFirstTriangleOrChildPatchValid | isSecondTriangleValid);
                 }
                 else if (Arm.Neon.IsNeonSupported)
                 {
@@ -445,7 +451,7 @@ namespace Latios.Psyshock
                     var  efgh     = Arm.Neon.vpaddq_s16(ef, gh);
                     var  abcdefgh = Arm.Neon.vpaddq_s16(abcd, efgh);
                     var  result   = ~Arm.Neon.vmovn_s16(abcdefgh).ULong0;
-                    return result & (isFirstTriangleValid | isSecondTriangleValid);
+                    return result & (isFirstTriangleOrChildPatchValid | isSecondTriangleValid);
                 }
                 else
                 {
@@ -487,7 +493,7 @@ namespace Latios.Psyshock
                     Eval8(ref result, ref bitSetter, minHeight, maxHeight, minF, maxF);
                     Eval8(ref result, ref bitSetter, minHeight, maxHeight, minG, maxG);
                     Eval8(ref result, ref bitSetter, minHeight, maxHeight, minH, maxH);
-                    return result & (isFirstTriangleValid | isSecondTriangleValid);
+                    return result & (isFirstTriangleOrChildPatchValid | isSecondTriangleValid);
                 }
             }
 
@@ -505,7 +511,20 @@ namespace Latios.Psyshock
         {
             var packedSearchDomain = new int4(minX, minY, maxX, maxY);
             packedSearchDomain     = math.clamp(packedSearchDomain, 0, new int4(quadsPerRow - 1, quadRows - 1, quadsPerRow - 1, quadRows - 1));
-            var patchIndices       = packedSearchDomain / 8;
+            if (math.all(packedSearchDomain.xy == packedSearchDomain.zw))
+            {
+                var     quadIndex      = minY * quadsPerRow + minX;
+                var     patchIndex2D   = packedSearchDomain.xy / 8;
+                ref var patch          = ref patches[patchIndex2D.y * patchesPerRow + patchIndex2D.x];
+                var     offsetsInPatch = packedSearchDomain.xy % 8;
+                var     bitIndex       = offsetsInPatch.y * 8 + offsetsInPatch.x;
+                if ((patch.isFirstTriangleOrChildPatchValid & (1ul << bitIndex)) != 0)
+                    processor.Execute(ref this, GetTriangle(quadIndex * 2), quadIndex * 2);
+                if ((patch.isSecondTriangleValid & (1ul << bitIndex)) != 0)
+                    processor.Execute(ref this, GetTriangle(quadIndex * 2 + 1), quadIndex * 2 + 1);
+                return;
+            }
+            var patchIndices = packedSearchDomain / 8;
             if (math.all(patchIndices.xy == patchIndices.zw))
             {
                 ref var patch = ref patches[patchIndices.y * patchesPerRow + patchIndices.x];
@@ -578,33 +597,34 @@ namespace Latios.Psyshock
                 return;
             for (var i = math.tzcnt(quadMask); i < 64; quadMask ^= 1ul << i, i = math.tzcnt(quadMask))
             {
-                int2 baseCoordinates = new int2(patch.startX + (i & 0x7), patch.startY + (i >> 3));
+                int2 baseCoordinates    = new int2(patch.startX + (i & 0x7), patch.startY + (i >> 3));
+                int  firstTriangleIndex = baseCoordinates.y * quadsPerRow + baseCoordinates.x;
 
                 if ((patch.triangleSplitParity & (1ul << i)) != 0)
                 {
-                    if ((patch.isFirstTriangleValid & (1ul << i)) != 0)
+                    if ((patch.isFirstTriangleOrChildPatchValid & (1ul << i)) != 0)
                     {
                         var coordinates = new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(0, 1)));
-                        processor.Execute(ref this, coordinates);
+                        processor.Execute(ref this, coordinates, firstTriangleIndex);
                     }
                     if ((patch.isSecondTriangleValid & (1ul << i)) != 0)
                     {
                         var coordinates =
                             new int3(ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(0, 1)));
-                        processor.Execute(ref this, coordinates);
+                        processor.Execute(ref this, coordinates, firstTriangleIndex + 1);
                     }
                 }
                 else
                 {
-                    if ((patch.isFirstTriangleValid & (1ul << i)) != 0)
+                    if ((patch.isFirstTriangleOrChildPatchValid & (1ul << i)) != 0)
                     {
                         var coordinates = new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(0, 1)));
-                        processor.Execute(ref this, coordinates);
+                        processor.Execute(ref this, coordinates, firstTriangleIndex);
                     }
                     if ((patch.isSecondTriangleValid & (1ul << i)) != 0)
                     {
                         var coordinates = new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(1, 1)));
-                        processor.Execute(ref this, coordinates);
+                        processor.Execute(ref this, coordinates, firstTriangleIndex + 1);
                     }
                 }
             }
