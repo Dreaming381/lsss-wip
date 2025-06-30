@@ -149,8 +149,9 @@ namespace Latios.Psyshock
         /// <param name="maxSubsteps">The max number of substeps allowed before quitting early. This is used to avoid death spiraling.</param>
         public SubstepRateManager(float maxSubstepTime, int maxSubsteps)
         {
-            m_maxSubstepTime = maxSubstepTime;
-            m_maxSubsteps    = maxSubsteps;
+            m_maxSubstepTime      = maxSubstepTime;
+            m_maxSubsteps         = maxSubsteps;
+            m_currentSubstepIndex = -1;
         }
 
         /// <inheritdoc cref="IRateManager.ShouldGroupUpdate"/>
@@ -181,7 +182,7 @@ namespace Latios.Psyshock
 
             group.World.RestoreGroupAllocator(m_previousAllocators);
             m_previousAllocators  = null;
-            m_currentSubstepIndex = m_maxSubsteps - 1;
+            m_currentSubstepIndex = -1;
 
             world.PopTime();
             return false;
