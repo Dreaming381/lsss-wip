@@ -34,11 +34,9 @@ MonoBehaviour:
     supportWater: 0
     waterSimulationResolution: 128
     supportWaterExclusion: 1
-    supportWaterDeformation: 1
-    deformationAtlasSize: 512
-    maximumDeformerCount: 64
-    supportWaterFoam: 1
-    foamAtlasSize: 512
+    supportWaterDecals: 1
+    waterDecalAtlasSize: 1024
+    maximumWaterDecalCount: 48
     waterScriptInteractionsMode: 0
     waterFullCPUSimulation: 0
     supportComputeThickness: 0
@@ -170,6 +168,9 @@ MonoBehaviour:
       advancedUpscalersByPriority: 
       DLSSPerfQualitySetting: 0
       DLSSInjectionPoint: 0
+      TAAUInjectionPoint: 0
+      STPInjectionPoint: 0
+      defaultInjectionPoint: 2
       DLSSUseOptimalSettings: 1
       DLSSSharpness: 0.5
       FSR2EnableSharpness: 0
@@ -213,6 +214,10 @@ MonoBehaviour:
       DoFResolution: 040000000200000001000000
       DoFHighQualityFiltering: 000101
       DoFPhysicallyBased: 000000
+      AdaptiveSamplingWeight:
+      - 0.5
+      - 0.75
+      - 2
       LimitManualRangeNearBlur: 000000
       MotionBlurSampleCount: 04000000080000000c000000
       BloomRes: 040000000200000002000000
