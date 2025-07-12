@@ -392,8 +392,7 @@ namespace Latios.Kinemation.Systems
 
         unsafe struct DrawBinSort
         {
-            public const int       kNumSlices = 4;
-            public const Allocator kAllocator = Allocator.TempJob;
+            public const int kNumSlices = 4;
 
             [BurstCompile]
             internal unsafe struct SortArrays
@@ -521,8 +520,6 @@ namespace Latios.Kinemation.Systems
                         mask       = sliceExhausted ? mask : 0;
                         sliceMask ^= mask;
                     }
-
-                    Arrays.SortTemp.Dispose();
                 }
             }
 
@@ -557,6 +554,35 @@ namespace Latios.Kinemation.Systems
                 }.Schedule(sortSlices);
 
                 return mergeSlices;
+            }
+
+            public static void RunBinSortImmediate(RewindableAllocator* allocator, IndirectList<int> sortedBins, IndirectList<DrawCommandSettings> unsortedBins)
+            {
+                var sortArrays = new SortArrays
+                {
+                    SortedBins = sortedBins,
+                    SortTemp   = new IndirectList<int>(0, allocator),
+                };
+
+                new AllocateForSortJob
+                {
+                    Arrays       = sortArrays,
+                    UnsortedBins = unsortedBins,
+                }.Execute();
+
+                var sortSlicesJob = new SortSlicesJob
+                {
+                    Arrays       = sortArrays,
+                    UnsortedBins = unsortedBins,
+                };
+                for (int i = 0; i < kNumSlices; i++)
+                    sortSlicesJob.Execute(i);
+
+                new MergeSlicesJob
+                {
+                    Arrays       = sortArrays,
+                    UnsortedBins = unsortedBins,
+                }.Execute();
             }
         }
 
@@ -599,7 +625,7 @@ namespace Latios.Kinemation.Systems
                 // Since we collect at most one item per thread, we will have N = thread count at most
                 var workItems     = DrawCommandOutput.WorkItems.List->AsParallelWriter();
                 var collectBuffer = DrawCommandOutput.CollectBuffer;
-                collectBuffer->EnsureCapacity(workItems, maxWorkItems);
+                collectBuffer->EnsureCapacity(workItems, maxWorkItems, DrawCommandOutput.ThreadLocalAllocator, DrawCommandOutput.ThreadIndex);
 
                 int numInstancesPrefixSum = 0;
 

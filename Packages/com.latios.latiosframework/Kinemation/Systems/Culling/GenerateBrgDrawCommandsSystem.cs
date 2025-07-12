@@ -1,17 +1,11 @@
 using Latios.Transforms;
-using Unity.Assertions;
 using Unity.Burst;
-using Unity.Burst.Intrinsics;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-using Unity.Entities.Exposed;
 using Unity.Entities.Graphics;
 using Unity.Jobs;
-using Unity.Mathematics;
 using Unity.Profiling;
 using Unity.Rendering;
-using UnityEngine;
 using UnityEngine.Rendering;
 
 using static Unity.Entities.SystemAPI;
@@ -142,16 +136,16 @@ namespace Latios.Kinemation.Systems
             var emitDrawCommandsDependency = emitDrawCommandsJob.ScheduleByRef(chunkList, 1, findDependency);
             ecsJh                          = emitDrawCommandsDependency;
 
-            var collectGlobalBinsDependency =
-                chunkDrawCommandOutput.BinCollector.ScheduleFinalize(emitDrawCommandsDependency);
-            var sortBinsDependency = DrawBinSort.ScheduleBinSort(
-                brgCullingContext.cullingThreadLocalAllocator.GeneralAllocator,
-                chunkDrawCommandOutput.SortedBins,
-                chunkDrawCommandOutput.UnsortedBins,
-                collectGlobalBinsDependency);
-
             if (!m_useFewerJobs)
             {
+                var collectGlobalBinsDependency =
+                    chunkDrawCommandOutput.BinCollector.ScheduleFinalize(emitDrawCommandsDependency);
+                var sortBinsDependency = DrawBinSort.ScheduleBinSort(
+                    brgCullingContext.cullingThreadLocalAllocator.GeneralAllocator,
+                    chunkDrawCommandOutput.SortedBins,
+                    chunkDrawCommandOutput.UnsortedBins,
+                    collectGlobalBinsDependency);
+
                 var allocateWorkItemsJob = new AllocateWorkItemsJob
                 {
                     DrawCommandOutput = chunkDrawCommandOutput,
@@ -227,10 +221,8 @@ namespace Latios.Kinemation.Systems
                     generateDrawCommandsDependency,
                     generateDrawRangesDependency);
 
-                //state.Dependency = chunkDrawCommandOutput.Dispose(expansionDependency);
-                var disposeDependency = new SingleThreadedDisposalJob { chunkDrawCommandOutput = chunkDrawCommandOutput }.Schedule(expansionDependency);
-                finalJh                                                                        = chunkDrawCommandOutput.BinCollector.Dispose(disposeDependency);
-                lodCrossfadeJh                                                                 = expandInstancesDependency;
+                finalJh        = expansionDependency;
+                lodCrossfadeJh = expandInstancesDependency;
             }
             else
             {
@@ -241,9 +233,9 @@ namespace Latios.Kinemation.Systems
                     m_profilerWrite        = m_profilerWrite,
                     lodCrossfadePtrMap     = lodCrossfadePtrMap,
                     brgFilterSettings      = brgCullingContext.batchFilterSettingsByRenderFilterSettingsSharedIndex
-                }.Schedule(sortBinsDependency);
+                }.Schedule(emitDrawCommandsDependency);
                 lodCrossfadeJh = singleJobDependency;
-                finalJh        = chunkDrawCommandOutput.BinCollector.Dispose(singleJobDependency);
+                finalJh        = singleJobDependency;
             }
 
             state.Dependency = ecsJh;
@@ -260,31 +252,6 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        unsafe struct SingleThreadedDisposalJob : IJob
-        {
-            public ChunkDrawCommandOutput chunkDrawCommandOutput;
-
-            public void Execute()
-            {
-                // First schedule a job to release all the thread local arrays, which requires
-                // that the data structures are still in place so we can find them.
-                for (int i = 0; i < ChunkDrawCommandOutput.NumThreads; i++)
-                {
-                    chunkDrawCommandOutput.ThreadLocalDrawCommands[i].Dispose();
-                    chunkDrawCommandOutput.ThreadLocalCollectBuffers[i].Dispose();
-                }
-
-                chunkDrawCommandOutput.ThreadLocalDrawCommands.Dispose();
-                chunkDrawCommandOutput.ThreadLocalCollectBuffers.Dispose();
-                chunkDrawCommandOutput.BinPresentFilter.Dispose();
-                //chunkDrawCommandOutput.BinCollector.Dispose();
-                chunkDrawCommandOutput.SortedBins.Dispose();
-                chunkDrawCommandOutput.BinIndices.Dispose();
-                chunkDrawCommandOutput.WorkItems.Dispose();
-            }
-        }
-
-        [BurstCompile]
         unsafe struct SingleThreadedJob : IJob
         {
             public ChunkDrawCommandOutput                                     chunkDrawCommandOutput;
@@ -295,6 +262,12 @@ namespace Latios.Kinemation.Systems
 
             public void Execute()
             {
+                chunkDrawCommandOutput.BinCollector.RunFinalizeImmediate();
+                DrawBinSort.RunBinSortImmediate(
+                    chunkDrawCommandOutput.ThreadLocalAllocator.GeneralAllocator,
+                    chunkDrawCommandOutput.SortedBins,
+                    chunkDrawCommandOutput.UnsortedBins);
+
                 var allocateWorkItemsJob = new AllocateWorkItemsJob
                 {
                     DrawCommandOutput = chunkDrawCommandOutput,
@@ -351,24 +324,6 @@ namespace Latios.Kinemation.Systems
                 expandInstancesJob.RunImmediateWithIndirectList(chunkDrawCommandOutput.WorkItems);
                 generateDrawCommandsJob.RunImmediateWithIndirectList(chunkDrawCommandOutput.SortedBins);
                 generateDrawRangesJob.Execute();
-
-                //chunkDrawCommandOutput.Dispose(expansionDependency);
-
-                // First schedule a job to release all the thread local arrays, which requires
-                // that the data structures are still in place so we can find them.
-                for (int i = 0; i < ChunkDrawCommandOutput.NumThreads; i++)
-                {
-                    chunkDrawCommandOutput.ThreadLocalDrawCommands[i].Dispose();
-                    chunkDrawCommandOutput.ThreadLocalCollectBuffers[i].Dispose();
-                }
-
-                chunkDrawCommandOutput.ThreadLocalDrawCommands.Dispose();
-                chunkDrawCommandOutput.ThreadLocalCollectBuffers.Dispose();
-                chunkDrawCommandOutput.BinPresentFilter.Dispose();
-                //chunkDrawCommandOutput.BinCollector.Dispose();
-                chunkDrawCommandOutput.SortedBins.Dispose();
-                chunkDrawCommandOutput.BinIndices.Dispose();
-                chunkDrawCommandOutput.WorkItems.Dispose();
             }
         }
     }

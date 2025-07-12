@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using Unity.Assertions;
 using Unity.Burst;
 using Unity.Collections;
@@ -117,13 +118,6 @@ namespace Latios.Kinemation.Systems
             }
         }
 
-        struct DepthSortedDrawCommand
-        {
-            public DrawCommandSettings Settings;
-            public int                 InstanceIndex;
-            public float3              SortingWorldPosition;
-        }
-
         struct ChunkDrawCommand : IComparable<ChunkDrawCommand>
         {
             public DrawCommandSettings   Settings;
@@ -132,42 +126,128 @@ namespace Latios.Kinemation.Systems
             public int CompareTo(ChunkDrawCommand other) => Settings.CompareTo(other.Settings);
         }
 
+        internal unsafe struct DrawCommandWorkItem
+        {
+            public DrawStream<DrawCommandVisibility>.Header* Arrays;
+            public DrawStream<IntPtr>.Header*                TransformArrays;
+            public int                                       BinIndex;
+            public int                                       PrefixSumNumInstances;
+        }
+
+        internal unsafe struct DrawCommandVisibility
+        {
+            public int         ChunkStartIndex;
+            public fixed ulong VisibleInstances[2];
+
+            public DrawCommandVisibility(int startIndex)
+            {
+                ChunkStartIndex     = startIndex;
+                VisibleInstances[0] = 0;
+                VisibleInstances[1] = 0;
+            }
+
+            public int VisibleInstanceCount => math.countbits(VisibleInstances[0]) + math.countbits(VisibleInstances[1]);
+
+            public override string ToString()
+            {
+                return $"Visibility({ChunkStartIndex}, {VisibleInstances[1]:x16}, {VisibleInstances[0]:x16})";
+            }
+        }
+
+        [NoAlias]
+        internal unsafe struct DrawCommandStream
+        {
+            private DrawStream<DrawCommandVisibility> m_Stream;
+            private DrawStream<IntPtr>                m_ChunkTransformsStream;
+            private int                               m_PrevChunkStartIndex;
+            [NoAlias]
+            private DrawCommandVisibility* m_PrevVisibility;
+
+            public DrawCommandStream(RewindableAllocator* allocator)
+            {
+                m_Stream                = new DrawStream<DrawCommandVisibility>(allocator);
+                m_ChunkTransformsStream = default;  // Don't allocate here, only on demand
+                m_PrevChunkStartIndex   = -1;
+                m_PrevVisibility        = null;
+            }
+
+            public void Emit(RewindableAllocator* allocator, int qwordIndex, int bitIndex, int chunkStartIndex)
+            {
+                DrawCommandVisibility* visibility;
+
+                if (chunkStartIndex == m_PrevChunkStartIndex)
+                {
+                    visibility = m_PrevVisibility;
+                }
+                else
+                {
+                    visibility  = m_Stream.AppendElement(allocator);
+                    *visibility = new DrawCommandVisibility(chunkStartIndex);
+                }
+
+                visibility->VisibleInstances[qwordIndex] |= 1ul << bitIndex;
+
+                m_PrevChunkStartIndex = chunkStartIndex;
+                m_PrevVisibility      = visibility;
+                m_Stream.AddInstances(1);
+            }
+
+            public void EmitDepthSorted(RewindableAllocator* allocator,
+                                        int qwordIndex, int bitIndex, int chunkStartIndex,
+                                        float4x4* chunkTransforms)
+            {
+                DrawCommandVisibility* visibility;
+
+                if (chunkStartIndex == m_PrevChunkStartIndex)
+                {
+                    visibility = m_PrevVisibility;
+
+                    // Transforms have already been written when the element was added
+                }
+                else
+                {
+                    visibility  = m_Stream.AppendElement(allocator);
+                    *visibility = new DrawCommandVisibility(chunkStartIndex);
+
+                    // Store a pointer to the chunk transform array, which
+                    // instance expansion can use to get the positions.
+
+                    if (!m_ChunkTransformsStream.IsCreated)
+                        m_ChunkTransformsStream.Init(allocator);
+
+                    var transforms = m_ChunkTransformsStream.AppendElement(allocator);
+                    *   transforms = (IntPtr)chunkTransforms;
+                }
+
+                visibility->VisibleInstances[qwordIndex] |= 1ul << bitIndex;
+
+                m_PrevChunkStartIndex = chunkStartIndex;
+                m_PrevVisibility      = visibility;
+                m_Stream.AddInstances(1);
+            }
+
+            public DrawStream<DrawCommandVisibility> Stream => m_Stream;
+            public DrawStream<IntPtr> TransformsStream => m_ChunkTransformsStream;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 128)]  // Force instances on separate cache lines
         unsafe struct ThreadLocalDrawCommands
         {
-            public const Allocator kAllocator = Allocator.TempJob;
-
             // Store the actual streams in a separate array so we can mutate them in place,
             // the hash map only supports a get/set API.
             public UnsafeParallelHashMap<DrawCommandSettings, int> DrawCommandStreamIndices;
             public UnsafeList<DrawCommandStream>                   DrawCommands;
             public ThreadLocalAllocator                            ThreadLocalAllocator;
 
-            private fixed int m_CacheLinePadding[8];  // The padding here assumes some internal sizes
-
-            public ThreadLocalDrawCommands(int capacity, ThreadLocalAllocator tlAllocator)
+            public ThreadLocalDrawCommands(int capacity, ThreadLocalAllocator tlAllocator, int threadIndex)
             {
-                // Make sure we don't get false sharing by placing the thread locals on different cache lines.
-                Assert.IsTrue(sizeof(ThreadLocalDrawCommands) >= JobsUtility.CacheLineSize);
-                DrawCommandStreamIndices = new UnsafeParallelHashMap<DrawCommandSettings, int>(capacity, kAllocator);
-                DrawCommands             = new UnsafeList<DrawCommandStream>(capacity, kAllocator);
+                var allocator            = tlAllocator.ThreadAllocator(threadIndex)->Handle;
+                DrawCommandStreamIndices = new UnsafeParallelHashMap<DrawCommandSettings, int>(capacity, allocator);
+                DrawCommands             = new UnsafeList<DrawCommandStream>(capacity, allocator);
                 ThreadLocalAllocator     = tlAllocator;
             }
 
             public bool IsCreated => DrawCommandStreamIndices.IsCreated;
-
-            public void Dispose()
-            {
-                if (!IsCreated)
-                    return;
-
-                for (int i = 0; i < DrawCommands.Length; ++i)
-                    DrawCommands[i].Dispose();
-
-                if (DrawCommandStreamIndices.IsCreated)
-                    DrawCommandStreamIndices.Dispose();
-                if (DrawCommands.IsCreated)
-                    DrawCommands.Dispose();
-            }
 
             public bool Emit(DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex, int threadIndex)
             {
@@ -219,9 +299,41 @@ namespace Latios.Kinemation.Systems
             }
         }
 
+        [StructLayout(LayoutKind.Sequential, Size = 64)]  // Force instances on separate cache lines
+        internal unsafe struct ThreadLocalCollectBuffer
+        {
+            public static readonly int kCollectBufferSize = ChunkDrawCommandOutput.NumThreads;
+
+            public UnsafeList<DrawCommandWorkItem> WorkItems;
+
+            public void EnsureCapacity(UnsafeList<DrawCommandWorkItem>.ParallelWriter dst, int count, ThreadLocalAllocator tlAllocator, int threadIndex)
+            {
+                Assert.IsTrue(count <= kCollectBufferSize);
+
+                if (!WorkItems.IsCreated)
+                {
+                    var allocator = tlAllocator.ThreadAllocator(threadIndex)->Handle;
+                    WorkItems     = new UnsafeList<DrawCommandWorkItem>(
+                        kCollectBufferSize,
+                        allocator,
+                        NativeArrayOptions.UninitializedMemory);
+                }
+
+                if (WorkItems.Length + count > WorkItems.Capacity)
+                    Flush(dst);
+            }
+
+            public void Flush(UnsafeList<DrawCommandWorkItem>.ParallelWriter dst)
+            {
+                dst.AddRangeNoResize(WorkItems.Ptr, WorkItems.Length);
+                WorkItems.Clear();
+            }
+
+            public void Add(DrawCommandWorkItem workItem) => WorkItems.Add(workItem);
+        }
+
         unsafe struct DrawBinCollector
         {
-            public const Allocator     kAllocator = Allocator.TempJob;
             public static readonly int NumThreads = ChunkDrawCommandOutput.NumThreads;
 
             public IndirectList<DrawCommandSettings>           Bins;
@@ -231,17 +343,12 @@ namespace Latios.Kinemation.Systems
             public DrawBinCollector(UnsafeList<ThreadLocalDrawCommands> tlDrawCommands, RewindableAllocator* allocator)
             {
                 Bins                      = new IndirectList<DrawCommandSettings>(0, allocator);
-                m_BinSet                  = new UnsafeParallelHashSet<DrawCommandSettings>(0, kAllocator);
+                m_BinSet                  = new UnsafeParallelHashSet<DrawCommandSettings>(0, allocator->Handle);
                 m_ThreadLocalDrawCommands = tlDrawCommands;
             }
 
-            public bool Add(DrawCommandSettings settings)
-            {
-                return true;
-            }
-
             [BurstCompile]
-            internal struct AllocateBinsJob : IJob
+            struct AllocateBinsJob : IJob
             {
                 public IndirectList<DrawCommandSettings>          Bins;
                 public UnsafeParallelHashSet<DrawCommandSettings> BinSet;
@@ -260,7 +367,7 @@ namespace Latios.Kinemation.Systems
             }
 
             [BurstCompile]
-            internal struct CollectBinsJob : IJobParallelFor
+            struct CollectBinsJob : IJobParallelFor
             {
                 public const int ThreadLocalArraySize = 256;
 
@@ -341,11 +448,25 @@ namespace Latios.Kinemation.Systems
                 }.Schedule(NumThreads, 1, allocateDependency);
             }
 
-            public JobHandle Dispose(JobHandle dependency)
+            public void RunFinalizeImmediate()
             {
-                return JobHandle.CombineDependencies(
-                    Bins.Dispose(dependency),
-                    m_BinSet.Dispose(dependency));
+                var allocateJob = new AllocateBinsJob
+                {
+                    Bins                    = Bins,
+                    BinSet                  = m_BinSet,
+                    ThreadLocalDrawCommands = m_ThreadLocalDrawCommands,
+                };
+                allocateJob.Execute();
+                var collectJob = new CollectBinsJob
+                {
+                    Bins                    = Bins,
+                    BinSet                  = m_BinSet.AsParallelWriter(),
+                    ThreadLocalDrawCommands = m_ThreadLocalDrawCommands,
+                };
+                for (int i = 0; i < NumThreads; i++)
+                {
+                    collectJob.Execute(i);
+                }
             }
         }
 
@@ -361,7 +482,6 @@ namespace Latios.Kinemation.Systems
 #endif
 
             public static readonly int kNumThreadsBitfieldLength = (NumThreads + 63) / 64;
-            public const int           kNumReleaseThreads        = 4;
             public const int           kBinPresentFilterSize     = 1 << 10;
 
             public UnsafeList<ThreadLocalDrawCommands>  ThreadLocalDrawCommands;
@@ -437,7 +557,7 @@ namespace Latios.Kinemation.Systems
             {
                 // First to use the thread local initializes is, but don't double init
                 if (!ThreadLocalDrawCommands[ThreadIndex].IsCreated)
-                    ThreadLocalDrawCommands[ThreadIndex] = new ThreadLocalDrawCommands(BinCapacity, ThreadLocalAllocator);
+                    ThreadLocalDrawCommands[ThreadIndex] = new ThreadLocalDrawCommands(BinCapacity, ThreadLocalAllocator, ThreadIndex);
             }
 
             public BatchCullingOutputDrawCommands* CullingOutputDrawCommands =>
@@ -472,7 +592,6 @@ namespace Latios.Kinemation.Systems
                 bool newBinAdded = DrawCommands->Emit(settings, entityQword, entityBit, chunkStartIndex, ThreadIndex);
                 if (newBinAdded)
                 {
-                    BinCollector.Add(settings);
                     MarkBinPresentInThread(settings, ThreadIndex);
                 }
             }
@@ -488,7 +607,6 @@ namespace Latios.Kinemation.Systems
                 bool newBinAdded = DrawCommands->EmitDepthSorted(settings, entityQword, entityBit, chunkStartIndex, chunkTransforms, ThreadIndex);
                 if (newBinAdded)
                 {
-                    BinCollector.Add(settings);
                     MarkBinPresentInThread(settings, ThreadIndex);
                 }
             }
@@ -518,52 +636,6 @@ namespace Latios.Kinemation.Systems
             {
                 // TODO: Replace with hardware CRC32?
                 return (int)xxHash3.Hash64(UnsafeUtility.AddressOf(ref value), UnsafeUtility.SizeOf<T>()).x;
-            }
-
-            public JobHandle Dispose(JobHandle dependencies)
-            {
-                // First schedule a job to release all the thread local arrays, which requires
-                // that the data structures are still in place so we can find them.
-                var releaseChunkDrawCommandsDependency = new ReleaseChunkDrawCommandsJob
-                {
-                    DrawCommandOutput = this,
-                    NumThreads        = kNumReleaseThreads,
-                }.Schedule(kNumReleaseThreads, 1, dependencies);
-
-                // When those have been released, release the data structures.
-                var disposeDone = new JobHandle();
-                disposeDone     = JobHandle.CombineDependencies(disposeDone,
-                                                                ThreadLocalDrawCommands.Dispose(releaseChunkDrawCommandsDependency));
-                disposeDone = JobHandle.CombineDependencies(disposeDone,
-                                                            ThreadLocalCollectBuffers.Dispose(releaseChunkDrawCommandsDependency));
-                disposeDone = JobHandle.CombineDependencies(disposeDone,
-                                                            BinPresentFilter.Dispose(releaseChunkDrawCommandsDependency));
-                disposeDone = JobHandle.CombineDependencies(disposeDone,
-                                                            BinCollector.Dispose(releaseChunkDrawCommandsDependency));
-                disposeDone = JobHandle.CombineDependencies(disposeDone,
-                                                            SortedBins.Dispose(releaseChunkDrawCommandsDependency));
-                disposeDone = JobHandle.CombineDependencies(disposeDone,
-                                                            BinIndices.Dispose(releaseChunkDrawCommandsDependency));
-                disposeDone = JobHandle.CombineDependencies(disposeDone,
-                                                            WorkItems.Dispose(releaseChunkDrawCommandsDependency));
-
-                return disposeDone;
-            }
-
-            [BurstCompile]
-            private struct ReleaseChunkDrawCommandsJob : IJobParallelFor
-            {
-                public ChunkDrawCommandOutput DrawCommandOutput;
-                public int                    NumThreads;
-
-                public void Execute(int index)
-                {
-                    for (int i = index; i < ChunkDrawCommandOutput.NumThreads; i += NumThreads)
-                    {
-                        DrawCommandOutput.ThreadLocalDrawCommands[i].Dispose();
-                        DrawCommandOutput.ThreadLocalCollectBuffers[i].Dispose();
-                    }
-                }
             }
         }
     }
