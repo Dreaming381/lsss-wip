@@ -100,6 +100,11 @@ namespace Latios.Kinemation.Authoring
         /// True if the entity should be treated as if it were marked static
         /// </summary>
         public bool isStatic;
+        /// <summary>
+        /// Specifies the rendererPriority the entity will be baked with.
+        /// The runtime component will be omitted if this value is 0.
+        /// </summary>
+        public int rendererPriority;
     }
 
     /// <summary>
@@ -541,6 +546,7 @@ namespace Latios.Kinemation.Authoring
                 lightmapScaleOffset         = authoring.lightmapScaleOffset,
                 isStatic                    = IsStatic(),
                 localBounds                 = mesh != null ? mesh.bounds : default,
+                rendererPriority            = authoring.rendererPriority
             };
 
             MmiRange2LodSelect select2Lod = default;

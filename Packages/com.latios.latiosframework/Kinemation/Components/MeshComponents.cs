@@ -42,6 +42,18 @@ namespace Latios.Kinemation
     /// </summary>
     public struct OverrideMeshInRangeTag : IComponentData { }
 
+    /// <summary>
+    /// An optional component which specifies the equivalent of Renderer.rendererPriority, which dictates
+    /// the rendering order within a Material/Shader RenderQueue. If not present, the value is assumed to be 0.
+    /// Usage: Add/Write as needed
+    /// </summary>
+    /// <remarks>In Unity 6.0 HDRP, this value is only used for transparent objects and user-defined passes that request it.
+    /// In Unity 6.0 URP, this is only used in user-defined passes that request it.</remarks>
+    public struct RendererPriority : IComponentData
+    {
+        public int priority;
+    }
+
     /// <summary></summary>
     /// An optional flag which specifies when a deformed mesh needs to be rebound
     /// Usage: Add/Enable this component whenever binding needs to occur.

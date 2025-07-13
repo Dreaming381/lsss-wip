@@ -68,6 +68,7 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<SpeedTreeCrossfadeTag>           speedTreeCrossfadeTagHandle;
             [ReadOnly] public ComponentTypeHandle<UseMmiRangeLodTag>               useMmiRangeLodTagHandle;
             [ReadOnly] public ComponentTypeHandle<OverrideMeshInRangeTag>          overrideMeshInRangeTagHandle;
+            [ReadOnly] public ComponentTypeHandle<RendererPriority>                rendererPriorityHandle;
             [ReadOnly] public EntityQueryMask                                      motionVectorDeformQueryMask;
             public bool                                                            splitsAreValid;
 
@@ -136,6 +137,7 @@ namespace Latios.Kinemation.Systems
                     var  worldTransforms     = chunk.GetNativeArray(ref WorldTransform);
                     var  postProcessMatrices = chunk.GetNativeArray(ref PostProcessMatrix);
                     var  lodCrossfades       = chunk.GetComponentDataPtrRO(ref lodCrossfadeHandle);
+                    var  rendererPriorities  = chunk.GetComponentDataPtrRO(ref rendererPriorityHandle);
                     bool hasPostProcess      = chunk.Has(ref PostProcessMatrix);
                     bool isDepthSorted       = chunk.Has(ref DepthSorted);
                     bool isLightMapped       = chunk.GetSharedComponentIndex(LightMaps) >= 0;
@@ -258,6 +260,8 @@ namespace Latios.Kinemation.Systems
                                 drawCommandFlags     |= BatchDrawCommandFlags.LODCrossFadeValuePacked;
                             }
 
+                            int rendererPriority = rendererPriorities == null ? 0 : rendererPriorities[entityIndex].priority;
+
                             if (materialMeshInfo.HasMaterialMeshIndexRange)
                             {
                                 RangeInt matMeshIndexRange = materialMeshInfo.MaterialMeshIndexRange;
@@ -321,13 +325,13 @@ namespace Latios.Kinemation.Systems
 
                                     DrawCommandSettings settings = new DrawCommandSettings
                                     {
-                                        FilterIndex  = filterIndex,
-                                        BatchID      = batchID,
-                                        MaterialID   = matMeshSubMesh.Material,
-                                        MeshID       = matMeshSubMesh.Mesh,
-                                        SplitMask    = splitMask,
-                                        SubMeshIndex = (ushort)(matMeshSubMesh.SubMeshIndex & 0xffff),
-                                        Flags        = drawCommandFlagsToUse
+                                        filterIndex = filterIndex,
+                                        batch       = batchID,
+                                        material    = matMeshSubMesh.Material,
+                                        mesh        = matMeshSubMesh.Mesh,
+                                        splitMask   = splitMask,
+                                        submesh     = (ushort)(matMeshSubMesh.SubMeshIndex & 0xffff),
+                                        flags       = drawCommandFlagsToUse
                                     };
 
                                     DrawCommandOutput.Emit(settings,
@@ -361,13 +365,13 @@ namespace Latios.Kinemation.Systems
 
                                 var settings = new DrawCommandSettings
                                 {
-                                    FilterIndex  = filterIndex,
-                                    BatchID      = batchID,
-                                    MaterialID   = materialID,
-                                    MeshID       = meshID,
-                                    SplitMask    = splitMask,
-                                    SubMeshIndex = (ushort)(materialMeshInfo.SubMesh & 0xffff),
-                                    Flags        = drawCommandFlags
+                                    filterIndex = filterIndex,
+                                    batch       = batchID,
+                                    material    = materialID,
+                                    mesh        = meshID,
+                                    splitMask   = splitMask,
+                                    submesh     = (ushort)(materialMeshInfo.SubMesh & 0xffff),
+                                    flags       = drawCommandFlags
                                 };
 
                                 DrawCommandOutput.Emit(settings,
@@ -607,7 +611,7 @@ namespace Latios.Kinemation.Systems
             public void Execute(int index)
             {
                 var  settings           = DrawCommandOutput.UnsortedBins.ElementAt(index);
-                bool hasSortingPosition = settings.HasSortingPosition;
+                bool hasSortingPosition = settings.hasSortingPosition;
 
                 long* binPresentFilter = DrawCommandOutput.BinPresentFilterForSettings(settings);
 
@@ -785,14 +789,14 @@ namespace Latios.Kinemation.Systems
                 int*    visibleInstances = DrawCommandOutput.CullingOutputDrawCommands->visibleInstances;
                 float3* sortingPositions = (float3*)DrawCommandOutput.CullingOutputDrawCommands->instanceSortingPositions;
 
-                if (!settings.HasSortingPosition)
+                if (!settings.hasSortingPosition)
                 {
                     while (header != null)
                     {
                         ExpandArray(visibleInstances,
                                     header,
                                     binInstanceOffset + workItemInstanceOffset + headerInstanceOffset,
-                                    UseCrossfades(settings.Flags));
+                                    UseCrossfades(settings.flags));
 
                         headerInstanceOffset += header->NumInstances;
                         header                = header->Next;
@@ -810,7 +814,7 @@ namespace Latios.Kinemation.Systems
                                                  header,
                                                  instanceOffset,
                                                  positionOffset,
-                                                 UseCrossfades(settings.Flags));
+                                                 UseCrossfades(settings.flags));
 
                         headerInstanceOffset += header->NumInstances;
                         header                = header->Next;
@@ -996,7 +1000,7 @@ namespace Latios.Kinemation.Systems
                 var settings  = DrawCommandOutput.UnsortedBins.ElementAt(sortedBin);
                 var bin       = DrawCommandOutput.BinIndices.ElementAt(sortedBin);
 
-                bool hasSortingPosition = settings.HasSortingPosition;
+                bool hasSortingPosition = settings.hasSortingPosition;
                 uint maxPerCommand      = hasSortingPosition ?
                                           1u :
                                           EntitiesGraphicsTuningConstants.kMaxInstancesPerDrawCommand;
@@ -1015,12 +1019,12 @@ namespace Latios.Kinemation.Systems
                     {
                         visibleOffset       = drawInstanceOffset,
                         visibleCount        = math.min(maxPerCommand, numInstances),
-                        batchID             = settings.BatchID,
-                        materialID          = settings.MaterialID,
-                        meshID              = settings.MeshID,
-                        submeshIndex        = (ushort)settings.SubMeshIndex,
-                        splitVisibilityMask = settings.SplitMask,
-                        flags               = settings.Flags,
+                        batchID             = settings.batch,
+                        materialID          = settings.material,
+                        meshID              = settings.mesh,
+                        submeshIndex        = (ushort)settings.submesh,
+                        splitVisibilityMask = settings.splitMask,
+                        flags               = settings.flags,
                         sortingPosition     = hasSortingPosition ?
                                               (int)drawPositionFloatOffset :
                                               0,
@@ -1072,8 +1076,8 @@ namespace Latios.Kinemation.Systems
                     int  numInstances       = bin.NumInstances;
                     int  drawCommandOffset  = bin.DrawCommandOffset;
                     int  numDrawCommands    = bin.NumDrawCommands;
-                    int  filterIndex        = settings.FilterIndex;
-                    bool hasSortingPosition = settings.HasSortingPosition;
+                    int  filterIndex        = settings.filterIndex;
+                    bool hasSortingPosition = settings.hasSortingPosition;
 
                     for (int j = 0; j < numDrawCommands; ++j)
                     {

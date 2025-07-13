@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Unity.Assertions;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -16,106 +17,86 @@ namespace Latios.Kinemation.Systems
 {
     public partial struct GenerateBrgDrawCommandsSystem
     {
+        [StructLayout(LayoutKind.Explicit)]
         unsafe struct DrawCommandSettings : IEquatable<DrawCommandSettings>
         {
-            // TODO: This could be thinned to fit in 128 bits?
+            [FieldOffset(0)] private int             m_hash;
+            [FieldOffset(4)] public BatchID          batch;
+            [FieldOffset(8)] public ushort           splitMask;
+            [FieldOffset(10)] public ushort          meshLod;
+            [FieldOffset(12)] public ushort          submesh;
+            [FieldOffset(14)] private uint           m_mesh;
+            [FieldOffset(18)] public BatchMaterialID material;
+            [FieldOffset(22)] private ushort         m_flags;
+            [FieldOffset(24)] public int             filterIndex;
+            [FieldOffset(28)] public int             renderingPriority;
 
-            public int                   FilterIndex;
-            public BatchDrawCommandFlags Flags;
-            public BatchMaterialID       MaterialID;
-            public BatchMeshID           MeshID;
-            public ushort                SplitMask;
-            public ushort                SubMeshIndex;
-            public BatchID               BatchID;
-            private int                  m_CachedHash;
+            [FieldOffset(0)] int4x2 asPackedGeneric;
+            [FieldOffset(0)] v256   asPacked256;
 
-            public bool Equals(DrawCommandSettings other)
+            public BatchMeshID mesh
             {
-                // Use temp variables so CPU can co-issue all comparisons
-                bool eq_batch = BatchID == other.BatchID;
-                bool eq_rest  = math.all(PackedUint4 == other.PackedUint4);
-
-                return eq_batch && eq_rest;
+                // Todo: Does it even matter if meshes are sorted different from BatchMeshID?
+                get => new BatchMeshID { value = m_mesh ^ 0x00008000 };
+                set => m_mesh                  = value.value ^ 0x00008000;
+            }
+            public BatchDrawCommandFlags flags
+            {
+                get => (BatchDrawCommandFlags)m_flags;
+                set => m_flags = (ushort)value;
             }
 
-            private uint4 PackedUint4
-            {
-                get
-                {
-                    Assert.IsTrue(MeshID.value < (1 << 24));
-                    Assert.IsTrue(SubMeshIndex < (1 << 8));
-                    Assert.IsTrue((uint)Flags < (1 << 24));
-                    Assert.IsTrue(SplitMask < (1 << 8));
-
-                    return new uint4(
-                        (uint)FilterIndex,
-                        (((uint)SplitMask & 0xff) << 24) | ((uint)Flags & 0x00ffffffff),
-                        MaterialID.value,
-                        ((MeshID.value & 0x00ffffff) << 8) | ((uint)SubMeshIndex & 0xff)
-                        );
-                }
-            }
+            public bool Equals(DrawCommandSettings other) => asPackedGeneric.Equals(other.asPackedGeneric);
 
             public int CompareTo(DrawCommandSettings other)
             {
-                uint4 a           = PackedUint4;
-                uint4 b           = other.PackedUint4;
-                int   cmp_batchID = BatchID.CompareTo(other.BatchID);
-
-                int4 lt  = math.select(int4.zero, new int4(-1), a < b);
-                int4 gt  = math.select(int4.zero, new int4(1), a > b);
-                int4 neq = lt | gt;
-
-                int* firstNonZero = stackalloc int[4];
-
-                bool4 nz    = neq != int4.zero;
-                bool  anyNz = math.any(nz);
-                math.compress(firstNonZero, 0, neq, nz);
-
-                return anyNz ? firstNonZero[0] : cmp_batchID;
+                if (X86.Avx2.IsAvx2Supported)
+                {
+                    var a     = asPacked256;
+                    var b     = other.asPacked256;
+                    var aGt   = X86.Avx2.mm256_cmpgt_epi64(a, b);
+                    var bGt   = X86.Avx2.mm256_cmpgt_epi64(b, a);
+                    var aMask = math.asuint(X86.Avx2.mm256_movemask_epi8(aGt));
+                    var bMask = math.asuint(X86.Avx2.mm256_movemask_epi8(bGt));
+                    return aMask.CompareTo(bMask);
+                }
+                else if (Arm.Neon.IsNeonSupported)
+                {
+                    var a           = asPackedGeneric;
+                    var b           = other.asPackedGeneric;
+                    var ac0         = new v128(a.c0.x, a.c0.y, a.c0.z, a.c0.w);
+                    var bc0         = new v128(b.c0.x, b.c0.y, b.c0.z, b.c0.w);
+                    var ac1         = new v128(a.c1.x, a.c1.y, a.c1.z, a.c1.w);
+                    var bc1         = new v128(b.c1.x, b.c1.y, b.c1.z, b.c1.w);
+                    var a0          = Arm.Neon.vcgtq_s64(ac0, bc0);
+                    var b0          = Arm.Neon.vcgtq_s64(bc0, ac0);
+                    var a1          = Arm.Neon.vcgtq_s64(ac1, bc1);
+                    var b1          = Arm.Neon.vcgtq_s64(bc1, ac1);
+                    var aLower      = Arm.Neon.vshrn_n_u16(a0, 4);
+                    var bLower      = Arm.Neon.vshrn_n_u16(b0, 4);
+                    var aLowerUpper = Arm.Neon.vshrn_high_n_u16(aLower, a1, 4);
+                    var bLowerUpper = Arm.Neon.vshrn_high_n_u16(bLower, b1, 4);
+                    var aMask       = Arm.Neon.vshrn_n_u16(aLowerUpper, 4).ULong0;
+                    var bMask       = Arm.Neon.vshrn_n_u16(bLowerUpper, 4).ULong0;
+                    return aMask.CompareTo(bMask);
+                }
+                else
+                {
+                    var a     = asPackedGeneric;
+                    var b     = other.asPackedGeneric;
+                    var a0    = a.c0 > b.c0;
+                    var b0    = b.c0 > a.c0;
+                    var a1    = a.c1 > b.c1;
+                    var b1    = b.c1 > a.c1;
+                    var aMask = math.bitmask(a0) | (math.bitmask(a1) << 16);
+                    var bMask = math.bitmask(b0) | (math.bitmask(b1) << 16);
+                    return aMask.CompareTo(bMask);
+                }
             }
 
-            // Used to verify correctness of fast CompareTo
-            public int CompareToReference(DrawCommandSettings other)
-            {
-                int cmpFilterIndex  = FilterIndex.CompareTo(other.FilterIndex);
-                int cmpFlags        = ((int)Flags).CompareTo((int)other.Flags);
-                int cmpMaterialID   = MaterialID.CompareTo(other.MaterialID);
-                int cmpMeshID       = MeshID.CompareTo(other.MeshID);
-                int cmpSplitMask    = SplitMask.CompareTo(other.SubMeshIndex);
-                int cmpSubMeshIndex = SubMeshIndex.CompareTo(other.SubMeshIndex);
-                int cmpBatchID      = BatchID.CompareTo(other.BatchID);
-
-                if (cmpFilterIndex != 0)
-                    return cmpFilterIndex;
-                if (cmpFlags != 0)
-                    return cmpFlags;
-                if (cmpMaterialID != 0)
-                    return cmpMaterialID;
-                if (cmpMeshID != 0)
-                    return cmpMeshID;
-                if (cmpSubMeshIndex != 0)
-                    return cmpSubMeshIndex;
-                if (cmpSplitMask != 0)
-                    return cmpSplitMask;
-
-                return cmpBatchID;
-            }
-
-            public override int GetHashCode() => m_CachedHash;
-
-            public void ComputeHashCode()
-            {
-                m_CachedHash = ChunkDrawCommandOutput.FastHash(this);
-            }
-
-            public bool HasSortingPosition => (int)(Flags & BatchDrawCommandFlags.HasSortingPosition) != 0;
-
-            public override string ToString()
-            {
-                return
-                    $"DrawCommandSettings(batchID: {BatchID.value}, materialID: {MaterialID.value}, meshID: {MeshID.value}, submesh: {SubMeshIndex}, filter: {FilterIndex}, flags: {Flags:x}, splitMask: {SplitMask:x})";
-            }
+            public override int GetHashCode() => m_hash;
+            public void ComputeHashCode() => m_hash = asPackedGeneric.GetHashCode();
+            public bool hasSortingPosition => (int)(flags & BatchDrawCommandFlags.HasSortingPosition) != 0;
         }
 
         struct ChunkDrawCommand : IComparable<ChunkDrawCommand>

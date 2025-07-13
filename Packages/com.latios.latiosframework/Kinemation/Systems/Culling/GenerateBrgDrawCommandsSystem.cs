@@ -114,6 +114,7 @@ namespace Latios.Kinemation.Systems
                 ProfilerEmitChunk            = m_profilerEmitChunk,
                 RenderFilterSettings         = GetSharedComponentTypeHandle<RenderFilterSettings>(),
                 RenderMeshArray              = ManagedAPI.GetSharedComponentTypeHandle<RenderMeshArray>(),
+                rendererPriorityHandle       = GetComponentTypeHandle<RendererPriority>(true),
                 overrideMeshInRangeTagHandle = GetComponentTypeHandle<OverrideMeshInRangeTag>(true),
                 SceneCullingMask             = cullingContext.sceneCullingMask,
                 speedTreeCrossfadeTagHandle  = GetComponentTypeHandle<SpeedTreeCrossfadeTag>(true),

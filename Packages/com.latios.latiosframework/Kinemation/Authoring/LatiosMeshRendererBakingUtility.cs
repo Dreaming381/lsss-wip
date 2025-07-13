@@ -244,6 +244,9 @@ namespace Latios.Kinemation.Authoring
 #endif
             }
 
+            if (settings.rendererPriority != 0)
+                baker.AddComponent(entity, new RendererPriority { priority = settings.rendererPriority });
+
             baker.SetSharedComponentManaged(entity, settings.renderMeshDescription.FilterSettings);
 
             baker.SetComponent(entity, new RenderBounds { Value = settings.localBounds.ToAABB() });
