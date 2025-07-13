@@ -107,10 +107,6 @@ namespace Latios.Kinemation.Systems
 
             void Execute(in ArchetypeChunk chunk)
             {
-                //var visibilityItem = VisibilityItems.ElementAt(index);
-
-                //var chunkVisibility = visibilityItem.Visibility;
-
                 int filterIndex = chunk.GetSharedComponentIndex(RenderFilterSettings);
 
                 DrawCommandOutput.InitializeForEmitThread();
@@ -139,10 +135,11 @@ namespace Latios.Kinemation.Systems
                     var  materialMeshInfos   = chunk.GetNativeArray(ref MaterialMeshInfo);
                     var  worldTransforms     = chunk.GetNativeArray(ref WorldTransform);
                     var  postProcessMatrices = chunk.GetNativeArray(ref PostProcessMatrix);
+                    var  lodCrossfades       = chunk.GetComponentDataPtrRO(ref lodCrossfadeHandle);
                     bool hasPostProcess      = chunk.Has(ref PostProcessMatrix);
                     bool isDepthSorted       = chunk.Has(ref DepthSorted);
                     bool isLightMapped       = chunk.GetSharedComponentIndex(LightMaps) >= 0;
-                    bool hasLodCrossfade     = chunk.Has(ref lodCrossfadeHandle);
+                    bool hasLodCrossfade     = lodCrossfades != null;
                     bool useMmiRangeLod      = chunk.Has(ref useMmiRangeLodTagHandle);
                     bool hasOverrideMesh     = chunk.Has(ref overrideMeshInRangeTagHandle);
 
@@ -170,39 +167,33 @@ namespace Latios.Kinemation.Systems
                     var crossFadeEnableds = hasLodCrossfade ? chunk.GetEnabledMask(ref lodCrossfadeHandle) : default;
                     var isSpeedTree       = hasLodCrossfade && chunk.Has(ref speedTreeCrossfadeTagHandle);
 
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-                    TransformQvvs* depthSortingTransformsPtr = null;
+                    float* depthSortingTransformsPtr = null;
+                    int    transformStrideInFloats   = 0;
+                    int    positionOffsetInFloats    = 0;
+
                     if (isDepthSorted && hasPostProcess)
                     {
                         // In this case, we don't actually have a component that represents the rendered position.
-                        // So we allocate a new array and compute the world positions. We store them in TransformQvvs
-                        // so that the read pointer looks the same as our WorldTransforms.
+                        // So we allocate a new array and compute the world positions.
                         // We compute them in the inner loop since only the visible instances are read from later,
                         // and it is a lot cheaper to only compute the visible instances.
                         var allocator             = DrawCommandOutput.ThreadLocalAllocator.ThreadAllocator(DrawCommandOutput.ThreadIndex)->Handle;
-                        depthSortingTransformsPtr = AllocatorManager.Allocate<TransformQvvs>(allocator, chunk.Count);
+                        depthSortingTransformsPtr = (float*)AllocatorManager.Allocate<float3>(allocator, chunk.Count);
+                        transformStrideInFloats   = 3;
+                        positionOffsetInFloats    = 0;
                     }
                     else if (isDepthSorted)
                     {
-                        depthSortingTransformsPtr = (TransformQvvs*)worldTransforms.GetUnsafeReadOnlyPtr();
-                    }
+                        depthSortingTransformsPtr = (float*)worldTransforms.GetUnsafeReadOnlyPtr();
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+                        transformStrideInFloats = 12;
+                        positionOffsetInFloats  = 4;
+
 #elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
-                    float4x4* depthSortingTransformsPtr = null;
-                    if (isDepthSorted && hasPostProcess)
-                    {
-                        // In this case, we don't actually have a component that represents the rendered position.
-                        // So we allocate a new array and compute the world positions. We store them in TransformQvvs
-                        // so that the read pointer looks the same as our WorldTransforms.
-                        // We compute them in the inner loop since only the visible instances are read from later,
-                        // and it is a lot cheaper to only compute the visible instances.
-                        var allocator = DrawCommandOutput.ThreadLocalAllocator.ThreadAllocator(DrawCommandOutput.ThreadIndex)->Handle;
-                        depthSortingTransformsPtr = AllocatorManager.Allocate<float4x4>(allocator, chunk.Count);
-                    }
-                    else if (isDepthSorted)
-                    {
-                        depthSortingTransformsPtr = (float4x4*)worldTransforms.GetUnsafeReadOnlyPtr();
-                    }
+                        transformStrideInFloats = 16;
+                        positionOffsetInFloats  = 12;
 #endif
+                    }
 
                     for (int j = 0; j < 2; j++)
                     {
@@ -248,10 +239,13 @@ namespace Latios.Kinemation.Systems
                                                              new float4(postProcessMatrices[index].postProcessMatrix.c2, 0f),
                                                              new float4(postProcessMatrices[index].postProcessMatrix.c3, 1f));
 #if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-                                    depthSortingTransformsPtr[index].position = math.transform(f4x4, worldTransforms[index].position);
+                                    var position = math.transform(f4x4, worldTransforms[index].position);
 #elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-                                    depthSortingTransformsPtr[index].c3.xyz = math.transform(f4x4, worldTransforms[index].Position);
+                                    var position = math.transform(f4x4, worldTransforms[index].Position);
 #endif
+                                    depthSortingTransformsPtr[3 * index]     = position.x;
+                                    depthSortingTransformsPtr[3 * index + 1] = position.y;
+                                    depthSortingTransformsPtr[3 * index + 2] = position.z;
                                 }
                             }
 
@@ -307,8 +301,8 @@ namespace Latios.Kinemation.Systems
 
                                     BatchMaterialMeshSubMesh matMeshSubMesh = brgRenderMeshArray.MaterialMeshSubMeshes[matMeshSubMeshIndex];
 
-                                    var drawCommandFlagsToUse = drawCommandFlags;
-                                    var filterIndexWithLodBit = filterIndex;
+                                    var  drawCommandFlagsToUse = drawCommandFlags;
+                                    bool complementLod         = false;
                                     if (useMmiRangeLod)
                                     {
                                         var  mmsmMask = matMeshSubMesh.SubMeshIndex >> 24;
@@ -319,7 +313,7 @@ namespace Latios.Kinemation.Systems
                                         if (isHi && isLow)
                                             drawCommandFlagsToUse = drawCommandFlagsWithoutCrossfade;
                                         else if (isLow)
-                                            filterIndexWithLodBit &= 0x7fffffff;
+                                            complementLod = true;
                                     }
 
                                     if (hasOverrideMesh)
@@ -327,7 +321,7 @@ namespace Latios.Kinemation.Systems
 
                                     DrawCommandSettings settings = new DrawCommandSettings
                                     {
-                                        FilterIndex  = filterIndexWithLodBit,
+                                        FilterIndex  = filterIndex,
                                         BatchID      = batchID,
                                         MaterialID   = matMeshSubMesh.Material,
                                         MeshID       = matMeshSubMesh.Mesh,
@@ -336,7 +330,15 @@ namespace Latios.Kinemation.Systems
                                         Flags        = drawCommandFlagsToUse
                                     };
 
-                                    EmitDrawCommand(settings, j, bitIndex, chunkStartIndex, depthSortingTransformsPtr);
+                                    DrawCommandOutput.Emit(settings,
+                                                           j,
+                                                           bitIndex,
+                                                           chunkStartIndex,
+                                                           lodCrossfades,
+                                                           complementLod,
+                                                           depthSortingTransformsPtr,
+                                                           transformStrideInFloats,
+                                                           positionOffsetInFloats);
                                 }
                             }
                             else
@@ -368,24 +370,18 @@ namespace Latios.Kinemation.Systems
                                     Flags        = drawCommandFlags
                                 };
 
-                                EmitDrawCommand(settings, j, bitIndex, chunkStartIndex, depthSortingTransformsPtr);
+                                DrawCommandOutput.Emit(settings,
+                                                       j,
+                                                       bitIndex,
+                                                       chunkStartIndex,
+                                                       lodCrossfades,
+                                                       false,
+                                                       depthSortingTransformsPtr,
+                                                       transformStrideInFloats,
+                                                       positionOffsetInFloats);
                             }
                         }
                     }
-                }
-            }
-
-            private void EmitDrawCommand(in DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex, void* depthSortingPtr)
-            {
-                // Depth sorted draws are emitted with access to entity transforms,
-                // so they can also be written out for sorting
-                if (settings.HasSortingPosition)
-                {
-                    DrawCommandOutput.EmitDepthSorted(settings, entityQword, entityBit, chunkStartIndex, (float4x4*)depthSortingPtr);
-                }
-                else
-                {
-                    DrawCommandOutput.Emit(settings, entityQword, entityBit, chunkStartIndex);
                 }
             }
         }
@@ -608,9 +604,6 @@ namespace Latios.Kinemation.Systems
         {
             public ChunkDrawCommandOutput DrawCommandOutput;
 
-            public ProfilerMarker ProfileCollect;
-            public ProfilerMarker ProfileWrite;
-
             public void Execute(int index)
             {
                 var  settings           = DrawCommandOutput.UnsortedBins.ElementAt(index);
@@ -628,8 +621,6 @@ namespace Latios.Kinemation.Systems
                 collectBuffer->EnsureCapacity(workItems, maxWorkItems, DrawCommandOutput.ThreadLocalAllocator, DrawCommandOutput.ThreadIndex);
 
                 int numInstancesPrefixSum = 0;
-
-                // ProfileCollect.Begin();
 
                 for (int qwIndex = 0; qwIndex < ChunkDrawCommandOutput.kNumThreadsBitfieldLength; ++qwIndex)
                 {
@@ -655,34 +646,17 @@ namespace Latios.Kinemation.Systems
                         {
                             var stream = threadDraws.DrawCommands[streamIndex].Stream;
 
-                            if (hasSortingPosition)
+                            collectBuffer->Add(new DrawCommandWorkItem
                             {
-                                var transformStream = threadDraws.DrawCommands[streamIndex].TransformsStream;
-                                collectBuffer->Add(new DrawCommandWorkItem
-                                {
-                                    Arrays                = stream.Head,
-                                    TransformArrays       = transformStream.Head,
-                                    BinIndex              = index,
-                                    PrefixSumNumInstances = numInstancesPrefixSum,
-                                });
-                            }
-                            else
-                            {
-                                collectBuffer->Add(new DrawCommandWorkItem
-                                {
-                                    Arrays                = stream.Head,
-                                    TransformArrays       = null,
-                                    BinIndex              = index,
-                                    PrefixSumNumInstances = numInstancesPrefixSum,
-                                });
-                            }
+                                Arrays                = stream.Head,
+                                BinIndex              = index,
+                                PrefixSumNumInstances = numInstancesPrefixSum,
+                            });
 
                             numInstancesPrefixSum += stream.TotalInstanceCount;
                         }
                     }
                 }
-                // ProfileCollect.End();
-                // ProfileWrite.Begin();
 
                 DrawCommandOutput.BinIndices.ElementAt(index) = new DrawCommandBin
                 {
@@ -690,8 +664,6 @@ namespace Latios.Kinemation.Systems
                     InstanceOffset = 0,
                     PositionOffset = hasSortingPosition ? 0 : DrawCommandBin.kNoSortingPosition,
                 };
-
-                // ProfileWrite.End();
             }
         }
 
@@ -795,15 +767,13 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         unsafe struct ExpandVisibleInstancesJob : IJobParallelForDefer
         {
-            public ChunkDrawCommandOutput                                                                        DrawCommandOutput;
-            [ReadOnly] public NativeHashMap<LODCrossfadePtrMap.ChunkIdentifier, LODCrossfadePtrMap.CrossfadePtr> crossfadesPtrMap;
+            public ChunkDrawCommandOutput DrawCommandOutput;
 
             public void Execute(int index)
             {
-                var workItem        = DrawCommandOutput.WorkItems.ElementAt(index);
-                var header          = workItem.Arrays;
-                var transformHeader = workItem.TransformArrays;
-                int binIndex        = workItem.BinIndex;
+                var workItem = DrawCommandOutput.WorkItems.ElementAt(index);
+                var header   = workItem.Arrays;
+                int binIndex = workItem.BinIndex;
 
                 ref var settings               = ref DrawCommandOutput.UnsortedBins.ElementAt(binIndex);
                 var     bin                    = DrawCommandOutput.BinIndices.ElementAt(binIndex);
@@ -815,16 +785,14 @@ namespace Latios.Kinemation.Systems
                 int*    visibleInstances = DrawCommandOutput.CullingOutputDrawCommands->visibleInstances;
                 float3* sortingPositions = (float3*)DrawCommandOutput.CullingOutputDrawCommands->instanceSortingPositions;
 
-                if (transformHeader == null)
+                if (!settings.HasSortingPosition)
                 {
                     while (header != null)
                     {
                         ExpandArray(visibleInstances,
                                     header,
                                     binInstanceOffset + workItemInstanceOffset + headerInstanceOffset,
-                                    settings.BatchID.value,
-                                    UseCrossfades(settings.Flags),
-                                    settings.FilterIndex >= 0);
+                                    UseCrossfades(settings.Flags));
 
                         headerInstanceOffset += header->NumInstances;
                         header                = header->Next;
@@ -834,24 +802,18 @@ namespace Latios.Kinemation.Systems
                 {
                     while (header != null)
                     {
-                        Assert.IsTrue(transformHeader != null);
-
                         int instanceOffset = binInstanceOffset + workItemInstanceOffset + headerInstanceOffset;
                         int positionOffset = binPositionOffset + workItemInstanceOffset + headerInstanceOffset;
 
                         ExpandArrayWithPositions(visibleInstances,
                                                  sortingPositions,
                                                  header,
-                                                 transformHeader,
                                                  instanceOffset,
                                                  positionOffset,
-                                                 settings.BatchID.value,
-                                                 UseCrossfades(settings.Flags),
-                                                 settings.FilterIndex >= 0);
+                                                 UseCrossfades(settings.Flags));
 
                         headerInstanceOffset += header->NumInstances;
                         header                = header->Next;
-                        transformHeader       = transformHeader->Next;
                     }
                 }
             }
@@ -860,9 +822,7 @@ namespace Latios.Kinemation.Systems
                 int*                                      visibleInstances,
                 DrawStream<DrawCommandVisibility>.Header* header,
                 int instanceOffset,
-                uint batchID,
-                bool usesCrossfades,
-                bool complementCrossfades)
+                bool usesCrossfades)
             {
                 int numStructs = header->NumElements;
 
@@ -871,11 +831,7 @@ namespace Latios.Kinemation.Systems
                     var visibility = *header->Element(i);
                     int numInstances;
                     if (usesCrossfades)
-                    {
-                        var ptr = crossfadesPtrMap[new LODCrossfadePtrMap.ChunkIdentifier { batchID = batchID, batchStartIndex = visibility.ChunkStartIndex }];
-
-                        numInstances = ExpandVisibilityCrossfade(visibleInstances + instanceOffset, visibility, ptr.ptr, complementCrossfades);
-                    }
+                        numInstances = ExpandVisibilityCrossfade(visibleInstances + instanceOffset, visibility);
                     else
                         numInstances = ExpandVisibility(visibleInstances + instanceOffset, visibility);
                     Assert.IsTrue(numInstances > 0);
@@ -889,38 +845,20 @@ namespace Latios.Kinemation.Systems
                 int*                                      visibleInstances,
                 float3*                                   sortingPositions,
                 DrawStream<DrawCommandVisibility>.Header* header,
-                DrawStream<System.IntPtr>.Header*         transformHeader,
                 int instanceOffset,
                 int positionOffset,
-                uint batchID,
-                bool usesCrossfades,
-                bool complementCrossfades)
+                bool usesCrossfades)
             {
                 int numStructs = header->NumElements;
 
                 for (int i = 0; i < numStructs; ++i)
                 {
                     var visibility = *header->Element(i);
-                    var transforms = (TransformQvvs*)(*transformHeader->Element(i));
                     int numInstances;
                     if (usesCrossfades)
-                    {
-                        var ptr = crossfadesPtrMap[new LODCrossfadePtrMap.ChunkIdentifier { batchID = batchID, batchStartIndex = visibility.ChunkStartIndex }];
-
-                        numInstances = ExpandVisibilityWithPositionsCrossfade(visibleInstances + instanceOffset,
-                                                                              sortingPositions + positionOffset,
-                                                                              visibility,
-                                                                              transforms,
-                                                                              ptr.ptr,
-                                                                              complementCrossfades);
-                    }
+                        numInstances = ExpandVisibilityWithPositionsCrossfade(visibleInstances + instanceOffset, sortingPositions + positionOffset, visibility);
                     else
-                    {
-                        numInstances = ExpandVisibilityWithPositions(visibleInstances + instanceOffset,
-                                                                     sortingPositions + positionOffset,
-                                                                     visibility,
-                                                                     transforms);
-                    }
+                        numInstances = ExpandVisibilityWithPositions(visibleInstances + instanceOffset, sortingPositions + positionOffset, visibility);
                     Assert.IsTrue(numInstances > 0);
                     instanceOffset += numInstances;
                     positionOffset += numInstances;
@@ -932,11 +870,11 @@ namespace Latios.Kinemation.Systems
             private int ExpandVisibility(int* outputInstances, DrawCommandVisibility visibility)
             {
                 int numInstances = 0;
-                int startIndex   = visibility.ChunkStartIndex;
+                int startIndex   = visibility.chunkStartIndex;
 
                 for (int i = 0; i < 2; ++i)
                 {
-                    ulong qword = visibility.VisibleInstances[i];
+                    ulong qword = visibility.visibleInstances[i];
                     while (qword != 0)
                     {
                         int   bitIndex                 = math.tzcnt(qword);
@@ -952,21 +890,23 @@ namespace Latios.Kinemation.Systems
                 return numInstances;
             }
 
-            private int ExpandVisibilityCrossfade(int* outputInstances, DrawCommandVisibility visibility, LodCrossfade* crossfades, bool complementCrossfades)
+            private int ExpandVisibilityCrossfade(int* outputInstances, DrawCommandVisibility visibility)
             {
                 int numInstances = 0;
-                int startIndex   = visibility.ChunkStartIndex;
+                int startIndex   = visibility.chunkStartIndex;
 
                 for (int i = 0; i < 2; ++i)
                 {
-                    ulong qword = visibility.VisibleInstances[i];
+                    ulong qword         = visibility.visibleInstances[i];
+                    ulong crossfadeBits = visibility.crossfadeComplements[i];
                     while (qword != 0)
                     {
                         int   bitIndex                 = math.tzcnt(qword);
                         ulong mask                     = 1ul << bitIndex;
                         qword                         ^= mask;
+                        var complementCrossfade        = (crossfadeBits & mask) != 0;
                         int instanceIndex              = (i << 6) + bitIndex;
-                        var crossfade                  = complementCrossfades ? crossfades[instanceIndex].ToComplement() : crossfades[instanceIndex];
+                        var crossfade                  = complementCrossfade ? visibility.crossfadesPtr[instanceIndex].ToComplement() : visibility.crossfadesPtr[instanceIndex];
                         int visibilityIndex            = ((startIndex + instanceIndex) & 0x00ffffff) | (crossfade.raw << 24);
                         outputInstances[numInstances]  = visibilityIndex;
                         ++numInstances;
@@ -979,15 +919,14 @@ namespace Latios.Kinemation.Systems
             private int ExpandVisibilityWithPositions(
                 int*                  outputInstances,
                 float3*               outputSortingPosition,
-                DrawCommandVisibility visibility,
-                TransformQvvs*        transforms)
+                DrawCommandVisibility visibility)
             {
                 int numInstances = 0;
-                int startIndex   = visibility.ChunkStartIndex;
+                int startIndex   = visibility.chunkStartIndex;
 
                 for (int i = 0; i < 2; ++i)
                 {
-                    ulong qword = visibility.VisibleInstances[i];
+                    ulong qword = visibility.visibleInstances[i];
                     while (qword != 0)
                     {
                         int   bitIndex     = math.tzcnt(qword);
@@ -995,14 +934,10 @@ namespace Latios.Kinemation.Systems
                         qword             ^= mask;
                         int instanceIndex  = (i << 6) + bitIndex;
 
-                        int visibilityIndex           = startIndex + instanceIndex;
-                        outputInstances[numInstances] = visibilityIndex;
-#if !LATIOS_TRANSFORMS_UNITY
-                        outputSortingPosition[numInstances] = transforms[instanceIndex].position;
-#else
-                        outputSortingPosition[numInstances] = ((float4x4*)transforms)[instanceIndex].c3.xyz;
-#endif
-
+                        int visibilityIndex                 = startIndex + instanceIndex;
+                        outputInstances[numInstances]       = visibilityIndex;
+                        var positionPtr                     = visibility.transformsPtr + instanceIndex * visibility.transformStrideInFloats + visibility.positionOffsetInFloats;
+                        outputSortingPosition[numInstances] = new float3(positionPtr[0], positionPtr[1], positionPtr[2]);
                         ++numInstances;
                     }
                 }
@@ -1013,32 +948,29 @@ namespace Latios.Kinemation.Systems
             private int ExpandVisibilityWithPositionsCrossfade(
                 int*                  outputInstances,
                 float3*               outputSortingPosition,
-                DrawCommandVisibility visibility,
-                TransformQvvs*        transforms,
-                LodCrossfade*         crossfades,
-                bool complementCrossfades)
+                DrawCommandVisibility visibility)
             {
                 int numInstances = 0;
-                int startIndex   = visibility.ChunkStartIndex;
+                int startIndex   = visibility.chunkStartIndex;
 
                 for (int i = 0; i < 2; ++i)
                 {
-                    ulong qword = visibility.VisibleInstances[i];
+                    ulong qword         = visibility.visibleInstances[i];
+                    ulong crossfadeBits = visibility.crossfadeComplements[i];
                     while (qword != 0)
                     {
-                        int   bitIndex     = math.tzcnt(qword);
-                        ulong mask         = 1ul << bitIndex;
-                        qword             ^= mask;
-                        int instanceIndex  = (i << 6) + bitIndex;
+                        int   bitIndex           = math.tzcnt(qword);
+                        ulong mask               = 1ul << bitIndex;
+                        qword                   ^= mask;
+                        var complementCrossfade  = (crossfadeBits & mask) != 0;
+                        int instanceIndex        = (i << 6) + bitIndex;
 
-                        int visibilityIndex           = startIndex + instanceIndex;
-                        var crossfade                 = complementCrossfades ? crossfades[instanceIndex].ToComplement() : crossfades[instanceIndex];
-                        outputInstances[numInstances] = (visibilityIndex & 0x00ffffff) | (crossfade.raw << 24);
-#if !LATIOS_TRANSFORMS_UNITY
-                        outputSortingPosition[numInstances] = transforms[instanceIndex].position;
-#else
-                        outputSortingPosition[numInstances] = ((float4x4*)transforms)[instanceIndex].c3.xyz;
-#endif
+                        int visibilityIndex = startIndex + instanceIndex;
+                        var crossfade       =
+                            complementCrossfade ? visibility.crossfadesPtr[instanceIndex].ToComplement() : visibility.crossfadesPtr[instanceIndex];
+                        outputInstances[numInstances]       = (visibilityIndex & 0x00ffffff) | (crossfade.raw << 24);
+                        var positionPtr                     = visibility.transformsPtr + instanceIndex * visibility.transformStrideInFloats + visibility.positionOffsetInFloats;
+                        outputSortingPosition[numInstances] = new float3(positionPtr[0], positionPtr[1], positionPtr[2]);
 
                         ++numInstances;
                     }
@@ -1140,7 +1072,7 @@ namespace Latios.Kinemation.Systems
                     int  numInstances       = bin.NumInstances;
                     int  drawCommandOffset  = bin.DrawCommandOffset;
                     int  numDrawCommands    = bin.NumDrawCommands;
-                    int  filterIndex        = settings.FilterIndex | (1 << 31);
+                    int  filterIndex        = settings.FilterIndex;
                     bool hasSortingPosition = settings.HasSortingPosition;
 
                     for (int j = 0; j < numDrawCommands; ++j)

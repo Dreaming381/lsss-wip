@@ -129,28 +129,31 @@ namespace Latios.Kinemation.Systems
         internal unsafe struct DrawCommandWorkItem
         {
             public DrawStream<DrawCommandVisibility>.Header* Arrays;
-            public DrawStream<IntPtr>.Header*                TransformArrays;
             public int                                       BinIndex;
             public int                                       PrefixSumNumInstances;
         }
 
         internal unsafe struct DrawCommandVisibility
         {
-            public int         ChunkStartIndex;
-            public fixed ulong VisibleInstances[2];
+            public fixed ulong   visibleInstances[2];
+            public fixed ulong   crossfadeComplements[2];
+            public float*        transformsPtr;
+            public LodCrossfade* crossfadesPtr;
+            public int           chunkStartIndex;
+            public int           transformStrideInFloats;
+            public int           positionOffsetInFloats;
 
-            public DrawCommandVisibility(int startIndex)
+            public DrawCommandVisibility(int startIndex, float* transformsPtr, LodCrossfade* crossfadesPtr, int transformStrideInFloats, int positionOffsetInFloats)
             {
-                ChunkStartIndex     = startIndex;
-                VisibleInstances[0] = 0;
-                VisibleInstances[1] = 0;
-            }
-
-            public int VisibleInstanceCount => math.countbits(VisibleInstances[0]) + math.countbits(VisibleInstances[1]);
-
-            public override string ToString()
-            {
-                return $"Visibility({ChunkStartIndex}, {VisibleInstances[1]:x16}, {VisibleInstances[0]:x16})";
+                chunkStartIndex              = startIndex;
+                visibleInstances[0]          = 0;
+                visibleInstances[1]          = 0;
+                crossfadeComplements[0]      = 0;
+                crossfadeComplements[1]      = 0;
+                this.transformsPtr           = transformsPtr;
+                this.crossfadesPtr           = crossfadesPtr;
+                this.transformStrideInFloats = transformStrideInFloats;
+                this.positionOffsetInFloats  = positionOffsetInFloats;
             }
         }
 
@@ -158,20 +161,21 @@ namespace Latios.Kinemation.Systems
         internal unsafe struct DrawCommandStream
         {
             private DrawStream<DrawCommandVisibility> m_Stream;
-            private DrawStream<IntPtr>                m_ChunkTransformsStream;
             private int                               m_PrevChunkStartIndex;
             [NoAlias]
             private DrawCommandVisibility* m_PrevVisibility;
 
             public DrawCommandStream(RewindableAllocator* allocator)
             {
-                m_Stream                = new DrawStream<DrawCommandVisibility>(allocator);
-                m_ChunkTransformsStream = default;  // Don't allocate here, only on demand
-                m_PrevChunkStartIndex   = -1;
-                m_PrevVisibility        = null;
+                m_Stream              = new DrawStream<DrawCommandVisibility>(allocator);
+                m_PrevChunkStartIndex = -1;
+                m_PrevVisibility      = null;
             }
 
-            public void Emit(RewindableAllocator* allocator, int qwordIndex, int bitIndex, int chunkStartIndex)
+            public void Emit(RewindableAllocator* allocator,
+                             int qwordIndex, int bitIndex, int chunkStartIndex,
+                             LodCrossfade* lodCrossfades, bool complementLodCrossfade,
+                             float* chunkTransforms, int transformStrideInFloats, int positionOffsetInFloats)
             {
                 DrawCommandVisibility* visibility;
 
@@ -182,44 +186,13 @@ namespace Latios.Kinemation.Systems
                 else
                 {
                     visibility  = m_Stream.AppendElement(allocator);
-                    *visibility = new DrawCommandVisibility(chunkStartIndex);
+                    *visibility = new DrawCommandVisibility(chunkStartIndex, chunkTransforms, lodCrossfades, transformStrideInFloats, positionOffsetInFloats);
                 }
 
-                visibility->VisibleInstances[qwordIndex] |= 1ul << bitIndex;
-
-                m_PrevChunkStartIndex = chunkStartIndex;
-                m_PrevVisibility      = visibility;
-                m_Stream.AddInstances(1);
-            }
-
-            public void EmitDepthSorted(RewindableAllocator* allocator,
-                                        int qwordIndex, int bitIndex, int chunkStartIndex,
-                                        float4x4* chunkTransforms)
-            {
-                DrawCommandVisibility* visibility;
-
-                if (chunkStartIndex == m_PrevChunkStartIndex)
-                {
-                    visibility = m_PrevVisibility;
-
-                    // Transforms have already been written when the element was added
-                }
-                else
-                {
-                    visibility  = m_Stream.AppendElement(allocator);
-                    *visibility = new DrawCommandVisibility(chunkStartIndex);
-
-                    // Store a pointer to the chunk transform array, which
-                    // instance expansion can use to get the positions.
-
-                    if (!m_ChunkTransformsStream.IsCreated)
-                        m_ChunkTransformsStream.Init(allocator);
-
-                    var transforms = m_ChunkTransformsStream.AppendElement(allocator);
-                    *   transforms = (IntPtr)chunkTransforms;
-                }
-
-                visibility->VisibleInstances[qwordIndex] |= 1ul << bitIndex;
+                var bit                                   = 1ul << bitIndex;
+                visibility->visibleInstances[qwordIndex] |= bit;
+                if (complementLodCrossfade)
+                    visibility->crossfadeComplements[qwordIndex] |= bit;
 
                 m_PrevChunkStartIndex = chunkStartIndex;
                 m_PrevVisibility      = visibility;
@@ -227,7 +200,6 @@ namespace Latios.Kinemation.Systems
             }
 
             public DrawStream<DrawCommandVisibility> Stream => m_Stream;
-            public DrawStream<IntPtr> TransformsStream => m_ChunkTransformsStream;
         }
 
         [StructLayout(LayoutKind.Sequential, Size = 128)]  // Force instances on separate cache lines
@@ -249,14 +221,24 @@ namespace Latios.Kinemation.Systems
 
             public bool IsCreated => DrawCommandStreamIndices.IsCreated;
 
-            public bool Emit(DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex, int threadIndex)
+            public bool Emit(DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex, int threadIndex,
+                             LodCrossfade* lodCrossfades, bool complementLodCrossfade,
+                             float* chunkTransforms, int transformStrideInFloats, int positionOffsetInFloats)
             {
                 var allocator = ThreadLocalAllocator.ThreadAllocator(threadIndex);
 
                 if (DrawCommandStreamIndices.TryGetValue(settings, out int streamIndex))
                 {
                     DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
-                    stream->Emit(allocator, qwordIndex, bitIndex, chunkStartIndex);
+                    stream->Emit(allocator,
+                                 qwordIndex,
+                                 bitIndex,
+                                 chunkStartIndex,
+                                 lodCrossfades,
+                                 complementLodCrossfade,
+                                 chunkTransforms,
+                                 transformStrideInFloats,
+                                 positionOffsetInFloats);
                     return false;
                 }
                 else
@@ -266,33 +248,15 @@ namespace Latios.Kinemation.Systems
                     DrawCommandStreamIndices.Add(settings, streamIndex);
 
                     DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
-                    stream->Emit(allocator, qwordIndex, bitIndex, chunkStartIndex);
-
-                    return true;
-                }
-            }
-
-            public bool EmitDepthSorted(
-                DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex,
-                float4x4* chunkTransforms,
-                int threadIndex)
-            {
-                var allocator = ThreadLocalAllocator.ThreadAllocator(threadIndex);
-
-                if (DrawCommandStreamIndices.TryGetValue(settings, out int streamIndex))
-                {
-                    DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
-                    stream->EmitDepthSorted(allocator, qwordIndex, bitIndex, chunkStartIndex, chunkTransforms);
-                    return false;
-                }
-                else
-                {
-                    streamIndex = DrawCommands.Length;
-                    DrawCommands.Add(new DrawCommandStream(allocator));
-                    DrawCommandStreamIndices.Add(settings, streamIndex);
-
-                    DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
-                    stream->EmitDepthSorted(allocator, qwordIndex, bitIndex, chunkStartIndex, chunkTransforms);
+                    stream->Emit(allocator,
+                                 qwordIndex,
+                                 bitIndex,
+                                 chunkStartIndex,
+                                 lodCrossfades,
+                                 complementLodCrossfade,
+                                 chunkTransforms,
+                                 transformStrideInFloats,
+                                 positionOffsetInFloats);
 
                     return true;
                 }
@@ -583,28 +547,24 @@ namespace Latios.Kinemation.Systems
                 get => ThreadLocalCollectBuffers.Ptr + ThreadIndex;
             }
 
-            public void Emit(DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex)
+            public void Emit(DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex,
+                             LodCrossfade* lodCrossfades, bool complementLodCrossfade,
+                             float* chunkTransforms = null, int transformStrideInFloats = 0, int positionOffsetInFloats = 0)
             {
                 // Update the cached hash code here, so all processing after this can just use the cached value
                 // without recomputing the hash each time.
                 settings.ComputeHashCode();
 
-                bool newBinAdded = DrawCommands->Emit(settings, entityQword, entityBit, chunkStartIndex, ThreadIndex);
-                if (newBinAdded)
-                {
-                    MarkBinPresentInThread(settings, ThreadIndex);
-                }
-            }
-
-            public void EmitDepthSorted(
-                DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex,
-                float4x4* chunkTransforms)
-            {
-                // Update the cached hash code here, so all processing after this can just use the cached value
-                // without recomputing the hash each time.
-                settings.ComputeHashCode();
-
-                bool newBinAdded = DrawCommands->EmitDepthSorted(settings, entityQword, entityBit, chunkStartIndex, chunkTransforms, ThreadIndex);
+                bool newBinAdded = DrawCommands->Emit(settings,
+                                                      entityQword,
+                                                      entityBit,
+                                                      chunkStartIndex,
+                                                      ThreadIndex,
+                                                      lodCrossfades,
+                                                      complementLodCrossfade,
+                                                      chunkTransforms,
+                                                      transformStrideInFloats,
+                                                      positionOffsetInFloats);
                 if (newBinAdded)
                 {
                     MarkBinPresentInThread(settings, ThreadIndex);

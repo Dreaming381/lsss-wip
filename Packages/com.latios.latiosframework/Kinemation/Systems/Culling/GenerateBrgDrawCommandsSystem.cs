@@ -34,8 +34,6 @@ namespace Latios.Kinemation.Systems
 
         FindChunksWithVisibleJob m_findJob;
         ProfilerMarker           m_profilerEmitChunk;
-        ProfilerMarker           m_profilerCollect;
-        ProfilerMarker           m_profilerWrite;
         ProfilerMarker           m_profilerOnUpdate;
 
         bool m_useFewerJobs;
@@ -63,8 +61,6 @@ namespace Latios.Kinemation.Systems
             m_useFewerJobs = false;
 
             m_profilerEmitChunk = new ProfilerMarker("EmitChunk");
-            m_profilerCollect   = new ProfilerMarker("Collect");
-            m_profilerWrite     = new ProfilerMarker("Write");
             m_profilerOnUpdate  = new ProfilerMarker("OnUpdateGenerateBrg");
         }
 
@@ -77,9 +73,8 @@ namespace Latios.Kinemation.Systems
             JobHandle ecsJh          = default;
             JobHandle lodCrossfadeJh = default;
 
-            var brgCullingContext  = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(false);
-            var lodCrossfadePtrMap = latiosWorld.worldBlackboardEntity.GetCollectionComponent<LODCrossfadePtrMap>(true);
-            var cullingContext     = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var brgCullingContext = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(false);
+            var cullingContext    = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
 
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
 
@@ -154,8 +149,6 @@ namespace Latios.Kinemation.Systems
                 var collectWorkItemsJob = new CollectWorkItemsJob
                 {
                     DrawCommandOutput = chunkDrawCommandOutput,
-                    ProfileCollect    = m_profilerCollect,
-                    ProfileWrite      = m_profilerWrite,
                 };
 
                 var flushWorkItemsJob = new FlushWorkItemsJob
@@ -176,7 +169,6 @@ namespace Latios.Kinemation.Systems
                 var expandInstancesJob = new ExpandVisibleInstancesJob
                 {
                     DrawCommandOutput = chunkDrawCommandOutput,
-                    crossfadesPtrMap  = lodCrossfadePtrMap.chunkIdentifierToPtrMap
                 };
 
                 var generateDrawCommandsJob = new GenerateDrawCommandsJob
@@ -229,9 +221,6 @@ namespace Latios.Kinemation.Systems
                 var singleJobDependency = new SingleThreadedJob
                 {
                     chunkDrawCommandOutput = chunkDrawCommandOutput,
-                    m_profilerCollect      = m_profilerCollect,
-                    m_profilerWrite        = m_profilerWrite,
-                    lodCrossfadePtrMap     = lodCrossfadePtrMap,
                     brgFilterSettings      = brgCullingContext.batchFilterSettingsByRenderFilterSettingsSharedIndex
                 }.Schedule(emitDrawCommandsDependency);
                 lodCrossfadeJh = singleJobDependency;
@@ -255,9 +244,6 @@ namespace Latios.Kinemation.Systems
         unsafe struct SingleThreadedJob : IJob
         {
             public ChunkDrawCommandOutput                                     chunkDrawCommandOutput;
-            public ProfilerMarker                                             m_profilerCollect;
-            public ProfilerMarker                                             m_profilerWrite;
-            [ReadOnly] public LODCrossfadePtrMap                              lodCrossfadePtrMap;
             [ReadOnly] public NativeParallelHashMap<int, BatchFilterSettings> brgFilterSettings;
 
             public void Execute()
@@ -276,8 +262,6 @@ namespace Latios.Kinemation.Systems
                 var collectWorkItemsJob = new CollectWorkItemsJob
                 {
                     DrawCommandOutput = chunkDrawCommandOutput,
-                    ProfileCollect    = m_profilerCollect,
-                    ProfileWrite      = m_profilerWrite,
                 };
 
                 var flushWorkItemsJob = new FlushWorkItemsJob
@@ -298,7 +282,6 @@ namespace Latios.Kinemation.Systems
                 var expandInstancesJob = new ExpandVisibleInstancesJob
                 {
                     DrawCommandOutput = chunkDrawCommandOutput,
-                    crossfadesPtrMap  = lodCrossfadePtrMap.chunkIdentifierToPtrMap
                 };
 
                 var generateDrawCommandsJob = new GenerateDrawCommandsJob
