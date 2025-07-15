@@ -1,5 +1,3 @@
-using Unity.Collections;
-using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -9,6 +7,16 @@ namespace Latios.Psyshock
         static float CapImpulse(float impulse, ref float accumulatedImpulse, float maxImpulse)
         {
             var newAccumulatedImpulse = math.clamp(accumulatedImpulse + impulse, -maxImpulse, maxImpulse);
+            var result                = newAccumulatedImpulse - accumulatedImpulse;
+            accumulatedImpulse        = newAccumulatedImpulse;
+            return result;
+        }
+
+        static float3 CapImpulse(float3 impulse, ref float3 accumulatedImpulse, float maxImpulseMagnitude)
+        {
+            var newAccumulatedImpulse = accumulatedImpulse + impulse;
+            if (math.length(newAccumulatedImpulse) > maxImpulseMagnitude)
+                newAccumulatedImpulse = math.normalize(newAccumulatedImpulse) * maxImpulseMagnitude;
             var result                = newAccumulatedImpulse - accumulatedImpulse;
             accumulatedImpulse        = newAccumulatedImpulse;
             return result;

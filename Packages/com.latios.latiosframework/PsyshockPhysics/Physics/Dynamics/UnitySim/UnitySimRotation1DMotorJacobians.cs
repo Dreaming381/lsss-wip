@@ -1,6 +1,3 @@
-using static UnityEngine.GraphicsBuffer;
-using Unity.Collections;
-using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -9,7 +6,7 @@ namespace Latios.Psyshock
     public static partial class UnitySim
     {
         /// <summary>
-        /// A struct which contains a solver-optimized form of a 1D rotation constraint.
+        /// A struct which contains a solver-optimized form of a 1D rotation motor.
         /// </summary>
         public struct Rotation1DMotorJacobianParameters
         {
@@ -35,7 +32,7 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
-        /// Constructs a 1D rotaton constraint
+        /// Constructs a 1D rotaton motor
         /// </summary>
         /// <param name="parameters">The resulting constraint data</param>
         /// <param name="inertialPoseWorldRotationA">The current world rotation of the inertia tensor diagonal of the first body A</param>
@@ -44,6 +41,8 @@ namespace Latios.Psyshock
         /// <param name="inertialPoseWorldRotationB">The current world rotation of the inertia tensor diagonal of the second body B</param>
         /// <param name="jointRotationInInertialPoseBSpace">The inertial-pose relative rotation of the "joint" in B,
         /// which when the constraint is in the rest pose, the world-space version of rotation should match the world-space counterpart in A</param>
+        /// <param name="target">The target angle the motor should drive to achieve</param>
+        /// <param name="maxImpulse">The maximum impulse the motor may apply within the timestpe</param>
         /// <param name="minAngle">The minimum angle allowed in the range of [-2*pi, 2*pi]</param>
         /// <param name="maxAngle">The maximum angle allowed in the range of [-2*pi, 2*pi]</param>
         /// <param name="tau">The normalized stiffness factor</param>
@@ -72,7 +71,7 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
-        /// Updates the 1D rotation constraint with newly integrated inertial pose world rotations
+        /// Updates the 1D rotation motor with newly integrated inertial pose world rotations
         /// </summary>
         /// <param name="parameters">The constraint data</param>
         /// <param name="inertialPoseWorldRotationA">The new world-space orientation of the first body's inertia tensor diagonal</param>
@@ -85,7 +84,7 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
-        /// Solves the 1D rotation constraint for the pair of bodies
+        /// Solves the 1D rotation motor for the pair of bodies
         /// </summary>
         /// <param name="velocityA">The velocity of the first body</param>
         /// <param name="massA">The mass of the first body</param>
