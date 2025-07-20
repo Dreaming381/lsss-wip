@@ -555,21 +555,21 @@ namespace Latios.Kinemation.Authoring
             {
                 if (!lodAppend.enableLod2)
                 {
-                    select2Lod.height                       = math.cmax(rendererSettings.localBounds.extents) * 2f * math.select(1f, -1f, lodAppend.lod1Mesh == null);
                     select2Lod.fullLod0ScreenHeightFraction = (half)(lodAppend.lod01TransitionMaxPercentage / 100f);
                     select2Lod.fullLod1ScreenHeightFraction = (half)(lodAppend.lod01TransitionMinPercentage / 100f);
                     if (lodAppend.lod01TransitionMaxPercentage < lodAppend.lod01TransitionMinPercentage) // Be nice to the designers
                         (select2Lod.fullLod1ScreenHeightFraction, select2Lod.fullLod0ScreenHeightFraction) =
                             (select2Lod.fullLod0ScreenHeightFraction, select2Lod.fullLod1ScreenHeightFraction);
+                    if (lodAppend.lod1Mesh == null)
+                        select2Lod.fullLod1ScreenHeightFraction = (half)(-select2Lod.fullLod1ScreenHeightFraction);
                     AddComponent(entity, select2Lod);
                 }
                 else
                 {
-                    select3Lod.height                          = math.cmax(rendererSettings.localBounds.extents) * 2f * math.select(1f, -1f, lodAppend.lod2Mesh == null);
                     select3Lod.fullLod0ScreenHeightFraction    = (half)(lodAppend.lod01TransitionMaxPercentage / 100f);
                     select3Lod.fullLod1ScreenHeightMaxFraction = (half)(lodAppend.lod01TransitionMinPercentage / 100f);
                     select3Lod.fullLod1ScreenHeightMinFraction = (half)(lodAppend.lod12TransitionMaxPercentage / 100f);
-                    select3Lod.fullLod2ScreenHeightFraction    = (half)(lodAppend.lod12TransitionMinPercentage / 100f);
+                    select3Lod.fullLod2ScreenHeightFraction    = (half)(lodAppend.lod12TransitionMinPercentage / 100f * math.select(1f, -1f, lodAppend.lod2Mesh == null));
                     AddComponent(entity, select3Lod);
                 }
                 AddComponent<UseMmiRangeLodTag>(entity);

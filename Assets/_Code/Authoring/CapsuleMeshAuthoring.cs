@@ -328,7 +328,6 @@ namespace Lsss.Authoring
                 AddComponent<LodCrossfade>(     entity);
                 AddComponent(                   entity, new MmiRange2LodSelect
                 {
-                    height                       = authoring.m_height,
                     fullLod0ScreenHeightFraction = (half)(authoring.m_lodTransitionMaxPercentage / 100f),
                     fullLod1ScreenHeightFraction = (half)(authoring.m_lodTransitionMinPercentage / 100f),
                 });

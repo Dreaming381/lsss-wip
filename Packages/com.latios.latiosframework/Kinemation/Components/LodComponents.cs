@@ -70,7 +70,8 @@ namespace Latios.Kinemation
     }
 
     // Note: You might think it would be better to cache the world-space heights before the culling callbacks.
-    // However, we still need the positions for distance calculations.
+    // However, we still need the positions for distance calculations. And unlike LOD Pack and Mesh LOD, these heights
+    // are independent of skinning.
     /// <summary>
     /// A LOD filtering component that restricts the entity to only render when it is within a specific screen height percentage.
     /// </summary>
@@ -109,9 +110,8 @@ namespace Latios.Kinemation
     /// </summary>
     public struct MmiRange2LodSelect : IComponentData
     {
-        public float height;
-        public half  fullLod0ScreenHeightFraction;
-        public half  fullLod1ScreenHeightFraction;
+        public half fullLod0ScreenHeightFraction;
+        public half fullLod1ScreenHeightFraction;
     }
 
     /// <summary>
@@ -121,11 +121,10 @@ namespace Latios.Kinemation
     /// </summary>
     public struct MmiRange3LodSelect : IComponentData
     {
-        public float height;
-        public half  fullLod0ScreenHeightFraction;
-        public half  fullLod1ScreenHeightMaxFraction;
-        public half  fullLod1ScreenHeightMinFraction;
-        public half  fullLod2ScreenHeightFraction;
+        public half fullLod0ScreenHeightFraction;
+        public half fullLod1ScreenHeightMaxFraction;
+        public half fullLod1ScreenHeightMinFraction;
+        public half fullLod2ScreenHeightFraction;
     }
 
     /// <summary>

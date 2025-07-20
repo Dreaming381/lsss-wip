@@ -1227,19 +1227,9 @@ namespace Latios.Kinemation.Systems
                     $"Chunks changed, new chunks: {numNewChunks}, removed batches: {numRemoved}, batch count: {m_ExistingBatchBatchIndices.Count()}, chunk count: {m_MetaEntitiesForHybridRenderableChunks.CalculateEntityCount()}");
 #endif
 
-            Profiler.BeginSample("UpdateGlobalAABB");
-            UpdateGlobalAABB();
-            Profiler.EndSample();
-
             JobHandle outputDeps = drawCommandFlagsUpdated;
 
             return outputDeps;
-        }
-
-        private void UpdateGlobalAABB()
-        {
-            Psyshock.Physics.GetCenterExtents(worldBlackboardEntity.GetComponentData<BrgAabb>().aabb, out var center, out var extents);
-            m_BatchRendererGroup.SetGlobalBounds(new Bounds(center, extents));
         }
 
         private void ComputeUploadSizeRequirements(

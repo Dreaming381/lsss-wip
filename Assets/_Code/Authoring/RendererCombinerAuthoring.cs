@@ -42,13 +42,12 @@ namespace Lsss.Authoring
             if (authoring.meshRenderers == null || authoring.meshRenderers.Count == 0)
                 return;
 
-            int          opaqueCount           = 0;
-            int          transparentCount      = 0;
-            MeshRenderer primaryRenderer       = null;
-            bool         useLod                = false;
-            float        conservativeLodMin    = 0f;
-            float        conservativeLodMax    = 0f;
-            float        conservativeLodHeight = float.MaxValue;
+            int          opaqueCount        = 0;
+            int          transparentCount   = 0;
+            MeshRenderer primaryRenderer    = null;
+            bool         useLod             = false;
+            float        conservativeLodMin = 0f;
+            float        conservativeLodMax = 0f;
             foreach (var mr in authoring.meshRenderers)
             {
                 if (mr == null)
@@ -84,7 +83,6 @@ namespace Lsss.Authoring
                     useLod                 = true;
                     conservativeLodMin     = math.max(conservativeLodMin, cap.m_lodTransitionMinPercentage);
                     conservativeLodMax     = math.max(conservativeLodMax, cap.m_lodTransitionMaxPercentage);
-                    conservativeLodHeight  = math.min(conservativeLodHeight, cap.m_height);
                 }
                 opaqueCount      += opaqueInRenderer;
                 transparentCount += transparentInRenderer;
@@ -229,7 +227,6 @@ namespace Lsss.Authoring
                 AddComponent<LodCrossfade>(     entity);
                 AddComponent(                   entity, new MmiRange2LodSelect
                 {
-                    height                       = conservativeLodHeight,
                     fullLod0ScreenHeightFraction = (half)(conservativeLodMax / 100f),
                     fullLod1ScreenHeightFraction = (half)(conservativeLodMin / 100f),
                 });
@@ -256,7 +253,6 @@ namespace Lsss.Authoring
                     AddComponent<LodCrossfade>(     additionalEntity);
                     AddComponent(                   additionalEntity, new MmiRange2LodSelect
                     {
-                        height                       = conservativeLodHeight,
                         fullLod0ScreenHeightFraction = (half)(conservativeLodMax / 100f),
                         fullLod1ScreenHeightFraction = (half)(conservativeLodMin / 100f),
                     });

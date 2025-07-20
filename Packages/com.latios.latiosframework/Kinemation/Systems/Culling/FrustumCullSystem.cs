@@ -1,4 +1,3 @@
-using Latios.Kinemation.InternalSourceGen;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -7,6 +6,7 @@ using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 using Unity.Rendering;
 using UnityEngine.Rendering;
 
@@ -15,7 +15,7 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct FrustumCullSkinnedPostProcessEntitiesSystem : ISystem
+    public partial struct FrustumCullSystem : ISystem
     {
         LatiosWorldUnmanaged latiosWorld;
 
@@ -25,28 +25,31 @@ namespace Latios.Kinemation.Systems
         SingleSplitCullingJob              m_singleJob;
         MultiSplitCullingJob               m_multiJob;
 
+        ProfilerMarker m_getSplitsMarker;
+        ProfilerMarker m_allocateListMarker;
+        ProfilerMarker m_findJobMarker;
+        ProfilerMarker m_getContextMarker;
+        ProfilerMarker m_multiJobMarker;
+        ProfilerMarker m_onUpdateMarker;
+
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkSkinningCullingTag>(true).With<ChunkWorldRenderBounds>(true)
-                          .With<ChunkPerFrameCullingMask>(true).With<ChunkPerCameraCullingMask>(false).With<ChunkPerCameraCullingSplitsMask>(false)
-                          .UseWriteGroups().Build();
+            m_metaQuery = state.Fluent().With<ChunkWorldRenderBounds>(true).With<ChunkHeader>(true).With<ChunkPerFrameCullingMask>(true)
+                          .With<ChunkPerCameraCullingMask>(false).With<ChunkPerCameraCullingSplitsMask>(false).UseWriteGroups().Build();
 
             m_findJob = new FindChunksNeedingFrustumCullingJob
             {
                 perCameraCullingMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                chunkHeaderHandle          = state.GetComponentTypeHandle<ChunkHeader>(true),
-                postProcessMatrixHandle    = state.GetComponentTypeHandle<PostProcessMatrix>(true)
+                chunkHeaderHandle          = state.GetComponentTypeHandle<ChunkHeader>(true)
             };
 
             m_singleJob = new SingleSplitCullingJob
             {
                 chunkWorldRenderBoundsHandle = state.GetComponentTypeHandle<ChunkWorldRenderBounds>(true),
                 perCameraCullingMaskHandle   = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
-                worldRenderBoundsHandle      = state.GetComponentTypeHandle<WorldRenderBounds>(true),
-                skeletonDependentHandle      = state.GetComponentTypeHandle<SkeletonDependent>(true),
-                storageLookup                = state.GetEntityStorageInfoLookup()
+                worldRenderBoundsHandle      = state.GetComponentTypeHandle<WorldRenderBounds>(true)
             };
 
             m_multiJob = new MultiSplitCullingJob
@@ -54,26 +57,40 @@ namespace Latios.Kinemation.Systems
                 chunkWorldRenderBoundsHandle     = m_singleJob.chunkWorldRenderBoundsHandle,
                 perCameraCullingMaskHandle       = m_singleJob.perCameraCullingMaskHandle,
                 perCameraCullingSplitsMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingSplitsMask>(false),
-                worldRenderBoundsHandle          = m_singleJob.worldRenderBoundsHandle,
-                skeletonDependentHandle          = m_singleJob.skeletonDependentHandle,
-                storageLookup                    = m_singleJob.storageLookup
+                worldRenderBoundsHandle          = m_singleJob.worldRenderBoundsHandle
             };
+
+            m_getSplitsMarker    = new ProfilerMarker("GetSplits");
+            m_allocateListMarker = new ProfilerMarker("AllocateList");
+            m_findJobMarker      = new ProfilerMarker("FindJob");
+            m_getContextMarker   = new ProfilerMarker("GetContext");
+            m_multiJobMarker     = new ProfilerMarker("MultiJob");
+            m_onUpdateMarker     = new ProfilerMarker("OnUpdateUnskinned");
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var splits = latiosWorld.worldBlackboardEntity.GetCollectionComponent<PackedCullingSplits>(true);
+            m_onUpdateMarker.Begin();
 
+            //m_getSplitsMarker.Begin();
+            var splits = latiosWorld.worldBlackboardEntity.GetCollectionComponent<PackedCullingSplits>(true);
+            //m_getSplitsMarker.End();
+
+            //m_allocateListMarker.Begin();
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
+            //m_allocateListMarker.End();
 
             m_findJob.chunkHeaderHandle.Update(ref state);
             m_findJob.chunksToProcess = chunkList.AsParallelWriter();
             m_findJob.perCameraCullingMaskHandle.Update(ref state);
-            m_findJob.postProcessMatrixHandle.Update(ref state);
+            //m_findJobMarker.Begin();
             state.Dependency = m_findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
+            //m_findJobMarker.End();
 
+            //m_getContextMarker.Begin();
             var cullRequestType = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>().viewType;
+            //m_getContextMarker.End();
             if (cullRequestType == BatchCullingViewType.Light)
             {
                 m_multiJob.chunksToProcess = chunkList.AsDeferredJobArray();
@@ -82,9 +99,9 @@ namespace Latios.Kinemation.Systems
                 m_multiJob.perCameraCullingMaskHandle.Update(ref state);
                 m_multiJob.perCameraCullingSplitsMaskHandle.Update(ref state);
                 m_multiJob.worldRenderBoundsHandle.Update(ref state);
-                m_multiJob.skeletonDependentHandle.Update(ref state);
-                m_multiJob.storageLookup.Update(ref state);
+                //m_multiJobMarker.Begin();
                 state.Dependency = m_multiJob.ScheduleByRef(chunkList, 1, state.Dependency);
+                //m_multiJobMarker.End();
             }
             else
             {
@@ -93,10 +110,10 @@ namespace Latios.Kinemation.Systems
                 m_singleJob.cullingSplits = splits.packedSplits;
                 m_singleJob.perCameraCullingMaskHandle.Update(ref state);
                 m_singleJob.worldRenderBoundsHandle.Update(ref state);
-                m_singleJob.skeletonDependentHandle.Update(ref state);
-                m_singleJob.storageLookup.Update(ref state);
                 state.Dependency = m_singleJob.ScheduleByRef(chunkList, 1, state.Dependency);
             }
+
+            m_onUpdateMarker.End();
         }
 
         [BurstCompile]
@@ -104,7 +121,6 @@ namespace Latios.Kinemation.Systems
         {
             [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkHeader>               chunkHeaderHandle;
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix>         postProcessMatrixHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
@@ -118,7 +134,7 @@ namespace Latios.Kinemation.Systems
                 for (int i = 0; i < metaChunk.Count; i++)
                 {
                     var mask = masks[i];
-                    if ((mask.lower.Value | mask.upper.Value) != 0 && headers[i].ArchetypeChunk.Has(ref postProcessMatrixHandle))
+                    if ((mask.lower.Value | mask.upper.Value) != 0)
                     {
                         chunksCache[chunksCount] = headers[i].ArchetypeChunk;
                         chunksCount++;
@@ -140,8 +156,6 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public NativeReference<CullingSplits>              cullingSplits;
             [ReadOnly] public ComponentTypeHandle<WorldRenderBounds>      worldRenderBoundsHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkWorldRenderBounds> chunkWorldRenderBoundsHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>      skeletonDependentHandle;
-            [ReadOnly] public EntityStorageInfoLookup                     storageLookup;
 
             public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
 
@@ -199,8 +213,6 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public NativeReference<CullingSplits>              cullingSplits;
             [ReadOnly] public ComponentTypeHandle<WorldRenderBounds>      worldRenderBoundsHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkWorldRenderBounds> chunkWorldRenderBoundsHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>      skeletonDependentHandle;
-            [ReadOnly] public EntityStorageInfoLookup                     storageLookup;
 
             public ComponentTypeHandle<ChunkPerCameraCullingMask>       perCameraCullingMaskHandle;
             public ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> perCameraCullingSplitsMaskHandle;

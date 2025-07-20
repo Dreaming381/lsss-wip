@@ -7,7 +7,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
-using Unity.Rendering;
+
+// Note: This system is only added to baking in QVVS Transforms.
 
 namespace Latios.Kinemation.Authoring.Systems
 {

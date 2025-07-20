@@ -192,24 +192,10 @@ MonoBehaviour:
       - rid: 3321495493702057984
       - rid: 3321495493702057985
       - rid: 3321495493702057986
+      - rid: 8270758909471883264
+      - rid: 8270758909471883265
     m_RuntimeSettings:
-      m_List:
-      - rid: 3541957363109986491
-      - rid: 3541957363109986492
-      - rid: 3541957363109986493
-      - rid: 3541957363109986494
-      - rid: 3541957363109986495
-      - rid: 3541957363109986496
-      - rid: 3541957363109986498
-      - rid: 3541957363109986499
-      - rid: 3541957363109986500
-      - rid: 3541957363109986502
-      - rid: 3541957363109986505
-      - rid: 3541957363109986507
-      - rid: 3541957363109986515
-      - rid: 3541957363109986516
-      - rid: 3541957363109986519
-      - rid: 3321495493702057984
+      m_List: []
   renderingLayerNames:
   - Light Layer default
   - Light Layer 1
@@ -855,3 +841,35 @@ MonoBehaviour:
         m_IncludeReferencedInScenes: 1
         m_IncludeAssetsByLabel: 1
         m_LabelToInclude: HDRP:IncludeInBuild
+    - rid: 8270758909471883264
+      type: {class: VrsRenderPipelineRuntimeResources, ns: UnityEngine.Rendering, asm: Unity.RenderPipelines.Core.Runtime}
+      data:
+        m_TextureComputeShader: {fileID: 7200000, guid: cacb30de6c40c7444bbc78cb0a81fd2a, type: 3}
+        m_VisualizationShader: {fileID: 4800000, guid: 620b55b8040a88d468e94abe55bed5ba, type: 3}
+        m_VisualizationLookupTable:
+          m_Data:
+          - {r: 1, g: 0, b: 0, a: 1}
+          - {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+          - {r: 1, g: 1, b: 1, a: 1}
+          - {r: 0, g: 1, b: 0, a: 1}
+          - {r: 0.75, g: 0.75, b: 0, a: 1}
+          - {r: 0, g: 0.75, b: 0.55, a: 1}
+          - {r: 0.5, g: 0, b: 0.5, a: 1}
+          - {r: 0.5, g: 0.5, b: 0.5, a: 1}
+          - {r: 0, g: 0, b: 1, a: 1}
+        m_ConversionLookupTable:
+          m_Data:
+          - {r: 1, g: 0, b: 0, a: 1}
+          - {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+          - {r: 1, g: 1, b: 1, a: 1}
+          - {r: 0, g: 1, b: 0, a: 1}
+          - {r: 0.75, g: 0.75, b: 0, a: 1}
+          - {r: 0, g: 0.75, b: 0.55, a: 1}
+          - {r: 0.5, g: 0, b: 0.5, a: 1}
+          - {r: 0.5, g: 0.5, b: 0.5, a: 1}
+          - {r: 0, g: 0, b: 1, a: 1}
+    - rid: 8270758909471883265
+      type: {class: LightmapSamplingSettings, ns: UnityEngine.Rendering, asm: Unity.RenderPipelines.Core.Runtime}
+      data:
+        m_Version: 1
+        m_UseBicubicLightmapSampling: 0

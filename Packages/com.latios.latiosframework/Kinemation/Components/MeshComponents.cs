@@ -12,9 +12,7 @@ namespace Latios.Kinemation
     /// QVVS Transforms: An optional matrix that is applied after computing the final WorldTransform.
     /// It can be used for additional squash, stretch, and shear effects on a renderer.
     ///
-    /// Unity Transforms: An optional matrix used to inform culling that a skinned mesh has
-    /// a different transform than the skeleton root. This transform must be assigned such that
-    /// the skinned mesh's LocalToWorld = math.mul(PostProcessMatrix, skeleton LocalToWorld)
+    /// Unity Transforms: This component is ignored.
     /// </summary>
     /// <remarks>
     /// If you remove this component from an entity which also has a PreviousPostProcessMatrix,
