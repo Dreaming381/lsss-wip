@@ -67,8 +67,11 @@ namespace Latios.Kinemation.Authoring
 
                 var countInRenderer = meshMaterialSubmeshCountsByRenderer[rendererIndex];
                 s_validIndexCache.Clear();
-                DeformClassification                             classification = DeformClassification.None;
-                RenderMeshUtility.EntitiesGraphicsComponentFlags flags          = RenderMeshUtility.EntitiesGraphicsComponentFlags.UseRenderMeshArray;
+                DeformClassification                             classification    = DeformClassification.None;
+                RenderMeshUtility.EntitiesGraphicsComponentFlags flags             = RenderMeshUtility.EntitiesGraphicsComponentFlags.UseRenderMeshArray;
+                float                                            meshLodSlope      = float.MaxValue;
+                float                                            meshLodMeshBias   = float.MaxValue;
+                int                                              meshLodLevelCount = int.MaxValue;
 
                 for (int i = 0; i < countInRenderer; i++)
                 {
@@ -95,6 +98,14 @@ namespace Latios.Kinemation.Authoring
 
                     baker.DependsOn(mesh);
                     baker.DependsOn(material);
+
+                    if ((mms.lodMask & 0x1) != 0)
+                    {
+                        meshLodLevelCount = math.min(meshLodLevelCount, mesh.lodCount);
+                        var slope         = mesh.lodSelectionCurve;
+                        meshLodSlope      = math.min(meshLodSlope, slope.lodSlope);
+                        meshLodMeshBias   = math.min(meshLodMeshBias, slope.lodBias);
+                    }
 
                     var mmsClassification = GetDeformClassificationFromMaterial(material);
                     if (renderer.isDeforming && mmsClassification == DeformClassification.None && !renderer.suppressDeformationWarnings)
@@ -128,6 +139,31 @@ namespace Latios.Kinemation.Authoring
                     }
 
                     AddRendererComponents(renderer.targetEntity, baker, in renderer, flags);
+
+                    bool requireCrossfade = renderer.requireLodCrossfade;
+                    if (meshLodLevelCount != 0 && meshLodLevelCount != int.MaxValue)
+                    {
+                        requireCrossfade = true;
+                        if (renderer.overrideMeshLod >= 0)
+                        {
+                            baker.AddComponent(renderer.targetEntity, new MeshLod { levelCount = (ushort)meshLodLevelCount, lodLevel = (ushort)renderer.overrideMeshLod });
+                        }
+                        else
+                        {
+                            baker.AddComponent(renderer.targetEntity, new MeshLod { levelCount = (ushort)meshLodLevelCount, lodLevel = 0 });
+                            baker.AddComponent(renderer.targetEntity, new MeshLodCurve
+                            {
+                                slope         = meshLodSlope,
+                                preClampBias  = (half)meshLodMeshBias,
+                                postClampBias = (half)renderer.meshLodRendererBias
+                            });
+                        }
+                    }
+                    if (requireCrossfade)
+                    {
+                        baker.AddComponent<LodCrossfade>(renderer.targetEntity);
+                        baker.SetComponentEnabled<LodCrossfade>(renderer.targetEntity, false);
+                    }
 
                     if (renderer.isDeforming && primaryRendererIndex >= 0)
                     {

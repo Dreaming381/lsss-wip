@@ -426,8 +426,9 @@ namespace Latios.Kinemation.Systems
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     var newBounds               = ComputeBufferBounds(boneBounds[i], boneTransforms[i], worldTransforms[i], states[i]);
-                    skeletonBounds[i].minOffset = newBounds.min;
-                    skeletonBounds[i].maxOffset = newBounds.max;
+                    var position                = worldTransforms[i].position;
+                    skeletonBounds[i].minOffset = newBounds.min - position;
+                    skeletonBounds[i].maxOffset = newBounds.max - position;
                 }
             }
 

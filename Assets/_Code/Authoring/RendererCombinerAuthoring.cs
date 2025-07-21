@@ -219,12 +219,12 @@ namespace Lsss.Authoring
                 lightmapScaleOffset         = primaryRenderer.lightmapScaleOffset,
                 isStatic                    = IsStatic(),
                 localBounds                 = bounds,
+                requireLodCrossfade         = useLod,
             };
 
             if (useLod)
             {
                 AddComponent<UseMmiRangeLodTag>(entity);
-                AddComponent<LodCrossfade>(     entity);
                 AddComponent(                   entity, new MmiRange2LodSelect
                 {
                     fullLod0ScreenHeightFraction = (half)(conservativeLodMax / 100f),
@@ -250,7 +250,6 @@ namespace Lsss.Authoring
                 if (useLod)
                 {
                     AddComponent<UseMmiRangeLodTag>(additionalEntity);
-                    AddComponent<LodCrossfade>(     additionalEntity);
                     AddComponent(                   additionalEntity, new MmiRange2LodSelect
                     {
                         fullLod0ScreenHeightFraction = (half)(conservativeLodMax / 100f),

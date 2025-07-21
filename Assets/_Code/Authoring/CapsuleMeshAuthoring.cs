@@ -308,6 +308,7 @@ namespace Lsss.Authoring
 
             var entity = GetEntity(TransformUsageFlags.Renderable);
             RenderingBakingTools.GetLOD(this, meshRenderer, out var lodSettings);
+            bool useCrossfade = false;
             if (authoring.m_useLOD)
             {
                 var lodMesh = CreateLODMesh(authoring.m_height, authoring.m_radius, authoring.m_axis);
@@ -325,7 +326,7 @@ namespace Lsss.Authoring
                 }
 
                 AddComponent<UseMmiRangeLodTag>(entity);
-                AddComponent<LodCrossfade>(     entity);
+                useCrossfade = true;
                 AddComponent(                   entity, new MmiRange2LodSelect
                 {
                     fullLod0ScreenHeightFraction = (half)(authoring.m_lodTransitionMaxPercentage / 100f),
@@ -338,7 +339,7 @@ namespace Lsss.Authoring
             }
             else
             {
-                RenderingBakingTools.BakeLodMaskForEntity(this, entity, lodSettings);
+                RenderingBakingTools.BakeLodMaskForEntity(this, entity, lodSettings, out useCrossfade);
             }
 
             var rendererSettings = new MeshRendererBakeSettings
@@ -352,6 +353,7 @@ namespace Lsss.Authoring
                 lightmapScaleOffset         = meshRenderer.lightmapScaleOffset,
                 isStatic                    = IsStatic(),
                 localBounds                 = mesh != null ? mesh.bounds : default,
+                requireLodCrossfade         = useCrossfade
             };
 
             if (opaqueMaterialCount == mms.Length || opaqueMaterialCount == 0)
@@ -371,7 +373,7 @@ namespace Lsss.Authoring
                 }
                 else
                 {
-                    RenderingBakingTools.BakeLodMaskForEntity(this, additionalEntity, lodSettings);
+                    RenderingBakingTools.BakeLodMaskForEntity(this, additionalEntity, lodSettings, out useCrossfade);
                 }
 
                 Span<MeshRendererBakeSettings> renderers = stackalloc MeshRendererBakeSettings[2];

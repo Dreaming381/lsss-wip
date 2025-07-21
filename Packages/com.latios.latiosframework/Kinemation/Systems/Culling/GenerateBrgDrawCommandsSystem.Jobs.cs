@@ -69,6 +69,7 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<UseMmiRangeLodTag>               useMmiRangeLodTagHandle;
             [ReadOnly] public ComponentTypeHandle<OverrideMeshInRangeTag>          overrideMeshInRangeTagHandle;
             [ReadOnly] public ComponentTypeHandle<RendererPriority>                rendererPriorityHandle;
+            [ReadOnly] public ComponentTypeHandle<MeshLod>                         meshLodHandle;
             [ReadOnly] public EntityQueryMask                                      motionVectorDeformQueryMask;
             public bool                                                            splitsAreValid;
 
@@ -138,6 +139,8 @@ namespace Latios.Kinemation.Systems
                     var  postProcessMatrices = chunk.GetNativeArray(ref PostProcessMatrix);
                     var  lodCrossfades       = chunk.GetComponentDataPtrRO(ref lodCrossfadeHandle);
                     var  rendererPriorities  = chunk.GetComponentDataPtrRO(ref rendererPriorityHandle);
+                    var  meshLods            = chunk.GetComponentDataPtrRO(ref meshLodHandle);
+                    var  meshLodCrossfades   = chunk.GetEnabledMask(ref meshLodHandle);
                     bool hasPostProcess      = chunk.Has(ref PostProcessMatrix);
                     bool isDepthSorted       = chunk.Has(ref DepthSorted);
                     bool isLightMapped       = chunk.GetSharedComponentIndex(LightMaps) >= 0;
@@ -253,6 +256,7 @@ namespace Latios.Kinemation.Systems
 
                             var  drawCommandFlagsWithoutCrossfade = drawCommandFlags;
                             bool isCrossfadeReady                 = hasLodCrossfade && crossFadeEnableds[entityIndex];
+                            bool isMeshLodCrossfade               = meshLods != null && isCrossfadeReady && meshLodCrossfades[entityIndex];
                             if (isCrossfadeReady)
                             {
                                 if (!isSpeedTree)
@@ -260,7 +264,8 @@ namespace Latios.Kinemation.Systems
                                 drawCommandFlags     |= BatchDrawCommandFlags.LODCrossFadeValuePacked;
                             }
 
-                            int rendererPriority = rendererPriorities == null ? 0 : rendererPriorities[entityIndex].priority;
+                            ushort meshLod          = meshLods != null ? meshLods[entityIndex].lodLevel : (ushort)0;
+                            int    rendererPriority = rendererPriorities == null ? 0 : rendererPriorities[entityIndex].priority;
 
                             if (materialMeshInfo.HasMaterialMeshIndexRange)
                             {
@@ -277,9 +282,14 @@ namespace Latios.Kinemation.Systems
                                 int lowResMask = 0;
                                 if (useMmiRangeLod)
                                 {
-                                    materialMeshInfo.GetCurrentLodRegion(out var hiResLodIndex, out var isCrossfading);
+                                    materialMeshInfo.GetCurrentLodRegion(out var hiResLodIndex, out var isMmiCrossfading);
                                     hiResMask = 1 << hiResLodIndex;
-                                    if (isCrossfading && isCrossfadeReady)
+                                    if (hiResMask > 1)
+                                    {
+                                        meshLod            = 0;
+                                        isMeshLodCrossfade = false;
+                                    }
+                                    if (isMmiCrossfading && isCrossfadeReady)
                                         lowResMask = hiResMask << 1;
 
                                     // Late check if any of the elements are in the LOD. We'd prefer to filter these out sooner, but it is still good to check here.
@@ -331,6 +341,7 @@ namespace Latios.Kinemation.Systems
                                         mesh        = matMeshSubMesh.Mesh,
                                         splitMask   = splitMask,
                                         submesh     = (ushort)(matMeshSubMesh.SubMeshIndex & 0xffff),
+                                        meshLod     = meshLod,
                                         flags       = drawCommandFlagsToUse
                                     };
 
@@ -343,6 +354,20 @@ namespace Latios.Kinemation.Systems
                                                            depthSortingTransformsPtr,
                                                            transformStrideInFloats,
                                                            positionOffsetInFloats);
+
+                                    if (isMeshLodCrossfade)
+                                    {
+                                        settings.meshLod++;
+                                        DrawCommandOutput.Emit(settings,
+                                                               j,
+                                                               bitIndex,
+                                                               chunkStartIndex,
+                                                               lodCrossfades,
+                                                               true,
+                                                               depthSortingTransformsPtr,
+                                                               transformStrideInFloats,
+                                                               positionOffsetInFloats);
+                                    }
                                 }
                             }
                             else
@@ -370,7 +395,8 @@ namespace Latios.Kinemation.Systems
                                     material    = materialID,
                                     mesh        = meshID,
                                     splitMask   = splitMask,
-                                    submesh     = (ushort)(materialMeshInfo.SubMesh & 0xffff),
+                                    submesh     = materialMeshInfo.SubMesh,
+                                    meshLod     = meshLod,
                                     flags       = drawCommandFlags
                                 };
 
@@ -383,6 +409,20 @@ namespace Latios.Kinemation.Systems
                                                        depthSortingTransformsPtr,
                                                        transformStrideInFloats,
                                                        positionOffsetInFloats);
+
+                                if (isMeshLodCrossfade)
+                                {
+                                    settings.meshLod++;
+                                    DrawCommandOutput.Emit(settings,
+                                                           j,
+                                                           bitIndex,
+                                                           chunkStartIndex,
+                                                           lodCrossfades,
+                                                           true,
+                                                           depthSortingTransformsPtr,
+                                                           transformStrideInFloats,
+                                                           positionOffsetInFloats);
+                                }
                             }
                         }
                     }
@@ -1022,12 +1062,11 @@ namespace Latios.Kinemation.Systems
                         batchID             = settings.batch,
                         materialID          = settings.material,
                         meshID              = settings.mesh,
-                        submeshIndex        = (ushort)settings.submesh,
+                        submeshIndex        = settings.submesh,
+                        activeMeshLod       = settings.meshLod,
                         splitVisibilityMask = settings.splitMask,
                         flags               = settings.flags,
-                        sortingPosition     = hasSortingPosition ?
-                                              (int)drawPositionFloatOffset :
-                                              0,
+                        sortingPosition     = hasSortingPosition ? (int)drawPositionFloatOffset : 0,
                     };
 
                     int drawCommandIndex    = bin.DrawCommandOffset + i;

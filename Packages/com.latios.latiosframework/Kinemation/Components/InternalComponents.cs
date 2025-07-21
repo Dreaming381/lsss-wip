@@ -369,26 +369,6 @@ namespace Latios.Kinemation
         }
     }
 
-    internal partial struct ExposedSkeletonBoundsArrays : ICollectionComponent
-    {
-        public NativeList<AABB>  allAabbs;
-        public NativeList<AABB>  batchedAabbs;
-        public NativeList<AABB>  allAabbsPreOffset;
-        public NativeList<float> meshOffsets;
-        public const int         kCountPerBatch = 32;  // Todo: Is there a better size?
-
-        public JobHandle TryDispose(JobHandle inputDeps)
-        {
-            if (!allAabbs.IsCreated)
-                return inputDeps;
-
-            inputDeps = allAabbs.Dispose(inputDeps);
-            inputDeps = allAabbsPreOffset.Dispose(inputDeps);
-            inputDeps = meshOffsets.Dispose(inputDeps);
-            return batchedAabbs.Dispose(inputDeps);
-        }
-    }
-
     // Int because this will grow in the future and it would be great to not have a regression
     internal enum DeformClassification : int
     {

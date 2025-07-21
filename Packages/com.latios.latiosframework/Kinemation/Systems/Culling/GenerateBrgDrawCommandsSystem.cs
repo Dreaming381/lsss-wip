@@ -110,6 +110,7 @@ namespace Latios.Kinemation.Systems
                 motionVectorDeformQueryMask  = m_motionVectorDeformQueryMask,
                 PostProcessMatrix            = GetComponentTypeHandle<PostProcessMatrix>(true),
                 MaterialMeshInfo             = GetComponentTypeHandle<MaterialMeshInfo>(true),
+                meshLodHandle                = GetComponentTypeHandle<MeshLod>(true),
                 ProceduralMotion             = GetComponentTypeHandle<PerVertexMotionVectors_Tag>(true),
                 ProfilerEmitChunk            = m_profilerEmitChunk,
                 RenderFilterSettings         = GetSharedComponentTypeHandle<RenderFilterSettings>(),

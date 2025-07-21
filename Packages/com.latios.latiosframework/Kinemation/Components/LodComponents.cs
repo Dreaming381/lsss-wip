@@ -128,6 +128,42 @@ namespace Latios.Kinemation
     }
 
     /// <summary>
+    /// The Mesh LOD level and total LOD level count within the mesh. The LOD level can be driven
+    /// directly at runtime. The count should be modified if the mesh is modified. Mesh LOD is
+    /// disabled for any MMI Range element that does not have the least-significant LOD mask bit set.
+    /// So in a LOD Pack, only the high-resolution LOD level will use Mesh LOD.
+    /// The enabled bit signifies that the LOD Crossfade is being driven by Mesh LOD, and that it
+    /// should fade with a level one higher than the lodLevel.
+    /// </summary>
+    public struct MeshLod : IComponentData, IEnableableComponent
+    {
+        public ushort lodLevel;
+        public ushort levelCount;
+    }
+
+    /// <summary>
+    /// A logarithmic curve for evaluating the LOD level of a Mesh LOD. When this is present, a
+    /// system automatically evaluates and sets the LOD level of the Mesh LOD. Exclude this component
+    /// to manually drive the LOD level.
+    /// </summary>
+    public struct MeshLodCurve : IComponentData
+    {
+        public float slope;
+        public half  preClampBias;  // Comes from mesh
+        public half  postClampBias;  // Comes from renderer
+    }
+
+    /// <summary>
+    /// A margin in the range of [0, 0.5] for crossfading between Mesh LOD levels. This component
+    /// can be set on the worldBlackboardEntity to control the crossfading for all Mesh LOD entities.
+    /// Automatic crossfading is disabled when there is no curve.
+    /// </summary>
+    public struct MeshLodCrossfadeMargin : IComponentData
+    {
+        public half margin;
+    }
+
+    /// <summary>
     /// Static class with utility methods for LOD evaluation (mostly extension methods)
     /// </summary>
     public static class LodUtilities

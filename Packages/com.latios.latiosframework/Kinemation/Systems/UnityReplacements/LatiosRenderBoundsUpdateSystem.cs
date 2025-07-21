@@ -105,7 +105,7 @@ namespace Latios.Kinemation.Systems
                             }
                         }
                     }
-                    else
+                    else if (copyDeforms != null)
                     {
                         var otherWorldTransformHandle = worldTransformHandle;
                         for (int i = 0; i < chunk.Count; i++)
