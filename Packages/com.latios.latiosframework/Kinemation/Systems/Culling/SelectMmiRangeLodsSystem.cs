@@ -32,7 +32,7 @@ namespace Latios.Kinemation.Systems
             latiosWorld            = state.GetLatiosWorldUnmanaged();
             m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
 
-            m_query = state.Fluent().With<MaterialMeshInfo, LodCrossfade>(false).With<UseMmiRangeLodTag>(true)
+            m_query = state.Fluent().With<MaterialMeshInfo, LodCrossfade>(false).With<UseMmiRangeLodTag, WorldRenderBounds>(true)
                       .WithAnyEnabled<MmiRange2LodSelect, MmiRange3LodSelect>(true).WithWorldTransformReadOnly().Build();
 
             latiosWorld.worldBlackboardEntity.AddComponentDataIfMissing(new MeshLodCrossfadeMargin { margin = (half)0.05f });
@@ -155,6 +155,7 @@ namespace Latios.Kinemation.Systems
                     float groupMin, groupMax;
                     if (lodGroupPercentages != null)
                     {
+                        // Todo: This is the only reason we still need to use the transform instead of using the AABB center.
                         var   transform        = transforms[i].worldTransformQvvs;
                         float groupWorldHeight = math.abs(lodGroupPercentages[i].localSpaceHeight) * math.abs(transform.scale) * math.cmax(math.abs(transform.stretch));
                         float factor           = height / groupWorldHeight;
@@ -294,7 +295,8 @@ namespace Latios.Kinemation.Systems
                     return;
 
                 var heights           = new float3(height, groupMax, groupMin);
-                var screenFractions   = heights * cameraFactorNoBias / math.select(1f, math.distance(transform.position, cameraPosition), isPerspective);
+                var meshLodDistance   = math.select(1f, math.distance(transform.position, cameraPosition), isPerspective);
+                var screenFractions   = heights * new float3(cameraFactorNoBias, cameraFactor, cameraFactor) / meshLodDistance;
                 var preClamp          = math.log2(screenFractions) * meshLodCurve.slope + meshLodCurve.preClampBias;
                 var postClamp         = math.max(0f, preClamp) + meshLodCurve.postClampBias;
                 var rounded           = math.round(postClamp);

@@ -280,11 +280,11 @@ namespace Latios.Psyshock
         /// <param name="substep">The time substep duration</param>
         /// <param name="gravityAgainstContactNormal">The maximum amount of gravity being applied opposite to the contact normal.
         /// You can simply use the magnitude of the gravity vector for this.</param>
-        public static void Update(Span<ContactJacobianContactParameters> perContactParameters, ref ContactJacobianBodyParameters bodyParameters,
-                                  Span<float> perContactImpulses,
-                                  RigidTransform inertialPoseWorldTransformA, in Velocity velocityA, in Mass massA,
-                                  RigidTransform inertialPoseWorldTransformB, in Velocity velocityB, in Mass massB,
-                                  float substep, float gravityAgainstContactNormal)
+        public static void UpdateJacobian(Span<ContactJacobianContactParameters> perContactParameters, ref ContactJacobianBodyParameters bodyParameters,
+                                          Span<float> perContactImpulses,
+                                          RigidTransform inertialPoseWorldTransformA, in Velocity velocityA, in Mass massA,
+                                          RigidTransform inertialPoseWorldTransformB, in Velocity velocityB, in Mass massB,
+                                          float substep, float gravityAgainstContactNormal)
         {
             perContactImpulses.Clear();
 
@@ -403,9 +403,10 @@ namespace Latios.Psyshock
 
                 // Accumulation of impulses for each contact point over numSolverIterations. Cannot be negative
                 float accumulatedImpulse = math.max(contactImpulse + impulse, 0.0f);
+                float deltaImpulse       = 0f;
                 if (accumulatedImpulse != contactImpulse)
                 {
-                    float deltaImpulse = accumulatedImpulse - contactImpulse;
+                    deltaImpulse = accumulatedImpulse - contactImpulse;
                     ApplyImpulse(deltaImpulse, bodyParameters.contactNormal, jacAngular.jacobianAngular, ref tempVelocityA, ref tempVelocityB, in massA, in massB,
                                  motionStabilizationSolverInputA.inverseInertiaScale, motionStabilizationSolverInputB.inverseInertiaScale);
                     //UnityEngine.Debug.Log($"contact: {j} impulse: {deltaImpulse}, new velocity: {tempVelocityA.angular}, old velocity: {velocityA.angular}");
@@ -419,7 +420,7 @@ namespace Latios.Psyshock
                 contactImpulse                               = accumulatedImpulse;
                 perContactImpulses[j]                        = contactImpulse;
                 sumImpulses                                 += accumulatedImpulse;
-                outputImpulses.combinedContactPointsImpulse += contactImpulse;
+                outputImpulses.combinedContactPointsImpulse += deltaImpulse;
 
                 // Force contact event even when no impulse is applied, but there is penetration.
                 hasCollisionEvent |= jacAngular.velocityToReachContactPlane > 0.0f;

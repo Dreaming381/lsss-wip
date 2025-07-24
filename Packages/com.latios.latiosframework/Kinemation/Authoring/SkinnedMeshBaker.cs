@@ -202,6 +202,9 @@ namespace Latios.Kinemation.Authoring
                 lightmapScaleOffset         = authoring.lightmapScaleOffset,
                 isStatic                    = IsStatic(),
                 localBounds                 = sharedMesh != null ? sharedMesh.bounds : default,
+                overrideMeshLod             = authoring.forceMeshLod,
+                meshLodRendererBias         = authoring.meshLodSelectionBias,
+                rendererPriority            = authoring.rendererPriority,
                 requireLodCrossfade         = requireCrossfade
             };
 
