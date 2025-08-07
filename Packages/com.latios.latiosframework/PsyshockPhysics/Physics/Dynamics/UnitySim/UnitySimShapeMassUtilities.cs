@@ -30,6 +30,16 @@ namespace Latios.Psyshock
                 var r2 = new float3x3(inertiaDiagonal.x * r.c0, inertiaDiagonal.y * r.c1, inertiaDiagonal.z * r.c2);
                 return math.mul(r2, math.transpose(r));
             }
+
+            /// <summary>
+            /// Computes an approximated LocalInertiaTensorDiagonal from the inertia tensor matrix.
+            /// This uses a numeric solver with a hardcoded max of 10 iterations.
+            /// </summary>
+            public static LocalInertiaTensorDiagonal ApproximateFrom(float3x3 inertiaTensor)
+            {
+                mathex.DiagonalizeSymmetricApproximation(inertiaTensor, out float3x3 orientation, out float3 diagonal);
+                return new LocalInertiaTensorDiagonal { tensorOrientation = new quaternion(orientation), inertiaDiagonal = diagonal };
+            }
         }
 
         /// <summary>
@@ -243,13 +253,8 @@ namespace Latios.Psyshock
                     }
 
                     // Todo: Is there a faster way to do this when we already have the unscaled orientation and diagonal?
-                    var scaledTensor = StretchInertiaTensor(blob.inertiaTensor, scale);
-                    mathex.DiagonalizeSymmetricApproximation(scaledTensor, out var orientation, out var diagonal);
-                    return new LocalInertiaTensorDiagonal
-                    {
-                        inertiaDiagonal   = diagonal,
-                        tensorOrientation = new quaternion(orientation)
-                    };
+                    var scaledTensor = TrueSim.StretchInertiaTensor(blob.inertiaTensor, scale);
+                    return LocalInertiaTensorDiagonal.ApproximateFrom(scaledTensor);
                 }
                 case ColliderType.TriMesh:
                 {
@@ -290,51 +295,13 @@ namespace Latios.Psyshock
                     }
 
                     // Todo: Is there a faster way to do this when we already have the unscaled orientation and diagonal?
-                    var scaledTensor = StretchInertiaTensor(blob.inertiaTensor, scale);
-                    mathex.DiagonalizeSymmetricApproximation(scaledTensor, out var orientation, out var diagonal);
-                    return new LocalInertiaTensorDiagonal
-                    {
-                        inertiaDiagonal   = diagonal,
-                        tensorOrientation = new quaternion(orientation)
-                    };
+                    // Side note: This is an approximation because compound children don't necessarily stretch perfectly,
+                    // whereas this is a true stretching of the inertia tensor.
+                    var scaledTensor = TrueSim.StretchInertiaTensor(blob.inertiaTensor, scale);
+                    return LocalInertiaTensorDiagonal.ApproximateFrom(scaledTensor);
                 }
                 default: return default;
             }
-        }
-
-        static float3x3 StretchInertiaTensor(float3x3 original, float3 stretch)
-        {
-            // The inertia tensor matrix diagonal components (not necessarily a diagonalized inertia tensor) are defined as follows:
-            // diagonal.x = sum_1_k(mass_k * (y_k^2 + z_k^2)) = sum_1_k(mass_k * y_k^2) + sum_1_k(mass_k * z_k^2)
-            // And for uniform density, m_k is constant, so:
-            // diagonal.x = mass * sum_1_k(y_k^2) + sum_1_k(z_k^2)
-            // diagonal.y = mass * sum_1_k(x_k^2) + sum_1_k(z_k^2)
-            // diagonal.z = mass * sum_1_k(x_k^2) + sum_1_k(y_k^2)
-            // The base inertia diagonal has mass divided out to be 1f, so we can drop it from our expression.
-            //
-            // We can define a property s as the sum of diagonals.
-            // diagonal.x + diagonal.y + diagonal.z = sum_1_k(y_k^2) + sum_1_k(z_k^2) + sum_1_k(x_k^2) + sum_1_k(z_k^2) + sum_1_k(x_k^2) + sum_1_k(y_k^2)
-            // diagonal.x + diagonal.y + diagonal.z = 2 * ( sum_1_k(x_k^2) + sum_1_k(y_k^2) + sum_1_k(z_k^2) )
-            //
-            // And with this, we can write this expression:
-            // (diagonal.x + diagonal.y + diagonal.z) / 2 - diagonal.x = sum_1_k(x_k^2)
-            // And we can do similar for the other two axes.
-            //
-            // Applying stretch changes the expression of sum_1_k(x_k^2) to sum_1_k( (x_k * stretch.x)^2 ) = sum_1_k(x_k^2 * stretch.x^2) = stretch.x^2 * sum_1_k(x_k^2)
-            // And with that, we have all the data we need to reassemble the inertia tensor.
-            var diagonal        = new float3(original.c0.x, original.c1.y, original.c2.z);
-            var diagonalHalfSum = math.csum(diagonal) / 2f;
-            var xSqySqzSq       = diagonalHalfSum - diagonal;
-            var newDiagonal     = stretch * stretch * xSqySqzSq;
-
-            // The off diagonals are just products, so we can actually just scale those.
-            var scaleMatrix =
-                new float3x3(new float3(0f, stretch.x * stretch.yz), new float3(stretch.x * stretch.y, 0f, stretch.x * stretch.z), new float3(stretch.z * stretch.xy, 0f));
-            var result  = original * scaleMatrix;
-            result.c0.x = newDiagonal.x;
-            result.c1.y = newDiagonal.y;
-            result.c2.z = newDiagonal.z;
-            return result;
         }
     }
 }

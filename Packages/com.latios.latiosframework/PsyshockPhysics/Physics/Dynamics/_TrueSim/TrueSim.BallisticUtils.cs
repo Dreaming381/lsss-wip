@@ -2,7 +2,7 @@ using Unity.Mathematics;
 
 namespace Latios.Psyshock
 {
-    public static partial class Physics
+    public static partial class TrueSim
     {
         /// <summary>
         /// Computes the acceleration given a force and an inverse mass the force is acting upon
@@ -57,7 +57,7 @@ namespace Latios.Psyshock
 
         // Source: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4786048/
         /// <summary>
-        /// Computes a drag force using an approximation of a sphere inside a flowing fluid (such as wind or water)
+        /// Computes a drag force of a spherical object inside a flowing fluid (such as wind or water)
         /// </summary>
         /// <param name="velocity">The velocity of the spherical object</param>
         /// <param name="objectRadius">The spherical object's radius</param>
