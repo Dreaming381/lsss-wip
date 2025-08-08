@@ -1,6 +1,4 @@
 using Latios.Transforms;
-using Unity.Collections;
-using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -24,12 +22,7 @@ namespace Latios.Psyshock
             /// Converts the inertia diagonal and orientation back into a singular matrix.
             /// This can be useful when combining inertia tensors.
             /// </summary>
-            public float3x3 ToMatrix()
-            {
-                var r  = new float3x3(tensorOrientation);
-                var r2 = new float3x3(inertiaDiagonal.x * r.c0, inertiaDiagonal.y * r.c1, inertiaDiagonal.z * r.c2);
-                return math.mul(r2, math.transpose(r));
-            }
+            public float3x3 ToMatrix() => TrueSim.InertiaTensorFrom(tensorOrientation, inertiaDiagonal);
 
             /// <summary>
             /// Computes an approximated LocalInertiaTensorDiagonal from the inertia tensor matrix.
@@ -172,7 +165,7 @@ namespace Latios.Psyshock
                 case ColliderType.Sphere:
                     return new LocalInertiaTensorDiagonal
                     {
-                        inertiaDiagonal   = (2f / 5f) * collider.m_sphere.radius * collider.m_sphere.radius,
+                        inertiaDiagonal   = TrueSim.DiagonalizedGyrationTensorOfSphere(collider.m_sphere.radius),
                         tensorOrientation = quaternion.identity
                     };
                 case ColliderType.Capsule:
@@ -184,23 +177,12 @@ namespace Latios.Psyshock
                     {
                         new LocalInertiaTensorDiagonal
                         {
-                            inertiaDiagonal   = (2f / 5f) * collider.m_capsule.radius * collider.m_capsule.radius,
+                            inertiaDiagonal   = TrueSim.DiagonalizedGyrationTensorOfSphere(collider.m_capsule.radius),
                             tensorOrientation = quaternion.identity
                         };
                     }
 
-                    float radius   = collider.m_capsule.radius;
-                    float radiusSq = radius * radius;
-
-                    float cylinderMassPart  = math.PI * length * radiusSq;
-                    float sphereMassPart    = math.PI * (4f / 3f) * radiusSq * radius;
-                    float totalMass         = cylinderMassPart + sphereMassPart;
-                    cylinderMassPart       /= totalMass;
-                    sphereMassPart         /= totalMass;
-
-                    float onAxisInertia  = (cylinderMassPart / 2f + sphereMassPart * 2f / 5f) * radiusSq;
-                    float offAxisInertia = cylinderMassPart * (radiusSq / 4f + lengthSq / 12f) +
-                                           sphereMassPart * (radiusSq * 2f / 5f + radius * length * 3f / 8f + lengthSq / 4f);
+                    TrueSim.DiagonalizedGyrationTensorOfCapsule(length, collider.m_capsule.radius, out var onAxisInertia, out var offAxisInertia);
 
                     return new LocalInertiaTensorDiagonal
                     {
@@ -210,16 +192,15 @@ namespace Latios.Psyshock
                 }
                 case ColliderType.Box:
                 {
-                    var    halfSq    = collider.m_box.halfSize * collider.m_box.halfSize;
-                    float3 tensorNum = new float3(halfSq.y + halfSq.z, halfSq.x + halfSq.z, halfSq.x + halfSq.y);
                     return new LocalInertiaTensorDiagonal
                     {
-                        inertiaDiagonal   = tensorNum / 3f,
+                        inertiaDiagonal   = TrueSim.DiagonalizedGyrationTensorOfBox(collider.m_box.halfSize),
                         tensorOrientation = quaternion.identity
                     };
                 }
                 case ColliderType.Triangle:
                 {
+                    // Note: Unity Physics uses inertia tensor of sphere here.
                     var center     = (collider.m_triangle.pointA + collider.m_triangle.pointB + collider.m_triangle.pointC) / 3f;
                     var distanceSq = math.cmax(simd.distancesq(collider.m_triangle.AsSimdFloat3(), center));
                     return new LocalInertiaTensorDiagonal
@@ -258,15 +239,14 @@ namespace Latios.Psyshock
                 }
                 case ColliderType.TriMesh:
                 {
+                    // Note: Unity Physics approximates this as a box formed from the AABB
                     var aabb  = collider.m_triMesh().triMeshColliderBlob.Value.localAabb;
                     aabb.min *= collider.m_triMesh().scale;
                     aabb.max *= collider.m_triMesh().scale;
                     Physics.GetCenterExtents(aabb, out _, out var extents);
-                    var    halfSq    = extents * extents;
-                    float3 tensorNum = new float3(halfSq.y + halfSq.z, halfSq.x + halfSq.z, halfSq.x + halfSq.y);
                     return new LocalInertiaTensorDiagonal
                     {
-                        inertiaDiagonal   = tensorNum / 3f,
+                        inertiaDiagonal   = TrueSim.DiagonalizedGyrationTensorOfBox(extents),
                         tensorOrientation = quaternion.identity
                     };
                 }
