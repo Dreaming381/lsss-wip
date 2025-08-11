@@ -87,8 +87,8 @@ namespace Latios.Psyshock
                                                                           in RigidTransform bTransform,
                                                                           in ColliderDistanceResult distanceResult)
         {
-            UnitySim.ContactsBetweenResult result = default;
-            var bInATransform = math.mul(math.inverse(aTransform), bTransform);
+            UnitySim.ContactsBetweenResult result        = default;
+            var                            bInATransform = math.mul(math.inverse(aTransform), bTransform);
 
             // Unity Physics prefers to use the SAT axes for the contact normal if it can.
             // We attempt to recover the best SAT axis here.
@@ -231,7 +231,7 @@ namespace Latios.Psyshock
                         {
                             var clippedSegmentB = rayStart + fractionB * rayDisplacement;
                             var bDistance       = mathex.SignedDistance(bPlane, clippedSegmentB) * distanceScalarAlongContactNormalB;
-                            var bContact = math.transform(aTransform, clippedSegmentB + aLocalContactNormal * bDistance);
+                            var bContact        = math.transform(aTransform, clippedSegmentB + aLocalContactNormal * bDistance);
                             result.Add(bContact, bDistance);
                             needsClosestPoint &= bDistance > distanceResult.distance + 1e-4f;
                         }
@@ -748,7 +748,16 @@ namespace Latios.Psyshock
                         result.hitpointA = aPoints47.d;
                         break;
                 }
-                result.distance = math.sqrt(result.distance);
+                result.distance   = math.sqrt(result.distance);
+                var hitBInsideBox = halfSizeB - math.abs(hitB);
+                if (math.all(hitBInsideBox > 0f))
+                {
+                    // Sometimes due to floating point error, we actually have overlap here. So we need to push the hitpoint out to the surface.
+                    var boostAxis    = math.tzcnt(math.bitmask(new bool4(hitBInsideBox == math.cmin(hitBInsideBox), false)));
+                    var boostAmount  = hitBInsideBox[boostAxis];
+                    result.distance -= boostAmount;
+                    hitB[boostAxis]  = math.chgsign(halfSizeB[boostAxis], hitB[boostAxis]);
+                }
                 result.hitpointB    = math.transform(bInASpace, hitB);
                 result.featureCodeA = (ushort)bestId;
                 result.normalA      = math.normalize(math.select(1f, -1f, (bestId & new int3(1, 2, 4)) != 0));
@@ -802,7 +811,16 @@ namespace Latios.Psyshock
                         result.hitpointB = bPoints47inA.d;
                         break;
                 }
-                result.distance = math.sqrt(result.distance);
+                result.distance   = math.sqrt(result.distance);
+                var hitAInsideBox = halfSizeA - math.abs(hitA);
+                if (math.all(hitAInsideBox > 0f))
+                {
+                    // Sometimes due to floating point error, we actually have overlap here. So we need to push the hitpoint out to the surface.
+                    var boostAxis    = math.tzcnt(math.bitmask(new bool4(hitAInsideBox == math.cmin(hitAInsideBox), false)));
+                    var boostAmount  = hitAInsideBox[boostAxis];
+                    result.distance -= boostAmount;
+                    hitA[boostAxis]  = math.chgsign(halfSizeA[boostAxis], hitA[boostAxis]);
+                }
                 result.hitpointA    = hitA;
                 result.featureCodeB = (ushort)bestId;
                 result.normalB      = math.rotate(bInASpace.rot, math.normalize(math.select(1f, -1f, (bestId & new int3(1, 2, 4)) != 0)));

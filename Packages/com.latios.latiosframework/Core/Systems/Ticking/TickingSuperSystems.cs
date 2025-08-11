@@ -13,6 +13,16 @@ namespace Latios.Systems
         }
     }
 
+    // Only updated on lag frames
+    [DisableAutoCreation]
+    public partial class TickSustainInputSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = true;
+        }
+    }
+
     [DisableAutoCreation]
     public partial class TickUpdateHistorySuperSystem : SuperSystem
     {
@@ -53,6 +63,7 @@ namespace Latios.Systems
         SystemHandle expirablesSystem;
         SystemHandle syncPlaybackSystem;
         SystemHandle syncPointSuperSystem;
+        SystemHandle sustainInputSuperSystem;
 
         protected override void CreateSystems()
         {
@@ -65,9 +76,10 @@ namespace Latios.Systems
             simulationSuperSystem    = GetOrCreateAndAddManagedSystem<TickSimulationSuperSystem>().SystemHandle;
             interpolateSuperSystem   = GetOrCreateAndAddManagedSystem<TickInterpolateSuperSystem>().SystemHandle;
             GetOrCreateAndAddUnmanagedSystem<AutoDestroyExpirablesSystem>();
-            expirablesSystem     = World.GetExistingSystem<AutoDestroyExpirablesSystem>();
-            syncPlaybackSystem   = GetOrCreateAndAddManagedSystem<SyncPointPlaybackSystemDispatch>().SystemHandle;
-            syncPointSuperSystem = GetOrCreateAndAddManagedSystem<LatiosWorldSyncGroup>().SystemHandle;
+            expirablesSystem        = World.GetExistingSystem<AutoDestroyExpirablesSystem>();
+            syncPlaybackSystem      = GetOrCreateAndAddManagedSystem<SyncPointPlaybackSystemDispatch>().SystemHandle;
+            syncPointSuperSystem    = GetOrCreateAndAddManagedSystem<LatiosWorldSyncGroup>().SystemHandle;
+            sustainInputSuperSystem = GetOrCreateAndAddManagedSystem<TickSustainInputSuperSystem>().SystemHandle;
         }
 
         protected override void OnUpdate()
@@ -76,13 +88,17 @@ namespace Latios.Systems
             SuperSystem.UpdateSystem(latiosWorldUnmanaged, readInputSuperSystem);
 
             // Todo: Replace this with the actual values computed, and push and pop time.
-            for (int i = 0; i < 2; i++)
+            var timing = worldBlackboardEntity.GetComponentData<TickLocalTiming>();
+            World.PushTime(new Unity.Core.TimeData(timing.elapsedTime, timing.deltaTime));
+            for (int i = 0; i < timing.ticksThisFrame; i++)
             {
                 SuperSystem.UpdateSystem(latiosWorldUnmanaged, updateHistorySuperSystem);
                 SuperSystem.UpdateSystem(latiosWorldUnmanaged, simulationSuperSystem);
 
-                if (i == 0)
+                if (i + 1 < timing.ticksThisFrame)
                 {
+                    timing.elapsedTime += timing.deltaTime;
+                    World.SetTime(new Unity.Core.TimeData(timing.elapsedTime, timing.deltaTime));
                     // This sync point block here is a backup only for when the framerate falls below the tick rate.
                     // This ideally shouldn't happen very often, as the target framerate is supposed to be higher than
                     // the tick rate. However, when it does happen, we want to initialize things again as if this is a
@@ -90,8 +106,10 @@ namespace Latios.Systems
                     SuperSystem.UpdateSystem(latiosWorldUnmanaged, expirablesSystem);
                     SuperSystem.UpdateSystem(latiosWorldUnmanaged, syncPlaybackSystem);
                     SuperSystem.UpdateSystem(latiosWorldUnmanaged, syncPointSuperSystem);
+                    SuperSystem.UpdateSystem(latiosWorldUnmanaged, sustainInputSuperSystem);
                 }
             }
+            World.PopTime();
 
             SuperSystem.UpdateSystem(latiosWorldUnmanaged, interpolateSuperSystem);
         }
