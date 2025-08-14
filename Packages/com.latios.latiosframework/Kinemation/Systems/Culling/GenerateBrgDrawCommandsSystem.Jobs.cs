@@ -245,7 +245,7 @@ namespace Latios.Kinemation.Systems
                                                              new float4(postProcessMatrices[index].postProcessMatrix.c3, 1f));
 #if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
                                     var position = math.transform(f4x4, worldTransforms[index].position);
-#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
                                     var position = math.transform(f4x4, worldTransforms[index].Position);
 #endif
                                     depthSortingTransformsPtr[3 * index]     = position.x;
@@ -345,7 +345,7 @@ namespace Latios.Kinemation.Systems
                                         flags       = drawCommandFlagsToUse
                                     };
 
-                                    DrawCommandOutput.Emit(settings,
+                                    DrawCommandOutput.Emit(ref settings,
                                                            j,
                                                            bitIndex,
                                                            chunkStartIndex,
@@ -358,7 +358,7 @@ namespace Latios.Kinemation.Systems
                                     if (isMeshLodCrossfade)
                                     {
                                         settings.meshLod++;
-                                        DrawCommandOutput.Emit(settings,
+                                        DrawCommandOutput.Emit(ref settings,
                                                                j,
                                                                bitIndex,
                                                                chunkStartIndex,
@@ -400,7 +400,7 @@ namespace Latios.Kinemation.Systems
                                     flags       = drawCommandFlags
                                 };
 
-                                DrawCommandOutput.Emit(settings,
+                                DrawCommandOutput.Emit(ref settings,
                                                        j,
                                                        bitIndex,
                                                        chunkStartIndex,
@@ -413,7 +413,7 @@ namespace Latios.Kinemation.Systems
                                 if (isMeshLodCrossfade)
                                 {
                                     settings.meshLod++;
-                                    DrawCommandOutput.Emit(settings,
+                                    DrawCommandOutput.Emit(ref settings,
                                                            j,
                                                            bitIndex,
                                                            chunkStartIndex,
@@ -653,7 +653,7 @@ namespace Latios.Kinemation.Systems
                 var  settings           = DrawCommandOutput.UnsortedBins.ElementAt(index);
                 bool hasSortingPosition = settings.hasSortingPosition;
 
-                long* binPresentFilter = DrawCommandOutput.BinPresentFilterForSettings(settings);
+                long* binPresentFilter = DrawCommandOutput.BinPresentFilterForSettings(in settings);
 
                 int maxWorkItems = 0;
                 for (int qwIndex = 0; qwIndex < ChunkDrawCommandOutput.kNumThreadsBitfieldLength; ++qwIndex)
@@ -1057,13 +1057,15 @@ namespace Latios.Kinemation.Systems
                 {
                     var draw = new BatchDrawCommand
                     {
-                        visibleOffset       = drawInstanceOffset,
-                        visibleCount        = math.min(maxPerCommand, numInstances),
-                        batchID             = settings.batch,
-                        materialID          = settings.material,
-                        meshID              = settings.mesh,
-                        submeshIndex        = settings.submesh,
-                        activeMeshLod       = settings.meshLod,
+                        visibleOffset = drawInstanceOffset,
+                        visibleCount  = math.min(maxPerCommand, numInstances),
+                        batchID       = settings.batch,
+                        materialID    = settings.material,
+                        meshID        = settings.mesh,
+                        submeshIndex  = settings.submesh,
+#if UNITY_6000_2_OR_NEWER
+                        activeMeshLod = settings.meshLod,
+#endif
                         splitVisibilityMask = settings.splitMask,
                         flags               = settings.flags,
                         sortingPosition     = hasSortingPosition ? (int)drawPositionFloatOffset : 0,

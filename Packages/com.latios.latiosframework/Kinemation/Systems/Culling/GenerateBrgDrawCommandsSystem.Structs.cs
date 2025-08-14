@@ -95,8 +95,12 @@ namespace Latios.Kinemation.Systems
             }
 
             public override int GetHashCode() => m_hash;
-            public void ComputeHashCode() => m_hash = asPackedGeneric.GetHashCode();
-            public bool hasSortingPosition => (int)(flags & BatchDrawCommandFlags.HasSortingPosition) != 0;
+            public void ComputeHashCode()
+            {
+                m_hash = 0;
+                m_hash = asPackedGeneric.GetHashCode();
+            }
+            public bool hasSortingPosition => (flags & BatchDrawCommandFlags.HasSortingPosition) != 0;
         }
 
         struct ChunkDrawCommand : IComparable<ChunkDrawCommand>
@@ -188,21 +192,21 @@ namespace Latios.Kinemation.Systems
         {
             // Store the actual streams in a separate array so we can mutate them in place,
             // the hash map only supports a get/set API.
-            public UnsafeParallelHashMap<DrawCommandSettings, int> DrawCommandStreamIndices;
-            public UnsafeList<DrawCommandStream>                   DrawCommands;
-            public ThreadLocalAllocator                            ThreadLocalAllocator;
+            public UnsafeHashMap<DrawCommandSettings, int> DrawCommandStreamIndices;
+            public UnsafeList<DrawCommandStream>           DrawCommands;
+            public ThreadLocalAllocator                    ThreadLocalAllocator;
 
             public ThreadLocalDrawCommands(int capacity, ThreadLocalAllocator tlAllocator, int threadIndex)
             {
                 var allocator            = tlAllocator.ThreadAllocator(threadIndex)->Handle;
-                DrawCommandStreamIndices = new UnsafeParallelHashMap<DrawCommandSettings, int>(capacity, allocator);
+                DrawCommandStreamIndices = new UnsafeHashMap<DrawCommandSettings, int>(capacity, allocator);
                 DrawCommands             = new UnsafeList<DrawCommandStream>(capacity, allocator);
                 ThreadLocalAllocator     = tlAllocator;
             }
 
             public bool IsCreated => DrawCommandStreamIndices.IsCreated;
 
-            public bool Emit(DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex, int threadIndex,
+            public bool Emit(in DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex, int threadIndex,
                              LodCrossfade* lodCrossfades, bool complementLodCrossfade,
                              float* chunkTransforms, int transformStrideInFloats, int positionOffsetInFloats)
             {
@@ -528,7 +532,7 @@ namespace Latios.Kinemation.Systems
                 get => ThreadLocalCollectBuffers.Ptr + ThreadIndex;
             }
 
-            public void Emit(DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex,
+            public void Emit(ref DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex,
                              LodCrossfade* lodCrossfades, bool complementLodCrossfade,
                              float* chunkTransforms = null, int transformStrideInFloats = 0, int positionOffsetInFloats = 0)
             {
@@ -536,7 +540,7 @@ namespace Latios.Kinemation.Systems
                 // without recomputing the hash each time.
                 settings.ComputeHashCode();
 
-                bool newBinAdded = DrawCommands->Emit(settings,
+                bool newBinAdded = DrawCommands->Emit(in settings,
                                                       entityQword,
                                                       entityBit,
                                                       chunkStartIndex,
@@ -548,21 +552,21 @@ namespace Latios.Kinemation.Systems
                                                       positionOffsetInFloats);
                 if (newBinAdded)
                 {
-                    MarkBinPresentInThread(settings, ThreadIndex);
+                    MarkBinPresentInThread(in settings, ThreadIndex);
                 }
             }
 
             [return : NoAlias]
-            public long* BinPresentFilterForSettings(DrawCommandSettings settings)
+            public long* BinPresentFilterForSettings(in DrawCommandSettings settings)
             {
                 uint hash  = (uint)settings.GetHashCode();
                 uint index = hash % (uint)kBinPresentFilterSize;
                 return BinPresentFilter.Ptr + index * kNumThreadsBitfieldLength;
             }
 
-            private void MarkBinPresentInThread(DrawCommandSettings settings, int threadIndex)
+            private void MarkBinPresentInThread(in DrawCommandSettings settings, int threadIndex)
             {
-                long* settingsFilter = BinPresentFilterForSettings(settings);
+                long* settingsFilter = BinPresentFilterForSettings(in settings);
 
                 uint threadQword = (uint)threadIndex / 64;
                 uint threadBit   = (uint)threadIndex % 64;

@@ -590,9 +590,11 @@ namespace Latios.Kinemation.Authoring
                 isStatic                    = IsStatic(),
                 localBounds                 = mesh != null ? mesh.bounds : default,
                 rendererPriority            = authoring.rendererPriority,
-                meshLodRendererBias         = authoring.meshLodSelectionBias,
-                overrideMeshLod             = authoring.forceMeshLod,
-                requireLodCrossfade         = requireCrossfade
+#if UNITY_6000_2_OR_NEWER
+                meshLodRendererBias = authoring.meshLodSelectionBias,
+                overrideMeshLod     = authoring.forceMeshLod,
+#endif
+                requireLodCrossfade = requireCrossfade
             };
 
             if (opaqueMaterialCount == mms.Length || opaqueMaterialCount == 0)

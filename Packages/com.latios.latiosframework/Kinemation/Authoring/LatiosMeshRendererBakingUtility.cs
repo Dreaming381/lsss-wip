@@ -101,10 +101,12 @@ namespace Latios.Kinemation.Authoring
 
                     if ((mms.lodMask & 0x1) != 0)
                     {
+#if UNITY_6000_2_OR_NEWER
                         meshLodLevelCount = math.min(meshLodLevelCount, mesh.lodCount);
-                        var slope         = mesh.lodSelectionCurve;
-                        meshLodSlope      = math.min(meshLodSlope, slope.lodSlope);
-                        meshLodMeshBias   = math.min(meshLodMeshBias, slope.lodBias);
+                        var slope = mesh.lodSelectionCurve;
+                        meshLodSlope    = math.min(meshLodSlope, slope.lodSlope);
+                        meshLodMeshBias = math.min(meshLodMeshBias, slope.lodBias);
+#endif
                     }
 
                     var mmsClassification = GetDeformClassificationFromMaterial(material);

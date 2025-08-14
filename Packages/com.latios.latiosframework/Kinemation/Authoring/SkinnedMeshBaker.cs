@@ -204,10 +204,12 @@ namespace Latios.Kinemation.Authoring
                 lightmapScaleOffset         = authoring.lightmapScaleOffset,
                 isStatic                    = IsStatic(),
                 localBounds                 = sharedMesh != null ? sharedMesh.bounds : default,
-                overrideMeshLod             = authoring.forceMeshLod,
-                meshLodRendererBias         = authoring.meshLodSelectionBias,
-                rendererPriority            = authoring.rendererPriority,
-                requireLodCrossfade         = requireCrossfade
+#if UNITY_6000_2_OR_NEWER
+                overrideMeshLod     = authoring.forceMeshLod,
+                meshLodRendererBias = authoring.meshLodSelectionBias,
+#endif
+                rendererPriority    = authoring.rendererPriority,
+                requireLodCrossfade = requireCrossfade
             };
 
             if (opaqueMaterialCount == mms.Length || opaqueMaterialCount == 0)
