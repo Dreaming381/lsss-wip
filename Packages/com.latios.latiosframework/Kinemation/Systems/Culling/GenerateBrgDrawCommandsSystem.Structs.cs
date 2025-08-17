@@ -103,6 +103,18 @@ namespace Latios.Kinemation.Systems
             public bool hasSortingPosition => (flags & BatchDrawCommandFlags.HasSortingPosition) != 0;
         }
 
+        unsafe struct EntityDrawSettings
+        {
+            public int           entityQword;
+            public int           entityBit;
+            public int           chunkStartIndex;
+            public LodCrossfade* lodCrossfades;
+            public bool          complementLodCrossfade;
+            public float*        chunkTransforms;
+            public int           transformStrideInFloats;
+            public int           positionOffsetInFloats;
+        }
+
         struct ChunkDrawCommand : IComparable<ChunkDrawCommand>
         {
             public DrawCommandSettings   Settings;
@@ -111,14 +123,14 @@ namespace Latios.Kinemation.Systems
             public int CompareTo(ChunkDrawCommand other) => Settings.CompareTo(other.Settings);
         }
 
-        internal unsafe struct DrawCommandWorkItem
+        unsafe struct DrawCommandWorkItem
         {
             public DrawStream<DrawCommandVisibility>.Header* Arrays;
             public int                                       BinIndex;
             public int                                       PrefixSumNumInstances;
         }
 
-        internal unsafe struct DrawCommandVisibility
+        unsafe struct DrawCommandVisibility
         {
             public fixed ulong   visibleInstances[2];
             public fixed ulong   crossfadeComplements[2];
@@ -128,22 +140,22 @@ namespace Latios.Kinemation.Systems
             public int           transformStrideInFloats;
             public int           positionOffsetInFloats;
 
-            public DrawCommandVisibility(int startIndex, float* transformsPtr, LodCrossfade* crossfadesPtr, int transformStrideInFloats, int positionOffsetInFloats)
+            public DrawCommandVisibility(in EntityDrawSettings entitySettings)
             {
-                chunkStartIndex              = startIndex;
-                visibleInstances[0]          = 0;
-                visibleInstances[1]          = 0;
-                crossfadeComplements[0]      = 0;
-                crossfadeComplements[1]      = 0;
-                this.transformsPtr           = transformsPtr;
-                this.crossfadesPtr           = crossfadesPtr;
-                this.transformStrideInFloats = transformStrideInFloats;
-                this.positionOffsetInFloats  = positionOffsetInFloats;
+                chunkStartIndex         = entitySettings.chunkStartIndex;
+                visibleInstances[0]     = 0;
+                visibleInstances[1]     = 0;
+                crossfadeComplements[0] = 0;
+                crossfadeComplements[1] = 0;
+                transformsPtr           = entitySettings.chunkTransforms;
+                crossfadesPtr           = entitySettings.lodCrossfades;
+                transformStrideInFloats = entitySettings.transformStrideInFloats;
+                positionOffsetInFloats  = entitySettings.positionOffsetInFloats;
             }
         }
 
         [NoAlias]
-        internal unsafe struct DrawCommandStream
+        unsafe struct DrawCommandStream
         {
             private DrawStream<DrawCommandVisibility> m_Stream;
             private int                               m_PrevChunkStartIndex;
@@ -157,29 +169,26 @@ namespace Latios.Kinemation.Systems
                 m_PrevVisibility      = null;
             }
 
-            public void Emit(RewindableAllocator* allocator,
-                             int qwordIndex, int bitIndex, int chunkStartIndex,
-                             LodCrossfade* lodCrossfades, bool complementLodCrossfade,
-                             float* chunkTransforms, int transformStrideInFloats, int positionOffsetInFloats)
+            public void Emit(RewindableAllocator* allocator, in EntityDrawSettings entitySettings)
             {
                 DrawCommandVisibility* visibility;
 
-                if (chunkStartIndex == m_PrevChunkStartIndex)
+                if (entitySettings.chunkStartIndex == m_PrevChunkStartIndex)
                 {
                     visibility = m_PrevVisibility;
                 }
                 else
                 {
                     visibility  = m_Stream.AppendElement(allocator);
-                    *visibility = new DrawCommandVisibility(chunkStartIndex, chunkTransforms, lodCrossfades, transformStrideInFloats, positionOffsetInFloats);
+                    *visibility = new DrawCommandVisibility(in entitySettings);
                 }
 
-                var bit                                   = 1ul << bitIndex;
-                visibility->visibleInstances[qwordIndex] |= bit;
-                if (complementLodCrossfade)
-                    visibility->crossfadeComplements[qwordIndex] |= bit;
+                var bit                                                   = 1ul << entitySettings.entityBit;
+                visibility->visibleInstances[entitySettings.entityQword] |= bit;
+                if (entitySettings.complementLodCrossfade)
+                    visibility->crossfadeComplements[entitySettings.entityQword] |= bit;
 
-                m_PrevChunkStartIndex = chunkStartIndex;
+                m_PrevChunkStartIndex = entitySettings.chunkStartIndex;
                 m_PrevVisibility      = visibility;
                 m_Stream.AddInstances(1);
             }
@@ -206,42 +215,24 @@ namespace Latios.Kinemation.Systems
 
             public bool IsCreated => DrawCommandStreamIndices.IsCreated;
 
-            public bool Emit(in DrawCommandSettings settings, int qwordIndex, int bitIndex, int chunkStartIndex, int threadIndex,
-                             LodCrossfade* lodCrossfades, bool complementLodCrossfade,
-                             float* chunkTransforms, int transformStrideInFloats, int positionOffsetInFloats)
+            public bool Emit(in DrawCommandSettings commandSettings, in EntityDrawSettings entitySettings, int threadIndex)
             {
                 var allocator = ThreadLocalAllocator.ThreadAllocator(threadIndex);
 
-                if (DrawCommandStreamIndices.TryGetValue(settings, out int streamIndex))
+                if (DrawCommandStreamIndices.TryGetValue(commandSettings, out int streamIndex))
                 {
                     DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
-                    stream->Emit(allocator,
-                                 qwordIndex,
-                                 bitIndex,
-                                 chunkStartIndex,
-                                 lodCrossfades,
-                                 complementLodCrossfade,
-                                 chunkTransforms,
-                                 transformStrideInFloats,
-                                 positionOffsetInFloats);
+                    stream->Emit(allocator, in entitySettings);
                     return false;
                 }
                 else
                 {
                     streamIndex = DrawCommands.Length;
                     DrawCommands.Add(new DrawCommandStream(allocator));
-                    DrawCommandStreamIndices.Add(settings, streamIndex);
+                    DrawCommandStreamIndices.Add(commandSettings, streamIndex);
 
                     DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
-                    stream->Emit(allocator,
-                                 qwordIndex,
-                                 bitIndex,
-                                 chunkStartIndex,
-                                 lodCrossfades,
-                                 complementLodCrossfade,
-                                 chunkTransforms,
-                                 transformStrideInFloats,
-                                 positionOffsetInFloats);
+                    stream->Emit(allocator, in entitySettings);
 
                     return true;
                 }
@@ -249,7 +240,7 @@ namespace Latios.Kinemation.Systems
         }
 
         [StructLayout(LayoutKind.Sequential, Size = 64)]  // Force instances on separate cache lines
-        internal unsafe struct ThreadLocalCollectBuffer
+        unsafe struct ThreadLocalCollectBuffer
         {
             public static readonly int kCollectBufferSize = ChunkDrawCommandOutput.NumThreads;
 
@@ -532,27 +523,16 @@ namespace Latios.Kinemation.Systems
                 get => ThreadLocalCollectBuffers.Ptr + ThreadIndex;
             }
 
-            public void Emit(ref DrawCommandSettings settings, int entityQword, int entityBit, int chunkStartIndex,
-                             LodCrossfade* lodCrossfades, bool complementLodCrossfade,
-                             float* chunkTransforms = null, int transformStrideInFloats = 0, int positionOffsetInFloats = 0)
+            public void Emit(ref DrawCommandSettings commandSettings, in EntityDrawSettings entitySettings)
             {
                 // Update the cached hash code here, so all processing after this can just use the cached value
                 // without recomputing the hash each time.
-                settings.ComputeHashCode();
+                commandSettings.ComputeHashCode();
 
-                bool newBinAdded = DrawCommands->Emit(in settings,
-                                                      entityQword,
-                                                      entityBit,
-                                                      chunkStartIndex,
-                                                      ThreadIndex,
-                                                      lodCrossfades,
-                                                      complementLodCrossfade,
-                                                      chunkTransforms,
-                                                      transformStrideInFloats,
-                                                      positionOffsetInFloats);
+                bool newBinAdded = DrawCommands->Emit(in commandSettings, in entitySettings, ThreadIndex);
                 if (newBinAdded)
                 {
-                    MarkBinPresentInThread(in settings, ThreadIndex);
+                    MarkBinPresentInThread(in commandSettings, ThreadIndex);
                 }
             }
 

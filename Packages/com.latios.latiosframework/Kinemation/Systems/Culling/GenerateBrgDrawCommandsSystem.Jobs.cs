@@ -333,7 +333,7 @@ namespace Latios.Kinemation.Systems
                                     if (hasOverrideMesh)
                                         matMeshSubMesh.Mesh = overrideMesh;
 
-                                    DrawCommandSettings settings = new DrawCommandSettings
+                                    var commandSettings = new DrawCommandSettings
                                     {
                                         filterIndex = filterIndex,
                                         batch       = batchID,
@@ -345,28 +345,24 @@ namespace Latios.Kinemation.Systems
                                         flags       = drawCommandFlagsToUse
                                     };
 
-                                    DrawCommandOutput.Emit(ref settings,
-                                                           j,
-                                                           bitIndex,
-                                                           chunkStartIndex,
-                                                           lodCrossfades,
-                                                           complementLod,
-                                                           depthSortingTransformsPtr,
-                                                           transformStrideInFloats,
-                                                           positionOffsetInFloats);
+                                    var entitySettings = new EntityDrawSettings
+                                    {
+                                        entityQword             = j,
+                                        entityBit               = bitIndex,
+                                        chunkStartIndex         = chunkStartIndex,
+                                        lodCrossfades           = lodCrossfades,
+                                        complementLodCrossfade  = complementLod,
+                                        chunkTransforms         = depthSortingTransformsPtr,
+                                        transformStrideInFloats = transformStrideInFloats,
+                                        positionOffsetInFloats  = positionOffsetInFloats
+                                    };
+
+                                    DrawCommandOutput.Emit(ref commandSettings, in entitySettings);
 
                                     if (isMeshLodCrossfade)
                                     {
-                                        settings.meshLod++;
-                                        DrawCommandOutput.Emit(ref settings,
-                                                               j,
-                                                               bitIndex,
-                                                               chunkStartIndex,
-                                                               lodCrossfades,
-                                                               true,
-                                                               depthSortingTransformsPtr,
-                                                               transformStrideInFloats,
-                                                               positionOffsetInFloats);
+                                        commandSettings.meshLod++;
+                                        DrawCommandOutput.Emit(ref commandSettings, in entitySettings);
                                     }
                                 }
                             }
@@ -400,28 +396,25 @@ namespace Latios.Kinemation.Systems
                                     flags       = drawCommandFlags
                                 };
 
-                                DrawCommandOutput.Emit(ref settings,
-                                                       j,
-                                                       bitIndex,
-                                                       chunkStartIndex,
-                                                       lodCrossfades,
-                                                       false,
-                                                       depthSortingTransformsPtr,
-                                                       transformStrideInFloats,
-                                                       positionOffsetInFloats);
+                                var entitySettings = new EntityDrawSettings
+                                {
+                                    entityQword             = j,
+                                    entityBit               = bitIndex,
+                                    chunkStartIndex         = chunkStartIndex,
+                                    lodCrossfades           = lodCrossfades,
+                                    complementLodCrossfade  = false,
+                                    chunkTransforms         = depthSortingTransformsPtr,
+                                    transformStrideInFloats = transformStrideInFloats,
+                                    positionOffsetInFloats  = positionOffsetInFloats
+                                };
+
+                                DrawCommandOutput.Emit(ref settings, in entitySettings);
 
                                 if (isMeshLodCrossfade)
                                 {
                                     settings.meshLod++;
-                                    DrawCommandOutput.Emit(ref settings,
-                                                           j,
-                                                           bitIndex,
-                                                           chunkStartIndex,
-                                                           lodCrossfades,
-                                                           true,
-                                                           depthSortingTransformsPtr,
-                                                           transformStrideInFloats,
-                                                           positionOffsetInFloats);
+                                    entitySettings.complementLodCrossfade = true;
+                                    DrawCommandOutput.Emit(ref settings, in entitySettings);
                                 }
                             }
                         }
