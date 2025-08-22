@@ -136,17 +136,22 @@ namespace Latios.Kinemation.Systems
 
                     var  materialMeshInfos   = chunk.GetNativeArray(ref MaterialMeshInfo);
                     var  worldTransforms     = chunk.GetNativeArray(ref WorldTransform);
-                    var  postProcessMatrices = chunk.GetNativeArray(ref PostProcessMatrix);
+                    var  postProcessMatrices = chunk.GetComponentDataPtrRO(ref PostProcessMatrix);
                     var  lodCrossfades       = chunk.GetComponentDataPtrRO(ref lodCrossfadeHandle);
                     var  rendererPriorities  = chunk.GetComponentDataPtrRO(ref rendererPriorityHandle);
                     var  meshLods            = chunk.GetComponentDataPtrRO(ref meshLodHandle);
                     var  meshLodCrossfades   = chunk.GetEnabledMask(ref meshLodHandle);
-                    bool hasPostProcess      = chunk.Has(ref PostProcessMatrix);
+                    bool hasPostProcess      = postProcessMatrices != null;
                     bool isDepthSorted       = chunk.Has(ref DepthSorted);
                     bool isLightMapped       = chunk.GetSharedComponentIndex(LightMaps) >= 0;
                     bool hasLodCrossfade     = lodCrossfades != null;
                     bool useMmiRangeLod      = chunk.Has(ref useMmiRangeLodTagHandle);
                     bool hasOverrideMesh     = chunk.Has(ref overrideMeshInRangeTagHandle);
+
+                    BatchDrawCommandFlags chunkFlags = default;
+
+                    if (isLightMapped)
+                        chunkFlags |= BatchDrawCommandFlags.IsLightMapped;
 
                     // Check if the chunk has statically disabled motion (i.e. never in motion pass)
                     // or enabled motion (i.e. in motion pass if there was actual motion or force-to-zero).
@@ -163,6 +168,8 @@ namespace Latios.Kinemation.Systems
                         bool isDeformed           = motionVectorDeformQueryMask.MatchesIgnoreFilter(chunk);
                         bool hasProceduralMotion  = chunk.Has(ref ProceduralMotion);
                         hasMotion                 = orderChanged || transformChanged || isDeformed || hasProceduralMotion;
+                        if (hasMotion)
+                            chunkFlags |= BatchDrawCommandFlags.HasMotion;
                     }
 
                     int chunkStartIndex = entitiesGraphicsChunkInfo.CullingData.ChunkOffsetInBatch;
@@ -176,68 +183,30 @@ namespace Latios.Kinemation.Systems
                     int    transformStrideInFloats   = 0;
                     int    positionOffsetInFloats    = 0;
 
-                    if (isDepthSorted && hasPostProcess)
+                    if (isDepthSorted)
                     {
-                        // In this case, we don't actually have a component that represents the rendered position.
-                        // So we allocate a new array and compute the world positions.
-                        // We compute them in the inner loop since only the visible instances are read from later,
-                        // and it is a lot cheaper to only compute the visible instances.
-                        var allocator             = DrawCommandOutput.ThreadLocalAllocator.ThreadAllocator(DrawCommandOutput.ThreadIndex)->Handle;
-                        depthSortingTransformsPtr = (float*)AllocatorManager.Allocate<float3>(allocator, chunk.Count);
-                        transformStrideInFloats   = 3;
-                        positionOffsetInFloats    = 0;
-                    }
-                    else if (isDepthSorted)
-                    {
-                        depthSortingTransformsPtr = (float*)worldTransforms.GetUnsafeReadOnlyPtr();
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
-                        transformStrideInFloats = 12;
-                        positionOffsetInFloats  = 4;
-
-#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
-                        transformStrideInFloats = 16;
-                        positionOffsetInFloats  = 12;
-#endif
-                    }
-
-                    for (int j = 0; j < 2; j++)
-                    {
-                        ulong visibleWord = mask.ValueRO.GetUlongFromIndex(j);
-
-                        while (visibleWord != 0)
+                        chunkFlags |= BatchDrawCommandFlags.HasSortingPosition;
+                        if (hasPostProcess)
                         {
-                            int   bitIndex    = math.tzcnt(visibleWord);
-                            int   entityIndex = (j << 6) + bitIndex;
-                            ulong entityMask  = 1ul << bitIndex;
+                            // In this case, we don't actually have a component that represents the rendered position.
+                            // So we allocate a new array and compute the world positions.
+                            // We compute them in the inner loop since only the visible instances are read from later,
+                            // and it is a lot cheaper to only compute the visible instances.
+                            var allocator             = DrawCommandOutput.ThreadLocalAllocator.ThreadAllocator(DrawCommandOutput.ThreadIndex)->Handle;
+                            depthSortingTransformsPtr = (float*)AllocatorManager.Allocate<float3>(allocator, chunk.Count);
+                            transformStrideInFloats   = 3;
+                            positionOffsetInFloats    = 0;
 
-                            // Clear the bit first in case we early out from the loop
-                            visibleWord ^= entityMask;
-
-                            MaterialMeshInfo materialMeshInfo = materialMeshInfos[entityIndex];
-                            BatchID          batchID          = new BatchID { value = (uint)batchIndex };
-                            ushort           splitMask        = splitsAreValid ? splitsMask.ValueRO.splitMasks[entityIndex] : (ushort)0;  // Todo: Should the default be 1 instead of 0?
-                            bool             flipWinding      = (chunkCullingData.FlippedWinding[j] & entityMask) != 0;
-
-                            BatchDrawCommandFlags drawCommandFlags = 0;
-
-                            if (flipWinding)
-                                drawCommandFlags |= BatchDrawCommandFlags.FlipWinding;
-
-                            if (hasMotion)
-                                drawCommandFlags |= BatchDrawCommandFlags.HasMotion;
-
-                            if (isLightMapped)
-                                drawCommandFlags |= BatchDrawCommandFlags.IsLightMapped;
-
-                            // Depth sorted draws are emitted with access to entity transforms,
-                            // so they can also be written out for sorting
-                            if (isDepthSorted)
+                            for (int j = 0; j < 2; j++)
                             {
-                                drawCommandFlags |= BatchDrawCommandFlags.HasSortingPosition;
-                                // To maintain compatibility with most of the data structures, we pretend we have a LocalToWorld matrix pointer.
-                                // We also customize the code where this pointer is read.
-                                if (hasPostProcess)
+                                ulong visibleWord = mask.ValueRO.GetUlongFromIndex(j);
+                                while (visibleWord != 0)
                                 {
+                                    int   bitIndex     = math.tzcnt(visibleWord);
+                                    int   entityIndex  = (j << 6) + bitIndex;
+                                    ulong entityMask   = 1ul << bitIndex;
+                                    visibleWord       ^= entityMask;
+
                                     var index = j * 64 + bitIndex;
                                     var f4x4  = new float4x4(new float4(postProcessMatrices[index].postProcessMatrix.c0, 0f),
                                                              new float4(postProcessMatrices[index].postProcessMatrix.c1, 0f),
@@ -253,6 +222,59 @@ namespace Latios.Kinemation.Systems
                                     depthSortingTransformsPtr[3 * index + 2] = position.z;
                                 }
                             }
+                        }
+                        else if (isDepthSorted)
+                        {
+                            depthSortingTransformsPtr = (float*)worldTransforms.GetUnsafeReadOnlyPtr();
+#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+                            transformStrideInFloats = 12;
+                            positionOffsetInFloats  = 4;
+
+#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
+                            transformStrideInFloats = 16;
+                            positionOffsetInFloats  = 12;
+#endif
+                        }
+                    }
+
+                    var drawCommandSettings = new DrawCommandSettings
+                    {
+                        batch       = new BatchID { value = (uint)batchIndex },
+                        filterIndex                       = filterIndex,
+                    };
+
+                    var entityDrawSettings = new EntityDrawSettings
+                    {
+                        chunkStartIndex         = chunkStartIndex,
+                        chunkTransforms         = depthSortingTransformsPtr,
+                        lodCrossfades           = lodCrossfades,
+                        transformStrideInFloats = transformStrideInFloats,
+                        positionOffsetInFloats  = positionOffsetInFloats,
+                    };
+
+                    for (int j = 0; j < 2; j++)
+                    {
+                        ulong visibleWord              = mask.ValueRO.GetUlongFromIndex(j);
+                        entityDrawSettings.entityQword = j;
+
+                        while (visibleWord != 0)
+                        {
+                            int   bitIndex               = math.tzcnt(visibleWord);
+                            int   entityIndex            = (j << 6) + bitIndex;
+                            ulong entityMask             = 1ul << bitIndex;
+                            entityDrawSettings.entityBit = bitIndex;
+
+                            // Clear the bit first in case we early out from the loop
+                            visibleWord ^= entityMask;
+
+                            MaterialMeshInfo materialMeshInfo = materialMeshInfos[entityIndex];
+                            drawCommandSettings.splitMask     = splitsAreValid ? splitsMask.ValueRO.splitMasks[entityIndex] : (ushort)0;  // Todo: Should the default be 1 instead of 0?
+                            bool flipWinding                  = (chunkCullingData.FlippedWinding[j] & entityMask) != 0;
+
+                            BatchDrawCommandFlags drawCommandFlags = chunkFlags;
+
+                            if (flipWinding)
+                                drawCommandFlags |= BatchDrawCommandFlags.FlipWinding;
 
                             var  drawCommandFlagsWithoutCrossfade = drawCommandFlags;
                             bool isCrossfadeReady                 = hasLodCrossfade && crossFadeEnableds[entityIndex];
@@ -264,8 +286,8 @@ namespace Latios.Kinemation.Systems
                                 drawCommandFlags     |= BatchDrawCommandFlags.LODCrossFadeValuePacked;
                             }
 
-                            ushort meshLod          = meshLods != null ? meshLods[entityIndex].lodLevel : (ushort)0;
-                            int    rendererPriority = rendererPriorities == null ? 0 : rendererPriorities[entityIndex].priority;
+                            ushort meshLod                        = meshLods != null ? meshLods[entityIndex].lodLevel : (ushort)0;
+                            drawCommandSettings.renderingPriority = rendererPriorities == null ? 0 : rendererPriorities[entityIndex].priority;
 
                             if (materialMeshInfo.HasMaterialMeshIndexRange)
                             {
@@ -333,36 +355,20 @@ namespace Latios.Kinemation.Systems
                                     if (hasOverrideMesh)
                                         matMeshSubMesh.Mesh = overrideMesh;
 
-                                    var commandSettings = new DrawCommandSettings
-                                    {
-                                        filterIndex = filterIndex,
-                                        batch       = batchID,
-                                        material    = matMeshSubMesh.Material,
-                                        mesh        = matMeshSubMesh.Mesh,
-                                        splitMask   = splitMask,
-                                        submesh     = (ushort)(matMeshSubMesh.SubMeshIndex & 0xffff),
-                                        meshLod     = meshLod,
-                                        flags       = drawCommandFlagsToUse
-                                    };
+                                    drawCommandSettings.mesh     = matMeshSubMesh.Mesh;
+                                    drawCommandSettings.material = matMeshSubMesh.Material;
+                                    drawCommandSettings.submesh  = (ushort)(matMeshSubMesh.SubMeshIndex & 0xffff);
+                                    drawCommandSettings.meshLod  = complementLod ? (ushort)0 : meshLod;
+                                    drawCommandSettings.flags    = drawCommandFlagsToUse;
 
-                                    var entitySettings = new EntityDrawSettings
-                                    {
-                                        entityQword             = j,
-                                        entityBit               = bitIndex,
-                                        chunkStartIndex         = chunkStartIndex,
-                                        lodCrossfades           = lodCrossfades,
-                                        complementLodCrossfade  = complementLod,
-                                        chunkTransforms         = depthSortingTransformsPtr,
-                                        transformStrideInFloats = transformStrideInFloats,
-                                        positionOffsetInFloats  = positionOffsetInFloats
-                                    };
+                                    entityDrawSettings.complementLodCrossfade = complementLod;
 
-                                    DrawCommandOutput.Emit(ref commandSettings, in entitySettings);
+                                    DrawCommandOutput.Emit(ref drawCommandSettings, in entityDrawSettings);
 
                                     if (isMeshLodCrossfade)
                                     {
-                                        commandSettings.meshLod++;
-                                        DrawCommandOutput.Emit(ref commandSettings, in entitySettings);
+                                        drawCommandSettings.meshLod++;
+                                        DrawCommandOutput.Emit(ref drawCommandSettings, in entityDrawSettings);
                                     }
                                 }
                             }
@@ -384,41 +390,35 @@ namespace Latios.Kinemation.Systems
                                 if (materialID == BatchMaterialID.Null)
                                     continue;
 
-                                var settings = new DrawCommandSettings
-                                {
-                                    filterIndex = filterIndex,
-                                    batch       = batchID,
-                                    material    = materialID,
-                                    mesh        = meshID,
-                                    splitMask   = splitMask,
-                                    submesh     = materialMeshInfo.SubMesh,
-                                    meshLod     = meshLod,
-                                    flags       = drawCommandFlags
-                                };
+                                drawCommandSettings.mesh     = meshID;
+                                drawCommandSettings.material = materialID;
+                                drawCommandSettings.submesh  = GetSubMesh16(ref materialMeshInfo);
+                                drawCommandSettings.meshLod  = meshLod;
+                                drawCommandSettings.flags    = drawCommandFlags;
 
-                                var entitySettings = new EntityDrawSettings
-                                {
-                                    entityQword             = j,
-                                    entityBit               = bitIndex,
-                                    chunkStartIndex         = chunkStartIndex,
-                                    lodCrossfades           = lodCrossfades,
-                                    complementLodCrossfade  = false,
-                                    chunkTransforms         = depthSortingTransformsPtr,
-                                    transformStrideInFloats = transformStrideInFloats,
-                                    positionOffsetInFloats  = positionOffsetInFloats
-                                };
+                                entityDrawSettings.complementLodCrossfade = false;
 
-                                DrawCommandOutput.Emit(ref settings, in entitySettings);
+                                DrawCommandOutput.Emit(ref drawCommandSettings, in entityDrawSettings);
 
                                 if (isMeshLodCrossfade)
                                 {
-                                    settings.meshLod++;
-                                    entitySettings.complementLodCrossfade = true;
-                                    DrawCommandOutput.Emit(ref settings, in entitySettings);
+                                    drawCommandSettings.meshLod++;
+                                    entityDrawSettings.complementLodCrossfade = true;
+                                    DrawCommandOutput.Emit(ref drawCommandSettings, in entityDrawSettings);
                                 }
                             }
                         }
                     }
+                }
+            }
+
+            static unsafe ushort GetSubMesh16(ref MaterialMeshInfo mmi)
+            {
+                fixed (MaterialMeshInfo* mmiPtr = &mmi)
+                {
+                    var uintPtr    = (uint*)mmiPtr;
+                    var packedData = uintPtr[2];
+                    return (ushort)(packedData & 0xffff);
                 }
             }
         }

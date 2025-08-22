@@ -17,43 +17,98 @@ namespace Latios.Kinemation.Systems
 {
     public partial struct GenerateBrgDrawCommandsSystem
     {
-        [StructLayout(LayoutKind.Explicit)]
         unsafe struct DrawCommandSettings : IEquatable<DrawCommandSettings>
         {
-            [FieldOffset(0)] private int             m_hash;
-            [FieldOffset(4)] public BatchID          batch;
-            [FieldOffset(8)] public ushort           splitMask;
-            [FieldOffset(10)] public ushort          meshLod;
-            [FieldOffset(12)] public ushort          submesh;
-            [FieldOffset(14)] private uint           m_mesh;
-            [FieldOffset(18)] public BatchMaterialID material;
-            [FieldOffset(22)] private ushort         m_flags;
-            [FieldOffset(24)] public int             filterIndex;
-            [FieldOffset(28)] public int             renderingPriority;
+            v256 packed;
 
-            [FieldOffset(0)] int4x2 asPackedGeneric;
-            [FieldOffset(0)] v256   asPacked256;
-
+            int hash
+            {
+                get => packed.SInt0;
+                set => packed.SInt0 = value;
+            }
+            public BatchID batch
+            {
+                get => new BatchID { value = packed.UInt1 };
+                set => packed.UInt1        = value.value;
+            }
+            public ushort splitMask
+            {
+                get => packed.UShort4;
+                set => packed.UShort4 = value;
+            }
+            public ushort meshLod
+            {
+                get => packed.UShort5;
+                set => packed.UShort5 = value;
+            }
+            public ushort submesh
+            {
+                get => packed.UShort6;
+                set => packed.UShort6 = value;
+            }
             public BatchMeshID mesh
             {
-                // Todo: Does it even matter if meshes are sorted different from BatchMeshID?
-                get => new BatchMeshID { value = m_mesh ^ 0x00008000 };
-                set => m_mesh                  = value.value ^ 0x00008000;
+                // Need to flip the bit because SIMD uses signed integer compare. Todo: Does this actually help BRG at all?
+                get
+                {
+                    var flipped                     = packed.UShort7 ^ 0x00008000u;
+                    flipped                        |= (uint)packed.UShort8 << 16;
+                    return new BatchMeshID { value  = flipped };
+                }
+                set
+                {
+                    var flipped    = value.value ^ 0x00008000;
+                    packed.UShort7 = (ushort)(flipped & 0xffff);
+                    packed.UShort8 = (ushort)(flipped >> 16);
+                }
+            }
+            public BatchMaterialID material
+            {
+                get => new BatchMaterialID { value = packed.UShort9 | ((uint)packed.UShort10 << 16) };
+                set
+                {
+                    packed.UShort9  = (ushort)(value.value & 0xffff);
+                    packed.UShort10 = (ushort)(value.value >> 16);
+                }
             }
             public BatchDrawCommandFlags flags
             {
-                get => (BatchDrawCommandFlags)m_flags;
-                set => m_flags = (ushort)value;
+                get => (BatchDrawCommandFlags)packed.UShort11;
+                set => packed.UShort11 = (ushort)value;
+            }
+            public int filterIndex
+            {
+                get => packed.SInt6;
+                set => packed.SInt6 = value;
+            }
+            public int renderingPriority
+            {
+                get => packed.SInt7;
+                set => packed.SInt7 = value;
             }
 
-            public bool Equals(DrawCommandSettings other) => asPackedGeneric.Equals(other.asPackedGeneric);
+            uint4x2 asUint4x2 => new uint4x2(new uint4(packed.UInt0, packed.UInt1, packed.UInt2, packed.UInt3), new uint4(packed.UInt4, packed.UInt5, packed.UInt6, packed.UInt7));
+
+            public bool Equals(DrawCommandSettings other)
+            {
+                if (X86.Avx2.IsAvx2Supported)
+                {
+                    var ones = X86.Avx2.mm256_cmpeq_epi8(packed, packed);
+                    var eq   = X86.Avx2.mm256_cmpeq_epi8(packed, other.packed);
+                    return X86.Avx.mm256_testc_si256(eq, ones) != 0;
+                }
+                else
+                {
+                    return asUint4x2.Equals(other.asUint4x2);
+                }
+            }
 
             public int CompareTo(DrawCommandSettings other)
             {
                 if (X86.Avx2.IsAvx2Supported)
                 {
-                    var a     = asPacked256;
-                    var b     = other.asPacked256;
+                    var a     = packed;
+                    var b     = other.packed;
                     var aGt   = X86.Avx2.mm256_cmpgt_epi64(a, b);
                     var bGt   = X86.Avx2.mm256_cmpgt_epi64(b, a);
                     var aMask = math.asuint(X86.Avx2.mm256_movemask_epi8(aGt));
@@ -62,12 +117,12 @@ namespace Latios.Kinemation.Systems
                 }
                 else if (Arm.Neon.IsNeonSupported)
                 {
-                    var a           = asPackedGeneric;
-                    var b           = other.asPackedGeneric;
-                    var ac0         = new v128(a.c0.x, a.c0.y, a.c0.z, a.c0.w);
-                    var bc0         = new v128(b.c0.x, b.c0.y, b.c0.z, b.c0.w);
-                    var ac1         = new v128(a.c1.x, a.c1.y, a.c1.z, a.c1.w);
-                    var bc1         = new v128(b.c1.x, b.c1.y, b.c1.z, b.c1.w);
+                    var a           = packed;
+                    var b           = other.packed;
+                    var ac0         = a.Lo128;
+                    var bc0         = b.Lo128;
+                    var ac1         = a.Hi128;
+                    var bc1         = b.Hi128;
                     var a0          = Arm.Neon.vcgtq_s64(ac0, bc0);
                     var b0          = Arm.Neon.vcgtq_s64(bc0, ac0);
                     var a1          = Arm.Neon.vcgtq_s64(ac1, bc1);
@@ -82,8 +137,8 @@ namespace Latios.Kinemation.Systems
                 }
                 else
                 {
-                    var a     = asPackedGeneric;
-                    var b     = other.asPackedGeneric;
+                    var a     = asUint4x2;
+                    var b     = other.asUint4x2;
                     var a0    = a.c0 > b.c0;
                     var b0    = b.c0 > a.c0;
                     var a1    = a.c1 > b.c1;
@@ -94,11 +149,11 @@ namespace Latios.Kinemation.Systems
                 }
             }
 
-            public override int GetHashCode() => m_hash;
+            public override int GetHashCode() => hash;
             public void ComputeHashCode()
             {
-                m_hash = 0;
-                m_hash = asPackedGeneric.GetHashCode();
+                hash = 0;
+                hash = asUint4x2.GetHashCode();
             }
             public bool hasSortingPosition => (flags & BatchDrawCommandFlags.HasSortingPosition) != 0;
         }
@@ -108,8 +163,8 @@ namespace Latios.Kinemation.Systems
             public int           entityQword;
             public int           entityBit;
             public int           chunkStartIndex;
-            public LodCrossfade* lodCrossfades;
             public bool          complementLodCrossfade;
+            public LodCrossfade* lodCrossfades;
             public float*        chunkTransforms;
             public int           transformStrideInFloats;
             public int           positionOffsetInFloats;
