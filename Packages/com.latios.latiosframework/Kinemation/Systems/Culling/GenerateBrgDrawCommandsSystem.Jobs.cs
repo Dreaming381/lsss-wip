@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Latios.Transforms;
 using Unity.Assertions;
@@ -8,6 +9,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Entities.Graphics;
+using Unity.Entities.UniversalDelegates;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
@@ -61,17 +63,18 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         unsafe struct EmitDrawCommandsJob : IJobParallelForDefer
         {
-            [ReadOnly] public NativeArray<ArchetypeChunk>                          chunksToProcess;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask>       chunkPerCameraCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> chunkPerCameraCullingSplitsMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<LodCrossfade>                    lodCrossfadeHandle;
-            [ReadOnly] public ComponentTypeHandle<SpeedTreeCrossfadeTag>           speedTreeCrossfadeTagHandle;
-            [ReadOnly] public ComponentTypeHandle<UseMmiRangeLodTag>               useMmiRangeLodTagHandle;
-            [ReadOnly] public ComponentTypeHandle<OverrideMeshInRangeTag>          overrideMeshInRangeTagHandle;
-            [ReadOnly] public ComponentTypeHandle<RendererPriority>                rendererPriorityHandle;
-            [ReadOnly] public ComponentTypeHandle<MeshLod>                         meshLodHandle;
-            [ReadOnly] public EntityQueryMask                                      motionVectorDeformQueryMask;
-            public bool                                                            splitsAreValid;
+            [ReadOnly] public NativeArray<ArchetypeChunk>                                              chunksToProcess;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask>                           chunkPerCameraCullingMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingSplitsMask>                     chunkPerCameraCullingSplitsMaskHandle;
+            [ReadOnly] public ComponentTypeHandle<LodCrossfade>                                        lodCrossfadeHandle;
+            [ReadOnly] public ComponentTypeHandle<SpeedTreeCrossfadeTag>                               speedTreeCrossfadeTagHandle;
+            [ReadOnly] public ComponentTypeHandle<UseMmiRangeLodTag>                                   useMmiRangeLodTagHandle;
+            [ReadOnly] public ComponentTypeHandle<OverrideMeshInRangeTag>                              overrideMeshInRangeTagHandle;
+            [ReadOnly] public ComponentTypeHandle<RendererPriority>                                    rendererPriorityHandle;
+            [ReadOnly] public ComponentTypeHandle<MeshLod>                                             meshLodHandle;
+            [ReadOnly] public ComponentTypeHandle<PromiseAllEntitiesInChunkUseSameMaterialMeshInfoTag> promiseHandle;
+            [ReadOnly] public EntityQueryMask                                                          motionVectorDeformQueryMask;
+            public bool                                                                                splitsAreValid;
 
             //[ReadOnly] public IndirectList<ChunkVisibilityItem> VisibilityItems;
             [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo> EntitiesGraphicsChunkInfo;
@@ -134,8 +137,8 @@ namespace Latios.Kinemation.Systems
 
                     int batchIndex = entitiesGraphicsChunkInfo.BatchIndex;
 
-                    var  materialMeshInfos   = chunk.GetNativeArray(ref MaterialMeshInfo);
-                    var  worldTransforms     = chunk.GetNativeArray(ref WorldTransform);
+                    var  materialMeshInfos   = chunk.GetComponentDataPtrRO(ref MaterialMeshInfo);
+                    var  worldTransforms     = chunk.GetComponentDataPtrRO(ref WorldTransform);
                     var  postProcessMatrices = chunk.GetComponentDataPtrRO(ref PostProcessMatrix);
                     var  lodCrossfades       = chunk.GetComponentDataPtrRO(ref lodCrossfadeHandle);
                     var  rendererPriorities  = chunk.GetComponentDataPtrRO(ref rendererPriorityHandle);
@@ -174,7 +177,7 @@ namespace Latios.Kinemation.Systems
 
                     int chunkStartIndex = entitiesGraphicsChunkInfo.CullingData.ChunkOffsetInBatch;
 
-                    var mask              = chunk.GetChunkComponentRefRO(ref chunkPerCameraCullingMaskHandle);
+                    var mask              = chunk.GetChunkComponentRefRO(ref chunkPerCameraCullingMaskHandle).ValueRO;
                     var splitsMask        = chunk.GetChunkComponentRefRO(ref chunkPerCameraCullingSplitsMaskHandle);
                     var crossFadeEnableds = hasLodCrossfade ? chunk.GetEnabledMask(ref lodCrossfadeHandle) : default;
                     var isSpeedTree       = hasLodCrossfade && chunk.Has(ref speedTreeCrossfadeTagHandle);
@@ -199,7 +202,7 @@ namespace Latios.Kinemation.Systems
 
                             for (int j = 0; j < 2; j++)
                             {
-                                ulong visibleWord = mask.ValueRO.GetUlongFromIndex(j);
+                                ulong visibleWord = mask.GetUlongFromIndex(j);
                                 while (visibleWord != 0)
                                 {
                                     int   bitIndex     = math.tzcnt(visibleWord);
@@ -225,7 +228,7 @@ namespace Latios.Kinemation.Systems
                         }
                         else if (isDepthSorted)
                         {
-                            depthSortingTransformsPtr = (float*)worldTransforms.GetUnsafeReadOnlyPtr();
+                            depthSortingTransformsPtr = (float*)worldTransforms;
 #if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
                             transformStrideInFloats = 12;
                             positionOffsetInFloats  = 4;
@@ -252,9 +255,16 @@ namespace Latios.Kinemation.Systems
                         positionOffsetInFloats  = positionOffsetInFloats,
                     };
 
+                    if (chunk.Has(ref promiseHandle))
+                    {
+                        if (ExecuteBatched(in chunk, ref mask, in splitsMask.ValueRO, ref drawCommandSettings, in entityDrawSettings, useMmiRangeLod, meshLods, rendererPriorities,
+                                           in entitiesGraphicsChunkInfo, materialMeshInfos, in brgRenderMeshArray, chunkFlags))
+                            return;
+                    }
+
                     for (int j = 0; j < 2; j++)
                     {
-                        ulong visibleWord              = mask.ValueRO.GetUlongFromIndex(j);
+                        ulong visibleWord              = mask.GetUlongFromIndex(j);
                         entityDrawSettings.entityQword = j;
 
                         while (visibleWord != 0)
@@ -410,6 +420,127 @@ namespace Latios.Kinemation.Systems
                         }
                     }
                 }
+            }
+
+            // Return true if all entities handled. False if there are leftovers.
+            bool ExecuteBatched(in ArchetypeChunk chunk,
+                                ref ChunkPerCameraCullingMask mask,
+                                in ChunkPerCameraCullingSplitsMask splitsMask,
+                                ref DrawCommandSettings drawCommandSettings,
+                                in EntityDrawSettings entityDrawSettings,
+                                bool useMmiRangeLod,
+                                MeshLod*                           meshLods,
+                                RendererPriority*                  rendererPriorities,
+                                in EntitiesGraphicsChunkInfo entitiesGraphicsChunkInfo,
+                                MaterialMeshInfo*                  materialMeshInfos,
+                                in BRGRenderMeshArray brgRenderMeshArray,
+                                BatchDrawCommandFlags chunkDrawFlags)
+            {
+                if (useMmiRangeLod || meshLods != null || entityDrawSettings.lodCrossfades != null || rendererPriorities != null)
+                    return false;
+
+                if ((entitiesGraphicsChunkInfo.CullingData.FlippedWinding[0] | entitiesGraphicsChunkInfo.CullingData.FlippedWinding[1]) != 0)
+                    return false;
+
+                var materialMeshInfo = materialMeshInfos[0];
+
+                if (materialMeshInfo.HasMaterialMeshIndexRange)
+                    return false;
+
+                BatchMeshID meshID = materialMeshInfo.IsRuntimeMesh ?
+                                     materialMeshInfo.MeshID :
+                                     brgRenderMeshArray.GetMeshID(materialMeshInfo);
+
+                // Invalid meshes at this point will be skipped.
+                if (meshID == BatchMeshID.Null)
+                    return true;
+
+                // Null materials are handled internally by Unity using the error material if available.
+                BatchMaterialID materialID = materialMeshInfo.IsRuntimeMaterial ?
+                                             materialMeshInfo.MaterialID :
+                                             brgRenderMeshArray.GetMaterialID(materialMeshInfo);
+
+                if (materialID == BatchMaterialID.Null)
+                    return true;
+
+                drawCommandSettings.mesh     = meshID;
+                drawCommandSettings.material = materialID;
+                drawCommandSettings.submesh  = GetSubMesh16(ref materialMeshInfo);
+                drawCommandSettings.meshLod  = 0;
+                drawCommandSettings.flags    = chunkDrawFlags;
+
+                if (!splitsAreValid)
+                {
+                    var visibleCount              = mask.lower.CountBits() + mask.upper.CountBits();
+                    var entityDrawSettingsBatched = new EntityDrawSettingsBatched
+                    {
+                        chunkStartIndex         = entityDrawSettings.chunkStartIndex,
+                        chunkTransforms         = entityDrawSettings.chunkTransforms,
+                        instancesCount          = visibleCount,
+                        lower                   = mask.lower.Value,
+                        upper                   = mask.upper.Value,
+                        positionOffsetInFloats  = entityDrawSettings.positionOffsetInFloats,
+                        transformStrideInFloats = entityDrawSettings.transformStrideInFloats
+                    };
+
+                    DrawCommandOutput.Emit(ref drawCommandSettings, in entityDrawSettingsBatched);
+                }
+                else
+                {
+                    Span<ChunkPerCameraCullingMask> drawMasksBySplitCombination = stackalloc ChunkPerCameraCullingMask[64];
+                    drawMasksBySplitCombination.Clear();
+                    ulong usedSplitsCombinations = 0;
+
+                    ulong visibleWord = mask.lower.Value;
+                    while (visibleWord != 0)
+                    {
+                        int   bitIndex     = math.tzcnt(visibleWord);
+                        int   entityIndex  = bitIndex;
+                        ulong bitMask      = 1ul << bitIndex;
+                        visibleWord       ^= bitMask;
+
+                        var splitMask                                       = splitsMask.splitMasks[entityIndex];
+                        drawMasksBySplitCombination[splitMask].lower.Value |= bitMask;
+                        usedSplitsCombinations                             |= 1ul << splitMask;
+                    }
+                    if (mask.upper.Value != 0)
+                    {
+                        visibleWord = mask.upper.Value;
+                        while (visibleWord != 0)
+                        {
+                            int   bitIndex     = math.tzcnt(visibleWord);
+                            int   entityIndex  = 64 + bitIndex;
+                            ulong bitMask      = 1ul << bitIndex;
+                            visibleWord       ^= bitMask;
+
+                            var splitMask                                       = splitsMask.splitMasks[entityIndex];
+                            drawMasksBySplitCombination[splitMask].upper.Value |= bitMask;
+                            usedSplitsCombinations                             |= 1ul << splitMask;
+                        }
+                    }
+                    var entityDrawSettingsBatched = new EntityDrawSettingsBatched
+                    {
+                        chunkStartIndex         = entityDrawSettings.chunkStartIndex,
+                        chunkTransforms         = entityDrawSettings.chunkTransforms,
+                        positionOffsetInFloats  = entityDrawSettings.positionOffsetInFloats,
+                        transformStrideInFloats = entityDrawSettings.transformStrideInFloats
+                    };
+                    while (usedSplitsCombinations != 0)
+                    {
+                        var splitsCombination   = math.tzcnt(usedSplitsCombinations);
+                        usedSplitsCombinations ^= 1ul << splitsCombination;
+
+                        drawCommandSettings.splitMask            = (ushort)splitsCombination;
+                        var visibleEntities                      = drawMasksBySplitCombination[splitsCombination];
+                        entityDrawSettingsBatched.lower          = visibleEntities.lower.Value;
+                        entityDrawSettingsBatched.upper          = visibleEntities.upper.Value;
+                        entityDrawSettingsBatched.instancesCount = visibleEntities.lower.CountBits() + visibleEntities.upper.CountBits();
+
+                        DrawCommandOutput.Emit(ref drawCommandSettings, in entityDrawSettingsBatched);
+                    }
+                }
+
+                return true;
             }
 
             static unsafe ushort GetSubMesh16(ref MaterialMeshInfo mmi)

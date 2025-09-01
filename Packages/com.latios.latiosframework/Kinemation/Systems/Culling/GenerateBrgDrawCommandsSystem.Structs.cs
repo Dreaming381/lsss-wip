@@ -170,6 +170,17 @@ namespace Latios.Kinemation.Systems
             public int           positionOffsetInFloats;
         }
 
+        unsafe struct EntityDrawSettingsBatched
+        {
+            public ulong  lower;
+            public ulong  upper;
+            public int    chunkStartIndex;
+            public int    instancesCount;
+            public float* chunkTransforms;
+            public int    transformStrideInFloats;
+            public int    positionOffsetInFloats;
+        }
+
         struct ChunkDrawCommand : IComparable<ChunkDrawCommand>
         {
             public DrawCommandSettings   Settings;
@@ -206,6 +217,19 @@ namespace Latios.Kinemation.Systems
                 crossfadesPtr           = entitySettings.lodCrossfades;
                 transformStrideInFloats = entitySettings.transformStrideInFloats;
                 positionOffsetInFloats  = entitySettings.positionOffsetInFloats;
+            }
+
+            public DrawCommandVisibility(in EntityDrawSettingsBatched entitySettingsBatched)
+            {
+                chunkStartIndex         = entitySettingsBatched.chunkStartIndex;
+                visibleInstances[0]     = 0;
+                visibleInstances[1]     = 0;
+                crossfadeComplements[0] = 0;
+                crossfadeComplements[1] = 0;
+                transformsPtr           = entitySettingsBatched.chunkTransforms;
+                crossfadesPtr           = null;
+                transformStrideInFloats = entitySettingsBatched.transformStrideInFloats;
+                positionOffsetInFloats  = entitySettingsBatched.positionOffsetInFloats;
             }
         }
 
@@ -248,6 +272,28 @@ namespace Latios.Kinemation.Systems
                 m_Stream.AddInstances(1);
             }
 
+            public void Emit(RewindableAllocator* allocator, in EntityDrawSettingsBatched entitySettingsBatched)
+            {
+                DrawCommandVisibility* visibility;
+
+                if (entitySettingsBatched.chunkStartIndex == m_PrevChunkStartIndex)
+                {
+                    visibility = m_PrevVisibility;
+                }
+                else
+                {
+                    visibility  = m_Stream.AppendElement(allocator);
+                    *visibility = new DrawCommandVisibility(in entitySettingsBatched);
+                }
+
+                visibility->visibleInstances[0] |= entitySettingsBatched.lower;
+                visibility->visibleInstances[1] |= entitySettingsBatched.upper;
+
+                m_PrevChunkStartIndex = entitySettingsBatched.chunkStartIndex;
+                m_PrevVisibility      = visibility;
+                m_Stream.AddInstances(entitySettingsBatched.instancesCount);
+            }
+
             public DrawStream<DrawCommandVisibility> Stream => m_Stream;
         }
 
@@ -288,6 +334,29 @@ namespace Latios.Kinemation.Systems
 
                     DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
                     stream->Emit(allocator, in entitySettings);
+
+                    return true;
+                }
+            }
+
+            public bool Emit(in DrawCommandSettings commandSettings, in EntityDrawSettingsBatched entitySettingsBatched, int threadIndex)
+            {
+                var allocator = ThreadLocalAllocator.ThreadAllocator(threadIndex);
+
+                if (DrawCommandStreamIndices.TryGetValue(commandSettings, out int streamIndex))
+                {
+                    DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
+                    stream->Emit(allocator, in entitySettingsBatched);
+                    return false;
+                }
+                else
+                {
+                    streamIndex = DrawCommands.Length;
+                    DrawCommands.Add(new DrawCommandStream(allocator));
+                    DrawCommandStreamIndices.Add(commandSettings, streamIndex);
+
+                    DrawCommandStream* stream = DrawCommands.Ptr + streamIndex;
+                    stream->Emit(allocator, in entitySettingsBatched);
 
                     return true;
                 }
@@ -585,6 +654,19 @@ namespace Latios.Kinemation.Systems
                 commandSettings.ComputeHashCode();
 
                 bool newBinAdded = DrawCommands->Emit(in commandSettings, in entitySettings, ThreadIndex);
+                if (newBinAdded)
+                {
+                    MarkBinPresentInThread(in commandSettings, ThreadIndex);
+                }
+            }
+
+            public void Emit(ref DrawCommandSettings commandSettings, in EntityDrawSettingsBatched entitySettingsBatched)
+            {
+                // Update the cached hash code here, so all processing after this can just use the cached value
+                // without recomputing the hash each time.
+                commandSettings.ComputeHashCode();
+
+                bool newBinAdded = DrawCommands->Emit(in commandSettings, in entitySettingsBatched, ThreadIndex);
                 if (newBinAdded)
                 {
                     MarkBinPresentInThread(in commandSettings, ThreadIndex);

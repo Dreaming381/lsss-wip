@@ -1,4 +1,4 @@
-using Latios;
+using Latios.Calci;
 using NUnit.Framework;
 using Unity.Burst;
 using Unity.Collections;

@@ -1,6 +1,6 @@
-using System.Collections;
 using System.Collections.Generic;
 using Latios;
+using Latios.Calci;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;

@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using Unity.Mathematics;
 
-namespace Latios
+namespace Latios.Calci
 {
     public partial struct simdFloat3 : IEquatable<simdFloat3>
     {

@@ -335,20 +335,6 @@ namespace Latios.Kinemation
         }
     }
 
-    internal partial struct PackedCullingSplits : ICollectionComponent
-    {
-        public NativeReference<CullingSplits> packedSplits;
-
-        public JobHandle TryDispose(JobHandle inputDeps)
-        {
-            // The collections inside packedSplits is managed by a RewindableAllocator,
-            // but the NativeReference is allocated persistently.
-            if (packedSplits.IsCreated)
-                return packedSplits.Dispose(inputDeps);
-            return inputDeps;
-        }
-    }
-
     internal struct MaxRequiredDeformData : IComponentData
     {
         public uint maxRequiredBoneTransformsForVertexSkinning;

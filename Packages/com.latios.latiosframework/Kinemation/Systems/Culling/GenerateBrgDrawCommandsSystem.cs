@@ -113,6 +113,7 @@ namespace Latios.Kinemation.Systems
                 meshLodHandle                = GetComponentTypeHandle<MeshLod>(true),
                 ProceduralMotion             = GetComponentTypeHandle<PerVertexMotionVectors_Tag>(true),
                 ProfilerEmitChunk            = m_profilerEmitChunk,
+                promiseHandle                = GetComponentTypeHandle<PromiseAllEntitiesInChunkUseSameMaterialMeshInfoTag>(true),
                 RenderFilterSettings         = GetSharedComponentTypeHandle<RenderFilterSettings>(),
                 RenderMeshArray              = ManagedAPI.GetSharedComponentTypeHandle<RenderMeshArray>(),
                 rendererPriorityHandle       = GetComponentTypeHandle<RendererPriority>(true),

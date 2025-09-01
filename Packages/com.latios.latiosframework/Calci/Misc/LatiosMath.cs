@@ -1,6 +1,6 @@
 ﻿using Unity.Mathematics;
 
-namespace Latios
+namespace Latios.Calci
 {
     public static class LatiosMath
     {

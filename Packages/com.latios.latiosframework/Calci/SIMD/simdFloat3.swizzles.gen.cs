@@ -12,7 +12,7 @@
 using System.ComponentModel;
 using Unity.Mathematics;
 
-namespace Latios
+namespace Latios.Calci
 {
     public partial struct simdFloat3
     {

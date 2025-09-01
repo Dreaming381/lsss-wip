@@ -2,7 +2,7 @@
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios
+namespace Latios.Calci
 {
     /// <summary>
     /// A random number generator that can provide a unique sequence of values for a given unique index for each job scheduled.

@@ -3,6 +3,7 @@
     "rootNamespace": "Latios.Calligraphics",
     "references": [
         "Latios.Core",
+        "Latios.Calci",
         "Latios.Psyshock",
         "Latios.Kinemation",
         "Unity.Entities",
@@ -19,7 +20,9 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
+    "defineConstraints": [
+        "!LATIOS_DISABLE_CALLIGRAPHICS"
+    ],
     "versionDefines": [],
     "noEngineReferences": false
 }

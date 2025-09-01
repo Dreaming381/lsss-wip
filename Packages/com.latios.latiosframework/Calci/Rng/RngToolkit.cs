@@ -1,9 +1,8 @@
 ﻿using System.Diagnostics;
 using Unity.Collections;
-using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios
+namespace Latios.Calci
 {
     public static class RngToolkit
     {
