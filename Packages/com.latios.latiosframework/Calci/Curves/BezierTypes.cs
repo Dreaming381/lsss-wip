@@ -27,6 +27,12 @@ namespace Latios.Calci
         }
 
         /// <summary>
+        /// Reverses the direction of the knot, while preserving the same curve shape
+        /// </summary>
+        /// <returns></returns>
+        public BezierKnot ToReverse() => new BezierKnot(position, tangentOut, tangentIn);
+
+        /// <summary>
         /// Constructs a knot that defines a beginning of a spline, using the first curve of the spline
         /// </summary>
         /// <param name="curve">The first curve of a spline, in which endpointA is used as the knot point</param>
@@ -79,7 +85,7 @@ namespace Latios.Calci
         public float3 endpointB;  // also known as control point 3
 
         /// <summary>
-        /// Construct the cubic bezier curve from the 4 control points in sequence
+        /// Constructs the cubic bezier curve from the 4 control points in sequence
         /// </summary>
         public BezierCurve(float3 endpointA, float3 controlA, float3 controlB, float3 endpointB)
         {
@@ -87,6 +93,17 @@ namespace Latios.Calci
             this.controlA  = controlA;
             this.controlB  = controlB;
             this.endpointB = endpointB;
+        }
+
+        /// <summary>
+        /// Constructs the cubic bezier from the 4 control points packed in sequence inside a simdFloat3
+        /// </summary>
+        public BezierCurve(in simdFloat3 controlPointsInSimd)
+        {
+            endpointA = controlPointsInSimd.a;
+            controlA  = controlPointsInSimd.b;
+            controlB  = controlPointsInSimd.c;
+            endpointB = controlPointsInSimd.d;
         }
 
         /// <summary>
@@ -129,7 +146,12 @@ namespace Latios.Calci
         /// Any factor t evaluated for the original curve will be equal to 1 - t evaluated for the flipped curve.
         /// </summary>
         /// <returns>The bezier curve flipped around</returns>
-        public BezierCurve ToFlipped() => new BezierCurve(endpointB, controlB, controlA, endpointA);
+        public BezierCurve ToReverse() => new BezierCurve(endpointB, controlB, controlA, endpointA);
+
+        /// <summary>
+        /// Packs the control points in sequence into a simdFloat3
+        /// </summary>
+        public simdFloat3 ToSimdFloat3() => new simdFloat3(endpointA, controlA, controlB, endpointB);
 
         /// <summary>
         /// 32 segment subdivision lengths of the bezier curve
@@ -137,6 +159,225 @@ namespace Latios.Calci
         public unsafe struct SegmentLengths
         {
             public fixed float lengths[32];
+        }
+    }
+
+    /// <summary>
+    /// A y-value with tangent weights and slopes relative to the x-axis,
+    /// describing a single keyframe within a parameter curve
+    /// </summary>
+    public struct Keyframe
+    {
+        /// <summary>
+        /// When tangent weight values are set to this value, a KeyedCurve becomes
+        /// a Hermite curve and is significantly faster to evaluate. It is recommended
+        /// to use this value as a default tangent weight for this reason.
+        /// </summary>
+        public const float kHermite = 1f / 3f;
+
+        public float time;  // x-axis value
+        public float value;  // y-axis value
+        public float inTangentSlope;
+        public float inTangentWeight;
+        public float outTangentSlope;
+        public float outTangentWeight;
+
+        /// <summary>
+        /// Constructs a keyframe using default Hermite weights for the tangents
+        /// </summary>
+        /// <param name="time">The time of the keyframe</param>
+        /// <param name="value">The value at the time of the keyframe</param>
+        /// <param name="inTangentSlope">The slope (change in value over time) going into the keyframe forward in time</param>
+        /// <param name="outTangentSlope">The slope (change in value over time) going out of the keyframe forward in time</param>
+        public Keyframe(float time, float value, float inTangentSlope, float outTangentSlope)
+        {
+            this.time            = time;
+            this.value           = value;
+            this.inTangentSlope  = inTangentSlope;
+            inTangentWeight      = kHermite;
+            this.outTangentSlope = outTangentSlope;
+            outTangentWeight     = kHermite;
+        }
+
+        /// <summary>
+        /// Constructs a keyframe using custom Bezier weights for the tangents
+        /// </summary>
+        /// <param name="time">The time of the keyframe</param>
+        /// <param name="value">The value at the time of the keyframe</param>
+        /// <param name="inTangentSlope">The slope (change in value over time) going into the keyframe forward in time</param>
+        /// <param name="inTangentWeight">How closely the curve sticks to the line traced by the inTangentSlope going into the keyframe</param>
+        /// <param name="outTangentSlope">The slope (change in value over time) going out of the keyframe forward in time</param>
+        /// <param name="outTangentWeight">How closely the curve sticks to the line traced by the outTangentSlope going out of the keyframe</param>
+        public Keyframe(float time, float value, float inTangentSlope, float inTangentWeight, float outTangentSlope, float outTangentWeight)
+        {
+            this.time             = time;
+            this.value            = value;
+            this.inTangentSlope   = inTangentSlope;
+            this.inTangentWeight  = inTangentWeight;
+            this.outTangentSlope  = outTangentSlope;
+            this.outTangentWeight = outTangentWeight;
+        }
+
+        /// <summary>
+        /// Constructs a keyframe that defines the start of a CurveTrack, using the first curve of the CurveTrack
+        /// </summary>
+        /// <param name="curve">The first curve of the CurveTrack, in which the "left" values are used for the keyframe</param>
+        /// <returns>A keyframe based on the "left" values of the curve with aligned and equally-weighted tangent slopes</returns>
+        public static Keyframe FromCurveLeftPoint(in KeyedCurve curve)
+        {
+            return new Keyframe(curve.leftTime, curve.leftValue, curve.leftTangentSlope, curve.leftTangentWeight, curve.leftTangentSlope, curve.leftTangentWeight);
+        }
+
+        /// <summary>
+        /// Constructs a keyframe that defines the end of a CurveTrack, using the last curve of the CurveTrack
+        /// </summary>
+        /// <param name="curve">The last curve of the CurveTrack, in which the "right" values are used for the keyframe</param>
+        /// <returns>A keyframe based on the "right" values of the curve with aligned and equally-weighted tangent slopes</returns>
+        public static Keyframe FromCurveRightPoint(in KeyedCurve curve)
+        {
+            return new Keyframe(curve.rightTime, curve.rightValue, curve.rightTangentSlope, curve.rightTangentWeight, curve.rightTangentSlope, curve.rightTangentWeight);
+        }
+
+        /// <summary>
+        /// Constructs a keyframe that defines a middle point of a CurveTrack between two curves
+        /// </summary>
+        /// <param name="leftCurve">The curve before the keyframe, that ends with the keyframe</param>
+        /// <param name="rightCurve">The curve after the keyframe, that starts with the keyframe</param>
+        /// <returns>The keyframe from where the curves connect</returns>
+        public static Keyframe FromTwoCurves(in KeyedCurve leftCurve, in KeyedCurve rightCurve)
+        {
+            EndpointsMatch(leftCurve.rightTime, leftCurve.rightValue, rightCurve.leftTime, rightCurve.leftValue);
+            return new Keyframe(leftCurve.rightTime,
+                                leftCurve.rightValue,
+                                leftCurve.rightTangentSlope,
+                                leftCurve.rightTangentWeight,
+                                rightCurve.leftTangentSlope,
+                                rightCurve.leftTangentWeight);
+        }
+
+        public static implicit operator Keyframe(UnityEngine.Keyframe unityKeyframe)
+        {
+            float inWeight, outWeight;
+            switch (unityKeyframe.weightedMode)
+            {
+                case UnityEngine.WeightedMode.None:
+                    inWeight  = kHermite;
+                    outWeight = kHermite;
+                    break;
+                case UnityEngine.WeightedMode.In:
+                    inWeight  = unityKeyframe.inWeight;
+                    outWeight = kHermite;
+                    break;
+                case UnityEngine.WeightedMode.Out:
+                    inWeight  = kHermite;
+                    outWeight = unityKeyframe.outWeight;
+                    break;
+                case UnityEngine.WeightedMode.Both:
+                    inWeight  = unityKeyframe.inWeight;
+                    outWeight = unityKeyframe.outWeight;
+                    break;
+                default:
+                    inWeight  = kHermite;
+                    outWeight = kHermite;
+                    break;
+            }
+            return new Keyframe
+            {
+                time             = unityKeyframe.time,
+                value            = unityKeyframe.value,
+                inTangentSlope   = unityKeyframe.inTangent,
+                inTangentWeight  = inWeight,
+                outTangentSlope  = unityKeyframe.outTangent,
+                outTangentWeight = outWeight
+            };
+        }
+
+        public static implicit operator UnityEngine.Keyframe(Keyframe keyframe)
+        {
+            var                      inIsHermite  = keyframe.inTangentWeight == kHermite;
+            var                      outIsHermite = keyframe.outTangentWeight == kHermite;
+            UnityEngine.WeightedMode mode         = (inIsHermite, outIsHermite) switch
+            {
+                (false, false) => UnityEngine.WeightedMode.Both,
+                (false, true) => UnityEngine.WeightedMode.Out,
+                (true, false) => UnityEngine.WeightedMode.In,
+                (true, true) => UnityEngine.WeightedMode.None
+            };
+            return new UnityEngine.Keyframe
+            {
+                time         = keyframe.time,
+                value        = keyframe.value,
+                inTangent    = keyframe.inTangentSlope,
+                inWeight     = keyframe.inTangentWeight,
+                outTangent   = keyframe.outTangentSlope,
+                outWeight    = keyframe.outTangentWeight,
+                weightedMode = mode
+            };
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void EndpointsMatch(float leftTime, float leftValue, float rightTime, float rightValue)
+        {
+            if (leftTime != rightTime)
+                throw new System.ArgumentException($"The two curves do not connect. left curve's end time {leftTime} != right curve's start time {rightTime}");
+            if (leftValue != rightValue)
+                throw new System.ArgumentException($"The two curves do not connect. left curve's end value {leftValue} != right curve's start value {rightValue}");
+        }
+    }
+
+    /// <summary>
+    /// A cubic bezier curve represented as a relationship between y (value) and x (time)
+    /// </summary>
+    public struct KeyedCurve
+    {
+        public float leftTime;
+        public float leftValue;
+        public float leftTangentSlope;
+        public float leftTangentWeight;
+        public float rightTime;
+        public float rightValue;
+        public float rightTangentSlope;
+        public float rightTangentWeight;
+
+        /// <summary>
+        /// Constructs a cubic bezier keyed curve from two adjacent keyframes. If the keyframe time values are in the wrong order,
+        /// they will be flipped to the correct order.
+        /// WARNING: Do not construct from two keyframes with the same time values. See remarks.
+        /// </summary>
+        /// <param name="leftKey">The left keyframe from which to construct the curve</param>
+        /// <param name="rightKey">The right keyframe from which to construct the curve</param>
+        /// <returns>The curve between the two keyframes</returns>
+        /// <remarks>The KeyedCurve must have a time delta between the keyframes, otherwise evaluations may fail.
+        /// In the case of a step function, you want to find the first key from the left where keyTime is strictly less than sampleTime.
+        /// Do not use less-equal.</remarks>
+        public static KeyedCurve FromKeyframes(in Keyframe leftKey, in Keyframe rightKey)
+        {
+            if (leftKey.time > rightKey.time)
+            {
+                // We need to swap the keyframes around
+                return new KeyedCurve
+                {
+                    leftTime           = rightKey.time,
+                    leftValue          = rightKey.value,
+                    leftTangentSlope   = rightKey.outTangentSlope,
+                    leftTangentWeight  = rightKey.outTangentWeight,
+                    rightTime          = leftKey.time,
+                    rightValue         = leftKey.value,
+                    rightTangentSlope  = leftKey.inTangentSlope,
+                    rightTangentWeight = leftKey.inTangentWeight,
+                };
+            }
+            return new KeyedCurve
+            {
+                leftTime           = leftKey.time,
+                leftValue          = leftKey.value,
+                leftTangentSlope   = leftKey.outTangentSlope,
+                leftTangentWeight  = leftKey.outTangentWeight,
+                rightTime          = rightKey.time,
+                rightValue         = rightKey.value,
+                rightTangentSlope  = rightKey.inTangentSlope,
+                rightTangentWeight = rightKey.inTangentWeight,
+            };
         }
     }
 }
