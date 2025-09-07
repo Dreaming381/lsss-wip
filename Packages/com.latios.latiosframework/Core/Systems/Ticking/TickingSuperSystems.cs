@@ -1,3 +1,4 @@
+#if false
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -167,4 +168,5 @@ namespace Latios.Systems
    - TickSimulationSuperSystem
    - SendSnapshotsSuperSystem
  */
+#endif
 

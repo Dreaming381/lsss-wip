@@ -1,3 +1,4 @@
+#if false
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -17,7 +18,7 @@ namespace Latios.Systems
         LatiosWorldUnmanaged latiosWorld;
 
         double finishedTicksElapsedTime;
-        float  timeInTick;
+        float timeInTick;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -34,9 +35,9 @@ namespace Latios.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dt         = Time.DeltaTime;
-            int rollovers  = 0;
-            timeInTick    += dt;
+            var dt        = Time.DeltaTime;
+            int rollovers = 0;
+            timeInTick += dt;
             while (timeInTick >= tickDeltaTime)
             {
                 rollovers++;
@@ -69,4 +70,5 @@ namespace Latios.Systems
         }
     }
 }
+#endif
 
