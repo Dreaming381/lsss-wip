@@ -1,0 +1,26 @@
+{
+    "name": "UnitTests",
+    "rootNamespace": "UnitTests",
+    "references": [
+        "GUID:46fe9b4ef94d76744bc0b97bc2f73d94",
+        "GUID:b9c5f905e723bc54eb280c03e635224b",
+        "GUID:2de22fb7141426546b7382812669d73f",
+        "GUID:2665a8d13d1b3f18800f46e256720795",
+        "GUID:e0cd26848372d4e5c891c569017e11f1",
+        "GUID:734d92eba21c94caba915361bd5ac177",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:59e15be979a1f934cac2dcd97dd0ea2b",
+        "GUID:c0dd0d10738d4ad4a9de57c559d0ca1b"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

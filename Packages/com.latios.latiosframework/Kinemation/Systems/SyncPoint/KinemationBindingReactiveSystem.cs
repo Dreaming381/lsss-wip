@@ -171,18 +171,18 @@ namespace Latios.Kinemation.Systems
 
             var allocator = state.WorldUpdateAllocator;
 
-            UnsafeParallelBlockList bindingOpsBlockList           = default;
-            UnsafeParallelBlockList meshAddOpsBlockList           = default;
-            UnsafeParallelBlockList meshRemoveOpsBlockList        = default;
-            UnsafeParallelBlockList skinnedMeshAddOpsBlockList    = default;
-            UnsafeParallelBlockList skinnedMeshRemoveOpsBlockList = default;
+            UnsafeParallelBlockList<BindUnbindOperation>        bindingOpsBlockList           = default;
+            UnsafeParallelBlockList<MeshAddOperation>           meshAddOpsBlockList           = default;
+            UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList        = default;
+            UnsafeParallelBlockList<SkinnedMeshAddOperation>    skinnedMeshAddOpsBlockList    = default;
+            UnsafeParallelBlockList<SkinnedMeshRemoveOperation> skinnedMeshRemoveOpsBlockList = default;
             if (haveNewDeformMeshes | haveDeadDeformMeshes | haveBindableMeshes)
             {
-                bindingOpsBlockList           = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<BindUnbindOperation>(), 128, allocator);
-                meshAddOpsBlockList           = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<SkinnedMeshAddOperation>(), 128, allocator);
-                meshRemoveOpsBlockList        = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<SkinnedMeshRemoveOperation>(), 128, allocator);
-                skinnedMeshAddOpsBlockList    = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<SkinnedMeshAddOperation>(), 128, allocator);
-                skinnedMeshRemoveOpsBlockList = new UnsafeParallelBlockList(UnsafeUtility.SizeOf<SkinnedMeshRemoveOperation>(), 128, allocator);
+                bindingOpsBlockList           = new UnsafeParallelBlockList<BindUnbindOperation>(128, allocator);
+                meshAddOpsBlockList           = new UnsafeParallelBlockList<MeshAddOperation>(128, allocator);
+                meshRemoveOpsBlockList        = new UnsafeParallelBlockList<MeshRemoveOperation>(128, allocator);
+                skinnedMeshAddOpsBlockList    = new UnsafeParallelBlockList<SkinnedMeshAddOperation>(128, allocator);
+                skinnedMeshRemoveOpsBlockList = new UnsafeParallelBlockList<SkinnedMeshRemoveOperation>(128, allocator);
             }
 
             MeshGpuManager             meshGpuManager        = default;
@@ -635,10 +635,10 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<BoundMesh>         boundMeshHandle;
             [ReadOnly] public ComponentTypeHandle<SkeletonDependent> depsHandle;
 
-            public UnsafeParallelBlockList bindingOpsBlockList;
-            public UnsafeParallelBlockList meshRemoveOpsBlockList;
-            public UnsafeParallelBlockList skinnedMeshRemoveOpsBlockList;
-            [NativeSetThreadIndex] int     m_nativeThreadIndex;
+            public UnsafeParallelBlockList<BindUnbindOperation>        bindingOpsBlockList;
+            public UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList;
+            public UnsafeParallelBlockList<SkinnedMeshRemoveOperation> skinnedMeshRemoveOpsBlockList;
+            [NativeSetThreadIndex] int                                 m_nativeThreadIndex;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -706,10 +706,10 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<MeshBindingPathsBlobReference> pathBindingsBlobRefHandle;
             [ReadOnly] public BufferTypeHandle<OverrideSkinningBoneIndex>        overrideBonesHandle;
 
-            public UnsafeParallelBlockList bindingOpsBlockList;
-            public UnsafeParallelBlockList meshAddOpsBlockList;
-            public UnsafeParallelBlockList skinnedMeshAddOpsBlockList;
-            [NativeSetThreadIndex] int     m_nativeThreadIndex;
+            public UnsafeParallelBlockList<BindUnbindOperation>     bindingOpsBlockList;
+            public UnsafeParallelBlockList<MeshAddOperation>        meshAddOpsBlockList;
+            public UnsafeParallelBlockList<SkinnedMeshAddOperation> skinnedMeshAddOpsBlockList;
+            [NativeSetThreadIndex] int                              m_nativeThreadIndex;
 
             public Allocator allocator;
 
@@ -932,8 +932,8 @@ namespace Latios.Kinemation.Systems
 
             [ReadOnly] public ComponentTypeHandle<BoundMeshNeedsReinit> needsReinitHandle;
 
-            public UnsafeParallelBlockList meshRemoveOpsBlockList;
-            public UnsafeParallelBlockList skinnedMeshRemoveOpsBlockList;
+            public UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList;
+            public UnsafeParallelBlockList<SkinnedMeshRemoveOperation> skinnedMeshRemoveOpsBlockList;
 
             public uint lastSystemVersion;
 
@@ -1091,9 +1091,9 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct BatchBindingOpsJob : IJob
         {
-            [NativeDisableUnsafePtrRestriction] public UnsafeParallelBlockList bindingsBlockList;
-            public NativeList<BindUnbindOperation>                             operations;
-            public NativeList<int2>                                            startsAndCounts;
+            [NativeDisableUnsafePtrRestriction] public UnsafeParallelBlockList<BindUnbindOperation> bindingsBlockList;
+            public NativeList<BindUnbindOperation>                                                  operations;
+            public NativeList<int2>                                                                 startsAndCounts;
 
             public void Execute()
             {
@@ -1122,12 +1122,12 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         struct ProcessMeshGpuChangesJob : IJob
         {
-            public UnsafeParallelBlockList meshAddOpsBlockList;
-            public UnsafeParallelBlockList meshRemoveOpsBlockList;
-            public UnsafeParallelBlockList skinnedMeshAddOpsBlockList;
-            public UnsafeParallelBlockList skinnedMeshRemoveOpsBlockList;
-            public MeshGpuManager          meshManager;
-            public BoneOffsetsGpuManager   boneManager;
+            public UnsafeParallelBlockList<MeshAddOperation>           meshAddOpsBlockList;
+            public UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList;
+            public UnsafeParallelBlockList<SkinnedMeshAddOperation>    skinnedMeshAddOpsBlockList;
+            public UnsafeParallelBlockList<SkinnedMeshRemoveOperation> skinnedMeshRemoveOpsBlockList;
+            public MeshGpuManager                                      meshManager;
+            public BoneOffsetsGpuManager                               boneManager;
 
             public NativeList<MeshWriteStateOperation>        outputWriteOps;
             public NativeList<SkinnedMeshWriteStateOperation> outputSkinnedWriteOps;
