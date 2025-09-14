@@ -61,7 +61,8 @@ namespace Latios.Psyshock
         /// <param name="transformB">The transform of the second collider</param>
         /// <param name="distanceResult">The result from DistanceBetween() or DistanceBetweenAll() between these colliders and transforms</param>
         /// <returns>The number of contacts found</returns>
-        public static int ContactsBetween(Span<Contact> contactsOutput, float3 contactNormal,
+        // Todo: Make public once ready
+        internal static int ContactsBetween(Span<Contact> contactsOutput, float3 contactNormal,
                                           in Collider colliderA, in TransformQvvs transformA, in Collider colliderB, in TransformQvvs transformB,
                                           in ColliderDistanceResult distanceResult)
         {

@@ -104,6 +104,29 @@ namespace UnitTests
 
             ecb.Dispose();
         }
+
+        [Test]
+        public void SequenceD()
+        {
+            var ecb = new EntityCommandBuffer(Allocator.Temp);
+            var buffer = ecb.AddBuffer<TestHashmapPair>(ecb.CreateEntity());
+            var map = new DynamicHashMap<ushort, ushort>(buffer.Reinterpret<DynamicHashMap<ushort, ushort>.Pair>());
+
+            map.AddOrSet(32895, default);
+            map.AddOrSet(32383, default);
+            map.AddOrSet(32638, default);
+            map.AddOrSet(33151, default);
+            map.AddOrSet(32894, default);
+            map.AddOrSet(32382, default);
+            map.AddOrSet(33150, default);
+
+            map.Remove(33151);
+            map.Remove(32383);
+            map.Remove(32894);
+            map.Remove(33150);
+
+            ecb.Dispose();
+        }
     }
 }
 

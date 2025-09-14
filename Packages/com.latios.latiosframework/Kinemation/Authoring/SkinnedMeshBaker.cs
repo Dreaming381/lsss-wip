@@ -173,15 +173,16 @@ namespace Latios.Kinemation.Authoring
             });
             AddComponent<MeshDeformDataBlobReference>(entity);
 
+            bool useFadeOut = settings != null ? settings.useFadeOut : false;
             Span<MeshMaterialSubmeshSettings> mms = stackalloc MeshMaterialSubmeshSettings[m_materialsCache.Count];
-            RenderingBakingTools.ExtractMeshMaterialSubmeshes(mms, sharedMesh, m_materialsCache, settings.useFadeOut ? (byte)1 : (byte)255);
+            RenderingBakingTools.ExtractMeshMaterialSubmeshes(mms, sharedMesh, m_materialsCache, useFadeOut ? (byte)1 : (byte)255);
             var opaqueMaterialCount = RenderingBakingTools.GroupByDepthSorting(mms);
 
             RenderingBakingTools.GetLOD(this, authoring, out var lodSettings);
             RenderingBakingTools.BakeLodMaskForEntity(this, entity, lodSettings, out var requireCrossfade);
 
             MmiRange2LodSelect fadeOut = default;
-            if (settings.useFadeOut)
+            if (useFadeOut)
             {
                 fadeOut = new MmiRange2LodSelect
                 {
