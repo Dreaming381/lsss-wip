@@ -57,13 +57,13 @@ namespace Latios.Myri
                     {
                         if (blob.sampleRate == sampleRate && sampleRateMultiplier == 1.0)
                         {
-                            int clipStart = (int)((samplesPlayed + (ulong)clip.m_loopOffset) % (ulong)blob.samplesLeftOrMono.Length) + (int)math.round(itdOffset);
+                            int clipStart = (int)((samplesPlayed + (ulong)clip.m_loopOffset) % (ulong)blob.sampleCountPerChannel) + (int)math.round(itdOffset);
                             SampleMatchedRateLooped(ref blob, clipStart, streamSource.isRightChannel, streamSource.sourceHeader.volume, outputSamples);
                         }
                         else
                         {
                             double samplesPlayedInSourceSamples = samplesPlayed * clipSampleStride;
-                            double clipStart                    = (samplesPlayedInSourceSamples + clip.m_loopOffset + itdOffset) % blob.samplesLeftOrMono.Length;
+                            double clipStart                    = (samplesPlayedInSourceSamples + clip.m_loopOffset + itdOffset) % blob.sampleCountPerChannel;
                             SampleMismatchedRateLooped(ref blob, clipStart, clipSampleStride, streamSource.isRightChannel, streamSource.sourceHeader.volume, outputSamples);
                         }
                     }
@@ -89,7 +89,7 @@ namespace Latios.Myri
             void SampleMatchedRateLooped(ref AudioClipBlob clip, int clipStart, bool isRightChannel, float weight, NativeArray<float> output)
             {
                 while (clipStart < 0)
-                    clipStart += clip.samplesLeftOrMono.Length;
+                    clipStart += clip.sampleCountPerChannel;
 
                 if (isRightChannel && clip.isStereo)
                 {
@@ -103,7 +103,7 @@ namespace Latios.Myri
                 {
                     for (int i = 0; i < output.Length; i++)
                     {
-                        int index  = (clipStart + i) % clip.samplesLeftOrMono.Length;
+                        int index  = (clipStart + i) % clip.sampleCountPerChannel;
                         output[i] += clip.samplesLeftOrMono[index] * weight;
                     }
                 }
@@ -127,7 +127,7 @@ namespace Latios.Myri
             void SampleMatchedRateOneshot(ref AudioClipBlob clip, int clipStart, bool isRightChannel, float weight, NativeArray<float> output)
             {
                 int outputStartIndex     = math.max(-clipStart, 0);
-                int remainingClipSamples = clip.samplesLeftOrMono.Length - clipStart;
+                int remainingClipSamples = clip.sampleCountPerChannel - clipStart;
                 int remainingSamples     = math.min(output.Length, math.select(0, remainingClipSamples, remainingClipSamples > 0));
 
                 if (isRightChannel && clip.isStereo)

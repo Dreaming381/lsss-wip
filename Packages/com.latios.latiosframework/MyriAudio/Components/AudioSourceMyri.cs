@@ -207,6 +207,11 @@ namespace Latios.Myri
         /// If true, the audio clip is a stereo clip. Otherwise it is a mono clip. Surround is not supported.
         /// </summary>
         public bool isStereo => samplesRight.Length == samplesLeftOrMono.Length;
+        /// <summary>
+        /// The number of samples in the clip for a single channel. This divided by the sampleRate produces the realtime length
+        /// of the clip in seconds.
+        /// </summary>
+        public int sampleCountPerChannel => samplesLeftOrMono.Length;
     }
 }
 

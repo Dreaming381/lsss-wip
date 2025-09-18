@@ -1,7 +1,9 @@
-﻿using Color = UnityEngine.Color;
+﻿using System.Collections.Generic;
+using Color = UnityEngine.Color;
 using Debug = UnityEngine.Debug;
 using Latios.Calci;
 using Latios.Transforms;
+using Latios.Unsafe;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -225,17 +227,96 @@ namespace Latios.Psyshock
         {
             ref var blob = ref triMesh.triMeshColliderBlob.Value;
 
+            if (blob.triangles.Length == 0)
+                return;
+
+            using var allocator = ThreadStackAllocator.GetAllocator();
+            var       edges     = allocator.AllocateAsSpan<float3x2>(3 * blob.triangles.Length);
             for (int i = 0; i < blob.triangles.Length; i++)
             {
-                var triangle = Physics.ScaleStretchCollider(blob.triangles[i], 1f, triMesh.scale);
-                DrawCollider(in triangle, in transform, color);
+                var      triangle = blob.triangles[i];
+                float3x2 a        = new float3x2(triangle.pointA, triangle.pointB);
+                if (EdgeComparer.CompareFloat3(a.c0, a.c1) < 0)
+                    (a.c0, a.c1) = (a.c1, a.c0);
+                float3x2 b       = new float3x2(triangle.pointB, triangle.pointC);
+                if (EdgeComparer.CompareFloat3(b.c0, b.c1) < 0)
+                    (b.c0, b.c1) = (b.c1, b.c0);
+                float3x2 c       = new float3x2(triangle.pointC, triangle.pointA);
+                if (EdgeComparer.CompareFloat3(c.c0, c.c1) < 0)
+                    (c.c0, c.c1) = (c.c1, c.c0);
+                edges[i * 3]     = a;
+                edges[i * 3 + 1] = b;
+                edges[i * 3 + 2] = c;
             }
+            edges.Sort(new EdgeComparer());
+
+            for (int i = 0; i < edges.Length; i++)
+            {
+                var edge = edges[i];
+                edge.c0  = math.transform(transform, edge.c0 * triMesh.scale);
+                edge.c1  = math.transform(transform, edge.c1 * triMesh.scale);
+            }
+
+            var previousEdge = edges[0];
+            var drawEdge     = previousEdge;
+            drawEdge.c0      = math.transform(transform, drawEdge.c0 * triMesh.scale);
+            drawEdge.c1      = math.transform(transform, drawEdge.c1 * triMesh.scale);
+            Debug.DrawLine(previousEdge.c0, previousEdge.c1);
+            for (int i = 1; i < edges.Length; i++)
+            {
+                var edge = edges[i];
+                if (edge.Equals(previousEdge))
+                    continue;
+
+                previousEdge = edge;
+                edge.c0      = math.transform(transform, edge.c0 * triMesh.scale);
+                edge.c1      = math.transform(transform, edge.c1 * triMesh.scale);
+                Debug.DrawLine(edge.c0, edge.c1);
+            }
+        }
+
+        struct EdgeComparer : IComparer<float3x2>
+        {
+            public static int CompareFloat3(float3 a, float3 b)
+            {
+                var result = a.x.CompareTo(b.x);
+                if (result == 0)
+                {
+                    result = a.y.CompareTo(b.y);
+                    if (result == 0)
+                        result = a.z.CompareTo(b.z);
+                }
+                return result;
+            }
+
+            public int Compare(float3x2 a, float3x2 b)
+            {
+                var result = CompareFloat3(a.c0, b.c0);
+                if (result == 0)
+                    result = CompareFloat3(a.c1, b.c1);
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Draws a wireframe of a single triangle within the TriMesh using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="triMesh">The mesh to draw</param>
+        /// <param name="transform">The transform of the mesh in world space</param>
+        /// <param name="subCollider">The triangle index in the TriMesh to draw</param>
+        /// <param name="color">The color of the wireframe</param>
+        public static void DrawSubCollider(in TriMeshCollider triMesh, in RigidTransform transform, int subCollider, Color color)
+        {
+            ref var blob = ref triMesh.triMeshColliderBlob.Value;
+
+            var triangle = Physics.ScaleStretchCollider(blob.triangles[subCollider], 1f, triMesh.scale);
+            DrawCollider(in triangle, in transform, color);
         }
 
         /// <summary>
         /// Draws a wireframe of all subcolliders in a compound using UnityEngine.Debug.DrawLine calls
         /// </summary>
-        /// <param name="sphere">The compound to draw</param>
+        /// <param name="compound">The compound to draw</param>
         /// <param name="transform">The transform of the compound in world space</param>
         /// <param name="color">The color of the wireframe</param>
         /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc for any subcolliders which have round features</param>
@@ -252,6 +333,23 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
+        /// Draws a wireframe of a single subcollider in a compound using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="compound">The compound to draw</param>
+        /// <param name="transform">The transform of the compound in world space</param>
+        /// <param name="subCollider">The index of the subcollider within the compound to draw</param>
+        /// <param name="color">The color of the wireframe</param>
+        /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc for any subcolliders which have round features</param>
+        public static void DrawSubCollider(in CompoundCollider compound, in RigidTransform transform, int subCollider, Color color, int segmentsPerPi = 6)
+        {
+            ref var blob = ref compound.compoundColliderBlob.Value;
+
+            compound.GetScaledStretchedSubCollider(subCollider, out var c, out var localTransform);
+            var t = math.mul(transform, localTransform);
+            DrawCollider(c, t, color, segmentsPerPi);
+        }
+
+        /// <summary>
         /// Draws a wireframe of a Terrain using UnityEngine.Debug.DrawLine calls
         /// </summary>
         /// <param name="terrain">The terrain to draw</param>
@@ -259,20 +357,62 @@ namespace Latios.Psyshock
         /// <param name="color">The color of the wireframe</param>
         public static void DrawCollider(in TerrainCollider terrain, in RigidTransform transform, Color color)
         {
-            ref var blob          = ref terrain.terrainColliderBlob.Value;
-            int     triangleCount = blob.quadRows * blob.quadsPerRow * 2;
+            ref var blob = ref terrain.terrainColliderBlob.Value;
 
-            for (int i = 0; i < triangleCount; i++)
+            for (int row = 0; row <= blob.quadRows; row++)
             {
-                var triangle = PointRayTerrain.CreateLocalTriangle(ref blob, blob.GetTriangle(i), terrain.baseHeightOffset, terrain.scale);
-                DrawCollider(in triangle, in transform, color);
+                var previous = math.transform(transform, PointRayTerrain.CreateLocalVertex(ref blob, new int2(0, row), terrain.baseHeightOffset, terrain.scale));
+                for (int indexInRow = 1; indexInRow <= blob.quadsPerRow; indexInRow++)
+                {
+                    var current = math.transform(transform, PointRayTerrain.CreateLocalVertex(ref blob, new int2(indexInRow, row), terrain.baseHeightOffset, terrain.scale));
+                    Debug.DrawLine(previous, current, color);
+                    previous = current;
+                }
             }
+
+            for (int row = 1; row <= blob.quadRows; row++)
+            {
+                float3 previousBottom = default;
+                float3 previousTop    = default;
+                for (int indexInRow = 0; indexInRow <= blob.quadsPerRow; indexInRow++)
+                {
+                    var currentTop    = math.transform(transform, PointRayTerrain.CreateLocalVertex(ref blob, new int2(indexInRow, row), terrain.baseHeightOffset, terrain.scale));
+                    var currentBottom = math.transform(transform,
+                                                       PointRayTerrain.CreateLocalVertex(ref blob, new int2(indexInRow, row - 1), terrain.baseHeightOffset, terrain.scale));
+                    Debug.DrawLine(currentBottom, currentTop, color);
+
+                    if (indexInRow > 0)
+                    {
+                        if (blob.GetSplitParity(indexInRow - 1))
+                            Debug.DrawLine(currentBottom, previousTop, color);
+                        else
+                            Debug.DrawLine(previousBottom, currentTop, color);
+                    }
+                    previousBottom = currentBottom;
+                    previousTop    = currentTop;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws a wireframe of a single triangle within the Terrain using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="terrain">The terrain to draw</param>
+        /// <param name="transform">The transform of the terrain in world space</param>
+        /// <param name="subCollider">The index of the triangle within the terrain to draw</param>
+        /// <param name="color">The color of the wireframe</param>
+        public static void DrawSubCollider(in TerrainCollider terrain, in RigidTransform transform, int subCollider, Color color)
+        {
+            ref var blob = ref terrain.terrainColliderBlob.Value;
+
+            var triangle = PointRayTerrain.CreateLocalTriangle(ref blob, blob.GetTriangle(subCollider), terrain.baseHeightOffset, terrain.scale);
+            DrawCollider(in triangle, in transform, color);
         }
 
         /// <summary>
         /// Draws a wireframe of a collider using UnityEngine.Debug.DrawLine calls
         /// </summary>
-        /// <param name="sphere">The collider to draw</param>
+        /// <param name="collider">The collider to draw</param>
         /// <param name="transform">The transform of the collider in world space</param>
         /// <param name="color">The color of the wireframe</param>
         /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc if the collider has round features</param>
@@ -308,6 +448,45 @@ namespace Latios.Psyshock
         }
 
         /// <summary>
+        /// Draws a wireframe of a single subcollider within the collider using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="collider">The collider to draw</param>
+        /// <param name="transform">The transform of the collider in world space</param>
+        /// <param name="subCollider">The index of the subcollider within the collider to draw</param>
+        /// <param name="color">The color of the wireframe</param>
+        /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc if the collider has round features</param>
+        public static void DrawSubCollider(in Collider collider, in RigidTransform transform, int subCollider, Color color, int segmentsPerPi = 6)
+        {
+            switch (collider.type)
+            {
+                case ColliderType.Sphere:
+                    DrawCollider(in collider.m_sphere,   transform, color, segmentsPerPi);
+                    break;
+                case ColliderType.Capsule:
+                    DrawCollider(in collider.m_capsule,  transform, color, segmentsPerPi);
+                    break;
+                case ColliderType.Box:
+                    DrawCollider(in collider.m_box,      transform, color);
+                    break;
+                case ColliderType.Triangle:
+                    DrawCollider(in collider.m_triangle, transform, color);
+                    break;
+                case ColliderType.Convex:
+                    DrawCollider(in collider.m_convex,   transform, color);
+                    break;
+                case ColliderType.TriMesh:
+                    DrawSubCollider(in collider.m_triMesh(),  transform, subCollider, color);
+                    break;
+                case ColliderType.Compound:
+                    DrawSubCollider(in collider.m_compound(), transform, subCollider, color, segmentsPerPi);
+                    break;
+                case ColliderType.Terrain:
+                    DrawSubCollider(in collider.m_terrain(),  transform, subCollider, color);
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Draws a wireframe of a collider using UnityEngine.Debug.DrawLine calls
         /// </summary>
         /// <param name="sphere">The collider to draw</param>
@@ -319,6 +498,21 @@ namespace Latios.Psyshock
             var c = collider;
             Physics.ScaleStretchCollider(ref c, transform.scale, transform.stretch);
             DrawCollider(in c, new RigidTransform(transform.rotation, transform.position), color, segmentsPerPi);
+        }
+
+        /// <summary>
+        /// Draws a wireframe of a single subcollider within the collider using UnityEngine.Debug.DrawLine calls
+        /// </summary>
+        /// <param name="sphere">The collider to draw</param>
+        /// <param name="transform">The transform of the collider in world space</param>
+        /// <param name="subCollider">The index of the subcollider within the collider to draw</param>
+        /// <param name="color">The color of the wireframe</param>
+        /// <param name="segmentsPerPi">The number of segments to draw per 180 degree arc if the collider has round features</param>
+        public static void DrawSubCollider(in Collider collider, in TransformQvvs transform, int subCollider, Color color, int segmentsPerPi = 6)
+        {
+            var c = collider;
+            Physics.ScaleStretchCollider(ref c, transform.scale, transform.stretch);
+            DrawSubCollider(in c, new RigidTransform(transform.rotation, transform.position), subCollider, color, segmentsPerPi);
         }
     }
 }
