@@ -194,6 +194,7 @@ MonoBehaviour:
       - rid: 3321495493702057986
       - rid: 8270758909471883264
       - rid: 8270758909471883265
+      - rid: 2131238844681682944
     m_RuntimeSettings:
       m_List: []
   renderingLayerNames:
@@ -240,6 +241,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 2131238844681682944
+      type: {class: RenderingDebuggerRuntimeResources, ns: UnityEngine.Rendering, asm: Unity.RenderPipelines.Core.Runtime}
+      data:
+        m_version: 0
     - rid: 3321495493702057984
       type: {class: WaterSystemGlobalSettings, ns: UnityEngine.Rendering.HighDefinition, asm: Unity.RenderPipelines.HighDefinition.Runtime}
       data:
