@@ -10,6 +10,16 @@ using Unity.PerformanceTesting;
 
 namespace OptimizationTests
 {
+    [BurstCompile]
+    public static class BurstMethodsTests
+    {
+        [BurstCompile(FloatMode = FloatMode.Deterministic)]
+        public static int TestComparisonGT(in float4 a, in float4 b)
+        {
+            return math.bitmask(a > b);
+        }
+    }
+
     public class ThreadIndicesTest
     {
         [BurstCompile]
