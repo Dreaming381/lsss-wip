@@ -1,6 +1,7 @@
 ﻿using Latios;
 using Latios.Transforms;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -26,11 +27,6 @@ namespace Lsss
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
         }
 
         public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
@@ -78,7 +74,7 @@ namespace Lsss
 
         [WithAll(typeof(SpawnPointTag))]
         [BurstCompile]
-        partial struct SpawnDequeueJob : IJobEntity
+        partial struct SpawnDequeueJob : IJobEntity, IJobEntityChunkBeginEnd
         {
             public int  initialIndex;
             public bool useBeforeIndex;
@@ -119,6 +115,24 @@ namespace Lsss
                     nsc.index            = entityInQueryIndex;
                     nscLookup[nscEntity] = nsc;
                 }
+            }
+
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                // Cull entire chunks if we can
+                if (spawnQueues.playerQueue.IsEmpty() && spawnQueues.aiQueue.IsEmpty())
+                    return false;
+
+                var baseIndex = __ChunkBaseEntityIndices[unfilteredChunkIndex];
+                if (useBeforeIndex && baseIndex + chunk.Count <= initialIndex)
+                    return false;
+                if (!useBeforeIndex && baseIndex >= initialIndex)
+                    return false;
+                return true;
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
     }

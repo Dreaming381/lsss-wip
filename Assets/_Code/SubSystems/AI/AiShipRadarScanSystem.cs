@@ -98,6 +98,8 @@ namespace Lsss
 
                 jh = Physics.FindPairs(radarLayer, shipLayer, scanProcessor).ScheduleParallelByA(jh);
 
+                //jh = PhysicsDebug.LogBucketCountsForLayer(in radarLayer, $"Radar layer {i}").Schedule(jh);
+
                 jhs[i] = jh;
             }
 
@@ -632,6 +634,256 @@ namespace Lsss
                 var dst = chunk.GetNativeArray(ref scanResultsHandle);
                 var src = array.GetSubArray(indicesOfFirstEntitiesInChunk[unfilteredChunkIndex], chunk.Count);
                 dst.CopyFrom(src);
+            }
+        }
+    }
+
+    [BurstCompile]
+    public partial struct AiShipRadarScanSystem3 : ISystem
+    {
+        private DynamicSharedComponentTypeHandle m_factionMemberHandle;
+
+        private LatiosWorldUnmanaged latiosWorld;
+
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+
+            m_factionMemberHandle = state.GetDynamicSharedComponentTypeHandle(ComponentType.ReadOnly<FactionMember>());
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            CollisionLayerSettings settings;
+            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            else
+                settings               = BuildCollisionLayerConfig.defaultSettings;
+            var collisionLayerSettings = settings;
+            var wallLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var shipLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+
+            new EvaluateScanRequestsJob
+            {
+                wallLayer            = wallLayer,
+                worldTransformLookup = GetComponentLookup<WorldTransform>(true)
+            }.ScheduleParallel();
+
+            new PerformFullScanJob
+            {
+                wallLayer               = wallLayer,
+                shipLayer               = shipLayer,
+                entityStorageInfoLookup = GetEntityStorageInfoLookup(),
+                factionMemberHandle     = m_factionMemberHandle,
+            }.ScheduleParallel();
+        }
+
+        [BurstCompile]
+        [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
+        [WithAll(typeof(AiRadarTag))]
+        partial struct EvaluateScanRequestsJob : IJobEntity
+        {
+            [ReadOnly] public CollisionLayer                  wallLayer;
+            [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
+
+            public void Execute(EnabledRefRW<AiShipRadarNeedsFullScanFlag> flag,
+                                ref AiShipRadarScanResults results,
+                                in WorldTransform transform,
+                                in AiShipRadar radar,
+                                in AiShipRadarRequests requests)
+            {
+                if (requests.requestFriendAndNearestEnemy)
+                {
+                    flag.ValueRW = true;
+                    return;
+                }
+
+                if (radar.target != Entity.Null)
+                {
+                    if (!worldTransformLookup.TryGetComponent(radar.target, out var targetTransform))
+                    {
+                        flag.ValueRW = true;
+                        return;
+                    }
+                    var  radarToTarget  = targetTransform.position - transform.position;
+                    bool outOfView      = math.lengthsq(radarToTarget) >= radar.distance * radar.distance;
+                    outOfView          |=
+                        math.dot(math.normalize(radarToTarget), math.forward(math.mul(transform.rotation, radar.crossHairsForwardDirectionBias))) <= radar.cosFov;
+
+                    if (outOfView || Physics.RaycastAny(transform.position, targetTransform.position, in wallLayer, out _, out _))
+                    {
+                        flag.ValueRW = true;
+                    }
+                    else
+                    {
+                        flag.ValueRW            = false;
+                        results.targetTransform = new RigidTransform(targetTransform.rotation, targetTransform.position);
+                    }
+                }
+                else
+                {
+                    flag.ValueRW = true;
+                }
+            }
+        }
+
+        [BurstCompile]
+        [WithAll(typeof(AiRadarTag), typeof(AiShipRadarNeedsFullScanFlag))]
+        partial struct PerformFullScanJob : IJobEntity, IJobEntityChunkBeginEnd
+        {
+            [ReadOnly] public CollisionLayer                   wallLayer;
+            [ReadOnly] public CollisionLayer                   shipLayer;
+            [ReadOnly] public DynamicSharedComponentTypeHandle factionMemberHandle;
+            [ReadOnly] public EntityStorageInfoLookup          entityStorageInfoLookup;
+
+            int radarFactionIndex;
+
+            public void Execute(ref AiShipRadarScanResults results,
+                                in WorldTransform transform,
+                                in AiShipRadar radar,
+                                in AiShipRadarRequests requests)
+            {
+                var aabb = GetSearchAabb(in radar, in transform);
+                foreach (var ship in Physics.FindObjects(in aabb, in shipLayer))
+                {
+                    var shipFactionIndex = entityStorageInfoLookup[ship.entity].Chunk.GetSharedComponentIndex(ref factionMemberHandle);
+                    if (radarFactionIndex == shipFactionIndex)
+                        ExecuteFriend(ref results, in radar, in transform, in ship);
+                    else
+                        ExecuteEnemy(ref results, in radar, in transform, in ship);
+                }
+            }
+
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                radarFactionIndex = chunk.GetSharedComponentIndex(ref factionMemberHandle);
+                return true;
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
+            }
+
+            Aabb GetSearchAabb(in AiShipRadar radar, in WorldTransform worldTransform)
+            {
+                if (radar.cosFov < 0f)
+                {
+                    //Todo: Create tighter bounds here too.
+                    var sphere = new SphereCollider(0f, radar.distance);
+                    return Physics.AabbFrom(sphere, worldTransform.worldTransform);
+                }
+                else
+                {
+                    //Compute aabb of vertex and spherical cap points which are extreme points
+                    float3 forward             = worldTransform.forwardDirection;
+                    bool3  positiveOnSphereCap = forward > radar.cosFov;
+                    bool3  negativeOnSphereCap = -forward > radar.cosFov;
+                    float3 min                 = math.select(0f, -radar.distance, negativeOnSphereCap);
+                    float3 max                 = math.select(0f, radar.distance, positiveOnSphereCap);
+                    Aabb   aabb                = new Aabb(min, max);
+
+                    //Compute aabb of circle base
+                    float4 cos     = new float4(forward, radar.cosFov);
+                    float4 sinSq   = 1f - (cos * cos);
+                    float4 sin     = math.sqrt(sinSq);
+                    float3 center  = radar.cosFov * radar.distance * forward;
+                    float  radius  = radar.distance * sin.w;
+                    float3 extents = sin.xyz * radius;
+                    min            = center - extents;
+                    max            = center + extents;
+                    aabb.min       = math.min(aabb.min, min) + worldTransform.position;
+                    aabb.max       = math.max(aabb.max, max) + worldTransform.position;
+                    return aabb;
+                }
+            }
+
+            public void ExecuteFriend(ref AiShipRadarScanResults scanResult, in AiShipRadar radar, in WorldTransform transform, in FindObjectsResult ship)
+            {
+                float3 radarToShip = ship.transform.position - transform.position;
+                bool   isInRange   = math.lengthsq(radarToShip) < radar.friendCrossHairsDistanceFilter * radar.friendCrossHairsDistanceFilter;
+                bool   isInView    =
+                    math.dot(math.normalize(radarToShip),
+                             math.forward(math.mul(transform.rotation, radar.crossHairsForwardDirectionBias))) > radar.friendCrossHairsCosFovFilter;
+
+                if (isInRange && isInView)
+                {
+                    var hitWall = Physics.RaycastAny(transform.position, ship.transform.position, in wallLayer, out _, out _);
+                    if (!hitWall)
+                    {
+                        scanResult.friendFound = true;
+                    }
+                }
+            }
+
+            public void ExecuteEnemy(ref AiShipRadarScanResults scanResult, in AiShipRadar radar, in WorldTransform transform, in FindObjectsResult ship)
+            {
+                float3 radarToShip = ship.transform.position - transform.position;
+
+                bool  useFullRange  = radar.target.entity == ship.entity || radar.target == Entity.Null;
+                float radarDistance = math.select(radar.nearestEnemyCrossHairsDistanceFilter, radar.distance, useFullRange);
+                float radarCosFov   = math.select(radar.nearestEnemyCrossHairsCosFovFilter, radar.cosFov, useFullRange);
+
+                bool isInRange = math.lengthsq(radarToShip) < radarDistance * radarDistance;
+                bool isInView  = math.dot(math.normalize(radarToShip), math.forward(math.mul(transform.rotation, radar.crossHairsForwardDirectionBias))) > radarCosFov;
+
+                if (isInRange && isInView)
+                {
+                    var hitWall = Physics.RaycastAny(transform.position, ship.transform.position, in wallLayer, out _, out _);
+                    if (!hitWall)
+                    {
+                        if (radar.target == Entity.Null)
+                        {
+                            if (scanResult.target == Entity.Null)
+                            {
+                                scanResult.target          = ship.entity;
+                                scanResult.targetTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                            }
+                            else
+                            {
+                                var optimalPosition =
+                                    math.forward(math.mul(transform.rotation,
+                                                          radar.crossHairsForwardDirectionBias)) * radar.preferredTargetDistance + transform.position;
+                                if (math.distancesq(scanResult.targetTransform.pos, optimalPosition) > math.distancesq(ship.transform.position, optimalPosition))
+                                {
+                                    scanResult.target          = ship.entity;
+                                    scanResult.targetTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //Todo: Because no filter is applied to the search, we would have to apply the filter here if target was null.
+                            //I'm too lazy to do that right now, so I'm just not populating the nearestResult if there's no target.
+                            if (radar.target.entity == ship.entity)
+                            {
+                                scanResult.target          = ship.entity;
+                                scanResult.targetTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                            }
+
+                            if (scanResult.nearestEnemy == Entity.Null)
+                            {
+                                if (math.dot(math.normalize(ship.transform.position - transform.position),
+                                             math.forward(math.mul(transform.rotation,
+                                                                   radar.crossHairsForwardDirectionBias))) > radar.nearestEnemyCrossHairsCosFovFilter)
+                                {
+                                    scanResult.nearestEnemy          = ship.entity;
+                                    scanResult.nearestEnemyTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                                }
+                            }
+                            else
+                            {
+                                if (math.distancesq(scanResult.nearestEnemyTransform.pos,
+                                                    transform.position) > math.distancesq(ship.transform.position, transform.position))
+                                {
+                                    scanResult.nearestEnemy          = ship.entity;
+                                    scanResult.nearestEnemyTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

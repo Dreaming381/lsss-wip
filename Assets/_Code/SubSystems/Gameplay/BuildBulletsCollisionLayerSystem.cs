@@ -33,13 +33,13 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var query = QueryBuilder().WithAll<WorldTransform, BulletCollider, PreviousTransform, BulletTag>().Build();
+            var query = QueryBuilder().WithAll<WorldTransform, BulletCollider, PreviousTransform, BulletTag, Speed>().Build();
 
             var count  = query.CalculateEntityCount();
             var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
             var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
 
-            new Job { bodies = bodies, aabbs = aabbs }.ScheduleParallel(query);
+            new Job { bodies = bodies, aabbs = aabbs, dt = Time.DeltaTime }.ScheduleParallel(query);
 
             state.Dependency = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
             var bcl          = new BulletCollisionLayer { layer = layer };
@@ -51,17 +51,21 @@ namespace Lsss
         {
             public NativeArray<ColliderBody> bodies;
             public NativeArray<Aabb>         aabbs;
+            public float                     dt;
 
             public void Execute(Entity entity,
                                 [EntityIndexInQuery] int entityInQueryIndex,
                                 in WorldTransform worldTransform,
                                 in BulletCollider collider,
-                                in PreviousTransform previousPosition)
+                                //in PreviousTransform previousPosition)
+                                in Speed speed)
             {
-                var             pointB      = new float3(0f, 0f, collider.headOffsetZ);
-                CapsuleCollider capsule     = new CapsuleCollider(pointB, pointB, collider.radius);
-                float           tailLength  = math.distance(worldTransform.position, previousPosition.position);
-                capsule.pointA.z           -= math.max(tailLength, math.EPSILON);
+                var             pointB  = new float3(0f, 0f, collider.headOffsetZ);
+                CapsuleCollider capsule = new CapsuleCollider(pointB, pointB, collider.radius);
+                // Recalculating from Speed results in less memory bandwidth, and makes this job measurably faster.
+                //float           tailLength  = math.distance(worldTransform.position, previousPosition.position);
+                float tailLength  = dt * speed.speed;
+                capsule.pointA.z -= math.max(tailLength, math.EPSILON);
 
                 bodies[entityInQueryIndex] = new ColliderBody
                 {

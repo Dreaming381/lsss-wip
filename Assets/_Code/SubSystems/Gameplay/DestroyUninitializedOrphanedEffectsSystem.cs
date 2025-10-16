@@ -20,15 +20,9 @@ namespace Lsss
     public partial struct DestroyUninitializedOrphanedEffectsSystem : ISystem
     {
         [BurstCompile]
-        public void OnCreate(ref SystemState state) {
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state) {
-        }
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dcb = new DestroyCommandBuffer(Allocator.TempJob);
+            var dcb = new DestroyCommandBuffer(state.WorldUpdateAllocator);
             // WorldTransform is what ParentChangeSystem uses to reactively remove Child buffers.
             // Testing for entity existence here doesn't work since the entity may be getting cleaned up.
             foreach((var parent, var entity) in Query<RefRO<Parent> >().WithEntityAccess().WithNone<PreviousParent>())
@@ -40,7 +34,6 @@ namespace Lsss
             }
 
             dcb.Playback(state.EntityManager);
-            dcb.Dispose();
         }
     }
 }

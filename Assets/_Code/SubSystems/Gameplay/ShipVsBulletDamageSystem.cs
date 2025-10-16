@@ -2,6 +2,7 @@
 using Latios.Psyshock;
 using Latios.Transforms;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -25,11 +26,6 @@ namespace Lsss
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var shipLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
@@ -38,7 +34,7 @@ namespace Lsss
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform>().AsParallelWriter();
 
-            new BulletFirerJob { frameId = m_frameId }.ScheduleParallel();
+            new BulletFirerJob { frameId = m_frameId, lastSystemVersion = state.LastSystemVersion }.ScheduleParallel();
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
@@ -57,9 +53,10 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct BulletFirerJob : IJobEntity
+        partial struct BulletFirerJob : IJobEntity, IJobEntityChunkBeginEnd
         {
-            public int frameId;
+            public int  frameId;
+            public uint lastSystemVersion;
 
             public void Execute(ref BulletFirer firer)
             {
@@ -68,6 +65,15 @@ namespace Lsss
                     firer.lastImpactFrame = frameId;
                     firer.initialized     = true;
                 }
+            }
+
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                return chunk.DidOrderChange(lastSystemVersion);
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
 
