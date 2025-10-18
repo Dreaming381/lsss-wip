@@ -665,6 +665,8 @@ namespace Lsss
             var wallLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             var shipLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
 
+            m_factionMemberHandle.Update(ref state);
+
             new EvaluateScanRequestsJob
             {
                 wallLayer            = wallLayer,
@@ -745,6 +747,7 @@ namespace Lsss
                                 in AiShipRadar radar,
                                 in AiShipRadarRequests requests)
             {
+                results  = default;
                 var aabb = GetSearchAabb(in radar, in transform);
                 foreach (var ship in Physics.FindObjects(in aabb, in shipLayer))
                 {
