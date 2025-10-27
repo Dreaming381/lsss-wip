@@ -31,7 +31,6 @@ namespace Lsss
             var shipLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
             var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
-            var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform>().AsParallelWriter();
 
             new BulletFirerJob { frameId = m_frameId, lastSystemVersion = state.LastSystemVersion }.ScheduleParallel();
@@ -40,9 +39,9 @@ namespace Lsss
             {
                 bulletDamageLookup        = GetComponentLookup<Damage>(true),
                 bulletFirerLookup         = GetComponentLookup<BulletFirer>(),
+                timeToLiveLookup          = GetComponentLookup<TimeToLive>(false),
                 shipHealthLookup          = GetComponentLookup<ShipHealth>(),
                 shipHitEffectPrefabLookup = GetComponentLookup<ShipHitEffectPrefab>(true),
-                dcb                       = dcb,
                 icb                       = icb,
                 frameId                   = m_frameId
             };
@@ -82,11 +81,11 @@ namespace Lsss
         {
             public PhysicsComponentLookup<ShipHealth>              shipHealthLookup;
             public PhysicsComponentLookup<BulletFirer>             bulletFirerLookup;
+            public PhysicsComponentLookup<TimeToLive>              timeToLiveLookup;
             [ReadOnly] public ComponentLookup<Damage>              bulletDamageLookup;
             [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabLookup;
             public int                                             frameId;
 
-            public DestroyCommandBuffer.ParallelWriter                     dcb;
             public InstantiateCommandBuffer<WorldTransform>.ParallelWriter icb;
 
             public void Execute(in FindPairsResult result)
@@ -110,7 +109,7 @@ namespace Lsss
 
                     health.health -= damage.damage;
 
-                    dcb.Add(result.entityA, result.jobIndex);
+                    timeToLiveLookup.GetRW(result.entityA).ValueRW.timeToLive = 0f;
 
                     var hitPrefab = shipHitEffectPrefabLookup[result.entityB];
                     if (hitPrefab.hitEffectPrefab != Entity.Null)
