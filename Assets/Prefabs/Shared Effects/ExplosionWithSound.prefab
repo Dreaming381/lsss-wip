@@ -46,14 +46,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   clip: {fileID: 0}
-  looping: 0
-  autoDestroyOnFinish: 0
+  codec: 0
   volume: 1
-  innerRange: 300
-  outerRange: 2000
-  rangeFadeMargin: 1
+  looping: 0
   playFromBeginningAtSpawn: 0
   voices: 0
+  autoDestroyOnFinish: 0
+  audioChannel: {fileID: 0}
+  useFalloff: 1
+  innerRange: 150
+  outerRange: 2000
+  rangeFadeMargin: 1
   useCone: 0
   innerAngle: 30
   outerAngle: 60
@@ -149,14 +152,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   clip: {fileID: 0}
-  looping: 0
-  autoDestroyOnFinish: 0
+  codec: 0
   volume: 0.75
-  innerRange: 10
-  outerRange: 50
-  rangeFadeMargin: 1
+  looping: 0
   playFromBeginningAtSpawn: 0
   voices: 0
+  autoDestroyOnFinish: 0
+  audioChannel: {fileID: 0}
+  useFalloff: 1
+  innerRange: 5
+  outerRange: 50
+  rangeFadeMargin: 1
   useCone: 0
   innerAngle: 30
   outerAngle: 60
@@ -278,6 +284,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8003748114816692161, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
+      propertyPath: radius
+      value: 20
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 2409522577463622265, guid: 1edcd485a8bc14647b37862cf1202c36, type: 3}
     m_RemovedGameObjects: []
@@ -319,14 +329,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   clip: {fileID: 0}
-  looping: 0
-  autoDestroyOnFinish: 0
+  codec: 0
   volume: 1
-  innerRange: 75
-  outerRange: 400
-  rangeFadeMargin: 1
+  looping: 0
   playFromBeginningAtSpawn: 0
   voices: 0
+  autoDestroyOnFinish: 0
+  audioChannel: {fileID: 0}
+  useFalloff: 1
+  innerRange: 18.75
+  outerRange: 400
+  rangeFadeMargin: 1
   useCone: 0
   innerAngle: 30
   outerAngle: 60

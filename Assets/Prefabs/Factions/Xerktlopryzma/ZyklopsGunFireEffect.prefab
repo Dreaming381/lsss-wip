@@ -46,13 +46,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   clip: {fileID: 0}
+  codec: 0
   volume: 1.8
   looping: 0
   playFromBeginningAtSpawn: 0
   voices: 0
   autoDestroyOnFinish: 0
+  audioChannel: {fileID: 0}
   useFalloff: 1
-  innerRange: 50
+  innerRange: 25
   outerRange: 500
   rangeFadeMargin: 1
   useCone: 0
@@ -151,13 +153,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   clip: {fileID: 0}
+  codec: 0
   volume: 1.8
   looping: 0
   playFromBeginningAtSpawn: 0
   voices: 0
   autoDestroyOnFinish: 1
+  audioChannel: {fileID: 0}
   useFalloff: 1
-  innerRange: 50
+  innerRange: 25
   outerRange: 500
   rangeFadeMargin: 1
   useCone: 0
