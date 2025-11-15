@@ -94,10 +94,35 @@ namespace Latios.Kinemation.Systems
     {
         static Dictionary<Type, NamedPropertyMapping> s_TypeToPropertyMappings = new Dictionary<Type, NamedPropertyMapping>();
 
+        /// <summary>
+        /// Toggles the activation of EntitiesGraphicsSystem.
+        /// </summary>
+        /// <remarks>
+        /// To disable this system, use the HYBRID_RENDERER_DISABLED define.
+        /// </remarks>
+#if HYBRID_RENDERER_DISABLED
+        public static bool EntitiesGraphicsEnabled => false;
+#else
+        public static bool EntitiesGraphicsEnabled => EntitiesGraphicsUtils.IsEntitiesGraphicsSupportedOnSystem();
+#endif
+
 #if DEBUG_PROPERTY_NAMES
         internal static Dictionary<int, string> s_NameIDToName    = new Dictionary<int, string>();
         internal static Dictionary<int, string> s_TypeIndexToName = new Dictionary<int, string>();
 #endif
+
+        internal static readonly bool UseConstantBuffers       = EntitiesGraphicsUtils.UseHybridConstantBufferMode();
+        internal static readonly int  MaxBytesPerCBuffer       = EntitiesGraphicsUtils.MaxBytesPerCBuffer;
+        internal static readonly uint BatchAllocationAlignment = (uint)EntitiesGraphicsUtils.BatchAllocationAlignment;
+
+        internal const int kMaxBytesPerBatchRawBuffer = 16 * 1024 * 1024;
+
+        /// <summary>
+        /// The maximum GPU buffer size (in bytes) that a batch can access.
+        /// </summary>
+        public static int MaxBytesPerBatch => UseConstantBuffers ?
+        MaxBytesPerCBuffer :
+        kMaxBytesPerBatchRawBuffer;
 
         private BatchRendererGroup m_BatchRendererGroup;
 
@@ -248,18 +273,6 @@ namespace Latios.Kinemation.Systems
             #region Variables
             LatiosWorldUnmanaged latiosWorld;
 
-            /// <summary>
-            /// Toggles the activation of EntitiesGraphicsSystem.
-            /// </summary>
-            /// <remarks>
-            /// To disable this system, use the HYBRID_RENDERER_DISABLED define.
-            /// </remarks>
-#if HYBRID_RENDERER_DISABLED
-            public static bool EntitiesGraphicsEnabled => false;
-#else
-            public static bool EntitiesGraphicsEnabled => EntitiesGraphicsUtils.IsEntitiesGraphicsSupportedOnSystem();
-#endif
-
 #if !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
             private static bool ErrorShaderEnabled => true;
 #else
@@ -336,19 +349,6 @@ namespace Latios.Kinemation.Systems
             Material m_ErrorMaterial;
 
             private ThreadLocalAllocator m_ThreadLocalAllocators;
-
-            internal static readonly bool UseConstantBuffers       = EntitiesGraphicsUtils.UseHybridConstantBufferMode();
-            internal static readonly int  MaxBytesPerCBuffer       = EntitiesGraphicsUtils.MaxBytesPerCBuffer;
-            internal static readonly uint BatchAllocationAlignment = (uint)EntitiesGraphicsUtils.BatchAllocationAlignment;
-
-            internal const int kMaxBytesPerBatchRawBuffer = 16 * 1024 * 1024;
-
-            /// <summary>
-            /// The maximum GPU buffer size (in bytes) that a batch can access.
-            /// </summary>
-            public static int MaxBytesPerBatch => UseConstantBuffers ?
-            MaxBytesPerCBuffer :
-            kMaxBytesPerBatchRawBuffer;
 
             KinemationCullingSuperSystem         m_cullingSuperSystem;
             KinemationCullingDispatchSuperSystem m_cullingDispatchSuperSystem;
