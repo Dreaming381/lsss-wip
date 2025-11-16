@@ -413,7 +413,7 @@ namespace Latios.Psyshock
             return result;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("LATIOS_PSYSHOCK_VALIDATE_GJK")]
         public static unsafe void ValidateGjkEpa(in Collider colliderA,
                                                  in RigidTransform transformA,
                                                  in Collider colliderB,
