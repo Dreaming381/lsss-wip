@@ -92,8 +92,7 @@ namespace Latios.Kinemation.Systems
     [BurstCompile]
     public unsafe partial class LatiosEntitiesGraphicsSystem : SubSystem
     {
-        static Dictionary<Type, NamedPropertyMapping> s_TypeToPropertyMappings = new Dictionary<Type, NamedPropertyMapping>();
-
+        #region Managed API
         /// <summary>
         /// Toggles the activation of EntitiesGraphicsSystem.
         /// </summary>
@@ -106,79 +105,12 @@ namespace Latios.Kinemation.Systems
         public static bool EntitiesGraphicsEnabled => EntitiesGraphicsUtils.IsEntitiesGraphicsSupportedOnSystem();
 #endif
 
-#if DEBUG_PROPERTY_NAMES
-        internal static Dictionary<int, string> s_NameIDToName    = new Dictionary<int, string>();
-        internal static Dictionary<int, string> s_TypeIndexToName = new Dictionary<int, string>();
-#endif
-
-        internal static readonly bool UseConstantBuffers       = EntitiesGraphicsUtils.UseHybridConstantBufferMode();
-        internal static readonly int  MaxBytesPerCBuffer       = EntitiesGraphicsUtils.MaxBytesPerCBuffer;
-        internal static readonly uint BatchAllocationAlignment = (uint)EntitiesGraphicsUtils.BatchAllocationAlignment;
-
-        internal const int kMaxBytesPerBatchRawBuffer = 16 * 1024 * 1024;
-
         /// <summary>
         /// The maximum GPU buffer size (in bytes) that a batch can access.
         /// </summary>
         public static int MaxBytesPerBatch => UseConstantBuffers ?
         MaxBytesPerCBuffer :
         kMaxBytesPerBatchRawBuffer;
-
-        private BatchRendererGroup m_BatchRendererGroup;
-
-        private Unmanaged m_unmanaged;
-
-        protected override void OnCreate()
-        {
-            var entitiesGraphicsSystem     = World.GetExistingSystemManaged<EntitiesGraphicsSystem>();
-            entitiesGraphicsSystem.Enabled = false;
-
-            // We steal the BRG to avoid duplicating the Mesh and Material registration system.
-            // Ideally, we want to remain compatible with plugins that register custom meshes and materials.
-            // But we need our own BRG to specify our own culling callback.
-            // The solution is to steal the BRG, destroy it, and then swap it with our replacement.
-            m_BatchRendererGroup = new BatchRendererGroup(new BatchRendererGroupCreateInfo
-            {
-                cullingCallback         = this.OnPerformCulling,
-                finishedCullingCallback = this.OnFinishedCulling,
-                userContext             = IntPtr.Zero
-            });
-            var brgField = entitiesGraphicsSystem.GetType().GetField("m_BatchRendererGroup",
-                                                                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            var oldBrg = brgField.GetValue(entitiesGraphicsSystem) as BatchRendererGroup;
-            oldBrg.Dispose();
-            brgField.SetValue(entitiesGraphicsSystem, m_BatchRendererGroup);
-            // Hybrid Renderer supports all view types
-            m_BatchRendererGroup.SetEnabledViewTypes(new BatchCullingViewType[]
-            {
-                BatchCullingViewType.Camera,
-                BatchCullingViewType.Light,
-                BatchCullingViewType.Picking,
-                BatchCullingViewType.SelectionOutline
-            });
-
-            m_unmanaged.OnCreate(ref CheckedStateRef, m_BatchRendererGroup);
-        }
-
-        protected override void OnDestroy()
-        {
-            m_unmanaged.OnDestroy();
-        }
-
-        protected override void OnUpdate()
-        {
-            m_unmanaged.OnUpdate(ref CheckedStateRef);
-        }
-
-        private JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext batchCullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
-        {
-            return m_unmanaged.OnPerformCulling(ref CheckedStateRef, rendererGroup, batchCullingContext, cullingOutput, userContext);
-        }
-
-        private unsafe void OnFinishedCulling(IntPtr customCullingResult)
-        {
-            m_unmanaged.OnFinishedCulling(customCullingResult);
-        }
 
         /// <summary>
         /// Registers a material property type with the given name.
@@ -266,6 +198,119 @@ namespace Latios.Kinemation.Systems
         /// <param name="material">A material ID received from <see cref="RegisterMaterial"/>.</param>
         /// <returns>The <see cref="Material"/> object corresponding to the given material ID if the ID is valid, or <c>null</c> if it's not valid.</returns>
         public Material GetMaterial(BatchMaterialID material) => m_BatchRendererGroup.GetRegisteredMaterial(material);
+        #endregion
+
+        #region Managed Impl
+        static Dictionary<Type, NamedPropertyMapping> s_TypeToPropertyMappings = new Dictionary<Type, NamedPropertyMapping>();
+
+#if DEBUG_PROPERTY_NAMES
+        internal static Dictionary<int, string> s_NameIDToName    = new Dictionary<int, string>();
+        internal static Dictionary<int, string> s_TypeIndexToName = new Dictionary<int, string>();
+#endif
+
+        internal static readonly bool UseConstantBuffers       = EntitiesGraphicsUtils.UseHybridConstantBufferMode();
+        internal static readonly int  MaxBytesPerCBuffer       = EntitiesGraphicsUtils.MaxBytesPerCBuffer;
+        internal static readonly uint BatchAllocationAlignment = (uint)EntitiesGraphicsUtils.BatchAllocationAlignment;
+
+        internal const int kMaxBytesPerBatchRawBuffer = 16 * 1024 * 1024;
+
+        // Reuse Lists used for GetAllUniqueSharedComponentData to avoid GC allocs every frame
+        private List<RenderFilterSettings> m_RenderFilterSettings   = new List<RenderFilterSettings>();
+        private List<int>                  m_SharedComponentIndices = new List<int>();
+
+        private BatchRendererGroup m_BatchRendererGroup;
+
+        private Unmanaged m_unmanaged;
+
+        protected override void OnCreate()
+        {
+            var entitiesGraphicsSystem     = World.GetExistingSystemManaged<EntitiesGraphicsSystem>();
+            entitiesGraphicsSystem.Enabled = false;
+
+            // We steal the BRG to avoid duplicating the Mesh and Material registration system.
+            // Ideally, we want to remain compatible with plugins that register custom meshes and materials.
+            // But we need our own BRG to specify our own culling callback.
+            // The solution is to steal the BRG, destroy it, and then swap it with our replacement.
+            m_BatchRendererGroup = new BatchRendererGroup(new BatchRendererGroupCreateInfo
+            {
+                cullingCallback         = this.OnPerformCulling,
+                finishedCullingCallback = this.OnFinishedCulling,
+                userContext             = IntPtr.Zero
+            });
+            var brgField = entitiesGraphicsSystem.GetType().GetField("m_BatchRendererGroup",
+                                                                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            var oldBrg = brgField.GetValue(entitiesGraphicsSystem) as BatchRendererGroup;
+            oldBrg.Dispose();
+            brgField.SetValue(entitiesGraphicsSystem, m_BatchRendererGroup);
+            // Hybrid Renderer supports all view types
+            m_BatchRendererGroup.SetEnabledViewTypes(new BatchCullingViewType[]
+            {
+                BatchCullingViewType.Camera,
+                BatchCullingViewType.Light,
+                BatchCullingViewType.Picking,
+                BatchCullingViewType.SelectionOutline
+            });
+
+            m_unmanaged.OnCreate(ref CheckedStateRef, m_BatchRendererGroup);
+        }
+
+        protected override void OnDestroy()
+        {
+            m_unmanaged.OnDestroy();
+        }
+
+        protected override void OnUpdate()
+        {
+            Profiler.BeginSample("UpdateFilterSettings");
+            UpdateFilterSettings(ref CheckedStateRef);
+            Profiler.EndSample();
+            m_unmanaged.OnUpdate(ref CheckedStateRef);
+        }
+
+        private JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext batchCullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
+        {
+            return m_unmanaged.OnPerformCulling(ref CheckedStateRef, rendererGroup, batchCullingContext, cullingOutput, userContext);
+        }
+
+        private unsafe void OnFinishedCulling(IntPtr customCullingResult)
+        {
+            m_unmanaged.OnFinishedCulling(customCullingResult);
+        }
+
+        private void UpdateFilterSettings(ref SystemState state)
+        {
+            m_RenderFilterSettings.Clear();
+            m_SharedComponentIndices.Clear();
+
+            // TODO: Maybe this could be partially jobified?
+
+            state.EntityManager.GetAllUniqueSharedComponentsManaged(m_RenderFilterSettings, m_SharedComponentIndices);
+
+            m_unmanaged.m_FilterSettings.Clear();
+            for (int i = 0; i < m_SharedComponentIndices.Count; ++i)
+            {
+                int sharedIndex                           = m_SharedComponentIndices[i];
+                m_unmanaged.m_FilterSettings[sharedIndex] = MakeFilterSettings(m_RenderFilterSettings[i]);
+            }
+
+            m_RenderFilterSettings.Clear();
+            m_SharedComponentIndices.Clear();
+        }
+
+        static BatchFilterSettings MakeFilterSettings(in RenderFilterSettings filterSettings)
+        {
+            return new BatchFilterSettings
+            {
+                layer              = (byte)filterSettings.Layer,
+                renderingLayerMask = filterSettings.RenderingLayerMask,
+                motionMode         = filterSettings.MotionMode,
+                shadowCastingMode  = filterSettings.ShadowCastingMode,
+                receiveShadows     = filterSettings.ReceiveShadows,
+                staticShadowCaster = filterSettings.StaticShadowCaster,
+                allDepthSorted     = false,  // set by culling
+            };
+        }
+        #endregion
 
         [BurstCompile]
         struct Unmanaged
@@ -284,12 +329,6 @@ namespace Latios.Kinemation.Systems
 #else
             private static bool LoadingShaderEnabled => false;
 #endif
-
-            // Reuse Lists used for GetAllUniqueSharedComponentData to avoid GC allocs every frame
-            private List<RenderFilterSettings> m_RenderFilterSettings;  // = new List<RenderFilterSettings>();
-            private List<int>                  m_SharedComponentIndices;  // = new List<int>();
-
-            private BatchRendererGroup m_BatchRendererGroup;
 
             private long m_PersistentInstanceDataSize;
 
@@ -339,7 +378,7 @@ namespace Latios.Kinemation.Systems
             private EntitiesGraphicsArchetypes m_GraphicsArchetypes;
 
             // Burst accessible filter settings for each RenderFilterSettings shared component index
-            private NativeParallelHashMap<int, BatchFilterSettings> m_FilterSettings;
+            public NativeParallelHashMap<int, BatchFilterSettings> m_FilterSettings;
 
 #if ENABLE_PICKING
             Material m_PickingMaterial;
@@ -370,11 +409,6 @@ namespace Latios.Kinemation.Systems
             public void OnCreate(ref SystemState state, BatchRendererGroup batchRendererGroup)
             {
                 latiosWorld = state.GetLatiosWorldUnmanaged();
-
-                m_RenderFilterSettings   = new List<RenderFilterSettings>();
-                m_SharedComponentIndices = new List<int>();
-
-                m_BatchRendererGroup = batchRendererGroup;
 
                 // If -nographics is enabled, or if there is no compute shader support, disable HR.
                 if (!EntitiesGraphicsEnabled)
@@ -431,7 +465,7 @@ namespace Latios.Kinemation.Systems
                     },
                 });
 
-                m_ThreadedBatchContext = m_BatchRendererGroup.GetThreadedBatchContext();
+                m_ThreadedBatchContext = batchRendererGroup.GetThreadedBatchContext();
 
                 m_GPUPersistentAllocator = new HeapAllocator(kMaxGPUAllocatorMemory, 16);
                 m_ChunkMetadataAllocator = new HeapAllocator(kMaxChunkMetadata);
@@ -514,7 +548,7 @@ namespace Latios.Kinemation.Systems
                     m_ErrorMaterial = EntitiesGraphicsUtils.LoadErrorMaterial();
                     if (m_ErrorMaterial != null)
                     {
-                        m_BatchRendererGroup.SetErrorMaterial(m_ErrorMaterial);
+                        batchRendererGroup.SetErrorMaterial(m_ErrorMaterial);
                     }
                 }
 
@@ -523,7 +557,7 @@ namespace Latios.Kinemation.Systems
                     m_LoadingMaterial = EntitiesGraphicsUtils.LoadLoadingMaterial();
                     if (m_LoadingMaterial != null)
                     {
-                        m_BatchRendererGroup.SetLoadingMaterial(m_LoadingMaterial);
+                        batchRendererGroup.SetLoadingMaterial(m_LoadingMaterial);
                     }
                 }
 
@@ -531,7 +565,7 @@ namespace Latios.Kinemation.Systems
                 m_PickingMaterial = EntitiesGraphicsUtils.LoadPickingMaterial();
                 if (m_PickingMaterial != null)
                 {
-                    m_BatchRendererGroup.SetPickingMaterial(m_PickingMaterial);
+                    batchRendererGroup.SetPickingMaterial(m_PickingMaterial);
                 }
 #endif
                 InitializeMaterialProperties(ref componentTypeCache);
@@ -618,12 +652,6 @@ namespace Latios.Kinemation.Systems
                 inputDeps.Complete();  // #todo
                 CompleteJobs();
                 Profiler.EndSample();
-
-                Profiler.BeginSample("UpdateFilterSettings");
-                var updateFilterSettingsHandle = UpdateFilterSettings(ref state, inputDeps);
-                Profiler.EndSample();
-
-                inputDeps = JobHandle.CombineDependencies(inputDeps, updateFilterSettingsHandle);
 
                 int totalChunks = 0;
                 var done        = new JobHandle();
@@ -906,42 +934,6 @@ namespace Latios.Kinemation.Systems
                 Debug.Log(
                     $"Entities Graphics active, MaterialProperty component type count {m_ComponentTypeCache.UsedTypeCount} / {ComponentTypeCache.BurstCompatibleTypeArray.kMaxTypes}, {mode}");
 #endif
-            }
-
-            private JobHandle UpdateFilterSettings(ref SystemState state, JobHandle inputDeps)
-            {
-                m_RenderFilterSettings.Clear();
-                m_SharedComponentIndices.Clear();
-
-                // TODO: Maybe this could be partially jobified?
-
-                state.EntityManager.GetAllUniqueSharedComponentsManaged(m_RenderFilterSettings, m_SharedComponentIndices);
-
-                m_FilterSettings.Clear();
-                for (int i = 0; i < m_SharedComponentIndices.Count; ++i)
-                {
-                    int sharedIndex               = m_SharedComponentIndices[i];
-                    m_FilterSettings[sharedIndex] = MakeFilterSettings(m_RenderFilterSettings[i]);
-                }
-
-                m_RenderFilterSettings.Clear();
-                m_SharedComponentIndices.Clear();
-
-                return new JobHandle();
-            }
-
-            private static BatchFilterSettings MakeFilterSettings(RenderFilterSettings filterSettings)
-            {
-                return new BatchFilterSettings
-                {
-                    layer              = (byte)filterSettings.Layer,
-                    renderingLayerMask = filterSettings.RenderingLayerMask,
-                    motionMode         = filterSettings.MotionMode,
-                    shadowCastingMode  = filterSettings.ShadowCastingMode,
-                    receiveShadows     = filterSettings.ReceiveShadows,
-                    staticShadowCaster = filterSettings.StaticShadowCaster,
-                    allDepthSorted     = false,  // set by culling
-                };
             }
 
             private void ResetIds()
@@ -1765,7 +1757,7 @@ namespace Latios.Kinemation.Systems
             {
                 foreach (var b in m_ExistingBatchIndices)
                 {
-                    m_BatchRendererGroup.SetBatchBuffer(new BatchID { value = (uint)b }, m_GPUPersistentInstanceBufferHandle);
+                    m_ThreadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)b }, m_GPUPersistentInstanceBufferHandle);
                 }
             }
 
