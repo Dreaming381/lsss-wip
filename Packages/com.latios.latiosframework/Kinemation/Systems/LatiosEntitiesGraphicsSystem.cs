@@ -220,6 +220,15 @@ namespace Latios.Kinemation.Systems
 
         private BatchRendererGroup m_BatchRendererGroup;
 
+#if ENABLE_PICKING
+        Material m_PickingMaterial;
+#endif
+
+        Material m_LoadingMaterial;
+        Material m_ErrorMaterial;
+
+        RegisterMaterialsAndMeshesSystem m_registerMaterialsAndMeshesSystem;
+
         private Unmanaged m_unmanaged;
 
         protected override void OnCreate()
@@ -251,12 +260,49 @@ namespace Latios.Kinemation.Systems
                 BatchCullingViewType.SelectionOutline
             });
 
+            if (ErrorShaderEnabled)
+            {
+                m_ErrorMaterial = EntitiesGraphicsUtils.LoadErrorMaterial();
+                if (m_ErrorMaterial != null)
+                {
+                    m_BatchRendererGroup.SetErrorMaterial(m_ErrorMaterial);
+                }
+            }
+
+            if (LoadingShaderEnabled)
+            {
+                m_LoadingMaterial = EntitiesGraphicsUtils.LoadLoadingMaterial();
+                if (m_LoadingMaterial != null)
+                {
+                    m_BatchRendererGroup.SetLoadingMaterial(m_LoadingMaterial);
+                }
+            }
+
+#if ENABLE_PICKING
+            m_PickingMaterial = EntitiesGraphicsUtils.LoadPickingMaterial();
+            if (m_PickingMaterial != null)
+            {
+                m_BatchRendererGroup.SetPickingMaterial(m_PickingMaterial);
+            }
+#endif
+
+            m_registerMaterialsAndMeshesSystem = World.GetExistingSystemManaged<RegisterMaterialsAndMeshesSystem>();
+
             m_unmanaged.OnCreate(ref CheckedStateRef, m_BatchRendererGroup);
         }
 
         protected override void OnDestroy()
         {
             m_unmanaged.OnDestroy();
+            if (ErrorShaderEnabled)
+                Material.DestroyImmediate(m_ErrorMaterial);
+
+            if (LoadingShaderEnabled)
+                Material.DestroyImmediate(m_LoadingMaterial);
+
+#if ENABLE_PICKING
+            Material.DestroyImmediate(m_PickingMaterial);
+#endif
         }
 
         protected override void OnUpdate()
@@ -265,6 +311,17 @@ namespace Latios.Kinemation.Systems
             UpdateFilterSettings(ref CheckedStateRef);
             Profiler.EndSample();
             m_unmanaged.OnUpdate(ref CheckedStateRef);
+
+            try
+            {
+#if ENABLE_MATERIALMESHINFO_BOUNDS_CHECKING
+                m_registerMaterialsAndMeshesSystem.LogBoundsCheckErrorMessages();
+#endif
+                m_unmanaged.m_brgRenderMeshArrays = m_registerMaterialsAndMeshesSystem.BRGRenderMeshArrays;
+            }
+            finally
+            {
+            }
         }
 
         private JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext batchCullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
@@ -310,6 +367,18 @@ namespace Latios.Kinemation.Systems
                 allDepthSorted     = false,  // set by culling
             };
         }
+
+#if !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
+        private static bool ErrorShaderEnabled => true;
+#else
+        private static bool ErrorShaderEnabled => false;
+#endif
+
+#if UNITY_EDITOR && !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
+        private static bool LoadingShaderEnabled => true;
+#else
+        private static bool LoadingShaderEnabled => false;
+#endif
         #endregion
 
         [BurstCompile]
@@ -317,18 +386,6 @@ namespace Latios.Kinemation.Systems
         {
             #region Variables
             LatiosWorldUnmanaged latiosWorld;
-
-#if !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
-            private static bool ErrorShaderEnabled => true;
-#else
-            private static bool ErrorShaderEnabled => false;
-#endif
-
-#if UNITY_EDITOR && !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
-            private static bool LoadingShaderEnabled => true;
-#else
-            private static bool LoadingShaderEnabled => false;
-#endif
 
             private long m_PersistentInstanceDataSize;
 
@@ -377,15 +434,9 @@ namespace Latios.Kinemation.Systems
 
             private EntitiesGraphicsArchetypes m_GraphicsArchetypes;
 
-            // Burst accessible filter settings for each RenderFilterSettings shared component index
+            // Burst accessible variants for each shared component index
             public NativeParallelHashMap<int, BatchFilterSettings> m_FilterSettings;
-
-#if ENABLE_PICKING
-            Material m_PickingMaterial;
-#endif
-
-            Material m_LoadingMaterial;
-            Material m_ErrorMaterial;
+            public NativeParallelHashMap<int, BRGRenderMeshArray>  m_brgRenderMeshArrays;  // Not owned
 
             private ThreadLocalAllocator m_ThreadLocalAllocators;
 
@@ -393,16 +444,13 @@ namespace Latios.Kinemation.Systems
             KinemationCullingDispatchSuperSystem m_cullingDispatchSuperSystem;
             int                                  m_cullPassIndexThisFrame;
             int                                  m_dispatchPassIndexThisFrame;
-#pragma warning disable CS0414  // Variable assigned but unused in 2022 LTS
-            int m_cullPassIndexForLastDispatch;
-#pragma warning restore CS0414
+            int                                  m_cullPassIndexForLastDispatch;
+
             NativeList<JobHandle> m_cullingCallbackFinalJobHandles;  // Used for safe destruction of threaded allocators.
 
             ComponentTypeCache.BurstCompatibleTypeArray m_burstCompatibleTypeArray;
 
             private GraphicsBufferHandle m_GPUPersistentInstanceBufferHandle;
-
-            RegisterMaterialsAndMeshesSystem m_registerMaterialsAndMeshesSystem;
             #endregion
 
             #region Callbacks
@@ -543,31 +591,6 @@ namespace Latios.Kinemation.Systems
 
                 m_ThreadLocalAllocators = new ThreadLocalAllocator(-1);
 
-                if (ErrorShaderEnabled)
-                {
-                    m_ErrorMaterial = EntitiesGraphicsUtils.LoadErrorMaterial();
-                    if (m_ErrorMaterial != null)
-                    {
-                        batchRendererGroup.SetErrorMaterial(m_ErrorMaterial);
-                    }
-                }
-
-                if (LoadingShaderEnabled)
-                {
-                    m_LoadingMaterial = EntitiesGraphicsUtils.LoadLoadingMaterial();
-                    if (m_LoadingMaterial != null)
-                    {
-                        batchRendererGroup.SetLoadingMaterial(m_LoadingMaterial);
-                    }
-                }
-
-#if ENABLE_PICKING
-                m_PickingMaterial = EntitiesGraphicsUtils.LoadPickingMaterial();
-                if (m_PickingMaterial != null)
-                {
-                    batchRendererGroup.SetPickingMaterial(m_PickingMaterial);
-                }
-#endif
                 InitializeMaterialProperties(ref componentTypeCache);
                 var     uploadMaterialPropertiesSystem      = state.WorldUnmanaged.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>();
                 ref var uploadMaterialPropertiesSystemState = ref state.WorldUnmanaged.ResolveSystemStateRef(uploadMaterialPropertiesSystem);
@@ -590,7 +613,6 @@ namespace Latios.Kinemation.Systems
                 for (int i = 0; i < types.Length; i++)
                     ctypes[i] = ComponentType.ReadOnly(types[i]);
 
-                m_registerMaterialsAndMeshesSystem = state.World.GetExistingSystemManaged<RegisterMaterialsAndMeshesSystem>();
                 componentTypeCache.Dispose();
             }
 
@@ -660,10 +682,6 @@ namespace Latios.Kinemation.Systems
                     Profiler.BeginSample("UpdateEntitiesGraphicsBatches");
                     done = UpdateEntitiesGraphicsBatches(ref state, inputDeps, out totalChunks);
                     Profiler.EndSample();
-
-                    Profiler.BeginSample("EndUpdate");
-                    EndUpdate();
-                    Profiler.EndSample();
                 }
                 finally
                 {
@@ -710,7 +728,7 @@ namespace Latios.Kinemation.Systems
                     shadowProjection                = QualitySettings.shadowProjection,
                     threadLocalAllocators           = m_ThreadLocalAllocators,
                     filterSettings                  = m_FilterSettings,
-                    brgRenderMeshArrays             = m_registerMaterialsAndMeshesSystem.BRGRenderMeshArrays,
+                    brgRenderMeshArrays             = m_brgRenderMeshArrays,
                     cullingOutput                   = cullingOutput,
 
                     //m_beforeCreateSplitsMarker = m_beforeCreateSplitsMarker,
@@ -982,15 +1000,6 @@ namespace Latios.Kinemation.Systems
             {
                 JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
 
-                if (ErrorShaderEnabled)
-                    Material.DestroyImmediate(m_ErrorMaterial);
-
-                if (LoadingShaderEnabled)
-                    Material.DestroyImmediate(m_LoadingMaterial);
-
-#if ENABLE_PICKING
-                Material.DestroyImmediate(m_PickingMaterial);
-#endif
                 // EntitiesGraphicsSystem disposes this
                 //m_BatchRendererGroup.Dispose();
                 m_ThreadedBatchContext.batchRendererGroup = IntPtr.Zero;
@@ -1764,13 +1773,6 @@ namespace Latios.Kinemation.Systems
 #if DEBUG_LOG_MEMORY_USAGE
             private static ulong PrevUsedSpace = 0;
 #endif
-
-            private void EndUpdate()
-            {
-#if ENABLE_MATERIALMESHINFO_BOUNDS_CHECKING
-                m_registerMaterialsAndMeshesSystem.LogBoundsCheckErrorMessages();
-#endif
-            }
 
             internal static NativeList<T> NewNativeListResized<T>(int length, Allocator allocator,
                                                                   NativeArrayOptions resizeOptions = NativeArrayOptions.ClearMemory) where T : unmanaged
