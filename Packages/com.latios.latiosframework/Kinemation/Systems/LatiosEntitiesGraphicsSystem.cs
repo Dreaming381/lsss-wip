@@ -228,6 +228,8 @@ namespace Latios.Kinemation.Systems
         Material m_ErrorMaterial;
 
         RegisterMaterialsAndMeshesSystem m_registerMaterialsAndMeshesSystem;
+        EntitiesGraphicsSystem           m_unityEntitiesGraphicsSystem;
+        KinemationCullingSuperSystem     m_cullingSuperSystem;
 
         private Unmanaged m_unmanaged;
 
@@ -287,6 +289,7 @@ namespace Latios.Kinemation.Systems
 #endif
 
             m_registerMaterialsAndMeshesSystem = World.GetExistingSystemManaged<RegisterMaterialsAndMeshesSystem>();
+            m_cullingSuperSystem               = World.GetOrCreateSystemManaged<KinemationCullingSuperSystem>();
 
             m_unmanaged.OnCreate(ref CheckedStateRef, m_BatchRendererGroup);
         }
@@ -307,6 +310,14 @@ namespace Latios.Kinemation.Systems
 
         protected override void OnUpdate()
         {
+            if (m_unityEntitiesGraphicsSystem == null)
+                m_unityEntitiesGraphicsSystem = World.GetExistingSystemManaged<EntitiesGraphicsSystem>();
+            if (m_unityEntitiesGraphicsSystem != null && m_unityEntitiesGraphicsSystem.Enabled == true)
+            {
+                UnityEngine.Debug.Log("Entities Graphics was enabled!");
+                m_unityEntitiesGraphicsSystem.Enabled = false;
+            }
+
             Profiler.BeginSample("UpdateFilterSettings");
             UpdateFilterSettings(ref CheckedStateRef);
             Profiler.EndSample();
@@ -322,16 +333,48 @@ namespace Latios.Kinemation.Systems
             finally
             {
             }
+
+            EntitiesGraphicsEditorTools.EndFrame();
         }
 
         private JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext batchCullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
         {
-            return m_unmanaged.OnPerformCulling(ref CheckedStateRef, rendererGroup, batchCullingContext, cullingOutput, userContext);
+            //return m_unmanaged.OnPerformCulling(ref CheckedStateRef, rendererGroup, batchCullingContext, cullingOutput, userContext);
+            if (m_unmanaged.m_FirstFrameAfterInit)
+                return default;
+
+            using var         marker                    = m_latiosPerformCullingMarker.Auto();
+            var               wrappedIncludeExcludeList = new WrappedPickingIncludeExcludeList(batchCullingContext.viewType);
+            fixed (Unmanaged* unmanaged                 = &m_unmanaged)
+            {
+                DoOnPerformCullingBegin(unmanaged, ref CheckedStateRef, ref batchCullingContext, ref cullingOutput, ref wrappedIncludeExcludeList);
+                SuperSystem.UpdateSystem(latiosWorldUnmanaged, m_cullingSuperSystem.SystemHandle);
+                DoOnPerformCullingEnd(unmanaged, out var result);
+                return result;
+            }
+        }
+
+        static readonly ProfilerMarker m_latiosPerformCullingMarker = new ProfilerMarker("LatiosOnPerformCulling");
+
+        [BurstCompile]
+        static bool DoOnPerformCullingBegin(Unmanaged*                           unmanaged,
+                                            ref SystemState state,
+                                            ref BatchCullingContext batchCullingContext,
+                                            ref BatchCullingOutput cullingOutput,
+                                            ref WrappedPickingIncludeExcludeList wrappedIncludeExcludeList)
+        {
+            return unmanaged->OnPerformCullingBegin(ref state, ref batchCullingContext, ref cullingOutput, ref wrappedIncludeExcludeList);
+        }
+
+        [BurstCompile]
+        static void DoOnPerformCullingEnd(Unmanaged* unmanaged, out JobHandle finalHandle)
+        {
+            finalHandle = unmanaged->OnPerformCullingEnd();
         }
 
         private unsafe void OnFinishedCulling(IntPtr customCullingResult)
         {
-            m_unmanaged.OnFinishedCulling(customCullingResult);
+            m_unmanaged.OnFinishedCulling(ref CheckedStateRef, customCullingResult);
         }
 
         private void UpdateFilterSettings(ref SystemState state)
@@ -430,7 +473,7 @@ namespace Latios.Kinemation.Systems
             NativeParallelMultiHashMap<int, MaterialPropertyType> m_NameIDToMaterialProperties;
             NativeParallelHashMap<int, MaterialPropertyType>      m_TypeIndexToMaterialProperty;
 
-            private bool m_FirstFrameAfterInit;
+            public bool m_FirstFrameAfterInit;
 
             private EntitiesGraphicsArchetypes m_GraphicsArchetypes;
 
@@ -440,11 +483,10 @@ namespace Latios.Kinemation.Systems
 
             private ThreadLocalAllocator m_ThreadLocalAllocators;
 
-            KinemationCullingSuperSystem         m_cullingSuperSystem;
-            KinemationCullingDispatchSuperSystem m_cullingDispatchSuperSystem;
-            int                                  m_cullPassIndexThisFrame;
-            int                                  m_dispatchPassIndexThisFrame;
-            int                                  m_cullPassIndexForLastDispatch;
+            SystemHandle m_cullingDispatchSuperSystem;
+            int          m_cullPassIndexThisFrame;
+            int          m_dispatchPassIndexThisFrame;
+            int          m_cullPassIndexForLastDispatch;
 
             NativeList<JobHandle> m_cullingCallbackFinalJobHandles;  // Used for safe destruction of threaded allocators.
 
@@ -466,8 +508,7 @@ namespace Latios.Kinemation.Systems
                     return;
                 }
 
-                m_cullingSuperSystem         = state.World.GetOrCreateSystemManaged<KinemationCullingSuperSystem>();
-                m_cullingDispatchSuperSystem = state.World.GetOrCreateSystemManaged<KinemationCullingDispatchSuperSystem>();
+                m_cullingDispatchSuperSystem = state.World.GetOrCreateSystemManaged<KinemationCullingDispatchSuperSystem>().SystemHandle;
                 latiosWorld.worldBlackboardEntity.AddComponent<CullingContext>();
                 latiosWorld.worldBlackboardEntity.AddComponent<DispatchContext>();
                 latiosWorld.worldBlackboardEntity.AddBuffer<CullingPlane>();
@@ -626,13 +667,6 @@ namespace Latios.Kinemation.Systems
 
             public void OnUpdate(ref SystemState state)
             {
-                var unitySystem = state.World.GetExistingSystemManaged<EntitiesGraphicsSystem>();
-                if (unitySystem != null && unitySystem.Enabled == true)
-                {
-                    UnityEngine.Debug.Log("Entities Graphics was enabled!");
-                    unitySystem.Enabled = false;
-                }
-
                 JobHandle inputDeps = state.Dependency;
 
                 // Make sure any release culling jobs that have stored pointers in temp allocated
@@ -695,74 +729,93 @@ namespace Latios.Kinemation.Systems
                     hybridRenderedChunkCount = totalChunks,
                 });
 
-                EntitiesGraphicsEditorTools.EndFrame();
-
                 state.Dependency = done;
             }
 
-            public unsafe JobHandle OnPerformCulling(ref SystemState state,
-                                                     BatchRendererGroup rendererGroup,
-                                                     BatchCullingContext batchCullingContext,
-                                                     BatchCullingOutput cullingOutput,
-                                                     IntPtr userContext)
+            public bool OnPerformCullingBegin(ref SystemState state,
+                                              ref BatchCullingContext batchCullingContext,
+                                              ref BatchCullingOutput cullingOutput,
+                                              ref WrappedPickingIncludeExcludeList wrappedIncludeExcludeList)
             {
-                if (m_FirstFrameAfterInit)
-                    return default;
-
-                using var callbackMarker = m_latiosPerformCullingMarker.Auto();
-
                 cullingOutput.customCullingResult[0] = (IntPtr)m_cullPassIndexThisFrame;
 
-                //UnityEngine.Debug.Log($"OnPerformCulling pass {m_cullPassIndexThisFrame} of type {batchCullingContext.viewType}");
+                IncludeExcludeListFilter includeExcludeListFilter = GetPickingIncludeExcludeListFilterForCurrentCullingCallback(state.EntityManager,
+                                                                                                                                batchCullingContext,
+                                                                                                                                wrappedIncludeExcludeList,
+                                                                                                                                m_ThreadLocalAllocators.GeneralAllocator->ToAllocator);
 
-                var setup = new BurstCullingSetup
+                // If inclusive filtering is enabled and we know there are no included entities,
+                // we can skip all the work because we know that the result will be nothing.
+                if (includeExcludeListFilter.IsIncludeEnabled && includeExcludeListFilter.IsIncludeEmpty)
                 {
-                    wrappedIncludeExcludeList       = new WrappedPickingIncludeExcludeList(batchCullingContext.viewType),
-                    entityManager                   = state.EntityManager,
-                    worldBlackboardEntity           = latiosWorld.worldBlackboardEntity,
-                    cullPassIndexThisFrame          = m_cullPassIndexThisFrame,
-                    dispatchPassIndexThisFrame      = m_dispatchPassIndexThisFrame,
-                    globalSystemVersionAtLastUpdate = m_globalSystemVersionAtLastUpdate,
-                    lastSystemVersionAtLastUpdate   = m_LastSystemVersionAtLastUpdate,
-                    batchCullingContext             = batchCullingContext,
-                    shadowProjection                = QualitySettings.shadowProjection,
-                    threadLocalAllocators           = m_ThreadLocalAllocators,
-                    filterSettings                  = m_FilterSettings,
-                    brgRenderMeshArrays             = m_brgRenderMeshArrays,
-                    cullingOutput                   = cullingOutput,
+                    includeExcludeListFilter.Dispose();
+                    Profiler.EndSample();
+                    return false;
+                }
 
-                    //m_beforeCreateSplitsMarker = m_beforeCreateSplitsMarker,
-                    //m_createSplitsMarker       = m_createSplitsMarker,
-                    //m_afterCreateSplitsMarker  = m_afterCreateSplitsMarker
-                };
-                if (!DoBurstCullingSetup(&setup))
-                    return default;
-
-                SuperSystem.UpdateSystem(latiosWorld, m_cullingSuperSystem.SystemHandle);
-
-                var finalize = new BurstCullingFinalize
+                latiosWorld.worldBlackboardEntity.SetComponentData(new CullingContext
                 {
-                    latiosWorldUnmanaged           = latiosWorld,
-                    cullingCallbackFinalJobHandles = m_cullingCallbackFinalJobHandles,
-                    finalHandle                    = default,
+                    cullIndexThisFrame  = m_cullPassIndexThisFrame,
+                    cullingFlags        = batchCullingContext.cullingFlags,
+                    cullingLayerMask    = batchCullingContext.cullingLayerMask,
+                    localToWorldMatrix  = batchCullingContext.localToWorldMatrix,
+                    lodParameters       = batchCullingContext.lodParameters,
+                    projectionType      = batchCullingContext.projectionType,
+                    receiverPlaneCount  = batchCullingContext.receiverPlaneCount,
+                    receiverPlaneOffset = batchCullingContext.receiverPlaneOffset,
+                    sceneCullingMask    = batchCullingContext.sceneCullingMask,
+                    viewID              = batchCullingContext.viewID,
+                    viewType            = batchCullingContext.viewType,
+                });
+                latiosWorld.worldBlackboardEntity.SetComponentData(new DispatchContext
+                {
+                    globalSystemVersionOfLatiosEntitiesGraphics = m_globalSystemVersionAtLastUpdate,
+                    lastSystemVersionOfLatiosEntitiesGraphics   = m_LastSystemVersionAtLastUpdate,
+                    dispatchIndexThisFrame                      = m_dispatchPassIndexThisFrame
+                });
 
-                    //m_afterCullingMarker = m_afterCullingMarker,
-                };
-                DoBurstCullingFinalize(&finalize);
+                var cullingPlanesBuffer = latiosWorld.worldBlackboardEntity.GetBuffer<CullingPlane>(false);
+                cullingPlanesBuffer.Clear();
+                cullingPlanesBuffer.Reinterpret<Plane>().AddRange(batchCullingContext.cullingPlanes);
+                var splitsBuffer = latiosWorld.worldBlackboardEntity.GetBuffer<CullingSplitElement>(false);
+                splitsBuffer.Clear();
+                splitsBuffer.Reinterpret<CullingSplit>().AddRange(batchCullingContext.cullingSplits);
 
-                m_cullPassIndexThisFrame++;
+                latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new BrgCullingContext
+                {
+                    cullingThreadLocalAllocator                          = m_ThreadLocalAllocators,
+                    batchCullingOutput                                   = cullingOutput,
+                    batchFilterSettingsByRenderFilterSettingsSharedIndex = m_FilterSettings,
+                    // To be able to access the material/mesh IDs, we need access to the registered material/mesh
+                    // arrays. If we can't get them, then we simply skip in those cases.
+                    brgRenderMeshArrays = m_brgRenderMeshArrays,
 
-                return finalize.finalHandle;
+#if UNITY_EDITOR
+                    includeExcludeListFilter = includeExcludeListFilter,
+#endif
+                });
+                latiosWorld.worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(default, false);
+                return true;
             }
 
-            public unsafe void OnFinishedCulling(IntPtr customCullingResult)
+            public JobHandle OnPerformCullingEnd()
+            {
+                var worldBlackboardEntity = latiosWorld.worldBlackboardEntity;
+                latiosWorld.GetCollectionComponent<BrgCullingContext>(worldBlackboardEntity, out var finalHandle);
+                worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(finalHandle, false);
+                m_cullingCallbackFinalJobHandles.Add(finalHandle);
+                m_cullPassIndexThisFrame++;
+                return finalHandle;
+            }
+
+            public unsafe void OnFinishedCulling(ref SystemState state, IntPtr customCullingResult)
             {
                 //UnityEngine.Debug.Log($"OnFinishedCulling pass {(int)customCullingResult}");
 
                 if (m_FirstFrameAfterInit || m_cullPassIndexThisFrame == m_cullPassIndexForLastDispatch)
                     return;
 
-                m_cullingDispatchSuperSystem.Update();
+                m_cullingDispatchSuperSystem.Update(state.WorldUnmanaged);
                 m_cullPassIndexForLastDispatch = m_cullPassIndexThisFrame;
                 m_dispatchPassIndexThisFrame++;
                 if (m_dispatchPassIndexThisFrame > 1024)
@@ -771,117 +824,6 @@ namespace Latios.Kinemation.Systems
                     m_ThreadLocalAllocators.Rewind();
                 }
             }
-            #endregion
-
-            #region Burst Culling
-            static readonly ProfilerMarker m_latiosPerformCullingMarker = new ProfilerMarker("LatiosOnPerformCulling");
-            //ProfilerMarker m_beforeCreateSplitsMarker   = new ProfilerMarker("BeforeCreateSplits");
-            //ProfilerMarker m_createSplitsMarker         = new ProfilerMarker("CreateSplits");
-            //ProfilerMarker m_afterCreateSplitsMarker    = new ProfilerMarker("AfterCreateSplits");
-            //ProfilerMarker m_afterCullingMarker         = new ProfilerMarker("AfterCulling");
-
-            struct BurstCullingSetup
-            {
-                public WrappedPickingIncludeExcludeList                wrappedIncludeExcludeList;
-                public EntityManager                                   entityManager;
-                public BlackboardEntity                                worldBlackboardEntity;
-                public int                                             cullPassIndexThisFrame;
-                public int                                             dispatchPassIndexThisFrame;
-                public uint                                            globalSystemVersionAtLastUpdate;
-                public uint                                            lastSystemVersionAtLastUpdate;
-                public BatchCullingContext                             batchCullingContext;
-                public ShadowProjection                                shadowProjection;
-                public ThreadLocalAllocator                            threadLocalAllocators;
-                public NativeParallelHashMap<int, BatchFilterSettings> filterSettings;
-                public NativeParallelHashMap<int, BRGRenderMeshArray>  brgRenderMeshArrays;
-                public BatchCullingOutput                              cullingOutput;
-
-                public bool Do()
-                {
-                    IncludeExcludeListFilter includeExcludeListFilter = GetPickingIncludeExcludeListFilterForCurrentCullingCallback(entityManager,
-                                                                                                                                    batchCullingContext,
-                                                                                                                                    wrappedIncludeExcludeList,
-                                                                                                                                    threadLocalAllocators.GeneralAllocator->ToAllocator);
-
-                    // If inclusive filtering is enabled and we know there are no included entities,
-                    // we can skip all the work because we know that the result will be nothing.
-                    if (includeExcludeListFilter.IsIncludeEnabled && includeExcludeListFilter.IsIncludeEmpty)
-                    {
-                        includeExcludeListFilter.Dispose();
-                        Profiler.EndSample();
-                        return false;
-                    }
-
-                    worldBlackboardEntity.SetComponentData(new CullingContext
-                    {
-                        cullIndexThisFrame  = cullPassIndexThisFrame,
-                        cullingFlags        = batchCullingContext.cullingFlags,
-                        cullingLayerMask    = batchCullingContext.cullingLayerMask,
-                        localToWorldMatrix  = batchCullingContext.localToWorldMatrix,
-                        lodParameters       = batchCullingContext.lodParameters,
-                        projectionType      = batchCullingContext.projectionType,
-                        receiverPlaneCount  = batchCullingContext.receiverPlaneCount,
-                        receiverPlaneOffset = batchCullingContext.receiverPlaneOffset,
-                        sceneCullingMask    = batchCullingContext.sceneCullingMask,
-                        viewID              = batchCullingContext.viewID,
-                        viewType            = batchCullingContext.viewType,
-                    });
-                    worldBlackboardEntity.SetComponentData(new DispatchContext
-                    {
-                        globalSystemVersionOfLatiosEntitiesGraphics = globalSystemVersionAtLastUpdate,
-                        lastSystemVersionOfLatiosEntitiesGraphics   = lastSystemVersionAtLastUpdate,
-                        dispatchIndexThisFrame                      = dispatchPassIndexThisFrame
-                    });
-
-                    var cullingPlanesBuffer = worldBlackboardEntity.GetBuffer<CullingPlane>(false);
-                    cullingPlanesBuffer.Clear();
-                    cullingPlanesBuffer.Reinterpret<Plane>().AddRange(batchCullingContext.cullingPlanes);
-                    var splitsBuffer = worldBlackboardEntity.GetBuffer<CullingSplitElement>(false);
-                    splitsBuffer.Clear();
-                    splitsBuffer.Reinterpret<CullingSplit>().AddRange(batchCullingContext.cullingSplits);
-
-                    worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new BrgCullingContext
-                    {
-                        cullingThreadLocalAllocator                          = threadLocalAllocators,
-                        batchCullingOutput                                   = cullingOutput,
-                        batchFilterSettingsByRenderFilterSettingsSharedIndex = filterSettings,
-                        // To be able to access the material/mesh IDs, we need access to the registered material/mesh
-                        // arrays. If we can't get them, then we simply skip in those cases.
-                        brgRenderMeshArrays = brgRenderMeshArrays,
-
-#if UNITY_EDITOR
-                        includeExcludeListFilter = includeExcludeListFilter,
-#endif
-                    });
-                    worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(default, false);
-                    return true;
-                }
-            }
-
-            [BurstCompile]
-            static bool DoBurstCullingSetup(BurstCullingSetup* setup) => setup->Do();
-
-            struct BurstCullingFinalize
-            {
-                public LatiosWorldUnmanaged  latiosWorldUnmanaged;
-                public NativeList<JobHandle> cullingCallbackFinalJobHandles;
-                public JobHandle             finalHandle;
-
-                //public ProfilerMarker m_afterCullingMarker;
-
-                public void Do()
-                {
-                    //m_afterCullingMarker.Begin();
-                    var worldBlackboardEntity = latiosWorldUnmanaged.worldBlackboardEntity;
-                    latiosWorldUnmanaged.GetCollectionComponent<BrgCullingContext>(worldBlackboardEntity, out finalHandle);
-                    worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(finalHandle, false);
-                    cullingCallbackFinalJobHandles.Add(finalHandle);
-                    //m_afterCullingMarker.End();
-                }
-            }
-
-            [BurstCompile]
-            static void DoBurstCullingFinalize(BurstCullingFinalize* finalize) => finalize->Do();
             #endregion
 
             #region Helper Methods
@@ -1025,26 +967,6 @@ namespace Latios.Kinemation.Systems
                     JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
                 m_cullingCallbackFinalJobHandles.Dispose();
                 m_ThreadLocalAllocators.Dispose();
-            }
-
-            struct WrappedPickingIncludeExcludeList
-            {
-#if ENABLE_PICKING && !DISABLE_INCLUDE_EXCLUDE_LIST_FILTERING
-                public PickingIncludeExcludeList includeExcludeList;
-
-                public WrappedPickingIncludeExcludeList(BatchCullingViewType viewType)
-                {
-                    includeExcludeList = default;
-                    if (viewType == BatchCullingViewType.Picking)
-                        includeExcludeList = HandleUtility.GetPickingIncludeExcludeList(Allocator.Temp);
-                    else if (viewType == BatchCullingViewType.SelectionOutline)
-                        includeExcludeList = HandleUtility.GetSelectionOutlineIncludeExcludeList(Allocator.Temp);
-                }
-#else
-                public WrappedPickingIncludeExcludeList(BatchCullingViewType viewType)
-                {
-                }
-#endif
             }
 
             // This function does only return a meaningful IncludeExcludeListFilter object when called from a BRG culling callback.
@@ -2278,6 +2200,26 @@ namespace Latios.Kinemation.Systems
                     return math.max(0, m_cachedMax);
                 }
             }
+        }
+
+        struct WrappedPickingIncludeExcludeList
+        {
+#if ENABLE_PICKING && !DISABLE_INCLUDE_EXCLUDE_LIST_FILTERING
+            public PickingIncludeExcludeList includeExcludeList;
+
+            public WrappedPickingIncludeExcludeList(BatchCullingViewType viewType)
+            {
+                includeExcludeList = default;
+                if (viewType == BatchCullingViewType.Picking)
+                    includeExcludeList = HandleUtility.GetPickingIncludeExcludeList(Allocator.Temp);
+                else if (viewType == BatchCullingViewType.SelectionOutline)
+                    includeExcludeList = HandleUtility.GetSelectionOutlineIncludeExcludeList(Allocator.Temp);
+            }
+#else
+            public WrappedPickingIncludeExcludeList(BatchCullingViewType viewType)
+            {
+            }
+#endif
         }
     }
 }
