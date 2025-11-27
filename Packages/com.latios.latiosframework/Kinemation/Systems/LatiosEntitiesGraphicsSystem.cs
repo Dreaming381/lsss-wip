@@ -108,9 +108,7 @@ namespace Latios.Kinemation.Systems
         /// <summary>
         /// The maximum GPU buffer size (in bytes) that a batch can access.
         /// </summary>
-        public static int MaxBytesPerBatch => UseConstantBuffers ?
-        MaxBytesPerCBuffer :
-        kMaxBytesPerBatchRawBuffer;
+        public static int MaxBytesPerBatch => UseConstantBuffers ? MaxBytesPerCBuffer : kMaxBytesPerBatchRawBuffer;
 
         /// <summary>
         /// Registers a material property type with the given name.
@@ -321,7 +319,12 @@ namespace Latios.Kinemation.Systems
             Profiler.BeginSample("UpdateFilterSettings");
             UpdateFilterSettings(ref CheckedStateRef);
             Profiler.EndSample();
-            m_unmanaged.OnUpdate(ref CheckedStateRef);
+
+            m_unmanaged.BeforeOnUpdate(ref CheckedStateRef);
+
+            //m_unmanaged.OnUpdate(ref CheckedStateRef);
+            fixed (Unmanaged* unmanaged = &m_unmanaged)
+            DoOnUpdate(unmanaged, ref CheckedStateRef);
 
             try
             {
@@ -335,6 +338,12 @@ namespace Latios.Kinemation.Systems
             }
 
             EntitiesGraphicsEditorTools.EndFrame();
+        }
+
+        [BurstCompile]
+        static void DoOnUpdate(Unmanaged* unmanaged, ref SystemState state)
+        {
+            unmanaged->OnUpdate(ref state);
         }
 
         private JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext batchCullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
@@ -431,6 +440,11 @@ namespace Latios.Kinemation.Systems
             LatiosWorldUnmanaged latiosWorld;
 
             private long m_PersistentInstanceDataSize;
+            private int  m_maxBytesPerBatch;
+            private bool m_useConstantBuffers;
+            private int  m_maxBytesPerCBuffer;
+            private uint m_batchAllocationAlignment;
+            private bool m_reuploadAllData;
 
             // Store this in a member variable, because culling callback
             // already sees the new value and we want to check against
@@ -521,6 +535,10 @@ namespace Latios.Kinemation.Systems
                 m_FirstFrameAfterInit = true;
 
                 m_PersistentInstanceDataSize = kGPUBufferSizeInitial;
+                m_maxBytesPerBatch           = MaxBytesPerBatch;
+                m_useConstantBuffers         = UseConstantBuffers;
+                m_maxBytesPerCBuffer         = MaxBytesPerCBuffer;
+                m_batchAllocationAlignment   = BatchAllocationAlignment;
 
                 m_EntitiesGraphicsRenderedQuery = state.GetEntityQuery(new EntityQueryDesc
                 {
@@ -665,6 +683,21 @@ namespace Latios.Kinemation.Systems
                 Dispose();
             }
 
+            static readonly ProfilerMarker sCompleteJobsMarker                  = new ProfilerMarker("Complete Jobs");
+            static readonly ProfilerMarker sUpdateEntitiesGraphicsBatchesMarker = new ProfilerMarker("UpdateEntitiesGraphicsBatches");
+
+            public void BeforeOnUpdate(ref SystemState state)
+            {
+                m_reuploadAllData = EntitiesGraphicsEditorTools.DebugSettings.ForceInstanceDataUpload;
+
+                if (!m_cullingCallbackFinalJobHandles.IsEmpty)
+                    JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
+                m_cullingCallbackFinalJobHandles.Clear();
+
+                // Todo: The implementation of this is not Burst-compatible.
+                m_ThreadLocalAllocators.Rewind();
+            }
+
             public void OnUpdate(ref SystemState state)
             {
                 JobHandle inputDeps = state.Dependency;
@@ -674,12 +707,9 @@ namespace Latios.Kinemation.Systems
                 state.Dependency = default;
                 latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(false);
                 state.CompleteDependency();
-                if (!m_cullingCallbackFinalJobHandles.IsEmpty)
-                    JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
-                m_cullingCallbackFinalJobHandles.Clear();
+
                 latiosWorld.worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(default, false);
 
-                m_ThreadLocalAllocators.Rewind();
                 m_cullPassIndexThisFrame       = 0;
                 m_dispatchPassIndexThisFrame   = 0;
                 m_cullPassIndexForLastDispatch = -1;
@@ -704,18 +734,18 @@ namespace Latios.Kinemation.Systems
                     m_FirstFrameAfterInit = false;
                 }
 
-                Profiler.BeginSample("CompleteJobs");
+                sCompleteJobsMarker.Begin();
                 inputDeps.Complete();  // #todo
                 CompleteJobs();
-                Profiler.EndSample();
+                sCompleteJobsMarker.End();
 
                 int totalChunks = 0;
                 var done        = new JobHandle();
                 try
                 {
-                    Profiler.BeginSample("UpdateEntitiesGraphicsBatches");
+                    sUpdateEntitiesGraphicsBatchesMarker.Begin();
                     done = UpdateEntitiesGraphicsBatches(ref state, inputDeps, out totalChunks);
-                    Profiler.EndSample();
+                    sUpdateEntitiesGraphicsBatchesMarker.End();
                 }
                 finally
                 {
@@ -749,7 +779,6 @@ namespace Latios.Kinemation.Systems
                 if (includeExcludeListFilter.IsIncludeEnabled && includeExcludeListFilter.IsIncludeEmpty)
                 {
                     includeExcludeListFilter.Dispose();
-                    Profiler.EndSample();
                     return false;
                 }
 
@@ -867,29 +896,28 @@ namespace Latios.Kinemation.Systems
                 }
             }
 
+            static readonly ProfilerMarker sUpdateAllBatchesMarker = new ProfilerMarker("UpdateAllBatches");
+
             private JobHandle UpdateEntitiesGraphicsBatches(ref SystemState state, JobHandle inputDependencies, out int totalChunks)
             {
                 JobHandle done = default;
-                Profiler.BeginSample("UpdateAllBatches");
+                sUpdateAllBatchesMarker.Begin();
 
                 if (!m_EntitiesGraphicsRenderedQuery.IsEmptyIgnoreFilter)
                     done = UpdateAllBatches(ref state, inputDependencies, out totalChunks);
                 else
                     totalChunks = 0;
 
-                Profiler.EndSample();
+                sUpdateAllBatchesMarker.End();
 
                 return done;
             }
 
             private void OnFirstFrame()
             {
-                // Done at the end of OnCreate instead.
-                //InitializeMaterialProperties();
-
 #if DEBUG_LOG_HYBRID_RENDERER
-                var mode = UseConstantBuffers ?
-                           $"UBO mode (UBO max size: {MaxBytesPerCBuffer}, alignment: {BatchAllocationAlignment}, globals: {m_GlobalWindowSize})" :
+                var mode = m_useConstantBuffers ?
+                           $"UBO mode (UBO max size: {m_maxBytesPerCBuffer}, alignment: {m_batchAllocationAlignment}, globals: {m_GlobalWindowSize})" :
                            "SSBO mode";
                 Debug.Log(
                     $"Entities Graphics active, MaterialProperty component type count {m_ComponentTypeCache.UsedTypeCount} / {ComponentTypeCache.BurstCompatibleTypeArray.kMaxTypes}, {mode}");
@@ -912,8 +940,7 @@ namespace Latios.Kinemation.Systems
                 if (currentCapacity >= neededCapacity)
                     return;
 
-                Assert.IsTrue(kMaxBatchGrowFactor >= 1f,
-                              "Grow factor should always be greater or equal to 1");
+                Assert.IsTrue(kMaxBatchGrowFactor >= 1f, "Grow factor should always be greater or equal to 1");
 
                 var newCapacity = (int)(kMaxBatchGrowFactor * neededCapacity);
 
@@ -1057,17 +1084,17 @@ namespace Latios.Kinemation.Systems
                 }
             }
 
+            static readonly ProfilerMarker sGarbageCollectUnreferencedBatchesMarker = new ProfilerMarker("GarbageCollectUnreferencedBatches");
+            static readonly ProfilerMarker sAddNewChunksMarker                      = new ProfilerMarker("AddNewChunks");
+            static readonly ProfilerMarker sStartUpdateMarker                       = new ProfilerMarker("StartUpdate");
+
             private JobHandle UpdateAllBatches(ref SystemState state, JobHandle inputDependencies, out int totalChunks)
             {
-                Profiler.BeginSample("GetComponentTypes");
-
                 var entitiesGraphicsRenderedChunkType   = state.GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(false);
                 var entitiesGraphicsRenderedChunkTypeRO = state.GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true);
                 var chunkHeadersRO                      = state.GetComponentTypeHandle<ChunkHeader>(true);
                 var materialMeshInfosRO                 = state.GetComponentTypeHandle<MaterialMeshInfo>(true);
                 var renderMeshArrays                    = state.GetSharedComponentTypeHandle<RenderMeshArray>();
-
-                Profiler.EndSample();
 
                 var numNewChunksArray          = CollectionHelper.CreateNativeArray<int>(1, state.WorldUpdateAllocator);
                 var totalChunksFromNormalQuery = m_EntitiesGraphicsRenderedQuery.CalculateChunkCountWithoutFiltering();
@@ -1105,7 +1132,7 @@ namespace Latios.Kinemation.Systems
 
                 uint lastSystemVersion = state.LastSystemVersion;
 
-                if (EntitiesGraphicsEditorTools.DebugSettings.ForceInstanceDataUpload)
+                if (m_reuploadAllData)
                 {
                     Debug.Log("Reuploading all Entities Graphics instance data to GPU");
                     lastSystemVersion = 0;
@@ -1162,15 +1189,15 @@ namespace Latios.Kinemation.Systems
                 updateOldJob.ScheduleParallel(m_MetaEntitiesForHybridRenderableChunksQuery, updateOldDependencies).Complete();
 
                 // Garbage collect deleted batches before adding new ones to minimize peak memory use.
-                Profiler.BeginSample("GarbageCollectUnreferencedBatches");
+                sGarbageCollectUnreferencedBatchesMarker.Begin();
                 int numRemoved = GarbageCollectUnreferencedBatches(unreferencedBatchIndices);
-                Profiler.EndSample();
+                sGarbageCollectUnreferencedBatchesMarker.End();
 
                 if (numNewChunks > 0)
                 {
-                    Profiler.BeginSample("AddNewChunks");
+                    sAddNewChunksMarker.Begin();
                     int numValidNewChunks = AddNewChunks(ref state, newChunks.GetSubArray(0, numNewChunks));
-                    Profiler.EndSample();
+                    sAddNewChunksMarker.End();
 
                     var updateNewChunksJob = new UpdateNewEntitiesGraphicsChunksJob
                     {
@@ -1206,9 +1233,9 @@ namespace Latios.Kinemation.Systems
                 // TODO: Need to wait for new chunk updating to complete, so there are no more jobs writing to the bitfields.
                 entitiesGraphicsCompleted.Complete();
 
-                Profiler.BeginSample("StartUpdate");
+                sStartUpdateMarker.Begin();
                 StartUpdate(ref state);
-                Profiler.EndSample();
+                sStartUpdateMarker.End();
 
 #if DEBUG_LOG_CHUNK_CHANGES
                 if (numNewChunks > 0 || numRemoved > 0)
@@ -1354,15 +1381,29 @@ namespace Latios.Kinemation.Systems
                 CreateBatchCreateInfo(ref batchCreateInfoFactory, ref newChunks, ref sortedNewChunks, out var failureProperty);
                 if (failureProperty.TypeIndex >= 0)
                 {
-                    Assert.IsTrue(false,
-                                  $"TypeIndex mismatch between key and stored property, Type: {failureProperty.TypeName} ({failureProperty.TypeIndex:x8}), Property: {failureProperty.PropertyName} ({failureProperty.NameID:x8})");
+                    FixedString128Bytes debugName                                             = default;
+                    debugName.CopyFromTruncated(TypeManager.GetTypeInfo(new TypeIndex { Value = failureProperty.TypeIndex }).DebugTypeName);
+                    UnityEngine.Debug.Log($"TypeIndex mismatch between key and stored property. TypeIndex corresponds to type {debugName} ({failureProperty.TypeIndex:x8})");
+                    PrintFailurePropertyDetails(failureProperty);
+                }
+
+                static int GetArchetypeMaxEntitiesPerBatch(GraphicsArchetype archetype, int maxBytesPerBatch)
+                {
+                    int fixedBytes     = 0;
+                    int bytesPerEntity = 0;
+
+                    for (int i = 0; i < archetype.PropertyComponents.Length; ++i)
+                        bytesPerEntity += archetype.PropertyComponents[i].SizeBytesGPU;
+
+                    int maxBytes            = maxBytesPerBatch;
+                    int maxBytesForEntities = maxBytes - fixedBytes;
+
+                    return maxBytesForEntities / math.max(1, bytesPerEntity);
                 }
 
                 int batchBegin          = 0;
                 int numInstances        = NumInstancesInChunk(sortedNewChunks[0].Chunk);
-                int maxEntitiesPerBatch = m_GraphicsArchetypes
-                                          .GetGraphicsArchetype(sortedNewChunks[0].GraphicsArchetypeIndex)
-                                          .MaxEntitiesPerBatch;
+                int maxEntitiesPerBatch = GetArchetypeMaxEntitiesPerBatch(m_GraphicsArchetypes.GetGraphicsArchetype(sortedNewChunks[0].GraphicsArchetypeIndex), m_maxBytesPerBatch);
 
                 for (int i = 1; i <= sortedNewChunks.Length; ++i)
                 {
@@ -1403,9 +1444,8 @@ namespace Latios.Kinemation.Systems
                         numInstances = instancesInChunk;
 
                         if (batchBegin < sortedNewChunks.Length)
-                            maxEntitiesPerBatch = m_GraphicsArchetypes
-                                                  .GetGraphicsArchetype(sortedNewChunks[batchBegin].GraphicsArchetypeIndex)
-                                                  .MaxEntitiesPerBatch;
+                            maxEntitiesPerBatch = GetArchetypeMaxEntitiesPerBatch(m_GraphicsArchetypes.GetGraphicsArchetype(sortedNewChunks[batchBegin].GraphicsArchetypeIndex),
+                                                                                  m_maxBytesPerBatch);
                     }
                     else
                     {
@@ -1416,6 +1456,13 @@ namespace Latios.Kinemation.Systems
                 sortedNewChunks.Dispose();
 
                 return numValidNewChunks;
+            }
+
+            [BurstDiscard]
+            void PrintFailurePropertyDetails(MaterialPropertyType failureProperty)
+            {
+                Assert.IsTrue(false,
+                              $"TypeIndex mismatch between key and stored property, Type: {failureProperty.TypeName} ({failureProperty.TypeIndex:x8}), Property: {failureProperty.PropertyName} ({failureProperty.NameID:x8})");
             }
 
             private static int NextAlignedBy16(int size)
@@ -1474,7 +1521,7 @@ namespace Latios.Kinemation.Systems
                     Assert.IsTrue(false,
                                   $"Out of memory in the Entities Graphics chunk metadata buffer. Attempted to allocate {batchTotalChunkMetadata} elements, buffer size: {m_ChunkMetadataAllocator.Size}, free size left: {m_ChunkMetadataAllocator.FreeSpace}.");
 
-                batchInfo.GPUMemoryAllocation = m_GPUPersistentAllocator.Allocate((ulong)batchSizeBytes, BatchAllocationAlignment);
+                batchInfo.GPUMemoryAllocation = m_GPUPersistentAllocator.Allocate((ulong)batchSizeBytes, m_batchAllocationAlignment);
                 if (batchInfo.GPUMemoryAllocation.Empty)
                     Assert.IsTrue(false,
                                   $"Out of memory in the Entities Graphics GPU instance data buffer. Attempted to allocate {batchSizeBytes}, buffer size: {m_GPUPersistentAllocator.Size}, free size left: {m_GPUPersistentAllocator.FreeSpace}.");
@@ -1484,11 +1531,11 @@ namespace Latios.Kinemation.Systems
 
                 // Metadata offset depends on whether a raw buffer or cbuffer is used.
                 // Raw buffers index from start of buffer, cbuffers index from start of allocation.
-                uint bindOffset = UseConstantBuffers ?
+                uint bindOffset = m_useConstantBuffers ?
                                   (uint)allocationBegin :
                                   0;
-                uint bindWindowSize = UseConstantBuffers ?
-                                      (uint)MaxBytesPerBatch :
+                uint bindWindowSize = m_useConstantBuffers ?
+                                      (uint)m_maxBytesPerBatch :
                                       0;
 
                 // Compute where each individual property SoA stream starts

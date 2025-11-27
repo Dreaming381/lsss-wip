@@ -79,7 +79,7 @@ namespace Latios.Kinemation.Systems
                     (int)(m_persistentInstanceDataSize / 4),
                     4);
                 m_GPUUploader.ReplaceBuffer(newBuffer, true);
-                m_GPUPersistentInstanceBufferHandle = newBuffer.ToManaged().bufferHandle;
+                m_GPUPersistentInstanceBufferHandle = newBuffer.bufferHandle;
                 newHandle                           = m_GPUPersistentInstanceBufferHandle;
 
                 if (m_GPUPersistentInstanceData.IsValid())
