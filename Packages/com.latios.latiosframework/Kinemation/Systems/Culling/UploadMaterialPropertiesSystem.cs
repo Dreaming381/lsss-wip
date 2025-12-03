@@ -103,7 +103,7 @@ namespace Latios.Kinemation.Systems
             // Conservative estimate is that every known type is in every chunk. There will be
             // at most one operation per type per chunk, which will be either an actual
             // chunk data upload, or a default value blit (a single type should not have both).
-            int conservativeMaximumGpuUploads = context.hybridRenderedChunkCount * materialPropertyTypes.Length;
+            int conservativeMaximumGpuUploads = context.renderersChunkCount * materialPropertyTypes.Length;
             var gpuUploadOperations           = CollectionHelper.CreateNativeArray<GpuUploadOperation>(
                 conservativeMaximumGpuUploads,
                 state.WorldUpdateAllocator,
