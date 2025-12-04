@@ -1,70 +1,24 @@
 #region Header
-// This define fails tests due to the extra log spam. Don't check this in enabled
-// #define DEBUG_LOG_HYBRID_RENDERER
-
-// #define DEBUG_LOG_CHUNK_CHANGES
-// #define DEBUG_LOG_GARBAGE_COLLECTION
-// #define DEBUG_LOG_BATCH_UPDATES
-// #define DEBUG_LOG_CHUNKS
-// #define DEBUG_LOG_INVALID_CHUNKS
-// #define DEBUG_LOG_UPLOADS
-// #define DEBUG_LOG_BATCH_CREATION
-// #define DEBUG_LOG_BATCH_DELETION
-// #define DEBUG_LOG_PROPERTY_ALLOCATIONS
-// #define DEBUG_LOG_PROPERTY_UPDATES
-// #define DEBUG_LOG_VISIBLE_INSTANCES
-// #define DEBUG_LOG_MATERIAL_PROPERTY_TYPES
-// #define DEBUG_LOG_MEMORY_USAGE
-// #define DEBUG_LOG_AMBIENT_PROBE
-// #define DEBUG_LOG_DRAW_COMMANDS
-// #define DEBUG_LOG_DRAW_COMMANDS_VERBOSE
-// #define DEBUG_VALIDATE_DRAW_COMMAND_SORT
-// #define DEBUG_LOG_BRG_MATERIAL_MESH
-// #define DEBUG_LOG_GLOBAL_AABB
-// #define PROFILE_BURST_JOB_INTERNALS
-// #define DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
-// #define DISABLE_INCLUDE_EXCLUDE_LIST_FILTERING
-
-#if UNITY_EDITOR
-#define DEBUG_PROPERTY_NAMES
-#endif
-
 #if UNITY_EDITOR && !DISABLE_HYBRID_RENDERER_PICKING
 #define ENABLE_PICKING
 #endif
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using Latios.Transforms;
 using Unity.Assertions;
-using Unity.Burst;
-using Unity.Burst.Intrinsics;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-using Unity.Entities.Graphics;
 using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
-using Unity.Profiling;
+using Unity.Transforms;
 using UnityEngine;
-using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
-using System.Runtime.InteropServices;
 using Latios.Transforms.Abstract;
-using Unity.Entities.Exposed;
 using Unity.Rendering;
-using Unity.Transforms;
-#endregion
 
 using MaterialPropertyType = Unity.Rendering.MaterialPropertyType;
-using UnityEngine.XR;
+#endregion
 
 namespace Latios.Kinemation.Systems
 {
@@ -169,7 +123,7 @@ namespace Latios.Kinemation.Systems
                 latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MaterialPropertiesUploadContext());
                 m_cullingCallbackFinalJobHandles = new NativeList<JobHandle>(Allocator.Persistent);
 
-                m_FirstFrameAfterInit = true;
+                m_needsFirstUpdate = true;
 
                 m_PersistentInstanceDataSize = kGPUBufferSizeInitial;
                 m_maxBytesPerBatch           = MaxBytesPerBatch;
@@ -256,10 +210,10 @@ namespace Latios.Kinemation.Systems
 
                 // Some hardcoded mappings to avoid dependencies to Hybrid from DOTS (*cough Latios Transforms)
                 RegisterMaterialPropertyType<WorldToLocal_Tag>(                            "unity_WorldToObject",   overrideTypeSizeGPU: 4 * 4 * 3);
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+#if !LATIOS_TRANSFORMS_UNITY
                 RegisterMaterialPropertyType<WorldTransform>(                              "unity_ObjectToWorld",   4 * 4 * 3);
                 RegisterMaterialPropertyType<PreviousTransform>(                           "unity_MatrixPreviousM", 4 * 4 * 3);
-#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
+#elif LATIOS_TRANSFORMS_UNITY
                 RegisterMaterialPropertyType<LocalToWorld>(                                "unity_ObjectToWorld",   4 * 4 * 3);
                 RegisterMaterialPropertyType<BuiltinMaterialPropertyUnity_MatrixPreviousM>("unity_MatrixPreviousM", 4 * 4 * 3);
 #endif
@@ -363,15 +317,6 @@ namespace Latios.Kinemation.Systems
                     m_TypeIndexToMaterialProperty.Add(typeIndex, materialPropertyType);
                     m_NameIDToMaterialProperties.Add(nameID, materialPropertyType);
 
-#if DEBUG_PROPERTY_NAMES
-                    s_TypeIndexToName[typeIndex] = type.Name;
-                    s_NameIDToName[nameID]       = propertyName;
-#endif
-
-#if DEBUG_LOG_MATERIAL_PROPERTY_TYPES
-                    Debug.Log($"Type \"{type.Name}\" ({sizeBytesCPU} bytes) overrides material property \"{propertyName}\" (nameID: {nameID}, typeIndex: {typeIndex})");
-#endif
-
                     // We cache all IComponentData types that we know are capable of overriding properties
                     componentTypeCache.UseType(typeIndex);
                 }
@@ -381,8 +326,6 @@ namespace Latios.Kinemation.Systems
             {
                 JobHandle.CompleteAll(m_cullingCallbackFinalJobHandles.AsArray());
 
-                // EntitiesGraphicsSystem disposes this
-                //m_BatchRendererGroup.Dispose();
                 m_ThreadedBatchContext.batchRendererGroup = IntPtr.Zero;
 
                 m_NameIDToMaterialProperties.Dispose();

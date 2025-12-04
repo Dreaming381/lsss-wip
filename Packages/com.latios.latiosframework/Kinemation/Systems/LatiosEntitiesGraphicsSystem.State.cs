@@ -1,70 +1,20 @@
 #region Header
-// This define fails tests due to the extra log spam. Don't check this in enabled
-// #define DEBUG_LOG_HYBRID_RENDERER
-
-// #define DEBUG_LOG_CHUNK_CHANGES
-// #define DEBUG_LOG_GARBAGE_COLLECTION
-// #define DEBUG_LOG_BATCH_UPDATES
-// #define DEBUG_LOG_CHUNKS
-// #define DEBUG_LOG_INVALID_CHUNKS
-// #define DEBUG_LOG_UPLOADS
-// #define DEBUG_LOG_BATCH_CREATION
-// #define DEBUG_LOG_BATCH_DELETION
-// #define DEBUG_LOG_PROPERTY_ALLOCATIONS
-// #define DEBUG_LOG_PROPERTY_UPDATES
-// #define DEBUG_LOG_VISIBLE_INSTANCES
-// #define DEBUG_LOG_MATERIAL_PROPERTY_TYPES
-// #define DEBUG_LOG_MEMORY_USAGE
-// #define DEBUG_LOG_AMBIENT_PROBE
-// #define DEBUG_LOG_DRAW_COMMANDS
-// #define DEBUG_LOG_DRAW_COMMANDS_VERBOSE
-// #define DEBUG_VALIDATE_DRAW_COMMAND_SORT
-// #define DEBUG_LOG_BRG_MATERIAL_MESH
-// #define DEBUG_LOG_GLOBAL_AABB
-// #define PROFILE_BURST_JOB_INTERNALS
-// #define DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
-// #define DISABLE_INCLUDE_EXCLUDE_LIST_FILTERING
-
-#if UNITY_EDITOR
-#define DEBUG_PROPERTY_NAMES
-#endif
-
 #if UNITY_EDITOR && !DISABLE_HYBRID_RENDERER_PICKING
 #define ENABLE_PICKING
 #endif
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using Latios.Transforms;
-using Unity.Assertions;
-using Unity.Burst;
-using Unity.Burst.Intrinsics;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Graphics;
 using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
-using Unity.Mathematics;
-using Unity.Profiling;
+using Unity.Rendering;
 using UnityEngine;
-using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
-using System.Runtime.InteropServices;
-using Latios.Transforms.Abstract;
-using Unity.Entities.Exposed;
-using Unity.Rendering;
-using Unity.Transforms;
-#endregion
-
 using MaterialPropertyType = Unity.Rendering.MaterialPropertyType;
-using UnityEngine.XR;
+#endregion
 
 namespace Latios.Kinemation.Systems
 {
@@ -72,11 +22,6 @@ namespace Latios.Kinemation.Systems
     {
         #region Managed Impl
         static Dictionary<Type, NamedPropertyMapping> s_TypeToPropertyMappings = new Dictionary<Type, NamedPropertyMapping>();
-
-#if DEBUG_PROPERTY_NAMES
-        internal static Dictionary<int, string> s_NameIDToName    = new Dictionary<int, string>();
-        internal static Dictionary<int, string> s_TypeIndexToName = new Dictionary<int, string>();
-#endif
 
         internal static readonly bool UseConstantBuffers       = EntitiesGraphicsUtils.UseHybridConstantBufferMode();
         internal static readonly int  MaxBytesPerCBuffer       = EntitiesGraphicsUtils.MaxBytesPerCBuffer;
@@ -103,13 +48,9 @@ namespace Latios.Kinemation.Systems
 
         private Unmanaged m_unmanaged;
 
-#if !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
         private static bool ErrorShaderEnabled => true;
-#else
-        private static bool ErrorShaderEnabled => false;
-#endif
 
-#if UNITY_EDITOR && !DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
+#if UNITY_EDITOR
         private static bool LoadingShaderEnabled => true;
 #else
         private static bool LoadingShaderEnabled => false;
@@ -169,7 +110,7 @@ namespace Latios.Kinemation.Systems
             NativeParallelMultiHashMap<int, MaterialPropertyType> m_NameIDToMaterialProperties;
             NativeParallelHashMap<int, MaterialPropertyType>      m_TypeIndexToMaterialProperty;
 
-            public bool m_FirstFrameAfterInit;
+            public bool m_needsFirstUpdate;
 
             private EntitiesGraphicsArchetypes m_GraphicsArchetypes;
 

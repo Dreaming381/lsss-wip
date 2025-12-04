@@ -1,30 +1,4 @@
 #region Header
-// This define fails tests due to the extra log spam. Don't check this in enabled
-// #define DEBUG_LOG_HYBRID_RENDERER
-
-// #define DEBUG_LOG_CHUNK_CHANGES
-// #define DEBUG_LOG_GARBAGE_COLLECTION
-// #define DEBUG_LOG_BATCH_UPDATES
-// #define DEBUG_LOG_CHUNKS
-// #define DEBUG_LOG_INVALID_CHUNKS
-// #define DEBUG_LOG_UPLOADS
-// #define DEBUG_LOG_BATCH_CREATION
-// #define DEBUG_LOG_BATCH_DELETION
-// #define DEBUG_LOG_PROPERTY_ALLOCATIONS
-// #define DEBUG_LOG_PROPERTY_UPDATES
-// #define DEBUG_LOG_VISIBLE_INSTANCES
-// #define DEBUG_LOG_MATERIAL_PROPERTY_TYPES
-// #define DEBUG_LOG_MEMORY_USAGE
-// #define DEBUG_LOG_AMBIENT_PROBE
-// #define DEBUG_LOG_DRAW_COMMANDS
-// #define DEBUG_LOG_DRAW_COMMANDS_VERBOSE
-// #define DEBUG_VALIDATE_DRAW_COMMAND_SORT
-// #define DEBUG_LOG_BRG_MATERIAL_MESH
-// #define DEBUG_LOG_GLOBAL_AABB
-// #define PROFILE_BURST_JOB_INTERNALS
-// #define DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
-// #define DISABLE_INCLUDE_EXCLUDE_LIST_FILTERING
-
 // Entities Graphics is disabled if SRP 10 is not found, unless an override define is present
 // It is also disabled if -nographics is given from the command line.
 #if !(SRP_10_0_0_OR_NEWER || HYBRID_RENDERER_ENABLE_WITHOUT_SRP)
@@ -32,36 +6,14 @@
 #endif
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using Latios.Transforms;
 using Unity.Assertions;
 using Unity.Burst;
-using Unity.Burst.Intrinsics;
-using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-using Unity.Entities.Graphics;
-using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
-using Unity.Mathematics;
-using Unity.Profiling;
-using UnityEngine;
-using UnityEngine.Profiling;
-using UnityEngine.Rendering;
-
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
-using System.Runtime.InteropServices;
-using Latios.Transforms.Abstract;
-using Unity.Entities.Exposed;
 using Unity.Rendering;
-using Unity.Transforms;
+using UnityEngine;
+using UnityEngine.Rendering;
 #endregion
-
-using UnityEngine.XR;
 
 #if !UNITY_BURST_EXPERIMENTAL_ATOMIC_INTRINSICS
 #error Latios Framework requires UNITY_BURST_EXPERIMENTAL_ATOMIC_INTRINSICS to be defined in your scripting define symbols.
@@ -180,10 +132,6 @@ namespace Latios.Kinemation.Systems
         /// <param name="material">A material ID received from <see cref="RegisterMaterial"/>.</param>
         /// <returns>The <see cref="Material"/> object corresponding to the given material ID if the ID is valid, or <c>null</c> if it's not valid.</returns>
         public Material GetMaterial(BatchMaterialID material) => m_BatchRendererGroup.GetRegisteredMaterial(material);
-        #endregion
-
-        #region Managed Impl
-
         #endregion
     }
 }

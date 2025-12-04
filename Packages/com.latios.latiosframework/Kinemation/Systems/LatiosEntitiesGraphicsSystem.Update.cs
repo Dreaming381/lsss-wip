@@ -1,7 +1,4 @@
-#if UNITY_EDITOR
-#define DEBUG_PROPERTY_NAMES
-#endif
-
+#region Header
 #if (ENABLE_UNITY_COLLECTIONS_CHECKS || DEVELOPMENT_BUILD) && !DISABLE_MATERIALMESHINFO_BOUNDS_CHECKING
 #define ENABLE_MATERIALMESHINFO_BOUNDS_CHECKING
 #endif
@@ -23,6 +20,7 @@ using Unity.Rendering;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
+#endregion
 
 namespace Latios.Kinemation.Systems
 {
@@ -147,12 +145,6 @@ namespace Latios.Kinemation.Systems
                 m_LastSystemVersionAtLastUpdate   = state.LastSystemVersion;
                 m_globalSystemVersionAtLastUpdate = state.GlobalSystemVersion;
 
-                if (m_FirstFrameAfterInit)
-                {
-                    OnFirstFrame();
-                    m_FirstFrameAfterInit = false;
-                }
-
                 sCompleteJobsMarker.Begin();
                 inputDeps.Complete();  // #todo
                 CompleteJobs();
@@ -178,18 +170,8 @@ namespace Latios.Kinemation.Systems
                     renderersChunkCount = renderersChunkCount,
                 });
 
-                state.Dependency = finalJh;
-            }
-
-            private void OnFirstFrame()
-            {
-#if DEBUG_LOG_HYBRID_RENDERER
-                var mode = m_useConstantBuffers ?
-                           $"UBO mode (UBO max size: {m_maxBytesPerCBuffer}, alignment: {m_batchAllocationAlignment}, globals: {m_GlobalWindowSize})" :
-                           "SSBO mode";
-                Debug.Log(
-                    $"Entities Graphics active, MaterialProperty component type count {m_ComponentTypeCache.UsedTypeCount} / {ComponentTypeCache.BurstCompatibleTypeArray.kMaxTypes}, {mode}");
-#endif
+                state.Dependency   = finalJh;
+                m_needsFirstUpdate = false;
             }
 
             private void EnsureHaveSpaceForNewBatch()
@@ -224,51 +206,6 @@ namespace Latios.Kinemation.Systems
             }
 
             private int BatchIndexRange => m_SortedBatchIds.Max + 1;
-
-            private void DebugDrawCommands(JobHandle drawCommandsDependency, BatchCullingOutput cullingOutput)
-            {
-                drawCommandsDependency.Complete();
-
-                var drawCommands = cullingOutput.drawCommands[0];
-
-                Debug.Log(
-                    $"Draw Command summary: visibleInstanceCount: {drawCommands.visibleInstanceCount} drawCommandCount: {drawCommands.drawCommandCount} drawRangeCount: {drawCommands.drawRangeCount}");
-
-#if DEBUG_LOG_DRAW_COMMANDS_VERBOSE
-                bool verbose = true;
-#else
-                bool verbose = false;
-#endif
-                if (verbose)
-                {
-                    for (int i = 0; i < drawCommands.drawCommandCount; ++i)
-                    {
-                        var                 cmd      = drawCommands.drawCommands[i];
-                        DrawCommandSettings settings = new DrawCommandSettings
-                        {
-                            BatchID      = cmd.batchID,
-                            MaterialID   = cmd.materialID,
-                            MeshID       = cmd.meshID,
-                            SubMeshIndex = cmd.submeshIndex,
-                            Flags        = cmd.flags,
-                        };
-                        Debug.Log($"Draw Command #{i}: {settings} visibleOffset: {cmd.visibleOffset} visibleCount: {cmd.visibleCount}");
-                        StringBuilder sb                 = new StringBuilder((int)cmd.visibleCount * 30);
-                        bool          hasSortingPosition = settings.HasSortingPosition;
-                        for (int j = 0; j < cmd.visibleCount; ++j)
-                        {
-                            sb.Append(drawCommands.visibleInstances[cmd.visibleOffset + j]);
-                            if (hasSortingPosition)
-                                sb.AppendFormat(" ({0:F3} {1:F3} {2:F3})",
-                                                drawCommands.instanceSortingPositions[cmd.sortingPosition + 0],
-                                                drawCommands.instanceSortingPositions[cmd.sortingPosition + 1],
-                                                drawCommands.instanceSortingPositions[cmd.sortingPosition + 2]);
-                            sb.Append(", ");
-                        }
-                        Debug.Log($"Draw Command #{i} instances: [{sb}]");
-                    }
-                }
-            }
 
             static readonly ProfilerMarker sGarbageCollectUnreferencedBatchesMarker = new ProfilerMarker("GarbageCollectUnreferencedBatches");
             static readonly ProfilerMarker sAddNewChunksMarker                      = new ProfilerMarker("AddNewChunks");
@@ -347,16 +284,12 @@ namespace Latios.Kinemation.Systems
                     worldToLocalType     = TypeManager.GetTypeIndex<WorldToLocal_Tag>(),
                     prevWorldToLocalType = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousMI_Tag>(),
 
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+#if !LATIOS_TRANSFORMS_UNITY
                     worldTransformType    = TypeManager.GetTypeIndex<WorldTransform>(),
                     previousTransformType = TypeManager.GetTypeIndex<PreviousTransform>(),
-#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
+#elif LATIOS_TRANSFORMS_UNITY
                     worldTransformType    = TypeManager.GetTypeIndex<LocalToWorld>(),
                     previousTransformType = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousM>(),
-#endif
-
-#if PROFILE_BURST_JOB_INTERNALS
-                    ProfileAddUpload = new ProfilerMarker("AddUpload"),
 #endif
                 };
 
@@ -392,20 +325,15 @@ namespace Latios.Kinemation.Systems
                         EntitiesGraphicsChunkUpdater = entitiesGraphicsChunkUpdater,
                     };
 
-#if DEBUG_LOG_INVALID_CHUNKS
-                    if (numValidNewChunks != numNewChunks)
-                        Debug.Log($"Tried to add {numNewChunks} new chunks, but only {numValidNewChunks} were valid, {numNewChunks - numValidNewChunks} were invalid");
-#endif
-
                     entitiesGraphicsCompleted = updateNewChunksJob.Schedule(numValidNewChunks, kNumNewChunksPerThread);
                 }
 
                 var drawCommandFlagsUpdated = new UpdateDrawCommandFlagsJob
                 {
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+#if !LATIOS_TRANSFORMS_UNITY
                     WorldTransform    = state.GetComponentTypeHandle<WorldTransform>(true),
                     PostProcessMatrix = state.GetComponentTypeHandle<PostProcessMatrix>(true),
-#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
+#elif LATIOS_TRANSFORMS_UNITY
                     WorldTransform = state.GetComponentTypeHandle<LocalToWorld>(true),
 #endif
                     RenderFilterSettings      = state.GetSharedComponentTypeHandle<RenderFilterSettings>(),
@@ -422,12 +350,6 @@ namespace Latios.Kinemation.Systems
                 sStartUpdateMarker.Begin();
                 StartUpdate(ref state);
                 sStartUpdateMarker.End();
-
-#if DEBUG_LOG_CHUNK_CHANGES
-                if (numNewChunks > 0 || numRemoved > 0)
-                    Debug.Log(
-                        $"Chunks changed, new chunks: {numNewChunks}, removed batches: {numRemoved}, batch count: {m_ExistingBatchBatchIndices.Count()}, chunk count: {m_MetaEntitiesForHybridRenderableChunks.CalculateEntityCount()}");
-#endif
 
                 JobHandle outputDeps = drawCommandFlagsUpdated;
 
@@ -457,10 +379,6 @@ namespace Latios.Kinemation.Systems
                     firstInQw += (int)AtomicHelpers.kNumBitsInLong;
                 }
 
-#if DEBUG_LOG_GARBAGE_COLLECTION
-                Debug.Log($"GarbageCollectUnreferencedBatches(removed: {numRemoved})");
-#endif
-
                 return numRemoved;
             }
 
@@ -469,18 +387,11 @@ namespace Latios.Kinemation.Systems
                 var batchInfo            = m_BatchInfos[batchIndex];
                 m_BatchInfos[batchIndex] = default;
 
-#if DEBUG_LOG_BATCH_DELETION
-                Debug.Log($"RemoveBatch({batchIndex})");
-#endif
-
                 RemoveBatchIndex(batchIndex);
 
                 if (!batchInfo.GPUMemoryAllocation.Empty)
                 {
                     m_GPUPersistentAllocator.Release(batchInfo.GPUMemoryAllocation);
-#if DEBUG_LOG_MEMORY_USAGE
-                    Debug.Log($"RELEASE; {batchInfo.GPUMemoryAllocation.Length}");
-#endif
                 }
 
                 var metadataAllocation = batchInfo.ChunkMetadataAllocation;
@@ -715,21 +626,11 @@ namespace Latios.Kinemation.Systems
                     int gpuAddress                  = overrideStreamBegin[i] - (int)bindOffset;
                     overrideMetadata[metadataIndex] = CreateMetadataValue(overrides[i].NameID, gpuAddress, true);
                     ++metadataIndex;
-
-#if DEBUG_LOG_PROPERTY_ALLOCATIONS
-                    Debug.Log(
-                        $"Property Allocation: Property: {NameIDFormatted(overrides[i].NameID)} Type: {TypeIndexFormatted(overrides[i].TypeIndex)} Metadata: {overrideMetadata[i].Value:x8} Allocation: {overrideStreamBegin[i]}");
-#endif
                 }
 
                 var batchID = m_ThreadedBatchContext.AddBatch(overrideMetadata, m_GPUPersistentInstanceBufferHandle,
                                                               bindOffset, bindWindowSize);
                 int batchIndex = (int)batchID.value;
-
-#if DEBUG_LOG_BATCH_CREATION
-                Debug.Log(
-                    $"Created new batch, ID: {batchIndex}, chunks: {batchChunks.Length}, properties: {numProperties}, instances: {numInstances}, size: {batchSizeBytes}, buffer {m_GPUPersistentInstanceBufferHandle.value} (size {m_GPUPersistentInstanceData.count * m_GPUPersistentInstanceData.stride} bytes)");
-#endif
 
                 if (batchIndex == 0)
                     Assert.IsTrue(false, "Failed to add new BatchRendererGroup batch.");
@@ -878,59 +779,6 @@ namespace Latios.Kinemation.Systems
                 {
                     m_ThreadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)b }, m_GPUPersistentInstanceBufferHandle);
                 }
-            }
-
-#if DEBUG_LOG_MEMORY_USAGE
-            private static ulong PrevUsedSpace = 0;
-#endif
-
-            /// <summary>
-            /// Converts a type index into a type name.
-            /// </summary>
-            /// <param name="typeIndex">The type index to convert.</param>
-            /// <returns>The name of the type for given type index.</returns>
-            internal static string TypeIndexToName(int typeIndex)
-            {
-#if DEBUG_PROPERTY_NAMES
-                if (s_TypeIndexToName.TryGetValue(typeIndex, out var name))
-                    return name;
-                else
-                    return "<unknown type>";
-#else
-                return null;
-#endif
-            }
-
-            /// <summary>
-            /// Converts a name ID to a name.
-            /// </summary>
-            /// <param name="nameID"></param>
-            /// <returns>The name for the given name ID.</returns>
-            internal static string NameIDToName(int nameID)
-            {
-#if DEBUG_PROPERTY_NAMES
-                if (s_NameIDToName.TryGetValue(nameID, out var name))
-                    return name;
-                else
-                    return "<unknown property>";
-#else
-                return null;
-#endif
-            }
-
-            internal static string TypeIndexFormatted(int typeIndex)
-            {
-                return $"{TypeIndexToName(typeIndex)} ({typeIndex:x8})";
-            }
-
-            /// <summary>
-            /// Converts a name ID to a formatted name.
-            /// </summary>
-            /// <param name="nameID"></param>
-            /// <returns>The formatted name for the given name ID.</returns>
-            internal static string NameIDFormatted(int nameID)
-            {
-                return $"{NameIDToName(nameID)} ({nameID:x8})";
             }
         }
     }

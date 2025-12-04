@@ -1,75 +1,33 @@
 #region Header
-// This define fails tests due to the extra log spam. Don't check this in enabled
-// #define DEBUG_LOG_HYBRID_RENDERER
-
-// #define DEBUG_LOG_CHUNK_CHANGES
-// #define DEBUG_LOG_GARBAGE_COLLECTION
-// #define DEBUG_LOG_BATCH_UPDATES
-// #define DEBUG_LOG_CHUNKS
-// #define DEBUG_LOG_INVALID_CHUNKS
-// #define DEBUG_LOG_UPLOADS
-// #define DEBUG_LOG_BATCH_CREATION
-// #define DEBUG_LOG_BATCH_DELETION
-// #define DEBUG_LOG_PROPERTY_ALLOCATIONS
-// #define DEBUG_LOG_PROPERTY_UPDATES
-// #define DEBUG_LOG_VISIBLE_INSTANCES
-// #define DEBUG_LOG_MATERIAL_PROPERTY_TYPES
-// #define DEBUG_LOG_MEMORY_USAGE
-// #define DEBUG_LOG_AMBIENT_PROBE
-// #define DEBUG_LOG_DRAW_COMMANDS
-// #define DEBUG_LOG_DRAW_COMMANDS_VERBOSE
-// #define DEBUG_VALIDATE_DRAW_COMMAND_SORT
-// #define DEBUG_LOG_BRG_MATERIAL_MESH
-// #define DEBUG_LOG_GLOBAL_AABB
-// #define PROFILE_BURST_JOB_INTERNALS
-// #define DISABLE_HYBRID_RENDERER_ERROR_LOADING_SHADER
-// #define DISABLE_INCLUDE_EXCLUDE_LIST_FILTERING
-
 #if UNITY_EDITOR && !DISABLE_HYBRID_RENDERER_PICKING
 #define ENABLE_PICKING
 #endif
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using Latios.Transforms;
-using Unity.Assertions;
 using Unity.Burst;
-using Unity.Burst.Intrinsics;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-using Unity.Entities.Graphics;
 using Unity.Jobs;
-using Unity.Jobs.LowLevel.Unsafe;
-using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
-using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-using System.Runtime.InteropServices;
-using Latios.Transforms.Abstract;
-using Unity.Entities.Exposed;
 using Unity.Rendering;
-using Unity.Transforms;
 #endregion
-
-using MaterialPropertyType = Unity.Rendering.MaterialPropertyType;
-using UnityEngine.XR;
 
 namespace Latios.Kinemation.Systems
 {
     public unsafe partial class LatiosEntitiesGraphicsSystem : SubSystem
     {
+        static readonly ProfilerMarker m_latiosPerformCullingMarker = new ProfilerMarker("LatiosOnPerformCulling");
+
         private JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext batchCullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
         {
-            //return m_unmanaged.OnPerformCulling(ref CheckedStateRef, rendererGroup, batchCullingContext, cullingOutput, userContext);
-            if (m_unmanaged.m_FirstFrameAfterInit)
+            if (m_unmanaged.m_needsFirstUpdate)
                 return default;
 
             using var         marker                    = m_latiosPerformCullingMarker.Auto();
@@ -82,8 +40,6 @@ namespace Latios.Kinemation.Systems
                 return result;
             }
         }
-
-        static readonly ProfilerMarker m_latiosPerformCullingMarker = new ProfilerMarker("LatiosOnPerformCulling");
 
         [BurstCompile]
         static bool DoOnPerformCullingBegin(Unmanaged*                           unmanaged,
@@ -187,7 +143,7 @@ namespace Latios.Kinemation.Systems
             {
                 //UnityEngine.Debug.Log($"OnFinishedCulling pass {(int)customCullingResult}");
 
-                if (m_FirstFrameAfterInit || m_cullPassIndexThisFrame == m_cullPassIndexForLastDispatch)
+                if (m_needsFirstUpdate || m_cullPassIndexThisFrame == m_cullPassIndexForLastDispatch)
                     return;
 
                 m_cullingDispatchSuperSystem.Update(state.WorldUnmanaged);

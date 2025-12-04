@@ -72,11 +72,6 @@ namespace Latios.Kinemation.Systems
 
             public void ProcessChunk(in EntitiesGraphicsChunkInfo chunkInfo, in ArchetypeChunk chunk)
             {
-#if DEBUG_LOG_CHUNKS
-                Debug.Log(
-                    $"HybridChunkUpdater.ProcessChunk(internalBatchIndex: {chunkInfo.BatchIndex}, valid: {chunkInfo.Valid}, count: {chunk.Count}, chunk: {chunk.GetHashCode()})");
-#endif
-
                 if (chunkInfo.Valid)
                     ProcessValidChunk(in chunkInfo, chunk, false);
             }

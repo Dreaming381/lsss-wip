@@ -1,3 +1,4 @@
+#region Header
 using Latios.Transforms;
 using Unity.Assertions;
 using Unity.Burst;
@@ -11,6 +12,7 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
+#endregion
 
 namespace Latios.Kinemation.Systems
 {
@@ -160,7 +162,7 @@ namespace Latios.Kinemation.Systems
             }
         }
 
-#if !LATIOS_TRANSFORMS_UNCACHED_QVVS && !LATIOS_TRANSFORMS_UNITY
+#if !LATIOS_TRANSFORMS_UNITY
         [BurstCompile]
         internal unsafe struct UpdateDrawCommandFlagsJob : IJobChunk
         {
@@ -258,7 +260,7 @@ namespace Latios.Kinemation.Systems
                 return math.determinant(product) < 0f;
             }
         }
-#elif !LATIOS_TRANSFORMS_UNCACHED_QVVS && LATIOS_TRANSFORMS_UNITY
+#elif LATIOS_TRANSFORMS_UNITY
         [BurstCompile]
         internal unsafe struct UpdateDrawCommandFlagsJob : IJobChunk
         {
