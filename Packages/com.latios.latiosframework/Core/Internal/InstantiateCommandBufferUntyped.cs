@@ -149,9 +149,6 @@ namespace Latios
             AllocatorManager.Free(allocator, prefabSortkeyBlockList, 1);
             AllocatorManager.Free(allocator, componentDataBlockList, 1);
             AllocatorManager.Free(allocator, state,                  1);
-            //UnsafeUtility.Free(prefabSortkeyBlockList, allocator);
-            //UnsafeUtility.Free(componentDataBlockList, allocator);
-            //UnsafeUtility.Free(state,                  allocator);
         }
         #endregion
 
@@ -296,6 +293,12 @@ namespace Latios
         {
             [BurstCompile]
             public static void Playback(InstantiateCommandBufferUntyped* icb, EntityManager* em)
+            {
+                PlaybackOnThread(*icb, *em);
+                //PlaybackOld(icb, em);
+            }
+
+            static void PlaybackOld(InstantiateCommandBufferUntyped * icb, EntityManager* em)
             {
                 var chunkRanges       = new NativeList<int2>(Allocator.Temp);
                 var chunks            = new NativeList<ArchetypeChunk>(Allocator.Temp);
@@ -471,6 +474,8 @@ namespace Latios
                         ProcessEntitiesInChunks(em, uniquePrefabs, instantiatedEntities, sortedComponentDataPtrs, ref t4Proc);
                         break;
                 }
+
+                icb.m_state->playedBack = true;
             }
 
             static void ProcessEntitiesInChunks<T>(EntityManager em, UnsafeList<UniquePrefab> uniquePrefabs, NativeArray<Entity> entities,
@@ -536,7 +541,7 @@ namespace Latios
                     for (int i = 0; i < componentDataPtrs.Length; i++)
                     {
                         UnsafeUtility.MemCpy(t0Ptr + i * t0Size, componentDataPtrs[i].ptr,          t0Size);
-                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t1Size, t1Size);
+                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t0Size, t1Size);
                     }
                 }
             }
@@ -562,7 +567,7 @@ namespace Latios
                     for (int i = 0; i < componentDataPtrs.Length; i++)
                     {
                         UnsafeUtility.MemCpy(t0Ptr + i * t0Size, componentDataPtrs[i].ptr,            t0Size);
-                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t1Size,   t1Size);
+                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t0Size,   t1Size);
                         UnsafeUtility.MemCpy(t2Ptr + i * t2Size, componentDataPtrs[i].ptr + t2Offset, t2Size);
                     }
                 }
@@ -594,7 +599,7 @@ namespace Latios
                     for (int i = 0; i < componentDataPtrs.Length; i++)
                     {
                         UnsafeUtility.MemCpy(t0Ptr + i * t0Size, componentDataPtrs[i].ptr,            t0Size);
-                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t1Size,   t1Size);
+                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t0Size,   t1Size);
                         UnsafeUtility.MemCpy(t2Ptr + i * t2Size, componentDataPtrs[i].ptr + t2Offset, t2Size);
                         UnsafeUtility.MemCpy(t3Ptr + i * t3Size, componentDataPtrs[i].ptr + t3Offset, t3Size);
                     }
@@ -632,7 +637,7 @@ namespace Latios
                     for (int i = 0; i < componentDataPtrs.Length; i++)
                     {
                         UnsafeUtility.MemCpy(t0Ptr + i * t0Size, componentDataPtrs[i].ptr,            t0Size);
-                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t1Size,   t1Size);
+                        UnsafeUtility.MemCpy(t1Ptr + i * t1Size, componentDataPtrs[i].ptr + t0Size,   t1Size);
                         UnsafeUtility.MemCpy(t2Ptr + i * t2Size, componentDataPtrs[i].ptr + t2Offset, t2Size);
                         UnsafeUtility.MemCpy(t3Ptr + i * t3Size, componentDataPtrs[i].ptr + t3Offset, t3Size);
                         UnsafeUtility.MemCpy(t4Ptr + i * t4Size, componentDataPtrs[i].ptr + t4Offset, t4Size);

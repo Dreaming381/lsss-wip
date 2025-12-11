@@ -402,7 +402,7 @@ namespace Latios.Kinemation
                 bufferHandle = default,
                 success      = false
             };
-            DoManagedExecute((IntPtr)(&context), 11);
+            DoManagedExecute((IntPtr)(&context), 17);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (!context.success)
