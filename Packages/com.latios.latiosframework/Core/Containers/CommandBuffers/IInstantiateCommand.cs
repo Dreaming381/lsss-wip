@@ -103,14 +103,15 @@ namespace Latios
             InitCommands(commandTypes);
         }
 #else
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         static void InitRuntime()
         {
             var commandTypes = new List<Type>();
             var commandType  = typeof(IInstantiateCommand);
+            var coreAssembly = commandType.Assembly;
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (!BootstrapTools.IsAssemblyReferencingLatios(assembly))
+                if (!BootstrapTools.IsAssemblyReferencingOtherAssembly(assembly, coreAssembly))
                     continue;
 
                 try

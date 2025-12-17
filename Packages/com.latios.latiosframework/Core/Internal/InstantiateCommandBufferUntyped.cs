@@ -241,6 +241,54 @@ namespace Latios
             ptr += m_state->typesSizes[3];
             UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
         }
+        [WriteAccessRequired]
+        public void Add<T0, T1, T2, T3, T4, T5>(Entity prefab, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5,
+                                                int sortKey =
+                                                    int.MaxValue) where T0 : unmanaged where T1 : unmanaged where T2 : unmanaged where T3 : unmanaged where T4 : unmanaged where T5
+        : unmanaged
+        {
+            CheckWriteAccess();
+            CheckHasNotPlayedBack();
+            CheckEntityValid(prefab);
+            m_prefabSortkeyBlockList->Write(new PrefabSortkey { prefab = prefab, sortKey = sortKey }, 0);
+            byte* ptr                                                                    = (byte*)m_dataBlockList->Allocate(0);
+            UnsafeUtility.CopyStructureToPtr(ref c0, ptr);
+            ptr += m_state->typesSizes[0];
+            UnsafeUtility.CopyStructureToPtr(ref c1, ptr);
+            ptr += m_state->typesSizes[1];
+            UnsafeUtility.CopyStructureToPtr(ref c2, ptr);
+            ptr += m_state->typesSizes[2];
+            UnsafeUtility.CopyStructureToPtr(ref c3, ptr);
+            ptr += m_state->typesSizes[3];
+            UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
+            ptr += m_state->typesSizes[4];
+            UnsafeUtility.CopyStructureToPtr(ref c5, ptr);
+        }
+        [WriteAccessRequired]
+        public void Add<T0, T1, T2, T3, T4, T5, T6>(Entity prefab, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, T6 c6,
+                                                    int sortKey =
+                                                        int.MaxValue) where T0 : unmanaged where T1 : unmanaged where T2 : unmanaged where T3 : unmanaged where T4 : unmanaged where
+        T5 : unmanaged where T6 : unmanaged
+        {
+            CheckWriteAccess();
+            CheckHasNotPlayedBack();
+            CheckEntityValid(prefab);
+            m_prefabSortkeyBlockList->Write(new PrefabSortkey { prefab = prefab, sortKey = sortKey }, 0);
+            byte* ptr                                                                    = (byte*)m_dataBlockList->Allocate(0);
+            UnsafeUtility.CopyStructureToPtr(ref c0, ptr);
+            ptr += m_state->typesSizes[0];
+            UnsafeUtility.CopyStructureToPtr(ref c1, ptr);
+            ptr += m_state->typesSizes[1];
+            UnsafeUtility.CopyStructureToPtr(ref c2, ptr);
+            ptr += m_state->typesSizes[2];
+            UnsafeUtility.CopyStructureToPtr(ref c3, ptr);
+            ptr += m_state->typesSizes[3];
+            UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
+            ptr += m_state->typesSizes[4];
+            UnsafeUtility.CopyStructureToPtr(ref c5, ptr);
+            ptr += m_state->typesSizes[5];
+            UnsafeUtility.CopyStructureToPtr(ref c6, ptr);
+        }
 
         public int Count()
         {
@@ -818,6 +866,50 @@ namespace Latios
                 UnsafeUtility.CopyStructureToPtr(ref c3, ptr);
                 ptr += m_state->typesSizes[3];
                 UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
+            }
+            public void Add<T0, T1, T2, T3, T4, T5>(Entity prefab, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5,
+                                                    int sortKey) where T0 : unmanaged where T1 : unmanaged where T2 : unmanaged where T3 : unmanaged where T4 : unmanaged where T5 :
+            unmanaged
+            {
+                CheckWriteAccess();
+                CheckHasNotPlayedBack();
+                CheckEntityValid(prefab);
+                m_prefabSortkeyBlockList->Write(new PrefabSortkey { prefab = prefab, sortKey = sortKey }, m_ThreadIndex);
+                byte* ptr                                                                    = (byte*)m_componentDataBlockList->Allocate(m_ThreadIndex);
+                UnsafeUtility.CopyStructureToPtr(ref c0, ptr);
+                ptr += m_state->typesSizes[0];
+                UnsafeUtility.CopyStructureToPtr(ref c1, ptr);
+                ptr += m_state->typesSizes[1];
+                UnsafeUtility.CopyStructureToPtr(ref c2, ptr);
+                ptr += m_state->typesSizes[2];
+                UnsafeUtility.CopyStructureToPtr(ref c3, ptr);
+                ptr += m_state->typesSizes[3];
+                UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
+                ptr += m_state->typesSizes[4];
+                UnsafeUtility.CopyStructureToPtr(ref c5, ptr);
+            }
+            public void Add<T0, T1, T2, T3, T4, T5, T6>(Entity prefab, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, T6 c6,
+                                                        int sortKey) where T0 : unmanaged where T1 : unmanaged where T2 : unmanaged where T3 : unmanaged where T4 : unmanaged where
+            T5 : unmanaged where T6 : unmanaged
+            {
+                CheckWriteAccess();
+                CheckHasNotPlayedBack();
+                CheckEntityValid(prefab);
+                m_prefabSortkeyBlockList->Write(new PrefabSortkey { prefab = prefab, sortKey = sortKey }, m_ThreadIndex);
+                byte* ptr                                                                    = (byte*)m_componentDataBlockList->Allocate(m_ThreadIndex);
+                UnsafeUtility.CopyStructureToPtr(ref c0, ptr);
+                ptr += m_state->typesSizes[0];
+                UnsafeUtility.CopyStructureToPtr(ref c1, ptr);
+                ptr += m_state->typesSizes[1];
+                UnsafeUtility.CopyStructureToPtr(ref c2, ptr);
+                ptr += m_state->typesSizes[2];
+                UnsafeUtility.CopyStructureToPtr(ref c3, ptr);
+                ptr += m_state->typesSizes[3];
+                UnsafeUtility.CopyStructureToPtr(ref c4, ptr);
+                ptr += m_state->typesSizes[4];
+                UnsafeUtility.CopyStructureToPtr(ref c5, ptr);
+                ptr += m_state->typesSizes[5];
+                UnsafeUtility.CopyStructureToPtr(ref c6, ptr);
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
