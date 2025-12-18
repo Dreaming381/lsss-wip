@@ -61,6 +61,22 @@ namespace Unity.Entities.Exposed
                 throw new ArgumentException($"Attempted to call EntityManager.CopySharedComponent on {type} which is not an ISharedComponentData");
         }
 
+        public static ComponentLookup<T> GetComponentLookup<T>(this EntityManager em, bool isReadOnly) where T : unmanaged, IComponentData
+        {
+            var access    = em.GetCheckedEntityDataAccess();
+            var typeIndex = TypeManager.GetTypeIndex<T>();
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            return new ComponentLookup<T>(typeIndex, access, isReadOnly);
+#else
+            return new ComponentLookup<T>(typeIndex, access);
+#endif
+        }
+
+        public static EntityStorageInfoLookup GetEntityStorageInfoLookup(this EntityManager em)
+        {
+            return em.GetEntityStorageInfoLookup();
+        }
+
         // Todo: Find a better home
         public static int InstanceID<T>(this UnityObjectRef<T> unityObjectRef) where T : UnityEngine.Object => unityObjectRef.Id.instanceId;
 
