@@ -104,7 +104,8 @@ namespace Latios
         }
 #else
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        static void InitRuntime()
+#endif
+        internal static void InitRuntime()
         {
             var commandTypes = new List<Type>();
             var commandType  = typeof(IInstantiateCommand);
@@ -137,7 +138,6 @@ namespace Latios
 
             InitCommands(commandTypes);
         }
-#endif
     }
 }
 
