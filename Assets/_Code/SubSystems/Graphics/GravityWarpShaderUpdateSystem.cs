@@ -1,4 +1,7 @@
-﻿using Latios;
+﻿// This system was never integrated, and I can't be bothered to modernize the implementation.
+
+#if false
+using Latios;
 using Latios.Psyshock;
 using Latios.Transforms;
 using Unity.Burst;
@@ -68,7 +71,7 @@ namespace Lsss
                 warpZoneLookup       = GetComponentLookup<GravityWarpZone>()
             };
 
-            Dependency       = Physics.FindPairs(warpZoneLayer, warpedLayer, processor).ScheduleParallel(Dependency);
+            Dependency = Physics.FindPairs(warpZoneLayer, warpedLayer, processor).ScheduleParallel(Dependency);
             var finalHandles = stackalloc[]
             {
                 warpZoneBodies.Dispose(Dependency),
@@ -84,24 +87,24 @@ namespace Lsss
         //Assumes warpZone is A
         struct ApplyWarpZoneDataProcessor : IFindPairsProcessor
         {
-            public PhysicsComponentLookup<RenderBounds>                          boundsLookup;
+            public PhysicsComponentLookup<RenderBounds> boundsLookup;
             public PhysicsComponentLookup<GravityWarpZonePositionRadiusProperty> positionRadiusLookup;
-            public PhysicsComponentLookup<GravityWarpZoneParamsProperty>         paramsLookup;
-            [ReadOnly] public ComponentLookup<GravityWarpZone>                   warpZoneLookup;
+            public PhysicsComponentLookup<GravityWarpZoneParamsProperty> paramsLookup;
+            [ReadOnly] public ComponentLookup<GravityWarpZone> warpZoneLookup;
 
             public void Execute(in FindPairsResult result)
             {
                 SphereCollider sphere = result.bodyA.collider;
-                var            bounds = boundsLookup[result.entityB];
+                var bounds = boundsLookup[result.entityB];
 
                 boundsLookup[result.entityB] = new RenderBounds {
-                    Value                    = new AABB {
-                        Center               = sphere.center,
-                        Extents              = sphere.radius + math.abs(bounds.Value.Center) + bounds.Value.Extents
+                    Value = new AABB {
+                        Center  = sphere.center,
+                        Extents = sphere.radius + math.abs(bounds.Value.Center) + bounds.Value.Extents
                     }
                 };
 
-                var warpZone                 = warpZoneLookup[result.entityA];
+                var warpZone = warpZoneLookup[result.entityA];
                 paramsLookup[result.entityB] = new GravityWarpZoneParamsProperty
                 {
                     active             = 1f,
@@ -114,4 +117,5 @@ namespace Lsss
         }
     }
 }
+#endif
 

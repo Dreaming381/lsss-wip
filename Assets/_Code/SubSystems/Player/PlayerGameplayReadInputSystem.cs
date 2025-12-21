@@ -17,9 +17,10 @@ namespace Lsss
 
         protected override void OnUpdate()
         {
-            Entities.WithAll<PlayerTag>().ForEach((ref ShipDesiredActions desiredActions) =>
+            foreach (var desiredActionsRef in SystemAPI.Query<RefRW<ShipDesiredActions> >().WithAll<PlayerTag>())
             {
-                var gamepad = Gamepad.current;
+                ref var desiredActions = ref desiredActionsRef.ValueRW;
+                var     gamepad        = Gamepad.current;
                 if (gamepad != null)
                 {
                     desiredActions.turn = gamepad.leftStick.ReadValue();
@@ -85,7 +86,7 @@ namespace Lsss
                         UnityEngine.Cursor.visible                                              = true;
                     }
                 }
-            }).WithoutBurst().Run();
+            }
         }
     }
 }

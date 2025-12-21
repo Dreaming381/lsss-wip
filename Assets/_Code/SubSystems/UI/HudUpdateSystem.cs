@@ -40,7 +40,8 @@ namespace Lsss
             bool   playerFound = false;
             float  healthValue = 0f;
             Entity wbe         = worldBlackboardEntity;
-            Entities.WithAll<PlayerTag>().ForEach((in ShipHealth health, in ShipBaseHealth baseHealth, in ShipReloadTime bullets, in ShipBoostTank boost, in ShipSpeedStats stats) =>
+            foreach ((var health, var baseHealth, var bullets, var boost, var stats) in SystemAPI.Query<ShipHealth, ShipBaseHealth, ShipReloadTime, ShipBoostTank,
+                                                                                                        ShipSpeedStats>().WithAll<PlayerTag>())
             {
                 playerFound = true;
 
@@ -57,7 +58,7 @@ namespace Lsss
                 float3 localScale       = hud.boostBar.localScale;
                 localScale.y            = boost.boost / stats.boostCapacity;
                 hud.boostBar.localScale = localScale;
-            }).WithoutBurst().Run();
+            }
 
             m_healthBuilder.Clear();
             FixedString64Bytes healthString = default;
@@ -86,7 +87,7 @@ namespace Lsss
             //m_factionsBuilder.Clear();
             NativeList<FixedString64Bytes> factionNames  = new NativeList<FixedString64Bytes>(Allocator.TempJob);
             NativeList<int>                factionCounts = new NativeList<int>(Allocator.TempJob);
-            Entities.WithAll<FactionTag>().ForEach((Entity entity, in Faction faction) =>
+            foreach ((var faction, var entity) in Query<Faction>().WithEntityAccess().WithAll<FactionTag>())
             {
                 var factionMember = new FactionMember { factionEntity = entity };
                 m_shipsQuery.SetSharedComponentFilter(factionMember);
@@ -102,7 +103,7 @@ namespace Lsss
                 //m_factionsBuilder.Append('\t');
                 //m_factionsBuilder.Append(faction.remainingReinforcements + liveCount);
                 //m_factionsBuilder.Append('\n');
-            }).WithoutBurst().Run();
+            }
 
             m_factionsBuilder.Clear();
             foreach (var n in factionNames)
