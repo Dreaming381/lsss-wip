@@ -57,6 +57,13 @@ namespace Latios
 
         public delegate void OnPlayback(ref Context context);
 
+        /// <summary>
+        /// This is called once on application startup on a defaulted instance outside of Burst.
+        /// This method should define either a Burst-compiled function pointer or a managed function pointer
+        /// that will be invoked once per playback of an InstantiateCommandBufferCommandX variant containing
+        /// the implementing type of IInstantiateCommand.
+        /// </summary>
+        /// <returns></returns>
         public FunctionPointer<OnPlayback> GetFunctionPointer();
     }
 
