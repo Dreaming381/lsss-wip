@@ -64,7 +64,7 @@ namespace Latios.Psyshock
                 triangleTransform = triangleTransform,
                 maxDistance       = maxDistance,
                 minHeight         = (short)minInt.y,
-                maxHeight         = (short)minInt.y,
+                maxHeight         = (short)maxInt.y,
                 heightOffset      = terrain.baseHeightOffset,
                 scale             = terrain.scale,
                 terrainTransform  = terrainTransform,
@@ -117,7 +117,7 @@ namespace Latios.Psyshock
                 castEnd          = castEnd,
                 terrainTransform = targetTerrainTransform,
                 minHeight        = (short)minInt.y,
-                maxHeight        = (short)minInt.y,
+                maxHeight        = (short)maxInt.y,
                 heightOffset     = targetTerrain.baseHeightOffset,
                 scale            = targetTerrain.scale,
             };
@@ -196,7 +196,7 @@ namespace Latios.Psyshock
                 castEnd          = castEnd,
                 terrainTransform = RigidTransform.identity,
                 minHeight        = (short)minInt.y,
-                maxHeight        = (short)minInt.y,
+                maxHeight        = (short)maxInt.y,
                 heightOffset     = terrainToCast.baseHeightOffset,
                 scale            = terrainToCast.scale,
             };
