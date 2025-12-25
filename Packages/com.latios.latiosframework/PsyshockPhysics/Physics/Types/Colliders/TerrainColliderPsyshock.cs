@@ -560,6 +560,11 @@ namespace Latios.Psyshock
 
         internal int3 GetTriangle(int triangleIndex)
         {
+            return GetTriangle(triangleIndex, out _);
+        }
+
+        internal int3 GetTriangle(int triangleIndex, out bool valid)
+        {
             var     quadIndex             = triangleIndex / 2;
             var     quadRow               = quadIndex / quadsPerRow;
             var     quadIndexInRow        = quadIndex % quadsPerRow;
@@ -574,16 +579,32 @@ namespace Latios.Psyshock
             if ((patch.triangleSplitParity & (1ul << bitInPatch)) != 0)
             {
                 if ((triangleIndex & 1) == 0)
-                    return new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(0, 1)));
+                {
+                    valid = (patch.isFirstTriangleOrChildPatchValid & (1ul << bitInPatch)) != 0;
+                    return new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)),
+                        ToHeight1D(baseCoordinates + new int2(0, 1)));
+                }
                 else
-                    return new int3(ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(0, 1)));
+                {
+                    valid = (patch.isSecondTriangleValid & (1ul << bitInPatch)) != 0;
+                    return new int3(ToHeight1D(baseCoordinates + new int2(1, 0)),
+                        ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(0, 1)));
+                }
             }
             else
             {
                 if ((triangleIndex & 1) == 0)
-                    return new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 1)), ToHeight1D(baseCoordinates + new int2(0, 1)));
+                {
+                    valid = (patch.isFirstTriangleOrChildPatchValid & (1ul << bitInPatch)) != 0;
+                    return new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 1)),
+                        ToHeight1D(baseCoordinates + new int2(0, 1)));
+                }
                 else
-                    return new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)), ToHeight1D(baseCoordinates + new int2(1, 1)));
+                {
+                    valid = (patch.isSecondTriangleValid & (1ul << bitInPatch)) != 0;
+                    return new int3(ToHeight1D(baseCoordinates), ToHeight1D(baseCoordinates + new int2(1, 0)),
+                        ToHeight1D(baseCoordinates + new int2(1, 1)));
+                }
             }
         }
 
