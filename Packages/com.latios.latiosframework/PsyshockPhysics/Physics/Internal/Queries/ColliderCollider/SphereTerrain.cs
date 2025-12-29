@@ -45,14 +45,15 @@ namespace Latios.Psyshock
             if (math.any((math.abs(pointInScaledTerrainSpace) > pointMaxDistance) & !validAxes))
                 return;
 
-            var center   = pointInScaledTerrainSpace * inverseScale;
-            var extents  = pointMaxDistance * inverseScale;
-            var min      = (int3)math.floor(center - extents);
-            var max      = (int3)math.ceil(center + extents);
-            min.y       -= terrain.baseHeightOffset;
-            max.y       -= terrain.baseHeightOffset;
-            var minInt   = math.select(short.MinValue, min, validAxes);
-            var maxInt   = math.select(short.MaxValue, max, validAxes);
+            var center      = pointInScaledTerrainSpace * inverseScale;
+            var extents     = pointMaxDistance * inverseScale;
+            var min         = (int3)math.floor(center - extents);
+            var centerPlus  = center + extents;
+            var max         = (int3) new float3(math.floor(centerPlus.xz), math.ceil(centerPlus.y)).xzy;
+            min.y          -= terrain.baseHeightOffset;
+            max.y          -= terrain.baseHeightOffset;
+            var minInt      = math.select(short.MinValue, min, validAxes);
+            var maxInt      = math.select(short.MaxValue, max, validAxes);
 
             if (minInt.y > terrain.terrainColliderBlob.Value.maxHeight || maxInt.y < terrain.terrainColliderBlob.Value.minHeight)
                 return;
@@ -98,12 +99,13 @@ namespace Latios.Psyshock
             center  *= inverseScale;
             extents *= inverseScale;
 
-            var min     = (int3)math.floor(center - extents);
-            var max     = (int3)math.ceil(center + extents);
-            min.y      -= targetTerrain.baseHeightOffset;
-            max.y      -= targetTerrain.baseHeightOffset;
-            var minInt  = math.select(short.MinValue, min, validAxes);
-            var maxInt  = math.select(short.MaxValue, max, validAxes);
+            var min         = (int3)math.floor(center - extents);
+            var centerPlus  = center + extents;
+            var max         = (int3) new float3(math.floor(centerPlus.xz), math.ceil(centerPlus.y)).xzy;
+            min.y          -= targetTerrain.baseHeightOffset;
+            max.y          -= targetTerrain.baseHeightOffset;
+            var minInt      = math.select(short.MinValue, min, validAxes);
+            var maxInt      = math.select(short.MaxValue, max, validAxes);
 
             if (minInt.y > targetTerrain.terrainColliderBlob.Value.maxHeight || maxInt.y < targetTerrain.terrainColliderBlob.Value.minHeight)
                 return false;
@@ -177,12 +179,13 @@ namespace Latios.Psyshock
             center  *= inverseScale;
             extents *= inverseScale;
 
-            var min     = (int3)math.floor(center - extents);
-            var max     = (int3)math.ceil(center + extents);
-            min.y      -= terrainToCast.baseHeightOffset;
-            max.y      -= terrainToCast.baseHeightOffset;
-            var minInt  = math.select(short.MinValue, min, validAxes);
-            var maxInt  = math.select(short.MaxValue, max, validAxes);
+            var min         = (int3)math.floor(center - extents);
+            var centerPlus  = center + extents;
+            var max         = (int3) new float3(math.floor(centerPlus.xz), math.ceil(centerPlus.y)).xzy;
+            min.y          -= terrainToCast.baseHeightOffset;
+            max.y          -= terrainToCast.baseHeightOffset;
+            var minInt      = math.select(short.MinValue, min, validAxes);
+            var maxInt      = math.select(short.MaxValue, max, validAxes);
 
             if (minInt.y > terrainToCast.terrainColliderBlob.Value.maxHeight || maxInt.y < terrainToCast.terrainColliderBlob.Value.minHeight)
                 return false;
