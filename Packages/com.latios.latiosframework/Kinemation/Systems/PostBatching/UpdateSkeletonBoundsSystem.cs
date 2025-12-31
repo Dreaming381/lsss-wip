@@ -37,7 +37,7 @@ namespace Latios.Kinemation.Systems
 
             m_exposedBonesQuery = state.Fluent().With<BoneBounds>(true).With<BoneWorldBounds>(false).WithWorldTransformReadOnly().Build();
 
-            m_optimizedSkeletonsQuery = state.Fluent().With<OptimizedBoneBounds, OptimizedSkeletonState>(true).With<OptimizedBoneTransform>(false)
+            m_optimizedSkeletonsQuery = state.Fluent().With<OptimizedBoneBounds, OptimizedSkeletonState, OptimizedBoneTransform>(true)
                                         .With<SkeletonWorldBoundsOffsetsFromPosition>(false).WithWorldTransformReadOnly().Build();
 
             m_worldTransformHandle = new WorldTransformReadOnlyTypeHandle(ref state);
@@ -456,10 +456,30 @@ namespace Latios.Kinemation.Systems
                 }
                 else
                 {
+                    // Commented code inside for loop is reference implementation. Everything else is an optimized implementation that assumes
+                    // LocalToWorld bottom row is (0, 0, 0, 1). Also, inlining the sphere shape into the AABB transform operation simplifies
+                    // some of the math. And we stay in 4-wide vectors as much as possible.
+                    float4 min = float.MaxValue;
+                    float4 max = float.MinValue;
                     for (int i = 0; i < boundsArray.Length; i++)
                     {
-                        aabb = Physics.CombineAabb(aabb, ComputeBounds(boundsArray[i], math.mul(worldTransform.matrix4x4, boneTransformsArray[i].ToMatrix4x4())));
+                        //aabb = Physics.CombineAabb(aabb, ComputeBounds(boundsArray[i], math.mul(worldTransform.matrix4x4, boneTransformsArray[i].ToMatrix4x4())));
+
+                        var a = worldTransform.matrix4x4;
+                        var b = boneTransformsArray[i].ToMatrix4x4();
+                        var c = new float4x4(
+                            a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z,
+                            a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z,
+                            a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z,
+                            a.c0 * b.c3.x + a.c1 * b.c3.y + a.c2 * b.c3.z + a.c3);
+                        var columnSum = math.abs(c.c0) + math.abs(c.c1) + math.abs(c.c2);
+                        var extents   = columnSum * boundsArray[i];
+                        var center    = c.c3;
+                        min           = math.min(min, center - extents);
+                        max           = math.max(max, center + extents);
                     }
+                    aabb.min = min.xyz;
+                    aabb.max = max.xyz;
                 }
                 return aabb;
             }
