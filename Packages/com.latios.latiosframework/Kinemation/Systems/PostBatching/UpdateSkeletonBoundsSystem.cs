@@ -1,3 +1,4 @@
+using Latios.Calci;
 using Latios.Kinemation.InternalSourceGen;
 using Latios.Psyshock;
 using Latios.Transforms;
@@ -465,13 +466,9 @@ namespace Latios.Kinemation.Systems
                     {
                         //aabb = Physics.CombineAabb(aabb, ComputeBounds(boundsArray[i], math.mul(worldTransform.matrix4x4, boneTransformsArray[i].ToMatrix4x4())));
 
-                        var a = worldTransform.matrix4x4;
-                        var b = boneTransformsArray[i].ToMatrix4x4();
-                        var c = new float4x4(
-                            a.c0 * b.c0.x + a.c1 * b.c0.y + a.c2 * b.c0.z,
-                            a.c0 * b.c1.x + a.c1 * b.c1.y + a.c2 * b.c1.z,
-                            a.c0 * b.c2.x + a.c1 * b.c2.y + a.c2 * b.c2.z,
-                            a.c0 * b.c3.x + a.c1 * b.c3.y + a.c2 * b.c3.z + a.c3);
+                        var a         = worldTransform.matrix4x4;
+                        var b         = boneTransformsArray[i].ToMatrix4x4();
+                        var c         = MathShortcuts.MultiplyTransformMatrices(a, b);
                         var columnSum = math.abs(c.c0) + math.abs(c.c1) + math.abs(c.c2);
                         var extents   = columnSum * boundsArray[i];
                         var center    = c.c3;
