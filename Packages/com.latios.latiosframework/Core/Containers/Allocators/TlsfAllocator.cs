@@ -14,10 +14,11 @@ namespace Latios.Unsafe
     /// A two-level segregated fit allocator which allocates with cache line granularity.
     /// This is NOT a thread-safe allocator.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Size = 64)]
+    [BurstCompile]
     public unsafe struct TlsfAllocator : AllocatorManager.IAllocator
     {
         #region State
+        [StructLayout(LayoutKind.Sequential, Size = 64)]
         struct AllocationHeader
         {
             public uint4                            footprint;
