@@ -85,8 +85,12 @@ namespace Latios.Transforms
 
     public static class qvvs
     {
-        // Assuming B represents a transform in A's space, this converts B into the same space
-        // A resides in
+        /// <summary>
+        /// Multiplies the qvvs transforms. Assuming B represents a transform in A's space, this converts B into the same space A resides in.
+        /// </summary>
+        /// <param name="a">The A transform</param>
+        /// <param name="b">The B transform</param>
+        /// <returns>The result of the multiplication</returns>
         public static TransformQvvs mul(in TransformQvvs a, in TransformQvvs b)
         {
             return new TransformQvvs
@@ -99,8 +103,31 @@ namespace Latios.Transforms
             };
         }
 
-        // Assuming B represents a transform in A's space, this converts B into the same space
-        // A resides in, where bStretch is forwarded from bWorld
+        /// <summary>
+        /// Multiplies the qvvs transforms and normalizes the roation. Assuming B represents a transform in A's space, this converts B into the same space A resides in.
+        /// </summary>
+        /// <param name="a">The A transform</param>
+        /// <param name="b">The B transform</param>
+        /// <returns>The result of the multiplication</returns>
+        public static TransformQvvs mulclean(in TransformQvvs a, in TransformQvvs b)
+        {
+            return new TransformQvvs
+            {
+                rotation   = math.normalize(math.mul(a.rotation, b.rotation)),
+                position   = a.position + math.rotate(a.rotation, b.position * a.stretch * a.scale),  // We scale by A's stretch and scale because we are leaving A's space
+                worldIndex = b.worldIndex,  // We retain B's worldIndex as the result is B in a different coordinate space
+                stretch    = b.stretch,  // We retain B's stretch as the result is B in a different coordinate space
+                scale      = a.scale * b.scale
+            };
+        }
+
+        /// <summary>
+        /// Multiplies the local space position, rotation, and uniform of B with A, and writes those specific values into bWorld. Assuming B represents a transform in A's space,
+        /// this converts B into the same space A resides in, where bStretch is forwarded from bWorld.
+        /// </summary>
+        /// <param name="bWorld">The target world transform to write to</param>
+        /// <param name="a">The "parent" transform to multiply</param>
+        /// <param name="b">The local transform to multiply</param>
         public static void mul(ref TransformQvvs bWorld, in TransformQvvs a, in TransformQvs b)
         {
             bWorld.rotation = math.mul(a.rotation, b.rotation);
@@ -110,6 +137,28 @@ namespace Latios.Transforms
             bWorld.scale = a.scale * b.scale;
         }
 
+        /// <summary>
+        /// Multiplies the local space position, rotation, and uniform of B with A, and writes those specific values into bWorld. Assuming B represents a transform in A's space,
+        /// this converts B into the same space A resides in, where bStretch is forwarded from bWorld. This variant normalizes the rotation.
+        /// </summary>
+        /// <param name="bWorld">The target world transform to write to</param>
+        /// <param name="a">The "parent" transform to multiply</param>
+        /// <param name="b">The local transform to multiply</param>
+        public static void mulclean(ref TransformQvvs bWorld, in TransformQvvs a, in TransformQvs b)
+        {
+            bWorld.rotation = math.normalize(math.mul(a.rotation, b.rotation));
+            bWorld.position = a.position + math.rotate(a.rotation, b.position * a.stretch * a.scale);
+            // bWorld.worldIndex is preserved
+            // bWorld.stretch is preserved
+            bWorld.scale = a.scale * b.scale;
+        }
+
+        /// <summary>
+        /// Multiplies B by the inverse of A, effectively computing the local transform of B relative to A.
+        /// </summary>
+        /// <param name="a">The transform to inverse</param>
+        /// <param name="b">The transform to not inverse</param>
+        /// <returns>A local transform of B relative to A</returns>
         public static TransformQvs inversemul(in TransformQvvs a, in TransformQvvs b)
         {
             var inverseRotation = math.conjugate(a.rotation);
@@ -122,6 +171,31 @@ namespace Latios.Transforms
             };
         }
 
+        /// <summary>
+        /// Multiplies B by the inverse of A, effectively computing the local transform of B relative to A. This variant normalizes the rotation
+        /// </summary>
+        /// <param name="a">The transform to inverse</param>
+        /// <param name="b">The transform to not inverse</param>
+        /// <returns>A local transform of B relative to A</returns>
+        public static TransformQvs inversemulclean(in TransformQvvs a, in TransformQvvs b)
+        {
+            var inverseRotation = math.conjugate(a.rotation);
+            var rcps            = math.rcp(new float4(a.stretch, a.scale));
+            return new TransformQvs
+            {
+                position = math.rotate(inverseRotation, b.position - a.position) * rcps.xyz * rcps.w,
+                rotation = math.mul(inverseRotation, b.rotation),
+                scale    = rcps.w * b.scale
+            };
+        }
+
+        /// <summary>
+        /// Multiplies B by the inverse of A, effectively computing the local transform of B relative to A, and returns the result as a QVVS
+        /// with stretch and worldIndex taken from B.
+        /// </summary>
+        /// <param name="a">The transform to inverse</param>
+        /// <param name="b">The transform to not inverse</param>
+        /// <returns>A local transform of B relative to A</returns>
         public static TransformQvvs inversemulqvvs(in TransformQvvs a, in TransformQvvs b)
         {
             var inverseRotation = math.conjugate(a.rotation);
@@ -130,6 +204,27 @@ namespace Latios.Transforms
             {
                 position   = math.rotate(inverseRotation, b.position - a.position) * rcps.xyz * rcps.w,
                 rotation   = math.mul(inverseRotation, b.rotation),
+                scale      = rcps.w * b.scale,
+                stretch    = b.stretch,
+                worldIndex = b.worldIndex
+            };
+        }
+
+        /// <summary>
+        /// Multiplies B by the inverse of A, effectively computing the local transform of B relative to A, and returns the result as a QVVS
+        /// with stretch and worldIndex taken from B. This variant normalizes the rotation.
+        /// </summary>
+        /// <param name="a">The transform to inverse</param>
+        /// <param name="b">The transform to not inverse</param>
+        /// <returns>A local transform of B relative to A</returns>
+        public static TransformQvvs inversemulqvvsclean(in TransformQvvs a, in TransformQvvs b)
+        {
+            var inverseRotation = math.conjugate(a.rotation);
+            var rcps            = math.rcp(new float4(a.stretch, a.scale));
+            return new TransformQvvs
+            {
+                position   = math.rotate(inverseRotation, b.position - a.position) * rcps.xyz * rcps.w,
+                rotation   = math.normalize(math.mul(inverseRotation, b.rotation)),
                 scale      = rcps.w * b.scale,
                 stretch    = b.stretch,
                 worldIndex = b.worldIndex
@@ -341,9 +436,19 @@ namespace Latios.Transforms
             return math.mul(qvvs.rotation, rotation);
         }
 
+        public static quaternion TransformRotationClean(in TransformQvvs qvvs, quaternion rotation)
+        {
+            return math.normalize(math.mul(qvvs.rotation, rotation));
+        }
+
         public static quaternion InverseTransformRotation(in TransformQvvs qvvs, quaternion rotation)
         {
             return math.InverseRotateFast(qvvs.rotation, rotation);
+        }
+
+        public static quaternion InverseTransformRotationClean(in TransformQvvs qvvs, quaternion rotation)
+        {
+            return math.normalize(math.InverseRotateFast(qvvs.rotation, rotation));
         }
 
         public static float TransformScale(in TransformQvvs qvvs, float scale) => qvvs.scale * scale;
@@ -358,6 +463,20 @@ namespace Latios.Transforms
             {
                 position   = qvvs.position + pivotToNewPosition - pivotToOldPosition,
                 rotation   = math.mul(rotation, qvvs.rotation),
+                scale      = qvvs.scale,
+                stretch    = qvvs.stretch,
+                worldIndex = qvvs.worldIndex
+            };
+        }
+
+        public static TransformQvvs RotateAboutClean(in TransformQvvs qvvs, quaternion rotation, float3 pivot)
+        {
+            var pivotToOldPosition = qvvs.position - pivot;
+            var pivotToNewPosition = math.rotate(rotation, pivotToOldPosition);
+            return new TransformQvvs
+            {
+                position   = qvvs.position + pivotToNewPosition - pivotToOldPosition,
+                rotation   = math.normalize(math.mul(rotation, qvvs.rotation)),
                 scale      = qvvs.scale,
                 stretch    = qvvs.stretch,
                 worldIndex = qvvs.worldIndex

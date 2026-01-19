@@ -26,11 +26,6 @@ namespace Lsss
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             float arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
@@ -69,7 +64,7 @@ namespace Lsss
         {
             Random random = new Random(populator.randomSeed);
 
-            foreach((var transform, var path) in Query<TransformAspect, RefRW<SpawnPointOrbitalPath> >().WithAll<NewSpawnerTag>())
+            foreach((var path, var entity) in Query<RefRW<SpawnPointOrbitalPath> >().WithEntityAccess().WithAll<NewSpawnerTag, WorldTransform>())
             {
                 float orbitalRadius           = random.NextFloat(0f, 1f);
                 path.ValueRW.radius           = orbitalRadius * orbitalRadius * (radius - populator.colliderRadius);
@@ -77,6 +72,7 @@ namespace Lsss
                 path.ValueRW.orbitPlaneNormal = random.NextFloat3Direction();
                 path.ValueRW.orbitSpeed       = random.NextFloat(populator.minMaxOrbitSpeed.x, populator.minMaxOrbitSpeed.y);
 
+                var transform           = state.GetTransfromAspect(entity);
                 transform.localScale    = 1f;
                 transform.stretch       = 1f;
                 transform.worldRotation = quaternion.identity;

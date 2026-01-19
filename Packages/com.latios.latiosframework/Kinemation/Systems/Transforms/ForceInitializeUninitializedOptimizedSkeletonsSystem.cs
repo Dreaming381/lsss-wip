@@ -6,11 +6,11 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
 #if !LATIOS_TRANSFORMS_UNITY
-    [UpdateInGroup(typeof(Latios.Transforms.Systems.PreTransformSuperSystem))]
+    [UpdateInGroup(typeof(Latios.Transforms.Systems.ExportToGameObjectTransformsSuperSystem), OrderFirst = true)]
 #else
     [UpdateInGroup(typeof(Unity.Transforms.TransformSystemGroup))]
-#endif
     [UpdateBefore(typeof(UpdateSocketsSystem))]
+#endif
     [DisableAutoCreation]
     [BurstCompile]
     public partial struct ForceInitializeUninitializedOptimizedSkeletonsSystem : ISystem

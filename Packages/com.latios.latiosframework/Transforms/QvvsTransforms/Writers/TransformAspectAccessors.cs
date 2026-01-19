@@ -1,0 +1,306 @@
+using System.Diagnostics;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
+using Unity.Entities.Exposed;
+using Unity.Mathematics;
+
+namespace Latios.Transforms
+{
+    /// <summary>
+    /// A struct which should be a field of a single-threaded job. It can provide TransformAspect instances for the context of such a job.
+    /// </summary>
+    public unsafe struct TransformAspectLookup
+    {
+        /* Construct Snippet
+           new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                  SystemAPI.GetComponentLookup<RootReference>(true),
+                                  SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
+                                  SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
+                                  SystemAPI.GetEntityStorageInfoLookup())
+         */
+        ComponentLookup<WorldTransform>                   transformLookup;
+        [ReadOnly] ComponentLookup<RootReference>         rootRefLookup;
+        [ReadOnly] BufferLookup<EntityInHierarchy>        eihLookup;
+        [ReadOnly] BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
+        [ReadOnly] EntityStorageInfoLookup                esil;
+
+        public TransformAspectLookup(ComponentLookup<WorldTransform>        worldTransformLookup,
+                                     ComponentLookup<RootReference>         rootReferenceLookupRO,
+                                     BufferLookup<EntityInHierarchy>        entityInHierarchyLookupRO,
+                                     BufferLookup<EntityInHierarchyCleanup> entityInHierarchyCleanupRO,
+                                     EntityStorageInfoLookup entityStorageInfoLookup)
+        {
+            transformLookup = worldTransformLookup;
+            rootRefLookup   = rootReferenceLookupRO;
+            eihLookup       = entityInHierarchyLookupRO;
+            cleanupLookup   = entityInHierarchyCleanupRO;
+            esil            = entityStorageInfoLookup;
+        }
+
+        public TransformAspect this[EntityInHierarchyHandle handle] => new TransformAspect
+        {
+            m_worldTransform = transformLookup.GetRefRW(handle.entity),
+            m_handle         = handle,
+            m_esil           = esil,
+            m_accessType     = TransformAspect.AccessType.ComponentLookup,
+            m_access         = UnsafeUtility.AddressOf(ref transformLookup)
+        };
+
+        public TransformAspect this[Entity entity]
+        {
+            get
+            {
+                var worldTransform = transformLookup.GetRefRW(entity);
+                var handle         = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+                if (handle.isNull)
+                    return new TransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+                else
+                {
+                    return new TransformAspect
+                    {
+                        m_worldTransform = worldTransform,
+                        m_handle         = handle,
+                        m_esil           = esil,
+                        m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                        m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                    };
+                }
+            }
+        }
+
+        public EntityStorageInfoLookup entityStorageInfoLookup => esil;
+        public bool TryGetWorldTransformRO(Entity entity, out RefRO<WorldTransform> worldTransform) => transformLookup.TryGetRefRO(entity, out worldTransform);
+    }
+
+    /// <summary>
+    /// A struct which should be a field of a parallel IJobChunk, IJobEntityChunkBeginEnd, or equivalent.
+    /// It can provide TransformAspect for any root or solo entities with thread-safe guarantees.
+    /// For each chunk, call SetupChunk(). Then use the indexer with the index of the entity within the chunk to get the TransformAspect.
+    /// If used in an IJobEntity, make sure to include WorldTransform in your query!
+    /// </summary>
+    public unsafe struct TransformAspectRootHandle
+    {
+        /* Construct Snippet
+           new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                      SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
+                                      SystemAPI.GetEntityStorageInfoLookup())
+         */
+
+        struct ThreadCache
+        {
+            public ComponentTypeHandle<WorldTransform> transformHandle;
+            public NativeArray<WorldTransform>         chunkTransforms;
+            public BufferAccessor<EntityInHierarchy>   entityInHierarchyAccessor;
+        }
+
+        TransformsComponentLookup<WorldTransform>        transformLookup;
+        [ReadOnly] BufferTypeHandle<EntityInHierarchy>   hierarchyHandle;
+        [ReadOnly] EntityStorageInfoLookup               esil;
+        [NativeDisableUnsafePtrRestriction] ThreadCache* cache;
+        HasChecker<RootReference>                        rootRefChecker;
+
+        public TransformAspectRootHandle(ComponentLookup<WorldTransform>     worldTransformLookupRW,
+                                         BufferTypeHandle<EntityInHierarchy> entityInHierarchyHandleRO,
+                                         EntityStorageInfoLookup entityStorageInfoLookup)
+        {
+            transformLookup = worldTransformLookupRW;
+            hierarchyHandle = entityInHierarchyHandleRO;
+            esil            = entityStorageInfoLookup;
+            cache           = null;
+            rootRefChecker  = default;
+        }
+
+        public void SetupChunk(in ArchetypeChunk chunk)
+        {
+            CheckIsRoot(in chunk);
+            if (cache == null)
+            {
+                cache                  = AllocatorManager.Allocate<ThreadCache>(Allocator.Temp);
+                cache->transformHandle = transformLookup.lookup.ToHandle(false);
+            }
+            cache->chunkTransforms           = chunk.GetNativeArray(ref cache->transformHandle);
+            cache->entityInHierarchyAccessor = chunk.GetBufferAccessorRO(ref hierarchyHandle);
+        }
+
+        public TransformAspect this[int indexInChunk]
+        {
+            get
+            {
+                CheckInit();
+                var transform = new RefRW<WorldTransform>(cache->chunkTransforms, indexInChunk);
+                if (cache->entityInHierarchyAccessor.Length == 0)
+                {
+                    return new TransformAspect
+                    {
+                        m_worldTransform = transform,
+                        m_handle         = default
+                    };
+                }
+                else
+                {
+                    return new TransformAspect
+                    {
+                        m_worldTransform = transform,
+                        m_handle         = cache->entityInHierarchyAccessor[indexInChunk].GetRootHandle(),
+                        m_esil           = esil,
+                        m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                        m_access         = UnsafeUtility.AddressOf(ref transformLookup)
+                    };
+                }
+            }
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckInit()
+        {
+            if (cache == null)
+                throw new System.InvalidOperationException(
+                    "The TransformAccessRootHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to SetupChunk().");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckIsRoot(in ArchetypeChunk chunk)
+        {
+            if (rootRefChecker[chunk])
+                throw new System.InvalidOperationException("Cannot set up a TransformAccessRootHandle for a chunk containing non-root entities.");
+        }
+    }
+
+    public static class TransformAspectAccessExtensions
+    {
+        /// <summary>
+        /// Gets the TransformAspect of the handle powered by the system's EntityManager.
+        /// </summary>
+        public static unsafe TransformAspect GetTransfromAspect(this ref SystemState state, EntityInHierarchyHandle handle)
+        {
+            var worldTransform = state.EntityManager.GetComponentDataRW<WorldTransform>(handle.entity);
+            return new TransformAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = state.EntityManager.GetEntityStorageInfoLookup(),
+                m_accessType     = TransformAspect.AccessType.EntityManager,
+                m_access         = state.GetEntityManagerPtr()
+            };
+        }
+
+        /// <summary>
+        /// Gets the TransformAspect of the entity powered by the system's EntityManager.
+        /// </summary>
+        public static unsafe TransformAspect GetTransfromAspect(this ref SystemState state, Entity entity)
+        {
+            var worldTransform = state.EntityManager.GetComponentDataRW<WorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, state.EntityManager);
+            if (handle.isNull)
+                return new TransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = state.EntityManager.GetEntityStorageInfoLookup(),
+                    m_accessType     = TransformAspect.AccessType.EntityManager,
+                    m_access         = state.GetEntityManagerPtr()
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TransformAspect of the handle powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup.
+        /// </summary>
+        public static unsafe TransformAspect GetTransformAspect(this ref ComponentBroker broker, EntityInHierarchyHandle handle)
+        {
+            var worldTransform = broker.GetRW<WorldTransform>(handle.entity);
+            return new TransformAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = broker.entityStorageInfoLookup,
+                m_accessType     = TransformAspect.AccessType.ComponentBroker,
+                m_access         = UnsafeUtility.AddressOf(ref broker)
+            };
+        }
+
+        /// <summary>
+        /// Gets the TransformAspect of the entity powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup.
+        /// </summary>
+        public static unsafe TransformAspect GetTransformAspect(this ref ComponentBroker broker, Entity entity)
+        {
+            var worldTransform = broker.GetRW<WorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref broker);
+            if (handle.isNull)
+                return new TransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
+                    m_accessType     = TransformAspect.AccessType.ComponentBroker,
+                    m_access         = UnsafeUtility.AddressOf(ref broker)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TransformAspect of the handle powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup. The aspect
+        /// is verified for parallel writing by the key.
+        /// </summary>
+        public static unsafe TransformAspect GetTransformAspect(this ref ComponentBroker broker, EntityInHierarchyHandle handle, TransformsKey key)
+        {
+            key.Validate(handle.root.entity);
+            var worldTransform = broker.GetRWIgnoreParallelSafety<WorldTransform>(handle.entity);
+            return new TransformAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = broker.entityStorageInfoLookup,
+                m_accessType     = TransformAspect.AccessType.ComponentBrokerKeyed,
+                m_access         = UnsafeUtility.AddressOf(ref broker)
+            };
+        }
+
+        /// <summary>
+        /// Gets the TransformAspect of the entity powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup. The aspect
+        /// is verified for parallel writing by the key.
+        /// </summary>
+        public static unsafe TransformAspect GetTransformAspect(this ref ComponentBroker broker, Entity entity, TransformsKey key)
+        {
+            var worldTransform = broker.GetRWIgnoreParallelSafety<WorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref broker);
+            if (handle.isNull)
+            {
+                key.Validate(entity);
+                return new TransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            }
+            else
+            {
+                key.Validate(handle.root.entity);
+                return new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
+                    m_accessType     = TransformAspect.AccessType.ComponentBrokerKeyed,
+                    m_access         = UnsafeUtility.AddressOf(ref broker)
+                };
+            }
+        }
+    }
+}
+

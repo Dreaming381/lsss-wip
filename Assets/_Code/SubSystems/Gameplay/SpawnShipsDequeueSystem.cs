@@ -40,7 +40,7 @@ namespace Lsss
             var    spawnQueues  = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
             int    initialIndex = latiosWorld.sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
             Entity nscEntity    = latiosWorld.sceneBlackboardEntity;
-            var    icb          = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent, LocalTransform>();
+            var    icb          = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>();
 
             var job = new SpawnDequeueJob
             {
@@ -72,24 +72,30 @@ namespace Lsss
             }
         }
 
-        [WithAll(typeof(SpawnPointTag))]
+        [WithAll(typeof(SpawnPointTag), typeof(WorldTransform))]
         [BurstCompile]
         partial struct SpawnDequeueJob : IJobEntity, IJobEntityChunkBeginEnd
         {
             public int  initialIndex;
             public bool useBeforeIndex;
 
-            public SpawnQueues                                      spawnQueues;
-            public Entity                                           nscEntity;
-            public InstantiateCommandBuffer<Parent, LocalTransform> icb;
-            public ComponentLookup<NextSpawnCounter>                nscLookup;
+            public TransformAspectRootHandle                       transformHandle;
+            public SpawnQueues                                     spawnQueues;
+            public Entity                                          nscEntity;
+            public InstantiateCommandBufferCommand1<ParentCommand> icb;
+            public ComponentLookup<NextSpawnCounter>               nscLookup;
 
-            public void Execute(Entity entity, [EntityIndexInQuery] int entityInQueryIndex, ref SpawnPayload payload, ref SpawnTimes times, TransformAspect transform,
-                                in SpawnPoint spawnData, in SafeToSpawn safe)
+            public void Execute(Entity entity,
+                                [EntityIndexInQuery] int indexInQuery,
+                                [EntityIndexInChunk] int indexInChunk,
+                                ref SpawnPayload payload,
+                                ref SpawnTimes times,
+                                in SpawnPoint spawnData,
+                                in SafeToSpawn safe)
             {
-                if (useBeforeIndex && entityInQueryIndex < initialIndex)
+                if (useBeforeIndex && indexInQuery < initialIndex)
                     return;
-                if (!useBeforeIndex && entityInQueryIndex >= initialIndex)
+                if (!useBeforeIndex && indexInQuery >= initialIndex)
                     return;
 
                 bool playerQueued = !spawnQueues.playerQueue.IsEmpty();
@@ -98,6 +104,8 @@ namespace Lsss
 
                 if ((playerQueued || aiQueued) && isReady && safe.safe)
                 {
+                    var transform = transformHandle[indexInChunk];
+
                     if (playerQueued)
                         payload.disabledShip = spawnQueues.playerQueue.Dequeue();
                     else
@@ -110,9 +118,9 @@ namespace Lsss
                     var rotation            = nsc.random.NextQuaternionRotation();
                     transform.localRotation = quaternion.LookRotationSafe(math.forward(rotation), new float3(0f, 1f, 0f));
 
-                    icb.Add(spawnData.spawnGraphicPrefab, new Parent { parent = entity }, new LocalTransform { localTransform = new TransformQvs(0, quaternion.identity, 0f)});
+                    icb.Add(spawnData.spawnGraphicPrefab, new ParentCommand(entity));
 
-                    nsc.index            = entityInQueryIndex;
+                    nsc.index            = indexInQuery;
                     nscLookup[nscEntity] = nsc;
                 }
             }
@@ -128,6 +136,7 @@ namespace Lsss
                     return false;
                 if (!useBeforeIndex && baseIndex >= initialIndex)
                     return false;
+                transformHandle.SetupChunk(in chunk);
                 return true;
             }
 

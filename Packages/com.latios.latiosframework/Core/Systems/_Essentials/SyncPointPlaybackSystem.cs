@@ -116,7 +116,7 @@ namespace Latios.Systems
         public void OnCreate(ref SystemState state)
         {
             m_world                                   = state.GetLatiosWorldUnmanaged();
-            fixed(SyncPointPlaybackSystem* ptr        = &this)
+            fixed (SyncPointPlaybackSystem* ptr       = &this)
             m_world.m_impl->m_syncPointPlaybackSystem = ptr;
 
             m_commandBufferAllocator = new AllocatorHelper<RewindableAllocator>(Allocator.Persistent);
@@ -567,13 +567,17 @@ namespace Latios.Systems
 
         #endregion
     }
+}
 
+namespace Latios
+{
     public static class SyncPointsInstantiateCommand1Extensions
     {
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand1<T0> CreateInstantiateCommandBuffer<T0>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged, IInstantiateCommand
+        public static InstantiateCommandBufferCommand1<T0> CreateInstantiateCommandBuffer<T0>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        IInstantiateCommand
         {
             var icb = new InstantiateCommandBufferCommand1<T0>(syncPoint.allocator);
             syncPoint.AddInstantiateCommandBufferUntyped(icb.m_instantiateCommandBufferUntyped);
@@ -583,7 +587,7 @@ namespace Latios.Systems
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand1<T0, T1> CreateInstantiateCommandBuffer<T0, T1>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        public static InstantiateCommandBufferCommand1<T0, T1> CreateInstantiateCommandBuffer<T0, T1>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IInstantiateCommand
         {
@@ -595,7 +599,7 @@ namespace Latios.Systems
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand1<T0, T1, T2> CreateInstantiateCommandBuffer<T0, T1, T2>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        public static InstantiateCommandBufferCommand1<T0, T1, T2> CreateInstantiateCommandBuffer<T0, T1, T2>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IInstantiateCommand
         {
@@ -607,7 +611,8 @@ namespace Latios.Systems
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand1<T0, T1, T2, T3> CreateInstantiateCommandBuffer<T0, T1, T2, T3>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        public static InstantiateCommandBufferCommand1<T0, T1, T2, T3> CreateInstantiateCommandBuffer<T0, T1, T2,
+                                                                                                      T3>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IInstantiateCommand
         {
@@ -620,7 +625,7 @@ namespace Latios.Systems
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
         public static InstantiateCommandBufferCommand1<T0, T1, T2, T3, T4> CreateInstantiateCommandBuffer<T0, T1, T2, T3,
-                                                                                                          T4>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+                                                                                                          T4>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData where T4 : unmanaged, IInstantiateCommand
         {
@@ -633,7 +638,8 @@ namespace Latios.Systems
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
         public static InstantiateCommandBufferCommand1<T0, T1, T2, T3, T4, T5> CreateInstantiateCommandBuffer<T0, T1, T2, T3, T4,
-                                                                                                              T5>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+                                                                                                              T5>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 :
+        unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData where T4 : unmanaged, IComponentData where T5 : unmanaged, IInstantiateCommand
         {
@@ -648,7 +654,7 @@ namespace Latios.Systems
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand2<T0, T1> CreateInstantiateCommandBuffer<T0, T1>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        public static InstantiateCommandBufferCommand2<T0, T1> CreateInstantiateCommandBuffer<T0, T1>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IInstantiateCommand where T1 : unmanaged,
         IInstantiateCommand
         {
@@ -660,7 +666,7 @@ namespace Latios.Systems
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand2<T0, T1, T2> CreateInstantiateCommandBuffer<T0, T1, T2>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        public static InstantiateCommandBufferCommand2<T0, T1, T2> CreateInstantiateCommandBuffer<T0, T1, T2>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IInstantiateCommand where T2 : unmanaged, IInstantiateCommand
         {
@@ -672,7 +678,8 @@ namespace Latios.Systems
         /// <summary>
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
-        public static InstantiateCommandBufferCommand2<T0, T1, T2, T3> CreateInstantiateCommandBuffer<T0, T1, T2, T3>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+        public static InstantiateCommandBufferCommand2<T0, T1, T2, T3> CreateInstantiateCommandBuffer<T0, T1, T2,
+                                                                                                      T3>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IInstantiateCommand where T3 : unmanaged, IInstantiateCommand
         {
@@ -685,7 +692,7 @@ namespace Latios.Systems
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
         public static InstantiateCommandBufferCommand2<T0, T1, T2, T3, T4> CreateInstantiateCommandBuffer<T0, T1, T2, T3,
-                                                                                                          T4>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+                                                                                                          T4>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IInstantiateCommand where T4 : unmanaged, IInstantiateCommand
         {
@@ -698,7 +705,8 @@ namespace Latios.Systems
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
         public static InstantiateCommandBufferCommand2<T0, T1, T2, T3, T4, T5> CreateInstantiateCommandBuffer<T0, T1, T2, T3, T4,
-                                                                                                              T5>(this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged,
+                                                                                                              T5>(this Systems.SyncPointPlaybackSystem syncPoint) where T0 :
+        unmanaged,
         IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData where T4 : unmanaged, IInstantiateCommand where T5 : unmanaged, IInstantiateCommand
         {
@@ -711,7 +719,7 @@ namespace Latios.Systems
         /// Creates a new InstantiateCommandBuffer that will be played back by this system.
         /// </summary>
         public static InstantiateCommandBufferCommand2<T0, T1, T2, T3, T4, T5, T6> CreateInstantiateCommandBuffer<T0, T1, T2, T3, T4, T5, T6>(
-            this SyncPointPlaybackSystem syncPoint) where T0 : unmanaged, IComponentData where T1 : unmanaged,
+            this Systems.SyncPointPlaybackSystem syncPoint) where T0 : unmanaged, IComponentData where T1 : unmanaged,
         IComponentData where T2 : unmanaged, IComponentData where T3 : unmanaged, IComponentData where T4 : unmanaged, IComponentData where T5 : unmanaged,
         IInstantiateCommand where T6 : unmanaged, IInstantiateCommand
         {

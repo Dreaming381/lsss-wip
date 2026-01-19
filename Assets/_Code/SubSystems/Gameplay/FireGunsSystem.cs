@@ -1,5 +1,4 @@
 ﻿using Latios;
-using Latios.Psyshock;
 using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
@@ -23,15 +22,10 @@ namespace Lsss
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform, BulletFirer>().AsParallelWriter();
-            var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<Parent>().AsParallelWriter();
+            var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>().AsParallelWriter();
             float dt        = Time.DeltaTime;
 
             var job = new Job
@@ -43,9 +37,6 @@ namespace Lsss
                 colliderLookup       = GetComponentLookup<BulletCollider>(true)
             };
             job.ScheduleParallel();
-
-            //CompleteDependency();
-            //EntityManager.CompleteAllJobs();
         }
 
         [WithAll(typeof(ShipTag))]
@@ -53,7 +44,7 @@ namespace Lsss
         partial struct Job : IJobEntity
         {
             public InstantiateCommandBuffer<WorldTransform, BulletFirer>.ParallelWriter bulletIcb;
-            public InstantiateCommandBuffer<Parent>.ParallelWriter                      effectIcb;
+            public InstantiateCommandBufferCommand1<ParentCommand>.ParallelWriter       effectIcb;
             public float                                                                dt;
 
             [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
@@ -84,7 +75,7 @@ namespace Lsss
                                           chunkIndexInQuery);
                             if (effectPrefab.effectPrefab != Entity.Null)
                             {
-                                effectIcb.Add(effectPrefab.effectPrefab, new Parent { parent = gunPoints[i].gun }, chunkIndexInQuery);
+                                effectIcb.Add(effectPrefab.effectPrefab, new ParentCommand(gunPoints[i].gun), chunkIndexInQuery);
                             }
                         }
                     }

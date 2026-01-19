@@ -1,4 +1,3 @@
-using Latios.Transforms.Authoring;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -12,8 +11,6 @@ namespace Latios.Kinemation.Authoring.Systems
     [BurstCompile]
     public partial struct BindSkinnedMeshesToSkeletonsSystem : ISystem
     {
-        [BakingType] struct IdentityRequestTag : IRequestCopyParentTransform { }
-
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
@@ -63,8 +60,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     }
                     else
                     {
-                        ecb.AddComponent(                    chunkIndexInQuery, skinnedMesh.skinnedMeshEntity, new BindSkeletonRoot { root = entity });
-                        ecb.AddComponent<IdentityRequestTag>(chunkIndexInQuery, skinnedMesh.skinnedMeshEntity);
+                        ecb.AddComponent(chunkIndexInQuery, skinnedMesh.skinnedMeshEntity, new BindSkeletonRoot { root = entity });
                     }
                 }
             }
@@ -80,8 +76,7 @@ namespace Latios.Kinemation.Authoring.Systems
             {
                 if (root.root == Entity.Null)
                 {
-                    ecb.RemoveComponent<BindSkeletonRoot>(  chunkIndexInQuery, entity);
-                    ecb.RemoveComponent<IdentityRequestTag>(chunkIndexInQuery, entity);
+                    ecb.RemoveComponent<BindSkeletonRoot>( chunkIndexInQuery, entity);
                 }
             }
         }

@@ -23,32 +23,17 @@ namespace Lsss.SuperSystems
     }
 
     [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateBefore(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
-    public partial class LsssPreTransformRootSuperSystem : RootSuperSystem
+    public partial class LsssSimulationRootSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
             GetOrCreateAndAddManagedSystem<PlayerInGameSuperSystem>();
             GetOrCreateAndAddManagedSystem<AdvanceGameplayMotionSuperSystem>();
-        }
-    }
 
-    [UpdateInGroup(typeof(SimulationSystemGroup))]
-    [UpdateAfter(typeof(Latios.Transforms.Systems.TransformSuperSystem))]
-    public partial class LsssPostTransformRootSuperSystem : RootSuperSystem
-    {
-        protected override void CreateSystems()
-        {
             GetOrCreateAndAddManagedSystem<UpdateTransformSpatialQueriesSuperSystem>();
             GetOrCreateAndAddManagedSystem<AiUpdateSuperSystem>();
             GetOrCreateAndAddManagedSystem<ProcessGameplayEventsSuperSystem>();
             GetOrCreateAndAddManagedSystem<GraphicsTransformsSuperSystem>();
-        }
-
-        protected override void OnUpdate()
-        {
-            base.OnUpdate();
-            //EntityManager.CompleteAllTrackedJobs();
         }
     }
 

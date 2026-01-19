@@ -91,6 +91,15 @@ namespace Unity.Entities.Exposed
             return UnsafeUtility.MemCmp(&esil, &def, UnsafeUtility.SizeOf<EntityStorageInfoLookup>()) == 0;
         }
 
+        public static unsafe ComponentTypeHandle<T> ToHandle<T>(this ComponentLookup<T> lookup, bool isReadOnly) where T : unmanaged, IComponentData
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            return new ComponentTypeHandle<T>(lookup.m_Safety, isReadOnly, lookup.GlobalSystemVersion);
+#else
+            return new ComponentTypeHandle<T>(isReadOnly, lookup.GlobalSystemVersion);
+#endif
+        }
+
         // The following do not check safety. Always check some safety handle such as EntityStorageInfoLookup.Exists() before use.
         public static unsafe ulong GetBloomMask(in this EntityArchetype archetype) => archetype.Archetype->BloomFilterMask;
         public static unsafe bool HasChunkHeader(in this EntityArchetype archetype) => archetype.Archetype->HasChunkHeader;

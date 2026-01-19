@@ -31,6 +31,7 @@ namespace Latios
             public NativeArray<Entity> entities { get; internal set; }
 
             internal NativeArray<UnsafeIndexedBlockList.ElementPtr> dataPtrs;
+            internal NativeList<Entity>                             requestToDestroyList;
             internal int                                            commandOffset;
             internal int                                            expectedSize;
 
@@ -45,6 +46,19 @@ namespace Latios
                 var ptr = dataPtrs[index].ptr + commandOffset;
                 UnsafeUtility.CopyPtrToStructure<T>(ptr, out var result);
                 return result;
+            }
+
+            /// <summary>
+            /// If either a newly-instantiated entity or an existing entity needs to be destroyed
+            /// immediately at the end of playback of this InstantiateCommandBuffer, add it here.
+            /// </summary>
+            /// <param name="entityToDestroy">An entity that should be destroyed following processing
+            /// of all IInstantiateCommands</param>
+            public unsafe void RequestDestroyEntity(Entity entityToDestroy)
+            {
+                if (!requestToDestroyList.IsCreated)
+                    requestToDestroyList = new NativeList<Entity>(32, Allocator.Temp);
+                requestToDestroyList.Add(entityToDestroy);
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

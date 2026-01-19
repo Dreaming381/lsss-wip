@@ -2,6 +2,7 @@
 using Latios.Psyshock;
 using Latios.Transforms;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -22,32 +23,39 @@ namespace Lsss
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
         }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var dt          = Time.DeltaTime;
             var arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
 
-            new Job { dt = dt, arenaRadius = arenaRadius }.ScheduleParallel();
+            new Job
+            {
+                transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
+                                                                SystemAPI.GetEntityStorageInfoLookup()),
+                dt          = dt,
+                arenaRadius = arenaRadius,
+            }.ScheduleParallel();
         }
 
         [BurstCompile]
-        [WithAll(typeof(ShipTag))]
-        partial struct Job : IJobEntity
+        [WithAll(typeof(ShipTag), typeof(WorldTransform))]
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
         {
-            public float dt;
-            public float arenaRadius;
+            public TransformAspectRootHandle transformHandle;
+            public float                     dt;
+            public float                     arenaRadius;
 
-            public void Execute(TransformAspect transform,
+            public void Execute([EntityIndexInChunk] int indexInChunk,
                                 ref Speed speed,
                                 ref ShipBoostTank boostTank,
                                 in ShipSpeedStats stats,
                                 in ShipDesiredActions desiredActions)
             {
+                var transform = transformHandle[indexInChunk];
+
                 // Rotation
                 var oldRotation         = transform.worldRotation;
                 var turn                = desiredActions.turn * stats.turnSpeed * dt;
@@ -81,6 +89,16 @@ namespace Lsss
                 // Boost Tank
                 boostTank.boost += math.select(stats.boostRechargeRate, -stats.boostDepleteRate, isBoosting) * dt;
                 boostTank.boost  = math.min(boostTank.boost, stats.boostCapacity);
+            }
+
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                transformHandle.SetupChunk(in chunk);
+                return true;
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
     }

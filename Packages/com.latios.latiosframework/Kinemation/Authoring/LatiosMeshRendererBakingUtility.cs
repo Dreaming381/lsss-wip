@@ -13,9 +13,6 @@ namespace Latios.Kinemation.Authoring
 {
     class LatiosMeshRendererBakingUtility
     {
-        [BakingType]
-        internal struct CopyParentRequestTag : IRequestCopyParentTransform { }
-
         [BakingType] struct RequestPreviousTag : IRequestPreviousTransform { }
 
         static List<int>  s_validIndexCache   = new List<int>();
@@ -193,8 +190,10 @@ namespace Latios.Kinemation.Authoring
                     if (primaryRendererIndex >= 0)
                     {
                         baker.AddComponent<AdditionalMeshRendererEntity>(renderer.targetEntity);
+#if !LATIOS_TRANSFORMS_UNITY
                         if (!renderer.isStatic)
-                            baker.AddComponent<CopyParentRequestTag>(renderer.targetEntity);
+                            baker.AddInheritanceFlags(renderer.targetEntity, InheritanceFlags.CopyParent);
+#endif
                     }
                     else
                         primaryRendererIndex = rendererIndex;

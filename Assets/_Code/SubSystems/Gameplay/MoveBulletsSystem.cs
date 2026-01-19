@@ -1,6 +1,7 @@
 ﻿using Latios;
 using Latios.Transforms;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -14,29 +15,39 @@ namespace Lsss
     public partial struct MoveBulletsSystem : ISystem
     {
         [BurstCompile]
-        public void OnCreate(ref SystemState state)
-        {
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt     = Time.DeltaTime;
-            new Job { dt = dt }.ScheduleParallel();
+            float dt = Time.DeltaTime;
+            new Job
+            {
+                transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
+                                                                SystemAPI.GetEntityStorageInfoLookup()),
+                dt = dt
+            }.ScheduleParallel();
         }
 
         [BurstCompile]
-        [WithAll(typeof(BulletTag))]
-        partial struct Job : IJobEntity
+        [WithAll(typeof(BulletTag), typeof(WorldTransform))]
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
         {
-            public float dt;
+            public TransformAspectRootHandle transformHandle;
+            public float                     dt;
 
-            public void Execute(TransformAspect transform, in Speed speed)
+            public void Execute([EntityIndexInChunk] int indexInChunk, in Speed speed)
             {
-                transform.worldPosition += transform.forwardDirection * speed.speed * dt;
+                var transform            = transformHandle[indexInChunk];
+                transform.worldPosition += dt * speed.speed * transform.forwardDirection;
+            }
+
+            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                transformHandle.SetupChunk(in chunk);
+                return true;
+            }
+
+            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
+            {
             }
         }
     }

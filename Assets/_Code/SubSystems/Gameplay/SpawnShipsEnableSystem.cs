@@ -13,12 +13,6 @@ namespace Lsss
     [BurstCompile]
     public partial struct SpawnShipsEnableSystem : ISystem
     {
-        [BurstCompile] public void OnCreate(ref SystemState state)
-        {
-        }
-        [BurstCompile] public void OnDestroy(ref SystemState state)
-        {
-        }
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
@@ -32,7 +26,7 @@ namespace Lsss
                     ecb.Add(ship);
 
                     var entityTransform          = GetComponent<WorldTransform>(entity);
-                    var shipTransform            = GetAspect<TransformAspect>(ship);
+                    var shipTransform            = state.GetTransfromAspect(ship);
                     shipTransform.worldRotation  = entityTransform.rotation;
                     shipTransform.worldPosition  = entityTransform.position;
                     payload.ValueRW.disabledShip = Entity.Null;

@@ -12,20 +12,21 @@ namespace Lsss
     public partial struct FaceCameraSystem : ISystem
     {
         [BurstCompile]
-        public void OnCreate(ref SystemState state)
-        {
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var foundCamera = new NativeReference<float3>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
 
             new JobA { foundCamera = foundCamera }.Schedule();
-            new JobB {foundCamera  = foundCamera}.ScheduleParallel();
+            new JobB
+            {
+                foundCamera     = foundCamera,
+                transformLookup = new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                                            SystemAPI.GetComponentLookup<RootReference>(true),
+                                                            SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
+                                                            SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
+                                                            SystemAPI.GetEntityStorageInfoLookup())
+            }.Schedule();
+            // .ScheduleParallel(); // Can't make parallel with TransformAspectLookup yet.
         }
 
         [BurstCompile]
@@ -41,13 +42,15 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(FaceCameraTag))]
+        [WithAll(typeof(FaceCameraTag), typeof(WorldTransform))]
         partial struct JobB : IJobEntity
         {
             [ReadOnly] public NativeReference<float3> foundCamera;
+            public TransformAspectLookup              transformLookup;
 
-            public void Execute(TransformAspect transform)
+            public void Execute(Entity entity)
             {
+                var    transform = transformLookup[entity];
                 var    camPos    = foundCamera.Value;
                 float3 direction = math.normalize(camPos - transform.worldPosition);
                 if (math.abs(math.dot(direction, new float3(0f, 1f, 0f))) < 0.9999f)
