@@ -140,18 +140,23 @@ namespace Latios.Transforms
         internal int                       m_firstChildIndex;
         internal int                       m_childCount;
         internal InheritanceFlags          m_flags;
+        internal float3                    m_localPosition;
+        internal float                     m_localScale;
+        internal float3                    m_tickedLocalPosition;
+        internal float                     m_tickedLocalScale;
 
         [CreateProperty] public Entity entity => m_descendantEntity;
         [CreateProperty] public int parentIndex => m_parentIndex;
         [CreateProperty] public int childCount => m_childCount;
         [CreateProperty] public int firstChildIndex => m_firstChildIndex;
+        [CreateProperty] public float4 embeddedLocalHint => new float4(m_localPosition, m_localScale);
     }
 
     /// <summary>
     /// A copy of EntityInHierarchy, in case the root is destroyed.
     /// </summary>
     [InternalBufferCapacity(0)]
-    public struct EntityInHierarchyCleanup : IBufferElementData
+    public struct EntityInHierarchyCleanup : ICleanupBufferElementData
     {
         public EntityInHierarchy entityInHierarchy;
     }

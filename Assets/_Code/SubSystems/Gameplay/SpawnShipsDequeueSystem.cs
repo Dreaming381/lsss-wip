@@ -44,12 +44,16 @@ namespace Lsss
 
             var job = new SpawnDequeueJob
             {
-                icb            = icb,
-                initialIndex   = initialIndex,
-                useBeforeIndex = true,
-                nscEntity      = nscEntity,
-                spawnQueues    = spawnQueues,
-                nscLookup      = GetComponentLookup<NextSpawnCounter>()
+                icb             = icb,
+                initialIndex    = initialIndex,
+                useBeforeIndex  = true,
+                nscEntity       = nscEntity,
+                spawnQueues     = spawnQueues,
+                nscLookup       = GetComponentLookup<NextSpawnCounter>(),
+                transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
+                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
+                                                                SystemAPI.GetEntityStorageInfoLookup()),
             };
             job.Schedule();
             job.useBeforeIndex = false;

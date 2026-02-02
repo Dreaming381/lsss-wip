@@ -93,7 +93,7 @@ namespace Latios.Systems
 
         int  m_nextPlaybackIndex;
         bool m_needsAnotherRun;
-        internal bool needsAnotherRun => m_needsAnotherRun;
+        internal bool needsAnotherRun => m_needsAnotherRun && !m_world.zeroToleranceForExceptions;
 
         int m_entityIndex;
         int m_enableIndex;

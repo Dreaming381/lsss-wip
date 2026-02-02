@@ -7,9 +7,9 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-    public static partial class TransformTools
+    public static unsafe partial class TransformTools
     {
-        internal static class Propagate
+        internal static unsafe class Propagate
         {
             public struct WriteCommand
             {
@@ -20,7 +20,7 @@ namespace Latios.Transforms
                     LocalScaleSet,
                     LocalTransformSet,
                     StretchSet,
-                    LocalTransformAndStretchSet,
+                    LocalTransformQvvsSet,
                     WorldPositionSet,
                     WorldRotationSet,
                     WorldScaleSet,
@@ -48,6 +48,7 @@ namespace Latios.Transforms
             // Only commands that use CopyParentParentChanged are allowed when the inheritance flag is CopyParent
             // Multiple commands embedded within the first command's tree (or any previous command tree) is not yet supported
             public static void WriteAndPropagate<TWorld, TAlive>(NativeArray<EntityInHierarchy> hierarchy,
+                                                                 EntityInHierarchy*             extraHierarchy,
                                                                  ReadOnlySpan<TransformQvvs>    commandTransformParts,
                                                                  ReadOnlySpan<WriteCommand>     commands,
                                                                  ref TWorld transformLookup,
@@ -66,6 +67,7 @@ namespace Latios.Transforms
                 {
                     EntityInHierarchy    entityInHierarchyToPropagate = default;
                     OldNewWorldTransform changedTransform             = default;
+                    int                  aliveAncestorToChildrenIndex = 0;
                     bool                 dead                         = false;
                     bool                 hasCommandsRemaining         = commandsRead < commands.Length;
                     bool                 hasInstructionsRemaining     = instructionsRead < instructionsLength;
@@ -76,22 +78,40 @@ namespace Latios.Transforms
                         // Next up is a command we need to write
                         var command                  = commands[commandsRead];
                         entityInHierarchyToPropagate = hierarchy[command.indexInHierarchy];
+                        aliveAncestorToChildrenIndex = command.indexInHierarchy;
 
                         if (!hasInstructionsRemaining || command.indexInHierarchy < instructions[instructionsRead].indexInHierarchy)
                         {
                             // We aren't inheriting any changes from parents. This is a modification only.
-                            changedTransform = ComputeCommandTransform(command, commandTransformParts[commandsRead], new EntityInHierarchyHandle
+                            if (command.indexInHierarchy == 0)
                             {
-                                m_hierarchy = hierarchy,
-                                m_index     = command.indexInHierarchy
-                            }, ref transformLookup, ref aliveLookup);
+                                changedTransform = ComputeCommandTransformRoot(command,
+                                                                               in commandTransformParts[commandsRead],
+                                                                               entityInHierarchyToPropagate.entity,
+                                                                               ref transformLookup);
+                            }
+                            else
+                            {
+                                changedTransform = ComputeCommandTransformChild(command, in commandTransformParts[commandsRead], new EntityInHierarchyHandle
+                                {
+                                    m_hierarchy      = hierarchy,
+                                    m_extraHierarchy = extraHierarchy,
+                                    m_index          = command.indexInHierarchy
+                                }, ref transformLookup, ref aliveLookup);
+                            }
                             // Don't advance the instruction reader
                             instructionsRead--;
                         }
                         else
                         {
                             // We are writing to a transform, but there's also propagations coming.
-                            var instruction              = instructions[instructionsRead];
+                            var instruction = instructions[instructionsRead];
+                            var handle      = new EntityInHierarchyHandle
+                            {
+                                m_hierarchy      = hierarchy,
+                                m_extraHierarchy = extraHierarchy,
+                                m_index          = instruction.indexInHierarchy,
+                            };
                             entityInHierarchyToPropagate = hierarchy[instruction.indexInHierarchy];
                             var flags                    = entityInHierarchyToPropagate.m_flags.HasCopyParent() &&
                                                            instruction.useOverrideFlagsForCopyParent ? instruction.overrideFlagsForCopyParent : entityInHierarchyToPropagate.m_flags;
@@ -100,20 +120,24 @@ namespace Latios.Transforms
                             {
                                 changedTransform = ComputePropagatedTransform(in parentOldNewTransforms,
                                                                               flags,
-                                                                              entityInHierarchyToPropagate.entity,
+                                                                              handle,
+                                                                              instruction.ancestorIndexInHierarchy,
                                                                               ref transformLookup);
                             }
                             else
                             {
-                                var localChangedTransform = ComputeCommandTransform(command,
-                                                                                    commandTransformParts[commandsRead],
-                                                                                    entityInHierarchyToPropagate.entity,
-                                                                                    in parentOldNewTransforms.oldTransform,
-                                                                                    ref transformLookup);
-                                changedTransform = ComputePropagatedTransform(in parentOldNewTransforms,
-                                                                              flags,
-                                                                              entityInHierarchyToPropagate.entity,
-                                                                              ref transformLookup);
+                                var localChangedTransform = ComputePropagatedTransform(in parentOldNewTransforms,
+                                                                                       flags,
+                                                                                       handle,
+                                                                                       instruction.ancestorIndexInHierarchy,
+                                                                                       ref transformLookup);
+                                changedTransform = ComputeCommandTransform(command,
+                                                                           commandTransformParts[commandsRead],
+                                                                           handle,
+                                                                           in parentOldNewTransforms.newTransform,
+                                                                           instruction.ancestorIndexInHierarchy,
+                                                                           ref transformLookup);
+
                                 changedTransform.oldTransform = localChangedTransform.oldTransform;
                             }
                         }
@@ -131,19 +155,28 @@ namespace Latios.Transforms
                         var instruction              = instructions[instructionsRead];
                         changedTransform             = oldNewTransforms[instruction.ancestorOldNewTransformIndex];
                         entityInHierarchyToPropagate = hierarchy[instruction.indexInHierarchy];
+                        aliveAncestorToChildrenIndex = instruction.ancestorIndexInHierarchy;
                         if (instruction.useOverrideFlagsForCopyParent)
                             entityInHierarchyToPropagate.m_flags = instruction.overrideFlagsForCopyParent;
                     }
                     else
                     {
                         // This is a normal handle that needs to receive propagations.
-                        var instruction              = instructions[instructionsRead];
+                        var instruction = instructions[instructionsRead];
+                        var handle      = new EntityInHierarchyHandle
+                        {
+                            m_hierarchy      = hierarchy,
+                            m_extraHierarchy = extraHierarchy,
+                            m_index          = instruction.indexInHierarchy,
+                        };
                         entityInHierarchyToPropagate = hierarchy[instruction.indexInHierarchy];
+                        aliveAncestorToChildrenIndex = instruction.indexInHierarchy;
                         var flags                    = entityInHierarchyToPropagate.m_flags.HasCopyParent() &&
                                                        instruction.useOverrideFlagsForCopyParent ? instruction.overrideFlagsForCopyParent : entityInHierarchyToPropagate.m_flags;
                         changedTransform = ComputePropagatedTransform(in oldNewTransforms[instruction.ancestorOldNewTransformIndex],
                                                                       flags,
-                                                                      entityInHierarchyToPropagate.entity,
+                                                                      handle,
+                                                                      instruction.ancestorIndexInHierarchy,
                                                                       ref transformLookup);
                     }
 
@@ -157,6 +190,7 @@ namespace Latios.Transforms
                             overrideFlagsForCopyParent    = entityInHierarchyToPropagate.m_flags,
                             useOverrideFlagsForCopyParent = dead,
                             indexInHierarchy              = entityInHierarchyToPropagate.firstChildIndex,
+                            ancestorIndexInHierarchy      = aliveAncestorToChildrenIndex
                         };
                         oldNewTransformsLength++;
 
@@ -181,128 +215,199 @@ namespace Latios.Transforms
             struct PropagationInstruction
             {
                 public int              indexInHierarchy;
+                public int              ancestorIndexInHierarchy;
                 public int              ancestorOldNewTransformIndex;
                 public InheritanceFlags overrideFlagsForCopyParent;
                 public bool             useOverrideFlagsForCopyParent;
             }
 
-            static OldNewWorldTransform ComputeCommandTransform<TWorld, TAlive>(WriteCommand command,
-                                                                                TransformQvvs writeData,
-                                                                                EntityInHierarchyHandle handle,
-                                                                                ref TWorld transformLookup,
-                                                                                ref TAlive aliveLookup) where TWorld : unmanaged,
-            IWorldTransform where TAlive : unmanaged, IAlive
+            static OldNewWorldTransform ComputeCommandTransformRoot<TWorld>(WriteCommand command, in TransformQvvs writeData, Entity root,
+                                                                            ref TWorld transformLookup) where TWorld : unmanaged, IWorldTransform
             {
-                ref var transform            = ref transformLookup.GetWorldTransformRefRW(handle.entity).ValueRW.worldTransform;
+                ref var transform            = ref transformLookup.GetWorldTransformRefRW(root).ValueRW.worldTransform;
                 var     oldNewWorldTransform = new OldNewWorldTransform { oldTransform = transform };
                 switch (command.writeType)
                 {
                     case WriteCommand.WriteType.LocalPositionSet:
-                    {
-                        var localTransform      = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.position = writeData.position;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.LocalRotationSet:
-                    {
-                        var localTransform      = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.rotation = writeData.rotation;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.LocalScaleSet:
-                    {
-                        var localTransform   = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.scale = writeData.scale;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.LocalTransformSet:
-                    {
-                        var localTransform      = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.position = writeData.position;
-                        localTransform.rotation = writeData.rotation;
-                        localTransform.scale    = writeData.scale;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.StretchSet:
-                        transform.stretch = writeData.stretch;
-                        break;
-                    case WriteCommand.WriteType.LocalTransformAndStretchSet:
-                    {
-                        var localTransform      = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.position = writeData.position;
-                        localTransform.rotation = writeData.rotation;
-                        localTransform.scale    = writeData.scale;
-                        transform.stretch       = writeData.stretch;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
                     case WriteCommand.WriteType.WorldPositionSet:
                         transform.position = writeData.position;
                         break;
+                    case WriteCommand.WriteType.LocalRotationSet:
                     case WriteCommand.WriteType.WorldRotationSet:
                         transform.rotation = writeData.rotation;
                         break;
+                    case WriteCommand.WriteType.LocalScaleSet:
                     case WriteCommand.WriteType.WorldScaleSet:
                         transform.scale = writeData.scale;
                         break;
+                    case WriteCommand.WriteType.StretchSet:
+                        transform.stretch = writeData.stretch;
+                        break;
+                    case WriteCommand.WriteType.LocalTransformSet:
+                        transform.position = writeData.position;
+                        transform.rotation = writeData.rotation;
+                        transform.scale    = writeData.scale;
+                        break;
+                    case WriteCommand.WriteType.LocalTransformQvvsSet:
                     case WriteCommand.WriteType.WorldTransformSet:
                         transform = writeData;
                         break;
                     case WriteCommand.WriteType.LocalPositionDelta:
-                    {
-                        var localTransform       = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.position += writeData.position;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.LocalRotationDelta:
-                    {
-                        var localTransform      = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        localTransform.rotation = math.normalize(math.mul(writeData.rotation, localTransform.rotation));
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.LocalTransformDelta:
-                    {
-                        var localTransform = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        qvvs.mul(ref transform, in writeData, in localTransform);
-                        transform = qvvs.mulclean(in parentTransform, transform);
-                        break;
-                    }
-                    case WriteCommand.WriteType.LocalInverseTransformDelta:
-                    {
-                        var localTransform     = LocalTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentTransform);
-                        var localTransformQvvs = new TransformQvvs(localTransform.position, localTransform.rotation, localTransform.scale, transform.stretch, transform.worldIndex);
-                        localTransformQvvs     = qvvs.inversemulqvvs(in writeData, in localTransformQvvs);
-                        transform              = qvvs.mulclean(in parentTransform, localTransformQvvs);
-                        break;
-                    }
-                    case WriteCommand.WriteType.StretchDelta:
-                        transform.stretch *= writeData.stretch;
-                        break;
                     case WriteCommand.WriteType.WorldPositionDelta:
                         transform.position += writeData.position;
                         break;
+                    case WriteCommand.WriteType.LocalRotationDelta:
                     case WriteCommand.WriteType.WorldRotationDelta:
                         transform.rotation = math.normalize(math.mul(writeData.rotation, transform.rotation));
                         break;
                     case WriteCommand.WriteType.ScaleDelta:
                         transform.scale *= writeData.scale;
                         break;
+                    case WriteCommand.WriteType.StretchDelta:
+                        transform.stretch *= writeData.stretch;
+                        break;
+                    case WriteCommand.WriteType.LocalTransformDelta:
                     case WriteCommand.WriteType.WorldTransformDelta:
-                        transform = qvvs.mulclean(writeData, transform);
+                        transform = qvvs.mulclean(in writeData, in transform);
                         break;
+                    case WriteCommand.WriteType.LocalInverseTransformDelta:
                     case WriteCommand.WriteType.WorldInverseTransformDelta:
-                        transform = qvvs.inversemulqvvsclean(writeData, transform);
+                        transform = qvvs.inversemulqvvsclean(in writeData, in transform);
                         break;
+                }
+                oldNewWorldTransform.newTransform = transform;
+                return oldNewWorldTransform;
+            }
+
+            static OldNewWorldTransform ComputeCommandTransformChild<TWorld, TAlive>(WriteCommand command,
+                                                                                     in TransformQvvs writeData,
+                                                                                     in EntityInHierarchyHandle handle,
+                                                                                     ref TWorld transformLookup,
+                                                                                     ref TAlive aliveLookup) where TWorld : unmanaged,
+            IWorldTransform where TAlive : unmanaged, IAlive
+            {
+                ref var worldTransform       = ref transformLookup.GetWorldTransformRefRW(handle.entity).ValueRW;
+                ref var transform            = ref worldTransform.worldTransform;
+                var     oldNewWorldTransform = new OldNewWorldTransform { oldTransform = transform };
+                switch (command.writeType)
+                {
+                    case WriteCommand.WriteType.LocalPositionSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetLocalPosition(writeData.position, in parentTransform, ref transform, handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalRotationSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetLocalRotation(writeData.rotation, in parentTransform, ref transform);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalScaleSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetLocalScale(writeData.scale, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalTransformSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetLocalTransform(new TransformQvs(writeData.position, writeData.rotation, writeData.scale),
+                                                        in parentTransform,
+                                                        ref transform,
+                                                        in handle,
+                                                        transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.StretchSet:
+                        WorldLocalOps.SetStretch(writeData.stretch, ref transform);
+                        break;
+                    case WriteCommand.WriteType.LocalTransformQvvsSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetLocalTransformQvvs(in writeData,
+                                                            in parentTransform,
+                                                            ref transform,
+                                                            in handle,
+                                                            transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.WorldPositionSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetWorldPosition(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.WorldRotationSet:
+                        WorldLocalOps.SetWorldRotation(writeData.rotation, ref transform);
+                        break;
+                    case WriteCommand.WriteType.WorldScaleSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetWorldScale(writeData.scale, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.WorldTransformSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetWorldTransform(writeData, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalPositionDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentHandle);
+                        WorldLocalOps.TranslateLocal(writeData.position, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalRotationDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.RotateLocal(writeData.rotation, in parentTransform, ref transform);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalTransformDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentHandle);
+                        WorldLocalOps.TransformLocal(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalInverseTransformDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentHandle);
+                        WorldLocalOps.InverseTransformLocal(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.StretchDelta:
+                        WorldLocalOps.StretchStretch(writeData.stretch, ref transform);
+                        break;
+                    case WriteCommand.WriteType.WorldPositionDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.WorldRotationDelta:
+                        WorldLocalOps.RotateWorld(writeData.rotation, ref transform);
+                        break;
+                    case WriteCommand.WriteType.ScaleDelta:
+                        WorldLocalOps.ScaleScale(writeData.scale, ref transform, in handle, transformLookup.isTicked);
+                        break;
+                    case WriteCommand.WriteType.WorldTransformDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentHandle);
+                        WorldLocalOps.TransformWorld(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
+                        break;
+                    }
+                    case WriteCommand.WriteType.WorldInverseTransformDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentHandle);
+                        WorldLocalOps.InverseTransformWorld(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
+                        break;
+                    }
                     case WriteCommand.WriteType.CopyParentParentChanged:
                     {
-                        var parent = handle.FindParent(ref aliveLookup);
-                        transform  = transformLookup.GetWorldTransform(parent.entity).worldTransform;
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     }
                 }
@@ -312,163 +417,99 @@ namespace Latios.Transforms
 
             static OldNewWorldTransform ComputeCommandTransform<T>(WriteCommand command,
                                                                    TransformQvvs writeData,
-                                                                   Entity entity,
+                                                                   EntityInHierarchyHandle handle,
                                                                    in TransformQvvs parentTransform,
+                                                                   int parentIndex,
                                                                    ref T transformLookup) where T : unmanaged, IWorldTransform
             {
-                ref var transform            = ref transformLookup.GetWorldTransformRefRW(entity).ValueRW.worldTransform;
+                ref var transform            = ref transformLookup.GetWorldTransformRefRW(handle.entity).ValueRW.worldTransform;
                 var     oldNewWorldTransform = new OldNewWorldTransform { oldTransform = transform };
+                var     parentHandle         = handle.GetFromIndexInHierarchy(parentIndex);
                 switch (command.writeType)
                 {
                     case WriteCommand.WriteType.LocalPositionSet:
-                    {
-                        var localTransform      = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.position = writeData.position;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                        WorldLocalOps.SetLocalPosition(writeData.position, in parentTransform, ref transform, handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.LocalRotationSet:
-                    {
-                        var localTransform      = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.rotation = writeData.rotation;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                        WorldLocalOps.SetLocalRotation(writeData.rotation, in parentTransform, ref transform);
                         break;
-                    }
                     case WriteCommand.WriteType.LocalScaleSet:
-                    {
-                        var localTransform   = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.scale = writeData.scale;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                        WorldLocalOps.SetLocalScale(writeData.scale, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.LocalTransformSet:
-                    {
-                        var localTransform      = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.position = writeData.position;
-                        localTransform.rotation = writeData.rotation;
-                        localTransform.scale    = writeData.scale;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                        WorldLocalOps.SetLocalTransform(new TransformQvs(writeData.position, writeData.rotation, writeData.scale),
+                                                        in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.StretchSet:
-                        transform.stretch = writeData.stretch;
+                        WorldLocalOps.SetStretch(writeData.stretch, ref transform);
                         break;
-                    case WriteCommand.WriteType.LocalTransformAndStretchSet:
-                    {
-                        var localTransform      = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.position = writeData.position;
-                        localTransform.rotation = writeData.rotation;
-                        localTransform.scale    = writeData.scale;
-                        transform.stretch       = writeData.stretch;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                    case WriteCommand.WriteType.LocalTransformQvvsSet:
+                        WorldLocalOps.SetLocalTransformQvvs(in writeData, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.WorldPositionSet:
-                        transform.position = writeData.position;
+                        WorldLocalOps.SetWorldPosition(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.WorldRotationSet:
-                        transform.rotation = writeData.rotation;
+                        WorldLocalOps.SetWorldRotation(writeData.rotation, ref transform);
                         break;
                     case WriteCommand.WriteType.WorldScaleSet:
-                        transform.scale = writeData.scale;
+                        WorldLocalOps.SetWorldScale(writeData.scale, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.WorldTransformSet:
-                        transform = writeData;
+                        WorldLocalOps.SetWorldTransform(writeData, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.LocalPositionDelta:
-                    {
-                        var localTransform       = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.position += writeData.position;
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                        WorldLocalOps.TranslateLocal(writeData.position, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.LocalRotationDelta:
-                    {
-                        var localTransform      = qvvs.inversemul(in parentTransform, in transform);
-                        localTransform.rotation = math.normalize(math.mul(writeData.rotation, localTransform.rotation));
-                        qvvs.mulclean(ref transform, in parentTransform, in localTransform);
+                        WorldLocalOps.RotateLocal(writeData.rotation, in parentTransform, ref transform);
                         break;
-                    }
                     case WriteCommand.WriteType.LocalTransformDelta:
-                    {
-                        var localTransform = qvvs.inversemul(in parentTransform, in transform);
-                        qvvs.mul(ref transform, in writeData, in localTransform);
-                        transform = qvvs.mulclean(in parentTransform, transform);
+                        WorldLocalOps.TransformLocal(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.LocalInverseTransformDelta:
-                    {
-                        var localTransform     = qvvs.inversemul(in parentTransform, in transform);
-                        var localTransformQvvs = new TransformQvvs(localTransform.position, localTransform.rotation, localTransform.scale, transform.stretch, transform.worldIndex);
-                        localTransformQvvs     = qvvs.inversemulqvvs(in writeData, in localTransformQvvs);
-                        transform              = qvvs.mulclean(in parentTransform, localTransformQvvs);
+                        WorldLocalOps.InverseTransformLocal(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
-                    }
                     case WriteCommand.WriteType.StretchDelta:
-                        transform.stretch *= writeData.stretch;
+                        WorldLocalOps.StretchStretch(writeData.stretch, ref transform);
                         break;
                     case WriteCommand.WriteType.WorldPositionDelta:
-                        transform.position += writeData.position;
+                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.WorldRotationDelta:
-                        transform.rotation = math.normalize(math.mul(writeData.rotation, transform.rotation));
+                        WorldLocalOps.RotateWorld(writeData.rotation, ref transform);
                         break;
                     case WriteCommand.WriteType.ScaleDelta:
-                        transform.scale *= writeData.scale;
+                        WorldLocalOps.ScaleScale(writeData.scale, ref transform, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.WorldTransformDelta:
-                        transform = qvvs.mulclean(writeData, transform);
+                        WorldLocalOps.TransformWorld(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.WorldInverseTransformDelta:
-                        transform = qvvs.inversemulqvvsclean(writeData, transform);
+                        WorldLocalOps.InverseTransformWorld(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.CopyParentParentChanged:
-                    {
-                        transform = parentTransform;
+                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
-                    }
                 }
                 oldNewWorldTransform.newTransform = transform;
                 return oldNewWorldTransform;
             }
 
-            static OldNewWorldTransform ComputePropagatedTransform<T>(in OldNewWorldTransform oldNewWorldTransform, InheritanceFlags flags, Entity entity,
-                                                                      ref T transformLookup) where T : unmanaged, IWorldTransform
+            static OldNewWorldTransform ComputePropagatedTransform<T>(in OldNewWorldTransform oldNewWorldTransform, InheritanceFlags flags, EntityInHierarchyHandle handle,
+                                                                      int parentIndex, ref T transformLookup) where T : unmanaged, IWorldTransform
             {
-                if (flags.HasCopyParent())
-                {
-                    transformLookup.GetWorldTransformRefRW(entity).ValueRW.worldTransform = oldNewWorldTransform.newTransform;
-                    return oldNewWorldTransform;
-                }
-                if (flags == InheritanceFlags.WorldAll)
-                {
-                    var t                                          = transformLookup.GetWorldTransform(entity).worldTransform;
-                    return new OldNewWorldTransform { oldTransform = t, newTransform = t };
-                }
-
-                // Todo: If flags is not default, check change between old and new transforms of parent, because we might
-                // still be able to early out.
-
-                ref var worldTransform         = ref transformLookup.GetWorldTransformRefRW(entity).ValueRW.worldTransform;
-                var     originalWorldTransform = worldTransform;
-                var     parentTransform        = oldNewWorldTransform.newTransform;
-                var     localTransform         = qvvs.inversemul(oldNewWorldTransform.oldTransform, originalWorldTransform);
-                qvvs.mulclean(ref worldTransform, in parentTransform, in localTransform);
-
-                if ((flags & InheritanceFlags.WorldRotation) == InheritanceFlags.WorldRotation)
-                    worldTransform.rotation = originalWorldTransform.rotation;
-                else if ((flags & InheritanceFlags.WorldRotation) != InheritanceFlags.Normal)
-                    worldTransform.rotation = ComputeMixedRotation(originalWorldTransform.rotation, worldTransform.rotation, flags);
-                if ((flags & InheritanceFlags.WorldX) == InheritanceFlags.WorldX)
-                    worldTransform.position.x = originalWorldTransform.position.x;
-                if ((flags & InheritanceFlags.WorldY) == InheritanceFlags.WorldY)
-                    worldTransform.position.y = originalWorldTransform.position.y;
-                if ((flags & InheritanceFlags.WorldZ) == InheritanceFlags.WorldZ)
-                    worldTransform.position.z = originalWorldTransform.position.z;
-                if ((flags & InheritanceFlags.WorldScale) == InheritanceFlags.WorldScale)
-                    worldTransform.scale = originalWorldTransform.scale;
-
-                return new OldNewWorldTransform { oldTransform = originalWorldTransform, newTransform = worldTransform };
+                ref var transform    = ref transformLookup.GetWorldTransformRefRW(handle.entity).ValueRW.worldTransform;
+                var     parentHandle = handle.GetFromIndexInHierarchy(parentIndex);
+                var     result       = new OldNewWorldTransform { oldTransform = transform };
+                WorldLocalOps.PropagateTransform(in oldNewWorldTransform.newTransform,
+                                                 in oldNewWorldTransform.oldTransform,
+                                                 ref transform,
+                                                 in parentHandle,
+                                                 in handle,
+                                                 transformLookup.isTicked);
+                result.newTransform = transform;
+                return result;
             }
 
             static quaternion ComputeMixedRotation(quaternion originalWorldRotation, quaternion hierarchyWorldRotation, InheritanceFlags flags)

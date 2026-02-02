@@ -621,14 +621,14 @@ namespace Latios
         /// <returns>A pointer to the component, or null if the component is not present</returns>
         public void* GetUnsafeComponentPtrRO(Entity entity, TypeIndex typeIndex)
         {
-            CheckTypeIndexIsInComponentList(typeIndex);
+            CheckTypeIndexIsInComponentList(typeIndex.Index);
             CheckTypeNotBuffer(typeIndex);
 
             if (typeIndex.IsSharedComponentType)
             {
                 fixed (DynamicSharedComponentTypeHandle* s0Ptr = &s0)
                 {
-                    ref var handle = ref s0Ptr[handleIndices[typeIndex].index];
+                    ref var handle = ref s0Ptr[handleIndices[typeIndex.Index].index];
                     void*   ptr    = default;
                     if (entity == currentEntity)
                     {
@@ -646,7 +646,7 @@ namespace Latios
             var                                typeSize = TypeManager.GetTypeInfo(typeIndex).TypeSize;
             fixed (DynamicComponentTypeHandle* c0Ptr    = &c0)
             {
-                ref var                    handle               = ref c0Ptr[handleIndices[typeIndex].index];
+                ref var                    handle               = ref c0Ptr[handleIndices[typeIndex.Index].index];
                 DynamicComponentTypeHandle forcedReadOnlyHandle = !handle.IsReadOnly ? handle.CopyToReadOnly() : default;
                 ref var                    handleToUse          = ref (handle.IsReadOnly ? ref handle : ref forcedReadOnlyHandle);
                 if (entity == currentEntity)
@@ -676,14 +676,14 @@ namespace Latios
         /// <returns>A pointer to the component, or null if the component is not present</returns>
         public void* GetUnsafeComponentPtrRW(Entity entity, TypeIndex typeIndex)
         {
-            CheckTypeIndexIsInComponentList(typeIndex);
+            CheckTypeIndexIsInComponentList(typeIndex.Index);
             CheckTypeNotBuffer(typeIndex);
             CheckTypeNotShared(typeIndex);
 
             var                                typeSize = TypeManager.GetTypeInfo(typeIndex).TypeSize;
             fixed (DynamicComponentTypeHandle* c0Ptr    = &c0)
             {
-                ref var handle = ref c0Ptr[handleIndices[typeIndex].index];
+                ref var handle = ref c0Ptr[handleIndices[typeIndex.Index].index];
                 if (entity == currentEntity)
                 {
                     var array = currentChunk.GetDynamicComponentDataArrayReinterpret<byte>(ref handle, typeSize);
@@ -712,14 +712,14 @@ namespace Latios
         /// <returns>A pointer to the component, or null if the component is not present</returns>
         public void* GetUnsafeComponentPtrROIgnoreParallelSafety(Entity entity, TypeIndex typeIndex)
         {
-            CheckTypeIndexIsInComponentList(typeIndex);
+            CheckTypeIndexIsInComponentList(typeIndex.Index);
             CheckTypeNotBuffer(typeIndex);
 
             if (typeIndex.IsSharedComponentType)
             {
                 fixed (DynamicSharedComponentTypeHandle* s0Ptr = &s0)
                 {
-                    ref var handle = ref s0Ptr[handleIndices[typeIndex].index];
+                    ref var handle = ref s0Ptr[handleIndices[typeIndex.Index].index];
                     void*   ptr    = default;
                     if (entity == currentEntity)
                     {
@@ -737,7 +737,7 @@ namespace Latios
             var                                typeSize = TypeManager.GetTypeInfo(typeIndex).TypeSize;
             fixed (DynamicComponentTypeHandle* c0Ptr    = &c0)
             {
-                ref var                    handle               = ref c0Ptr[handleIndices[typeIndex].index];
+                ref var                    handle               = ref c0Ptr[handleIndices[typeIndex.Index].index];
                 DynamicComponentTypeHandle forcedReadOnlyHandle = !handle.IsReadOnly ? handle.CopyToReadOnly() : default;
                 ref var                    handleToUse          = ref (handle.IsReadOnly ? ref handle : ref forcedReadOnlyHandle);
                 if (entity == currentEntity)
@@ -767,14 +767,14 @@ namespace Latios
         /// <returns>A pointer to the component, or null if the component is not present</returns>
         public void* GetUnsafeComponentPtrRWIgnoreParallelSafety(Entity entity, TypeIndex typeIndex)
         {
-            CheckTypeIndexIsInComponentList(typeIndex);
+            CheckTypeIndexIsInComponentList(typeIndex.Index);
             CheckTypeNotBuffer(typeIndex);
             CheckTypeNotShared(typeIndex);
 
             var                                typeSize = TypeManager.GetTypeInfo(typeIndex).TypeSize;
             fixed (DynamicComponentTypeHandle* c0Ptr    = &c0)
             {
-                ref var handle = ref c0Ptr[handleIndices[typeIndex].index];
+                ref var handle = ref c0Ptr[handleIndices[typeIndex.Index].index];
                 if (entity == currentEntity)
                 {
                     var array = currentChunk.GetDynamicComponentDataArrayReinterpret<byte>(ref handle, typeSize);
@@ -825,11 +825,11 @@ namespace Latios
         /// <returns>True if the entity had the DyanmicBuffer and was able to replace its contents, false if it didn't and nothing happened</returns>
         public bool TryWriteBufferIgnoreParallelSafety(Entity entity, TypeIndex typeIndex, void* dataArrayPtrToWrite, int elementCountToWrite)
         {
-            CheckTypeIndexIsInComponentList(typeIndex);
+            CheckTypeIndexIsInComponentList(typeIndex.Index);
             CheckTypeIsBuffer(typeIndex);
             fixed (DynamicComponentTypeHandle* c0Ptr = &c0)
             {
-                ref var handle = ref c0Ptr[handleIndices[typeIndex].index];
+                ref var handle = ref c0Ptr[handleIndices[typeIndex.Index].index];
                 if (entity == currentEntity)
                 {
                     var access = currentChunk.GetUntypedBufferAccessor(ref handle);
@@ -1402,10 +1402,10 @@ namespace Latios
         /// <returns>A pointer to the first component instance of the specified type in the chunk</returns>
         public static void* GetDynamicComponentDataPtrRO(in this ArchetypeChunk chunk, ref ComponentBroker broker, TypeIndex typeIndex)
         {
-            broker.CheckTypeIndexIsInComponentList(typeIndex);
+            broker.CheckTypeIndexIsInComponentList(typeIndex.Index);
             broker.CheckTypeNotBuffer(typeIndex);
             broker.CheckTypeNotShared(typeIndex);
-            var                                typeSize = TypeManager.GetTypeInfo(typeIndex).SizeInChunk;
+            var                                typeSize = TypeManager.GetTypeInfo(typeIndex.Index).SizeInChunk;
             fixed (DynamicComponentTypeHandle* c0Ptr    = &broker.c0)
             {
                 ref var handle = ref c0Ptr[broker.handleIndices[typeIndex].index];
@@ -1426,13 +1426,13 @@ namespace Latios
         /// <returns>A pointer to the first component instance of the specified type in the chunk</returns>
         public static void* GetDynamicComponentDataPtrRW(in this ArchetypeChunk chunk, ref ComponentBroker broker, TypeIndex typeIndex)
         {
-            broker.CheckTypeIndexIsInComponentList(typeIndex);
+            broker.CheckTypeIndexIsInComponentList(typeIndex.Index);
             broker.CheckTypeNotBuffer(typeIndex);
             broker.CheckTypeNotShared(typeIndex);
             var                                typeSize = TypeManager.GetTypeInfo(typeIndex).SizeInChunk;
             fixed (DynamicComponentTypeHandle* c0Ptr    = &broker.c0)
             {
-                ref var handle = ref c0Ptr[broker.handleIndices[typeIndex].index];
+                ref var handle = ref c0Ptr[broker.handleIndices[typeIndex.Index].index];
                 return chunk.GetDynamicComponentDataArrayReinterpret<byte>(ref handle, typeSize).GetUnsafePtr();
             }
         }

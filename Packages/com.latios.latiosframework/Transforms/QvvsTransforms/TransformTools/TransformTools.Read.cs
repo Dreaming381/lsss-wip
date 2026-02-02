@@ -5,7 +5,7 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-    public static partial class TransformTools
+    public static unsafe partial class TransformTools
     {
         /// <summary>
         /// Computes the local transform of the entity. If the entity does not have a parent, then this
@@ -16,13 +16,13 @@ namespace Latios.Transforms
         /// <param name="worldTransformLookupRO">A readonly ComponentLookup to the WorldTransform component</param>
         /// <param name="parentTransform">The parent's world-space transform for convenience, identity if there was no parent</param>
         /// <returns>The local position, rotation, and uniform scale of the entity</returns>
-        public static TransformQvs LocalTransformFrom(EntityInHierarchyHandle handle,
+        public static TransformQvs LocalTransformFrom(in EntityInHierarchyHandle handle,
                                                       EntityStorageInfoLookup entityStorageInfoLookup,
                                                       ref ComponentLookup<WorldTransform> worldTransformLookupRO,
                                                       out TransformQvvs parentTransform)
         {
             var worldTransform = worldTransformLookupRO[handle.entity];
-            return Unsafe.LocalTransformFrom(handle, in worldTransform, entityStorageInfoLookup, ref worldTransformLookupRO, out parentTransform);
+            return Unsafe.LocalTransformFrom(in handle, in worldTransform, entityStorageInfoLookup, ref worldTransformLookupRO, out parentTransform);
         }
 
         /// <summary>
@@ -34,13 +34,13 @@ namespace Latios.Transforms
         /// <param name="tickedWorldTransformLookupRO">A readonly ComponentLookup to the TickedWorldTransform component</param>
         /// <param name="parentTransform">The parent's world-space transform for convenience, identity if there was no parent</param>
         /// <returns>The local position, rotation, and uniform scale of the entity</returns>
-        public static TransformQvs TickedLocalTransformFrom(EntityInHierarchyHandle handle,
+        public static TransformQvs TickedLocalTransformFrom(in EntityInHierarchyHandle handle,
                                                             EntityStorageInfoLookup entityStorageInfoLookup,
                                                             ref ComponentLookup<TickedWorldTransform> tickedWorldTransformLookupRO,
                                                             out TransformQvvs parentTransform)
         {
             var worldTransform = tickedWorldTransformLookupRO[handle.entity];
-            return Unsafe.TickedLocalTransformFrom(handle, in worldTransform, entityStorageInfoLookup, ref tickedWorldTransformLookupRO, out parentTransform);
+            return Unsafe.TickedLocalTransformFrom(in handle, in worldTransform, entityStorageInfoLookup, ref tickedWorldTransformLookupRO, out parentTransform);
         }
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace Latios.Transforms
             return result;
         }
 
-        internal static TransformQvs LocalTransformFrom<TAlive, TWorld>(EntityInHierarchyHandle handle,
+        internal static TransformQvs LocalTransformFrom<TAlive, TWorld>(in EntityInHierarchyHandle handle,
                                                                         ref TAlive alive,
                                                                         ref TWorld world,
                                                                         out TransformQvvs parentTransform)
@@ -156,11 +156,23 @@ namespace Latios.Transforms
                 if (!parentHandle.isNull)
                 {
                     parentTransform = world.GetWorldTransform(parentHandle.entity).worldTransform;
-                    return qvvs.inversemul(in parentTransform, in worldTransform.worldTransform);
+                    return WorldLocalOps.GetLocalTransformRO(in parentTransform, in worldTransform.worldTransform, in parentHandle, in handle, world.isTicked);
                 }
             }
             parentTransform = TransformQvvs.identity;
             return new TransformQvs(worldTransform.position, worldTransform.rotation, worldTransform.scale);
+        }
+
+        internal static TransformQvvs ParentTransformFrom<TAlive, TWorld>(in EntityInHierarchyHandle handle,
+                                                                          ref TAlive alive,
+                                                                          ref TWorld world,
+                                                                          out EntityInHierarchyHandle parentHandle)
+            where TAlive : unmanaged, IAlive where TWorld : unmanaged, IWorldTransform
+        {
+            parentHandle = handle.FindParent(ref alive);
+            if (!parentHandle.isNull)
+                return world.GetWorldTransform(parentHandle.entity).worldTransform;
+            return TransformQvvs.identity;
         }
     }
 }

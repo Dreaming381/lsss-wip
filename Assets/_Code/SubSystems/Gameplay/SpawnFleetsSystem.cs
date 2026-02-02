@@ -99,7 +99,7 @@ namespace Lsss
         {
             var wts                 = m_playerQuery.ToComponentDataArray<WorldTransform>(Allocator.Temp);
             var wt                  = wts[0];
-            var transform           = state.GetTransfromAspect(newPlayerShip);
+            var transform           = state.EntityManager.GetTransfromAspect(newPlayerShip);
             transform.worldRotation = wt.rotation;
             transform.worldPosition = wt.position;
         }
@@ -114,7 +114,7 @@ namespace Lsss
                     break;
 
                 var ship                = newShips[i];
-                var transform           = state.GetTransfromAspect(ship);
+                var transform           = state.EntityManager.GetTransfromAspect(ship);
                 transform.worldRotation = wt.rotation;
                 transform.worldPosition = wt.position;
             }

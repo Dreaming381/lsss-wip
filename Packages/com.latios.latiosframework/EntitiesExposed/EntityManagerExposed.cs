@@ -98,7 +98,8 @@ namespace Unity.Entities.Exposed
 
         public static Entity GetEntity(this SystemHandle systemHandle) => systemHandle.m_Entity;
 
-        public static unsafe EntityManager* GetEntityManagerPtr(this ref SystemState state) => (EntityManager*)UnsafeUtility.AddressOf(ref state.m_EntityManager);
+        public static unsafe EntityManager* GetEntityManagerPtr(this EntityManager entityManager) => (EntityManager*)UnsafeUtility.AddressOf(
+            ref entityManager.WorldUnmanaged.GetImpl().m_EntityManager);
 
         // Todo: Definitely find a better home or wait for the bug to get fixed.
         // This is just for the TlsfAllocator, which is not thread-safe.

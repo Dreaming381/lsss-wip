@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using static Latios.Transforms.TransformTools;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -9,9 +10,10 @@ namespace Latios.Transforms
     /// <summary>
     /// A handle into an entity within a hierarchy. This type allows for fast hierarchy traversal.
     /// </summary>
-    public struct EntityInHierarchyHandle
+    public unsafe struct EntityInHierarchyHandle
     {
         internal NativeArray<EntityInHierarchy> m_hierarchy;
+        internal EntityInHierarchy*             m_extraHierarchy;
         internal int                            m_index;
 
         /// <summary>
@@ -44,8 +46,9 @@ namespace Latios.Transforms
         /// </summary>
         public EntityInHierarchyHandle root => new EntityInHierarchyHandle
         {
-            m_hierarchy = m_hierarchy,
-            m_index     = 0,
+            m_hierarchy      = m_hierarchy,
+            m_extraHierarchy = m_extraHierarchy,
+            m_index          = 0,
         };
         /// <summary>
         /// Returns the handle that refers to the internal immediate parent of this current handle.
@@ -54,8 +57,9 @@ namespace Latios.Transforms
         /// </summary>
         public EntityInHierarchyHandle bloodParent => (isRoot ? default : new EntityInHierarchyHandle
                                                            {
-                                                               m_hierarchy = m_hierarchy,
-                                                               m_index     = m_hierarchy[m_index].parentIndex
+                                                               m_hierarchy      = m_hierarchy,
+                                                               m_extraHierarchy = m_extraHierarchy,
+                                                               m_index          = m_hierarchy[m_index].parentIndex
                                                            });
         /// <summary>
         /// Returns an indexable collection of the blood children of the current handle. Each child may
@@ -92,7 +96,12 @@ namespace Latios.Transforms
         {
             if (indexInHierarchy < 0 || indexInHierarchy >= m_hierarchy.Length)
                 return default;
-            return new EntityInHierarchyHandle { m_hierarchy = m_hierarchy, m_index = indexInHierarchy };
+            return new EntityInHierarchyHandle
+            {
+                m_hierarchy      = m_hierarchy,
+                m_extraHierarchy = m_extraHierarchy,
+                m_index          = indexInHierarchy
+            };
         }
 
         /// <summary>
@@ -173,7 +182,12 @@ namespace Latios.Transforms
                 {
                     var current = handle.m_hierarchy[handle.m_index];
                     CheckBloodChildrenIndexLength(index, current.childCount, current.entity);
-                    return new EntityInHierarchyHandle { m_hierarchy = handle.m_hierarchy, m_index = current.firstChildIndex + index };
+                    return new EntityInHierarchyHandle
+                    {
+                        m_hierarchy      = handle.m_hierarchy,
+                        m_extraHierarchy = handle.m_extraHierarchy,
+                        m_index          = current.firstChildIndex + index
+                    };
                 }
             }
 
@@ -196,21 +210,28 @@ namespace Latios.Transforms
             public struct Enumerator
             {
                 NativeArray<EntityInHierarchy> hierarchy;
+                EntityInHierarchy*             extraHierarchy;
                 int                            currentIndex;
                 int                            lastIndex;
 
                 internal Enumerator(EntityInHierarchyHandle handle)
                 {
-                    hierarchy    = handle.m_hierarchy;
-                    var current  = hierarchy[handle.m_index];
-                    currentIndex = current.firstChildIndex - 1;
-                    lastIndex    = currentIndex + current.childCount;
+                    hierarchy      = handle.m_hierarchy;
+                    extraHierarchy = handle.m_extraHierarchy;
+                    var current    = hierarchy[handle.m_index];
+                    currentIndex   = current.firstChildIndex - 1;
+                    lastIndex      = currentIndex + current.childCount;
                 }
 
                 /// <summary>
                 /// The current blood child of the enumerator. May point to a valid but incorrect handle if MoveNext() is not called initially.
                 /// </summary>
-                public EntityInHierarchyHandle Current => new EntityInHierarchyHandle { m_hierarchy = hierarchy, m_index = currentIndex };
+                public EntityInHierarchyHandle Current => new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy,
+                    m_extraHierarchy = extraHierarchy,
+                    m_index          = currentIndex
+                };
                 /// <summary>
                 /// Advance the enumerator
                 /// </summary>

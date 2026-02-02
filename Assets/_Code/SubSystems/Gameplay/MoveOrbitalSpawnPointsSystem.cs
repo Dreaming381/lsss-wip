@@ -22,6 +22,7 @@ namespace Lsss
             {
                 transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
                                                                 SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
+                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
                                                                 SystemAPI.GetEntityStorageInfoLookup()),
                 dt = dt
             }.ScheduleParallel();

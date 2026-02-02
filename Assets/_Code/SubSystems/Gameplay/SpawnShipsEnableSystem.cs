@@ -26,7 +26,7 @@ namespace Lsss
                     ecb.Add(ship);
 
                     var entityTransform          = GetComponent<WorldTransform>(entity);
-                    var shipTransform            = state.GetTransfromAspect(ship);
+                    var shipTransform            = state.EntityManager.GetTransfromAspect(ship);
                     shipTransform.worldRotation  = entityTransform.rotation;
                     shipTransform.worldPosition  = entityTransform.position;
                     payload.ValueRW.disabledShip = Entity.Null;

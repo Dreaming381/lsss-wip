@@ -4,8 +4,8 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-	public static partial class TransformTools
-	{
+    public static unsafe partial class TransformTools
+    {
         #region Set Local Position
         /// <summary>
         /// Sets the local position of an entity.
@@ -85,7 +85,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -215,7 +215,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
 
@@ -243,7 +243,8 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
@@ -327,7 +328,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -348,7 +349,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -371,7 +372,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -457,7 +458,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
 
@@ -485,9 +486,11 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
-	}
+    }
 }
+

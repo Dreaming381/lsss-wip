@@ -45,7 +45,7 @@ namespace Lsss
 
                 var transform           = transformLookup[entity];
                 transform.localRotation = quaternion.Euler(0f, 0f, rads);
-                transform.localScale    = factor;
+                transform.localScale    = math.max(factor, 0.001f);
             }
         }
     }

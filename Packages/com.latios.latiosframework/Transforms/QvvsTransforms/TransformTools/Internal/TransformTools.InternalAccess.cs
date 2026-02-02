@@ -7,7 +7,7 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-    public static partial class TransformTools
+    public static unsafe partial class TransformTools
     {
         #region Alive
         internal interface IAlive
@@ -30,6 +30,7 @@ namespace Latios.Transforms
             WorldTransform GetWorldTransform(Entity entity);
             RefRW<WorldTransform> GetWorldTransformRefRW(Entity entity);
             bool HasWorldTransform(Entity entity);
+            bool isTicked { get; }
         }
 
         internal struct LookupWorldTransform : IWorldTransform
@@ -38,6 +39,7 @@ namespace Latios.Transforms
             public WorldTransform GetWorldTransform(Entity entity) => lookup[entity];
             public RefRW<WorldTransform> GetWorldTransformRefRW(Entity entity) => lookup.GetRefRW(entity);
             public bool HasWorldTransform(Entity entity) => lookup.HasComponent(entity);
+            public bool isTicked => false;
 
             public static ref LookupWorldTransform From(ref ComponentLookup<WorldTransform> lookup) => ref UnsafeUtility.As<ComponentLookup<WorldTransform>, LookupWorldTransform>(
                 ref lookup);
@@ -53,6 +55,7 @@ namespace Latios.Transforms
                 return UnsafeUtility.As<RefRW<TickedWorldTransform>, RefRW<WorldTransform> >(ref result);
             }
             public bool HasWorldTransform(Entity entity) => lookup.HasComponent(entity);
+            public bool isTicked => true;
 
             public static ref LookupWorldTransform From(ref ComponentLookup<TickedWorldTransform> lookup)
             {
@@ -139,7 +142,7 @@ namespace Latios.Transforms
             {
                 if (em.HasBuffer<EntityInHierarchy>(entity))
                 {
-                    hierarchy = em.GetBuffer<EntityInHierarchy>(entity);
+                    hierarchy = em.GetBuffer<EntityInHierarchy>(entity, true);
                     return true;
                 }
                 hierarchy = default;
@@ -149,7 +152,7 @@ namespace Latios.Transforms
             {
                 if (em.HasBuffer<EntityInHierarchyCleanup>(entity))
                 {
-                    hierarchy = em.GetBuffer<EntityInHierarchyCleanup>(entity);
+                    hierarchy = em.GetBuffer<EntityInHierarchyCleanup>(entity, true);
                     return true;
                 }
                 hierarchy = default;
@@ -161,6 +164,7 @@ namespace Latios.Transforms
             public WorldTransform GetWorldTransform(Entity entity) => em.GetComponentData<WorldTransform>(entity);
             public RefRW<WorldTransform> GetWorldTransformRefRW(Entity entity) => em.GetComponentDataRW<WorldTransform>(entity);
             public bool HasWorldTransform(Entity entity) => em.HasComponent<WorldTransform>(entity);
+            public bool isTicked => false;
         }
 
         internal struct TickedEntityManagerAccess : IEntityManager
@@ -189,7 +193,7 @@ namespace Latios.Transforms
             {
                 if (em.HasBuffer<EntityInHierarchy>(entity))
                 {
-                    hierarchy = em.GetBuffer<EntityInHierarchy>(entity);
+                    hierarchy = em.GetBuffer<EntityInHierarchy>(entity, true);
                     return true;
                 }
                 hierarchy = default;
@@ -199,7 +203,7 @@ namespace Latios.Transforms
             {
                 if (em.HasBuffer<EntityInHierarchyCleanup>(entity))
                 {
-                    hierarchy = em.GetBuffer<EntityInHierarchyCleanup>(entity);
+                    hierarchy = em.GetBuffer<EntityInHierarchyCleanup>(entity, true);
                     return true;
                 }
                 hierarchy = default;
@@ -215,6 +219,7 @@ namespace Latios.Transforms
                 return UnsafeUtility.As<RefRW<TickedWorldTransform>, RefRW<WorldTransform> >(ref result);
             }
             public bool HasWorldTransform(Entity entity) => em.HasComponent<TickedWorldTransform>(entity);
+            public bool isTicked => true;
         }
         #endregion
 
@@ -251,6 +256,7 @@ namespace Latios.Transforms
             public WorldTransform GetWorldTransform(Entity entity) => broker.GetRO<WorldTransform>(entity).ValueRO;
             public RefRW<WorldTransform> GetWorldTransformRefRW(Entity entity) => broker.GetRW<WorldTransform>(entity);
             public bool HasWorldTransform(Entity entity) => broker.Has<WorldTransform>(entity);
+            public bool isTicked => false;
         }
 
         internal struct ComponentBrokerParallelAccess : IAlive, IHierarchy, IWorldTransform
@@ -286,6 +292,7 @@ namespace Latios.Transforms
             public WorldTransform GetWorldTransform(Entity entity) => broker.GetROIgnoreParallelSafety<WorldTransform>(entity).ValueRO;
             public RefRW<WorldTransform> GetWorldTransformRefRW(Entity entity) => broker.GetRWIgnoreParallelSafety<WorldTransform>(entity);
             public bool HasWorldTransform(Entity entity) => broker.Has<WorldTransform>(entity);
+            public bool isTicked => false;
         }
 
         internal struct TickedComponentBrokerAccess : IAlive, IHierarchy, IWorldTransform
@@ -325,6 +332,7 @@ namespace Latios.Transforms
                 return UnsafeUtility.As<RefRW<TickedWorldTransform>, RefRW<WorldTransform> >(ref result);
             }
             public bool HasWorldTransform(Entity entity) => broker.Has<TickedWorldTransform>(entity);
+            public bool isTicked => true;
         }
 
         internal struct TickedComponentBrokerParallelAccess : IAlive, IHierarchy, IWorldTransform
@@ -365,6 +373,7 @@ namespace Latios.Transforms
                 return UnsafeUtility.As<RefRW<TickedWorldTransform>, RefRW<WorldTransform> >(ref result);
             }
             public bool HasWorldTransform(Entity entity) => broker.Has<TickedWorldTransform>(entity);
+            public bool isTicked => true;
         }
         #endregion
 

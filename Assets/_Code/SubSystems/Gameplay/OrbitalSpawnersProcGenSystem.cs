@@ -72,7 +72,7 @@ namespace Lsss
                 path.ValueRW.orbitPlaneNormal = random.NextFloat3Direction();
                 path.ValueRW.orbitSpeed       = random.NextFloat(populator.minMaxOrbitSpeed.x, populator.minMaxOrbitSpeed.y);
 
-                var transform           = state.GetTransfromAspect(entity);
+                var transform           = state.EntityManager.GetTransfromAspect(entity);
                 transform.localScale    = 1f;
                 transform.stretch       = 1f;
                 transform.worldRotation = quaternion.identity;

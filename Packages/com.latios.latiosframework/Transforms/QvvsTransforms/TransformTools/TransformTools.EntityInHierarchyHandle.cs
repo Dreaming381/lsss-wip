@@ -1,8 +1,9 @@
+using static Latios.Transforms.TransformTools;
 using Unity.Entities;
 
 namespace Latios.Transforms
 {
-    public static partial class TransformTools
+    public static unsafe partial class TransformTools
     {
         #region Extensions
         /// <summary>
@@ -44,87 +45,153 @@ namespace Latios.Transforms
             return result;
         }
 
-        internal static EntityInHierarchyHandle ToHandle<T>(this RootReference rootRef, ref T hierarchyAccess) where T : unmanaged, IHierarchy
+        internal static unsafe EntityInHierarchyHandle ToHandle<T>(this RootReference rootRef, ref T hierarchyAccess) where T : unmanaged, IHierarchy
         {
-            if (!hierarchyAccess.TryGetEntityInHierarchy(rootRef.rootEntity, out var buffer))
+            bool hasHierarchy = hierarchyAccess.TryGetEntityInHierarchy(rootRef.rootEntity, out var hierarchy);
+            bool hasCleanup   = hierarchyAccess.TryGetEntityInHierarchyCleanup(rootRef.rootEntity, out var cleanup);
+            if (hasHierarchy && !hasCleanup)
             {
-                hierarchyAccess.TryGetEntityInHierarchyCleanup(rootRef.rootEntity, out var temp);
-                buffer = temp.Reinterpret<EntityInHierarchy>();
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy.AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = rootRef.indexInHierarchy,
+                };
+            }
+            else if (hasHierarchy && hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy.AsNativeArray(),
+                    m_extraHierarchy = (EntityInHierarchy*)cleanup.GetUnsafeReadOnlyPtr(),
+                    m_index          = 0
+                };
             }
             return new EntityInHierarchyHandle
             {
-                m_hierarchy = buffer.AsNativeArray(),
-                m_index     = rootRef.indexInHierarchy
-            };
-        }
-
-        /// <summary>
-        /// Gets the root EntityInHierarchyHandle for the given buffer.
-        /// </summary>
-        public static EntityInHierarchyHandle GetRootHandle(this DynamicBuffer<EntityInHierarchy> entityInHierarchyBuffer)
-        {
-            return new EntityInHierarchyHandle
-            {
-                m_hierarchy = entityInHierarchyBuffer.AsNativeArray(),
-                m_index     = 0
-            };
-        }
-
-        /// <summary>
-        /// Gets the root EntityInHierarchyHandle for the given buffer.
-        /// </summary>
-        public static EntityInHierarchyHandle GetRootHandle(this DynamicBuffer<EntityInHierarchyCleanup> entityInHierarchyBuffer)
-        {
-            return new EntityInHierarchyHandle
-            {
-                m_hierarchy = entityInHierarchyBuffer.AsNativeArray().Reinterpret<EntityInHierarchy>(),
-                m_index     = 0
+                m_hierarchy      = cleanup.Reinterpret<EntityInHierarchy>().AsNativeArray(),
+                m_extraHierarchy = null,
+                m_index          = 0
             };
         }
         #endregion
 
         #region Internal
-        internal static EntityInHierarchyHandle GetHierarchyHandle(Entity entity, EntityManager entityManager)
+        internal static unsafe EntityInHierarchyHandle GetHierarchyHandle(Entity entity, EntityManager entityManager)
         {
             if (entityManager.HasComponent<RootReference>(entity))
             {
                 var rootRef = entityManager.GetComponentData<RootReference>(entity);
                 return rootRef.ToHandle(entityManager);
             }
-            if (entityManager.HasBuffer<EntityInHierarchy>(entity))
-                return entityManager.GetBuffer<EntityInHierarchy>(entity).GetRootHandle();
-            if (entityManager.HasBuffer<EntityInHierarchyCleanup>(entity))
-                return entityManager.GetBuffer<EntityInHierarchyCleanup>(entity).GetRootHandle();
+            bool hasHierarchy = entityManager.HasBuffer<EntityInHierarchy>(entity);
+            bool hasCleanup   = entityManager.HasBuffer<EntityInHierarchyCleanup>(entity);
+            if (hasHierarchy && !hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = entityManager.GetBuffer<EntityInHierarchy>(entity, true).AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = 0
+                };
+            }
+            else if (hasHierarchy && hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = entityManager.GetBuffer<EntityInHierarchy>(entity, true).AsNativeArray(),
+                    m_extraHierarchy = (EntityInHierarchy*)entityManager.GetBuffer<EntityInHierarchyCleanup>(entity, true).GetUnsafeReadOnlyPtr(),
+                    m_index          = 0
+                };
+            }
+            else if (hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = entityManager.GetBuffer<EntityInHierarchyCleanup>(entity, true).Reinterpret<EntityInHierarchy>().AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = 0
+                };
+            }
             return default;
         }
 
-        internal static EntityInHierarchyHandle GetHierarchyHandle(Entity entity, ref ComponentBroker broker)
+        internal static unsafe EntityInHierarchyHandle GetHierarchyHandle(Entity entity, ref ComponentBroker broker)
         {
             var rootRefRO = broker.GetRO<RootReference>(entity);
             if (rootRefRO.IsValid)
             {
                 return rootRefRO.ValueRO.ToHandle(ref broker);
             }
-            var buffer = broker.GetBuffer<EntityInHierarchy>(entity);
-            if (buffer.IsCreated)
-                return buffer.GetRootHandle();
-            var cleanup = broker.GetBuffer<EntityInHierarchyCleanup>(entity);
-            if (cleanup.IsCreated)
-                return cleanup.GetRootHandle();
+            var hierarchy = broker.GetBuffer<EntityInHierarchy>(entity);
+            var cleanup   = broker.GetBuffer<EntityInHierarchyCleanup>(entity);
+            if (hierarchy.IsCreated && !cleanup.IsCreated)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy.AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = 0
+                };
+            }
+            else if (hierarchy.IsCreated && cleanup.IsCreated)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy.AsNativeArray(),
+                    m_extraHierarchy = (EntityInHierarchy*)cleanup.GetUnsafeReadOnlyPtr(),
+                    m_index          = 0
+                };
+            }
+            else if (cleanup.IsCreated)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = cleanup.Reinterpret<EntityInHierarchy>().AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = 0
+                };
+            }
             return default;
         }
 
-        internal static EntityInHierarchyHandle GetHierarchyHandle(Entity entity,
-                                                                   ref ComponentLookup<RootReference>         rootReferenceLookupRO,
-                                                                   ref BufferLookup<EntityInHierarchy>        entityInHierarchyLookupRO,
-                                                                   ref BufferLookup<EntityInHierarchyCleanup> entityInHierarchyCleanupLookupRO)
+        internal static unsafe EntityInHierarchyHandle GetHierarchyHandle(Entity entity,
+                                                                          ref ComponentLookup<RootReference>         rootReferenceLookupRO,
+                                                                          ref BufferLookup<EntityInHierarchy>        entityInHierarchyLookupRO,
+                                                                          ref BufferLookup<EntityInHierarchyCleanup> entityInHierarchyCleanupLookupRO)
         {
             if (rootReferenceLookupRO.TryGetComponent(entity, out var rootRef))
                 return rootRef.ToHandle(ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
-            if (entityInHierarchyLookupRO.TryGetBuffer(entity, out var buffer))
-                return buffer.GetRootHandle();
-            if (entityInHierarchyCleanupLookupRO.TryGetBuffer(entity, out var cleanup))
-                return cleanup.GetRootHandle();
+
+            bool hasHierarchy = entityInHierarchyLookupRO.TryGetBuffer(entity, out var hierarchy);
+            bool hasCleanup   = entityInHierarchyCleanupLookupRO.TryGetBuffer(entity, out var cleanup);
+            if (hasHierarchy && !hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy.AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = 0
+                };
+            }
+            else if (hasHierarchy && hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = hierarchy.AsNativeArray(),
+                    m_extraHierarchy = (EntityInHierarchy*)cleanup.GetUnsafeReadOnlyPtr(),
+                    m_index          = 0
+                };
+            }
+            else if (hasCleanup)
+            {
+                return new EntityInHierarchyHandle
+                {
+                    m_hierarchy      = cleanup.Reinterpret<EntityInHierarchy>().AsNativeArray(),
+                    m_extraHierarchy = null,
+                    m_index          = 0
+                };
+            }
             return default;
         }
         #endregion

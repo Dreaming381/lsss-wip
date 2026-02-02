@@ -4,8 +4,8 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-	public static partial class TransformTools
-	{
+    public static unsafe partial class TransformTools
+    {
         #region Apply Local Position Delta
         /// <summary>
         /// Moves the entity by the specified translation in local-space
@@ -37,10 +37,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = componentBroker.GetRW<WorldTransform>(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position             += translation;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = componentBroker.GetRW<WorldTransform>(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position              += translation;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             TranslateLocal(handle, translation, ref componentBroker);
@@ -58,10 +58,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = componentBroker.GetRW<WorldTransform>(entity, key);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position             += translation;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = componentBroker.GetRW<WorldTransform>(entity, key);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position              += translation;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             TranslateLocal(handle, translation, ref componentBroker);
@@ -85,7 +85,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -153,10 +153,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position             += translation;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = transformLookupRW.GetRefRW(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position              += translation;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             TranslateLocal(handle, translation, ref transformLookupRW, ref entityStorageInfoLookup);
@@ -185,10 +185,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position             += translation;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position              += translation;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             TranslateLocal(handle, translation, ref transformLookupRW.GetCheckedLookup(entity, key), ref entityStorageInfoLookup);
@@ -215,7 +215,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
 
@@ -243,7 +243,8 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
@@ -279,10 +280,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = componentBroker.GetRW<TickedWorldTransform>(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position                   += translation;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = componentBroker.GetRW<TickedWorldTransform>(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position                    += translation;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             TranslateTickedLocal(handle, translation, ref componentBroker);
@@ -300,10 +301,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = componentBroker.GetRW<TickedWorldTransform>(entity, key);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position                   += translation;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = componentBroker.GetRW<TickedWorldTransform>(entity, key);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position                    += translation;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             TranslateTickedLocal(handle, translation, ref componentBroker);
@@ -327,7 +328,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -348,7 +349,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -371,7 +372,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref lookup, ref lookup);
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref lookup, ref lookup);
         }
 
         /// <summary>
@@ -395,10 +396,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position                   += translation;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = transformLookupRW.GetRefRW(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position                    += translation;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             TranslateTickedLocal(handle, translation, ref transformLookupRW, ref entityStorageInfoLookup);
@@ -427,10 +428,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position                   += translation;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.position                    += translation;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             TranslateTickedLocal(handle, translation, ref transformLookupRW.GetCheckedLookup(entity, key), ref entityStorageInfoLookup);
@@ -457,7 +458,7 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
 
@@ -485,9 +486,11 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.LocalPositionDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
-	}
+    }
 }
+

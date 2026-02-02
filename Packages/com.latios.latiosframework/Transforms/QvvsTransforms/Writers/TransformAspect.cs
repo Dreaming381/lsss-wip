@@ -1,9 +1,11 @@
 #if !LATIOS_TRANSFORMS_UNITY
 
+using System.Diagnostics;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Entities.Exposed;
 using Unity.Mathematics;
 using Unity.Properties;
 
@@ -413,6 +415,46 @@ namespace Latios.Transforms
 
         #region ReadOnly Properties
         /// <summary>
+        /// Retrieves the EntityInHierarchyHandle of this TransformAspect. Note that if the entity
+        /// does not belong to a hierarchy, EntityInHierarchyHandle.isNull will be true.
+        /// </summary>
+        public EntityInHierarchyHandle entityInHierarchyHandle => m_handle;
+
+        /// <summary>
+        /// Retrieves the TransformAspect for the specified handle belonging to the same hierarchy
+        /// as this TransformAspect. When safety checks exist, this method throws if the specifed
+        /// handle comes from another hierarchy or if either its handle or this TransformAspect's
+        /// handle is null.
+        /// </summary>
+        public TransformAspect this[EntityInHierarchyHandle otherHandle]
+        {
+            get
+            {
+                CheckBelongsToSameHierarchy(in otherHandle);
+                var result      = this;
+                result.m_handle = otherHandle;
+                switch (m_accessType)
+                {
+                    case AccessType.EntityManager:
+                        result.m_worldTransform = ((EntityManager*)m_access)->GetComponentDataRW<WorldTransform>(otherHandle.entity);
+                        break;
+                    case AccessType.ComponentBroker:
+                        result.m_worldTransform = ((ComponentBroker*)m_access)->GetRW<WorldTransform>(otherHandle.entity);
+                        break;
+                    case AccessType.ComponentBrokerKeyed:
+                        result.m_worldTransform = ((ComponentBroker*)m_access)->GetRWIgnoreParallelSafety<WorldTransform>(otherHandle.entity);
+                        break;
+                    case AccessType.ComponentLookup:
+                        result.m_worldTransform = ((ComponentLookup<WorldTransform>*)m_access)->GetRefRW(otherHandle.entity);
+                        break;
+                    default:
+                        result.m_worldTransform = default;
+                        break;
+                }
+                return result;
+            }
+        }
+        /// <summary>
         /// True if the entity has a parent and not a CopyParent inheritance flag.
         /// </summary>
         public bool hasMutableLocalTransform => hasParent && m_handle.isCopyParent;
@@ -728,6 +770,15 @@ namespace Latios.Transforms
         public float3 TransformDirectionWorldToLocalScaledAndStretched(float3 direction)
         {
             return qvvs.TransformDirectionScaledAndStretched(worldTransform, direction);
+        }
+        #endregion
+
+        #region Safety
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckBelongsToSameHierarchy(in EntityInHierarchyHandle otherHandle)
+        {
+            if (m_handle.isNull || otherHandle.isNull || m_handle.m_hierarchy != otherHandle.m_hierarchy)
+                throw new System.ArgumentException("The EntityInHierarchyHandle does not belong to the same hierarchy as this TransformAspect.");
         }
         #endregion
     }
