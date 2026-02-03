@@ -67,6 +67,10 @@ namespace Latios.Systems
             syncGroup.AddSystemToUpdateList(mergeGlobals);
             syncGroup.AddSystemToUpdateList(collectionReactive);
             syncGroup.AddSystemToUpdateList(managedStructReactive);
+
+#if UNITY_EDITOR
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<AfterLiveBakingSuperSystem>(), world);
+#endif
         }
 
         public bool ShouldGroupUpdate(ComponentSystemGroup group)

@@ -15,14 +15,15 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             //new Job().ScheduleParallel();
-            new Job
+            var job = new Job
             {
                 transformLookup = new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
                                                             SystemAPI.GetComponentLookup<RootReference>(true),
                                                             SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
                                                             SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
                                                             SystemAPI.GetEntityStorageInfoLookup())
-            }.Schedule();
+            };
+            job.ScheduleByRef();
         }
 
         [WithAll(typeof(WorldTransform))]
