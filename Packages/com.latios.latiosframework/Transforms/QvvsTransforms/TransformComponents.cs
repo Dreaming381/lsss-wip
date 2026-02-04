@@ -1,7 +1,9 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System.Runtime.InteropServices;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Properties;
 
@@ -360,6 +362,56 @@ namespace Latios.Transforms
         /// Ensures only entities that do not have parents nor children are included in the query
         /// </summary>
         public static FluentQuery WithoutHierarchy(this FluentQuery query) => query.Without<RootReference, EntityInHierarchy, EntityInHierarchyCleanup>();
+    }
+    #endregion
+
+    #region Live Baking
+    internal struct LiveAddedParentTag : IComponentData { }
+
+    internal struct LiveRemovedParentTag : IComponentData { }
+
+    internal unsafe partial struct LiveTransformCapture : ICollectionComponent
+    {
+        public struct Root
+        {
+            public Entity                                                 entity;
+            [NativeDisableUnsafePtrRestriction] public EntityInHierarchy* hierarchyStart;
+            public int                                                    hierarchyCount;
+            public bool                                                   runtimeRemovedParent;
+            public bool                                                   hasWorldTransform;
+            public bool                                                   hasTickedWorldTransform;
+            public TransformQvvs                                          worldTransform;
+            public TransformQvvs                                          tickedWorldTransform;
+        }
+
+        public struct Child
+        {
+            public Entity        entity;
+            public Entity        parent;
+            public int           siblingIndex;
+            public RootReference rootRef;
+            public bool          parentIsBlood;
+            public bool          runtimeAddedParent;
+            public bool          hasWorldTransform;
+            public bool          hasTickedWorldTransform;
+            public TransformQvs  localTransform;
+            public TransformQvvs worldTransform;
+            public TransformQvs  tickedLocalTransform;
+            public TransformQvvs tickedWorldTransform;
+        }
+
+        public NativeArray<Root>  roots;
+        public NativeArray<Child> children;
+        public uint               changeVersion;
+        public int                rootsOrderVersion;
+        public int                childrenOrderVersion;
+        public int                worldTransformOrderVersion;
+        public int                tickedWorldTransformOrderVersion;
+
+        public JobHandle TryDispose(JobHandle inputDeps)
+        {
+            return inputDeps;  // We use WorldUpdateAllocator
+        }
     }
     #endregion
 }

@@ -44,42 +44,52 @@ namespace Latios.Transforms
                 get => Bits.GetBit(packed, 5);
                 set => Bits.SetBit(ref packed, 5, value);
             }
-            public bool copyTickedToNormal
+            public bool liveAddedParent
             {
                 get => Bits.GetBit(packed, 6);
                 set => Bits.SetBit(ref packed, 6, value);
             }
-            public bool copyNormalToTicked
+            public bool liveRemovedParent
             {
                 get => Bits.GetBit(packed, 7);
                 set => Bits.SetBit(ref packed, 7, value);
             }
-            public bool setNormalToIdentity
+            public bool copyTickedToNormal
             {
                 get => Bits.GetBit(packed, 8);
                 set => Bits.SetBit(ref packed, 8, value);
             }
-            public bool setTickedToIdentity
+            public bool copyNormalToTicked
             {
                 get => Bits.GetBit(packed, 9);
                 set => Bits.SetBit(ref packed, 9, value);
             }
-            public bool isNormal
+            public bool setNormalToIdentity
             {
                 get => Bits.GetBit(packed, 10);
                 set => Bits.SetBit(ref packed, 10, value);
             }
-            public bool isTicked
+            public bool setTickedToIdentity
             {
                 get => Bits.GetBit(packed, 11);
                 set => Bits.SetBit(ref packed, 11, value);
             }
-            public bool isCopyParent
+            public bool isNormal
             {
                 get => Bits.GetBit(packed, 12);
                 set => Bits.SetBit(ref packed, 12, value);
             }
-            public bool noChange => Bits.GetBits(packed, 0, 6) == 0;
+            public bool isTicked
+            {
+                get => Bits.GetBit(packed, 13);
+                set => Bits.SetBit(ref packed, 13, value);
+            }
+            public bool isCopyParent
+            {
+                get => Bits.GetBit(packed, 14);
+                set => Bits.SetBit(ref packed, 14, value);
+            }
+            public bool noChange => Bits.GetBits(packed, 0, 8) == 0;
         }
 
         public static ComponentAddSet GetChildComponentsToAdd(EntityManager em, Entity child, TreeClassification.TreeRole role, InheritanceFlags flags)
@@ -88,8 +98,12 @@ namespace Latios.Transforms
             addSet.entity          = child;
             if (role == TreeClassification.TreeRole.Solo || role == TreeClassification.TreeRole.Root)
                 addSet.rootReference = true;
-            var isTicked             = em.HasComponent<TickedEntityTag>(child);
-            var isNormal             = em.HasComponent<WorldTransform>(child);
+#if UNITY_EDITOR
+            if (em.HasComponent<LiveBakedTag>(child) && !em.HasComponent<LiveAddedParentTag>(child))
+                addSet.liveAddedParent = true;
+#endif
+            var isTicked = em.HasComponent<TickedEntityTag>(child);
+            var isNormal = em.HasComponent<WorldTransform>(child);
             if (!isTicked && !isNormal)
             {
                 addSet.isNormal            = true;
@@ -219,6 +233,20 @@ namespace Latios.Transforms
                 typesToAdd.Add(ComponentType.ReadOnly<WorldTransform>());
             if (addSet.tickedWorldTransform)
                 typesToAdd.Add(ComponentType.ReadOnly<TickedWorldTransform>());
+#if UNITY_EDITOR
+            if (addSet.liveAddedParent)
+            {
+                if (em.HasComponent<LiveRemovedParentTag>(addSet.entity))
+                    em.RemoveComponent<LiveRemovedParentTag>(addSet.entity);
+                typesToAdd.Add(ComponentType.ReadOnly<LiveAddedParentTag>());
+            }
+            if (addSet.liveRemovedParent)
+            {
+                if (em.HasComponent<LiveAddedParentTag>(addSet.entity))
+                    em.RemoveComponent<LiveAddedParentTag>(addSet.entity);
+                typesToAdd.Add(ComponentType.ReadOnly<LiveRemovedParentTag>());
+            }
+#endif
             em.AddComponent(addSet.entity, new ComponentTypeSet(in typesToAdd));
             if (addSet.copyNormalToTicked)
                 em.SetComponentData(addSet.entity, em.GetComponentData<WorldTransform>(addSet.entity).ToTicked());

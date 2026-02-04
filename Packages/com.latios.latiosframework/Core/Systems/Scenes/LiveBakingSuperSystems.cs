@@ -14,6 +14,7 @@ namespace Latios.Systems
 
         protected override void CreateSystems()
         {
+            EnableSystemSorting = true;
         }
 
         protected override void OnUpdate()
@@ -39,6 +40,8 @@ namespace Latios.Systems
         protected override void CreateSystems()
         {
             beforeSystem = World.GetOrCreateSystemManaged<BeforeLiveBakingSuperSystem>();
+
+            EnableSystemSorting = true;
         }
 
         protected override void OnUpdate()

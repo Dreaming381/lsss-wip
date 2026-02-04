@@ -23,6 +23,10 @@ namespace Latios.Transforms
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.MotionHistoryUpdateSuperSystem>(),          world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.ExportToGameObjectTransformsSuperSystem>(), world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.HybridTransformsSyncPointSuperSystem>(),    world);
+
+#if UNITY_EDITOR
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsRecordSystem>(),        world);
+#endif
         }
     }
 }
