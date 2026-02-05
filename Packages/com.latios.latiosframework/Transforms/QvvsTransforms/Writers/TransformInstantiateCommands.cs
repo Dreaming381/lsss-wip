@@ -73,6 +73,12 @@ namespace Latios.Transforms
         [BurstCompile]
         static void OnPlayback(ref IInstantiateCommand.Context context)
         {
+            OnPlaybackBatched(ref context);
+            //OnPlaybackSingle(ref context);
+        }
+
+        static void OnPlaybackSingle(ref IInstantiateCommand.Context context)
+        {
             var entities = context.entities;
             var em       = context.entityManager;
             for (int i = 0; i < entities.Length; i++)
@@ -96,6 +102,11 @@ namespace Latios.Transforms
                 if (em.HasComponent<TickedWorldTransform>(entity))
                     TransformTools.SetTickedLocalTransform(entity, in tickedLocalTransform, em);
             }
+        }
+
+        static void OnPlaybackBatched(ref IInstantiateCommand.Context context)
+        {
+            TreeChangeInstantiate.AddChildren(ref context);
         }
     }
 
