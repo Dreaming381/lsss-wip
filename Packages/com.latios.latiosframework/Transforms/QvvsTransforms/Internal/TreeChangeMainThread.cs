@@ -724,7 +724,7 @@ namespace Latios.Transforms
 
             // Add only the components for the child. We don't yet know if the new root needs cleanup or not.
             var oldRoot      = childClassification.root;
-            var childAddSet  = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalNoChildren, flags);
+            var childAddSet  = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalWithChildren, flags);
             var parentAddSet = TreeKernels.GetParentComponentsToAdd(em, parent, TreeKernels.TreeClassification.TreeRole.Solo, childAddSet, options);
             TreeKernels.AddComponents(em, childAddSet);
 
@@ -836,7 +836,7 @@ namespace Latios.Transforms
 
             // Add only the components for the child. We don't yet know if the new root needs cleanup or not.
             var oldRoot      = childClassification.root;
-            var childAddSet  = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalNoChildren, flags);
+            var childAddSet  = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalWithChildren, flags);
             var parentAddSet = TreeKernels.GetParentComponentsToAdd(em, parent, TreeKernels.TreeClassification.TreeRole.Solo, childAddSet, options);
             TreeKernels.AddComponents(em, childAddSet);
 
@@ -920,7 +920,7 @@ namespace Latios.Transforms
             var tsa = ThreadStackAllocator.GetAllocator();
 
             // We still need to account for ticked vs unticked in the ancestry
-            var childAddSet     = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalNoChildren, flags);
+            var childAddSet     = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalWithChildren, flags);
             var hierarchy       = GetRootHierarchy(em, parentClassification, false);
             var ancestryAddSets = TreeKernels.GetAncestorComponentsToAdd(ref tsa, em, hierarchy.AsNativeArray(), parentClassification, childAddSet, default);
             TreeKernels.AddComponents(em, ancestryAddSets);
@@ -963,7 +963,7 @@ namespace Latios.Transforms
             // Add only the components for the child. We don't yet know if the new root needs cleanup or not.
             var     oldRoot         = childClassification.root;
             var     root            = parentClassification.root;
-            var     childAddSet     = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalNoChildren, flags);
+            var     childAddSet     = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.InternalWithChildren, flags);
             var     hierarchy       = GetRootHierarchy(em, parentClassification, true);
             var     ancestryAddSets = TreeKernels.GetAncestorComponentsToAdd(ref tsa, em, hierarchy.AsNativeArray(), parentClassification, childAddSet, options);
             ref var rootAddSet      = ref ancestryAddSets[ancestryAddSets.Length - 1];

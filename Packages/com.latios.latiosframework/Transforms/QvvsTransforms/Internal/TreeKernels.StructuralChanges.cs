@@ -89,7 +89,8 @@ namespace Latios.Transforms
                 get => Bits.GetBit(packed, 14);
                 set => Bits.SetBit(ref packed, 14, value);
             }
-            public bool noChange => Bits.GetBits(packed, 0, 8) == 0;
+            public uint changeFlags => Bits.GetBits(packed, 0, 8);
+            public bool noChange => changeFlags == 0;
         }
 
         public static ComponentAddSet GetChildComponentsToAdd(EntityManager em, Entity child, TreeClassification.TreeRole role, InheritanceFlags flags)
@@ -300,6 +301,60 @@ namespace Latios.Transforms
                 em.RemoveComponent(entity, new TypePack<EntityInHierarchy, EntityInHierarchyCleanup, LinkedEntityGroup>());
             else
                 em.RemoveComponent(entity, new TypePack<EntityInHierarchy, EntityInHierarchyCleanup>());
+        }
+
+        public static void AddComponentsForChildren(EntityManager em, ComponentAddSet addSet, NativeArray<Entity> children)
+        {
+            if (addSet.noChange)
+                return;
+            FixedList128Bytes<ComponentType> typesToAdd = default;
+            if (addSet.rootReference)
+                typesToAdd.Add(ComponentType.ReadOnly<RootReference>());
+            if (addSet.entityInHierarchy)
+                typesToAdd.Add(ComponentType.ReadOnly<EntityInHierarchy>());
+            if (addSet.entityInHierarchyCleanup)
+                typesToAdd.Add(ComponentType.ReadOnly<EntityInHierarchyCleanup>());
+            if (addSet.linkedEntityGroup)
+                typesToAdd.Add(ComponentType.ReadOnly<LinkedEntityGroup>());
+            if (addSet.worldTransform)
+                typesToAdd.Add(ComponentType.ReadOnly<WorldTransform>());
+            if (addSet.tickedWorldTransform)
+                typesToAdd.Add(ComponentType.ReadOnly<TickedWorldTransform>());
+#if UNITY_EDITOR
+            if (addSet.liveAddedParent)
+            {
+                em.RemoveComponent<LiveRemovedParentTag>(children);
+                typesToAdd.Add(ComponentType.ReadOnly<LiveAddedParentTag>());
+            }
+            if (addSet.liveRemovedParent)
+            {
+                em.RemoveComponent<LiveAddedParentTag>(children);
+                typesToAdd.Add(ComponentType.ReadOnly<LiveRemovedParentTag>());
+            }
+#endif
+            em.AddComponent(children, new ComponentTypeSet(in typesToAdd));
+
+            if (addSet.linkedEntityGroup)
+            {
+                foreach (var entity in children)
+                    em.GetBuffer<LinkedEntityGroup>(entity).Add(new LinkedEntityGroup { Value = entity });
+            }
+        }
+
+        public static void ApplyAddTransformUpdatesForChild(EntityManager em, ComponentAddSet addSet)
+        {
+            if (addSet.copyNormalToTicked)
+                em.SetComponentData(addSet.entity, em.GetComponentData<WorldTransform>(addSet.entity).ToTicked());
+            else if (addSet.copyTickedToNormal)
+                em.SetComponentData(addSet.entity, em.GetComponentData<TickedWorldTransform>(addSet.entity).ToUnticked());
+            else
+            {
+                // Children do not have a parent in the AddSet
+                if (addSet.setNormalToIdentity)
+                    em.SetComponentData(addSet.entity, new WorldTransform { worldTransform = TransformQvvs.identity });
+                if (addSet.setTickedToIdentity)
+                    em.SetComponentData(addSet.entity, new TickedWorldTransform { worldTransform = TransformQvvs.identity });
+            }
         }
     }
 }
