@@ -303,7 +303,7 @@ namespace Latios.Transforms
                 em.RemoveComponent(entity, new TypePack<EntityInHierarchy, EntityInHierarchyCleanup>());
         }
 
-        public static void AddComponentsForChildren(EntityManager em, ComponentAddSet addSet, NativeArray<Entity> children)
+        public static void AddComponentsBatched(EntityManager em, ComponentAddSet addSet, NativeArray<Entity> batch)
         {
             if (addSet.noChange)
                 return;
@@ -323,38 +323,62 @@ namespace Latios.Transforms
 #if UNITY_EDITOR
             if (addSet.liveAddedParent)
             {
-                em.RemoveComponent<LiveRemovedParentTag>(children);
+                em.RemoveComponent<LiveRemovedParentTag>(batch);
                 typesToAdd.Add(ComponentType.ReadOnly<LiveAddedParentTag>());
             }
             if (addSet.liveRemovedParent)
             {
-                em.RemoveComponent<LiveAddedParentTag>(children);
+                em.RemoveComponent<LiveAddedParentTag>(batch);
                 typesToAdd.Add(ComponentType.ReadOnly<LiveRemovedParentTag>());
             }
 #endif
-            em.AddComponent(children, new ComponentTypeSet(in typesToAdd));
+            em.AddComponent(batch, new ComponentTypeSet(in typesToAdd));
 
             if (addSet.linkedEntityGroup)
             {
-                foreach (var entity in children)
+                foreach (var entity in batch)
                     em.GetBuffer<LinkedEntityGroup>(entity).Add(new LinkedEntityGroup { Value = entity });
             }
         }
 
-        public static void ApplyAddTransformUpdatesForChild(EntityManager em, ComponentAddSet addSet)
+        public static void ApplyAddComponentsBatchedPostProcess(EntityManager em, ComponentAddSet addSet)
         {
+            if (addSet.noChange)
+                return;
             if (addSet.copyNormalToTicked)
                 em.SetComponentData(addSet.entity, em.GetComponentData<WorldTransform>(addSet.entity).ToTicked());
             else if (addSet.copyTickedToNormal)
                 em.SetComponentData(addSet.entity, em.GetComponentData<TickedWorldTransform>(addSet.entity).ToUnticked());
             else
             {
-                // Children do not have a parent in the AddSet
-                if (addSet.setNormalToIdentity)
-                    em.SetComponentData(addSet.entity, new WorldTransform { worldTransform = TransformQvvs.identity });
-                if (addSet.setTickedToIdentity)
-                    em.SetComponentData(addSet.entity, new TickedWorldTransform { worldTransform = TransformQvvs.identity });
+                if (addSet.parent != Entity.Null)
+                {
+                    if (addSet.setNormalToIdentity)
+                    {
+                        var parentTransform = em.GetComponentData<WorldTransform>(addSet.parent);
+                        if (!addSet.isCopyParent)
+                            parentTransform.worldTransform.stretch = new float3(1f, 1f, 1f);
+                        em.SetComponentData(addSet.entity, parentTransform);
+                    }
+                    if (addSet.setTickedToIdentity)
+                    {
+                        var parentTransform = em.GetComponentData<TickedWorldTransform>(addSet.parent);
+                        if (!addSet.isCopyParent)
+                            parentTransform.worldTransform.stretch = new float3(1f, 1f, 1f);
+                        em.SetComponentData(addSet.entity, parentTransform);
+                    }
+                }
+                else
+                {
+                    if (addSet.setNormalToIdentity)
+                        em.SetComponentData(addSet.entity, new WorldTransform { worldTransform = TransformQvvs.identity });
+                    if (addSet.setTickedToIdentity)
+                        em.SetComponentData(addSet.entity, new TickedWorldTransform { worldTransform = TransformQvvs.identity });
+                }
             }
+
+            if (addSet.linkedEntityGroup)
+                em.GetBuffer<LinkedEntityGroup>(addSet.entity).Add(new LinkedEntityGroup { Value = addSet.entity });
         }
     }
 }
