@@ -734,7 +734,7 @@ namespace Latios.Transforms
             var oldChildEntities    = TreeKernels.CopyHierarchyEntities(ref tsa, oldHierarchy.AsNativeArray());
             var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
             CleanHierarchy(ref tsa, em, oldRoot, ref oldHierarchy, childClassification.isRootAlive, out bool removeOldRootLeg);
-            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
+            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterChange(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
             var subtree                          = TreeKernels.ExtractSubtree(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy);
             TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
             TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
@@ -846,7 +846,7 @@ namespace Latios.Transforms
             var oldChildEntities    = TreeKernels.CopyHierarchyEntities(ref tsa, oldHierarchy.AsNativeArray());
             var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
             CleanHierarchy(ref tsa, em, oldRoot, ref oldHierarchy, childClassification.isRootAlive, out bool removeOldRootLeg);
-            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
+            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterChange(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
             var subtree                          = TreeKernels.ExtractSubtree(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy);
             TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
             TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
@@ -931,7 +931,7 @@ namespace Latios.Transforms
             var subtree = TreeKernels.ExtractSubtree(ref tsa, hierarchy.AsNativeArray(), childClassification.indexInHierarchy);
             TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref hierarchy, childClassification.indexInHierarchy, subtree);
             // When we remove from the hierarchy, our parent's index might have moved and we need to refind it
-            parentClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(hierarchy.AsNativeArray(), parent, parentClassification.indexInHierarchy);
+            parentClassification.indexInHierarchy = TreeKernels.FindEntityAfterChange(hierarchy.AsNativeArray(), parent, parentClassification.indexInHierarchy);
             TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, subtree, flags);
             CleanHierarchy(ref tsa, em, parentClassification.root, ref hierarchy, parentClassification.isRootAlive, out var removeLeg);
             if (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(parentClassification.root))
@@ -975,7 +975,7 @@ namespace Latios.Transforms
             var oldChildEntities    = TreeKernels.CopyHierarchyEntities(ref tsa, oldHierarchy.AsNativeArray());
             var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
             CleanHierarchy(ref tsa, em, oldRoot, ref oldHierarchy, childClassification.isRootAlive, out bool removeOldRootLeg);
-            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
+            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterChange(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
             var subtree                          = TreeKernels.ExtractSubtree(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy);
             TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
             TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);

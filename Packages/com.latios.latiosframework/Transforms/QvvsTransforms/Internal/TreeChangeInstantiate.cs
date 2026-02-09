@@ -79,6 +79,7 @@ namespace Latios.Transforms
                 TreeKernels.AddComponentsBatched(em, addSet, entityCacheList.AsArray());
                 i += entityCacheList.Length;
             }
+            var ecb       = new EntityCommandBuffer(Allocator.TempJob);
             var buffersJh = new ProcessBuffersJob
             {
                 batchAddSetStream          = batchedAddSetsStream.AsReader(),
@@ -91,10 +92,15 @@ namespace Latios.Transforms
                 rootWorkStates             = rootWorkStates.AsDeferredJobArray(),
                 tickedWorldTransformLookup = em.GetComponentLookup<TickedWorldTransform>(false),
                 worldTransformLookup       = em.GetComponentLookup<WorldTransform>(false),
+                rootReferenceLookup        = em.GetComponentLookup<RootReference>(false),
+                ecb                        = ecb.AsParallelWriter()
             }.Schedule(rootWorkStates, 4, groupRootsJh);
             buffersJh.Complete();
 
             specializedMarker.Begin();
+            ecb.Playback(em);
+            ecb.Dispose();
+
             for (int i = 0; i < childWorkStates.Length; i++)
             {
                 var child = childWorkStates[i];
@@ -103,12 +109,6 @@ namespace Latios.Transforms
                     context.RequestDestroyEntity(child.child);
                     continue;
                 }
-
-                AddChild(em, ref child);
-                if (em.HasComponent<WorldTransform>(child.child))
-                    TransformTools.SetLocalTransform(child.child, in child.localTransform, em);
-                if (em.HasComponent<TickedWorldTransform>(child.child))
-                    TransformTools.SetTickedLocalTransform(child.child, in child.tickedLocalTransform, em);
             }
             specializedMarker.End();
 
@@ -501,8 +501,11 @@ namespace Latios.Transforms
             public BufferTypeHandle<LinkedEntityGroup>                                         legHandle;
             [NativeDisableParallelForRestriction] public ComponentLookup<WorldTransform>       worldTransformLookup;
             [NativeDisableParallelForRestriction] public ComponentLookup<TickedWorldTransform> tickedWorldTransformLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<RootReference>        rootReferenceLookup;
 
-            public void Execute(int rootIndex)
+            public EntityCommandBuffer.ParallelWriter ecb;
+
+            public unsafe void Execute(int rootIndex)
             {
                 var rootWorkState       = rootWorkStates[rootIndex];
                 var rootChildrenIndices = childIndices.GetSubArray(rootWorkState.childStart, rootWorkState.childCount);
@@ -545,6 +548,151 @@ namespace Latios.Transforms
                     TreeKernels.UpdateLocalTransformsOfNewAncestorComponents(ancestryAddSets, hierarchy.AsNativeArray());
                     batchAddSetStream.EndForEachIndex();
                 }
+
+                var oldHierarchy = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
+                var rootLeg      = esi.Chunk.Has(ref legHandle) ? esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk] : default;
+                TreeKernels.RemoveDeadDescendantsFromHierarchyAndLeg(ref tsa, ref hierarchy, ref rootLeg, esil, ref worldTransformLookup, ref tickedWorldTransformLookup);
+                if (hierarchy.Length == 0)
+                {
+                    hierarchy.Add(new EntityInHierarchy
+                    {
+                        m_childCount          = 0,
+                        m_descendantEntity    = root,
+                        m_firstChildIndex     = 1,
+                        m_flags               = InheritanceFlags.Normal,
+                        m_parentIndex         = -1,
+                        m_localPosition       = default,
+                        m_localScale          = 1f,
+                        m_tickedLocalPosition = default,
+                        m_tickedLocalScale    = 1f,
+                    });
+                }
+                bool hadEnoughLegBefore = rootLeg.Length >= 2;
+                foreach (var childIndex in rootChildrenIndices)
+                {
+                    var childWorkState = childWorkStates[childIndex];
+                    var parentIndex    = TreeKernels.FindEntityAfterChange(hierarchy.AsNativeArray(), childWorkState.parent, childWorkState.parentClassification.indexInHierarchy);
+                    if (childWorkState.childClassification.role == TreeKernels.TreeClassification.TreeRole.Solo ||
+                        childWorkState.childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalNoChildren)
+                    {
+                        TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, parentIndex, childWorkState.child, childWorkState.flags);
+                        if (childWorkState.options != AddChildOptions.IgnoreLinkedEntityGroup)
+                        {
+                            TreeKernels.AddEntityToLeg(ref rootLeg, childWorkState.child);
+                            if (childWorkState.options == AddChildOptions.TransferLinkedEntityGroup)
+                            {
+                                var childEsi = esil[childWorkState.child];
+                                if (childEsi.Chunk.Has(ref legHandle))
+                                {
+                                    var childLeg = childEsi.Chunk.GetBufferAccessorRO(ref legHandle)[childEsi.IndexInChunk];
+                                    if (childLeg.Length < 2)
+                                        ecb.RemoveComponent<LinkedEntityGroup>(rootIndex, childWorkState.child);
+                                }
+                            }
+                        }
+                    }
+                    else if (childWorkState.childClassification.role == TreeKernels.TreeClassification.TreeRole.Root)
+                    {
+                        var  childEsi       = esil[childWorkState.child];
+                        var  childHierarchy = childEsi.Chunk.GetBufferAccessorRO(ref hierarchyHandle)[childEsi.IndexInChunk];
+                        bool hasLeg         = childEsi.Chunk.Has(ref legHandle);
+                        var  childLeg       = hasLeg ? childEsi.Chunk.GetBufferAccessorRW(ref legHandle)[childEsi.IndexInChunk] : default;
+                        if (hasLeg)
+                            TreeKernels.RemoveDeadEntitiesFromLeg(ref childLeg, esil);
+                        TreeKernels.RemoveDeadAndUnreferencedDescendantsFromHierarchy(ref tsa,
+                                                                                      ref childHierarchy,
+                                                                                      esil,
+                                                                                      ref worldTransformLookup,
+                                                                                      ref tickedWorldTransformLookup,
+                                                                                      ref rootReferenceLookup);
+
+                        TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentIndex, childHierarchy.AsNativeArray(), childWorkState.flags);
+
+                        bool removeLeg = false;
+                        if (childWorkState.options != AddChildOptions.IgnoreLinkedEntityGroup)
+                        {
+                            TreeKernels.AddHierarchyToLeg(ref rootLeg, childHierarchy.AsNativeArray());
+                            if (childWorkState.options == AddChildOptions.TransferLinkedEntityGroup && hasLeg)
+                            {
+                                TreeKernels.RemoveHierarchyEntitiesFromLeg(ref childLeg, childHierarchy.AsNativeArray());
+                                removeLeg = childLeg.Length < 2;
+                            }
+                        }
+
+                        if (removeLeg)
+                            ecb.RemoveComponent(rootIndex, childWorkState.child, new TypePack<EntityInHierarchy, EntityInHierarchyCleanup, LinkedEntityGroup>());
+                        else
+                            ecb.RemoveComponent(rootIndex, childWorkState.child, new TypePack<EntityInHierarchy, EntityInHierarchyCleanup>());
+                    }
+                    else if (childWorkState.childClassification.root == root)
+                    {
+                        throw new NotImplementedException();
+                        //var childBlueprint = oldHierarchy[childWorkState.childClassification.indexInHierarchy];
+                        //var blueprintIndexInHierarchy = TreeKernels.FindEntityAfterChange(hierarchy.AsNativeArray(), childBlueprint, childWorkState.childClassification.indexInHierarchy);
+                        //var blueprintHierarchy = TreeKernels.ExtractSubtree(ref tsa, hierarchy.AsNativeArray(), blueprintIndexInHierarchy);
+                        //var substituted = tsa.AllocateAsSpan<bool>(blueprintHierarchy.Length);
+                        //substituted.Clear();
+                        //blueprintHierarchy[0].m_descendantEntity = childWorkState.child;
+                        //substituted[0] = true;
+                        //
+                        //var childEsi = esil[childWorkState.child];
+                        //bool hasLeg = childEsi.Chunk.Has(ref legHandle);
+                        //var childLeg = hasLeg ? childEsi.Chunk.GetBufferAccessorRW(ref legHandle)[childEsi.IndexInChunk] : default;
+                        //if (hasLeg)
+                        //{
+                        //    TreeKernels.RemoveDeadEntitiesFromLeg(ref childLeg, esil);
+                        //    for (int i = 1; i < childLeg.Length; i++)
+                        //    {
+                        //        var e = childLeg[i].Value;
+                        //        if (!rootReferenceLookup.TryGetComponent(e, out var rr))
+                        //            continue;
+                        //        if (rr.rootEntity != root)
+                        //        {
+                        //            UnityEngine.Debug.LogError("A child entity was instantiated with a LinkedEntityGroup containing entities from other hierarchies.")
+                        //            continue; // Todo: This is an error?
+                        //        }
+                        //        var eBlueprint = oldHierarchy[rr.indexInHierarchy];
+                        //        var substitutionIndex = TreeKernels.FindEntityAfterChange(blueprintHierarchy, eBlueprint, math.max(rr.indexInHierarchy - childWorkState.childClassification.indexInHierarchy, 0));
+                        //        if (substitutionIndex == -1)
+                        //        {
+                        //            // This entity got rearranged in the hierarchy.
+                        //        }
+                        //    }
+                        //}
+                    }
+                    else if (childWorkState.childClassification.root != Entity.Null)
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                EntityInHierarchy* extraPtr = null;
+                if (rootIsAlive && esi.Chunk.Has(ref cleanupHandle))
+                {
+                    var cleanup = esi.Chunk.GetBufferAccessorRW(ref cleanupHandle)[esi.IndexInChunk];
+                    TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
+                    extraPtr = (EntityInHierarchy*)cleanup.GetUnsafePtr();
+                }
+                TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), oldHierarchy, ref rootReferenceLookup);
+
+                foreach (var childIndex in rootChildrenIndices)
+                {
+                    var childWorkState   = childWorkStates[childIndex];
+                    var indexInHierarchy = TreeKernels.FindEntityAfterChange(hierarchy.AsNativeArray(), childWorkState.child, 0);
+                    var handle           = new EntityInHierarchyHandle
+                    {
+                        m_hierarchy      = hierarchy.AsNativeArray(),
+                        m_extraHierarchy = extraPtr,
+                        m_index          = indexInHierarchy,
+                    };
+                    if (worldTransformLookup.HasComponent(childWorkState.child))
+                        TransformTools.SetLocalTransform(handle, childWorkState.localTransform, ref worldTransformLookup, ref esil);
+                    if (tickedWorldTransformLookup.HasComponent(childWorkState.child))
+                        TransformTools.SetTickedLocalTransform(handle, childWorkState.localTransform, ref tickedWorldTransformLookup, ref esil);
+                }
+
+                if (hadEnoughLegBefore && rootLeg.Length < 2)
+                    ecb.RemoveComponent<LinkedEntityGroup>(rootIndex, root);
+
                 tsa.Dispose();
             }
 
@@ -590,1141 +738,6 @@ namespace Latios.Transforms
                     var leg                               = esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk];
                     leg.Add(new LinkedEntityGroup { Value = addSet.entity });
                 }
-            }
-        }
-        #endregion
-
-        #region Main Thread
-        static unsafe void AddChild(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-
-            switch (childClassification.role, parentClassification.role)
-            {
-                case (TreeKernels.TreeClassification.TreeRole.Solo, TreeKernels.TreeClassification.TreeRole.Solo):
-                    AddSoloChildToSoloParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.Solo, TreeKernels.TreeClassification.TreeRole.Root):
-                    AddSoloChildToRootParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.Solo, TreeKernels.TreeClassification.TreeRole.InternalNoChildren):
-                case (TreeKernels.TreeClassification.TreeRole.Solo, TreeKernels.TreeClassification.TreeRole.InternalWithChildren):
-                    AddSoloChildToInternalParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.Root, TreeKernels.TreeClassification.TreeRole.Solo):
-                    AddRootChildToSoloParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.Root, TreeKernels.TreeClassification.TreeRole.Root):
-                    AddRootChildToRootParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.Root, TreeKernels.TreeClassification.TreeRole.InternalNoChildren):
-                case (TreeKernels.TreeClassification.TreeRole.Root, TreeKernels.TreeClassification.TreeRole.InternalWithChildren):
-                    TreeChangeSafetyChecks.CheckNotAssigningRootChildToDescendant(childWorkState.parent, childWorkState.child, parentClassification);
-                    AddRootChildToInternalParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.InternalNoChildren, TreeKernels.TreeClassification.TreeRole.Solo):
-                    AddInternalChildWithoutSubtreeToSoloParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.InternalNoChildren, TreeKernels.TreeClassification.TreeRole.Root):
-                    if (childWorkState.parent == childClassification.root)
-                        AddInternalChildWithoutSubtreeToRootParentSameRoot(em, ref childWorkState);
-                    else
-                        AddInternalChildWithoutSubtreeToRootParentDifferentRoot(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.InternalNoChildren, TreeKernels.TreeClassification.TreeRole.InternalNoChildren):
-                case (TreeKernels.TreeClassification.TreeRole.InternalNoChildren, TreeKernels.TreeClassification.TreeRole.InternalWithChildren):
-                    if (parentClassification.root == childClassification.root)
-                        AddInternalChildWithoutSubtreeToInternalParentSameRoot(em, ref childWorkState);
-                    else
-                        AddInternalChildWithoutSubtreeToInternalParentDifferentRoots(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.InternalWithChildren, TreeKernels.TreeClassification.TreeRole.Solo):
-                    AddInternalChildWithSubtreeToSoloParent(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.InternalWithChildren, TreeKernels.TreeClassification.TreeRole.Root):
-                    if (childWorkState.parent == childClassification.root)
-                        AddInternalChildWithSubtreeToRootParentSameRoot(em, ref childWorkState);
-                    else
-                        AddInternalChildWithSubtreeToRootParentDifferentRoot(em, ref childWorkState);
-                    break;
-                case (TreeKernels.TreeClassification.TreeRole.InternalWithChildren, TreeKernels.TreeClassification.TreeRole.InternalNoChildren):
-                case (TreeKernels.TreeClassification.TreeRole.InternalWithChildren, TreeKernels.TreeClassification.TreeRole.InternalWithChildren):
-                    if (parentClassification.root == childClassification.root)
-                        AddInternalChildWithSubtreeToInternalParentSameRoot(em, ref childWorkState);
-                    else
-                        AddInternalChildWithSubtreeToInternalParentDifferentRoots(em, ref childWorkState);
-                    break;
-            }
-
-            var childHandle = em.GetComponentData<RootReference>(child).ToHandle(em);
-            if (flags.HasCopyParent())
-            {
-                // Set WorldTransform of child and propagate.
-                Span<Propagate.WriteCommand> command = stackalloc Propagate.WriteCommand[1];
-                command[0]                           = new Propagate.WriteCommand
-                {
-                    indexInHierarchy = childHandle.indexInHierarchy,
-                    writeType        = Propagate.WriteCommand.WriteType.CopyParentParentChanged
-                };
-                Span<TransformQvvs> dummy = stackalloc TransformQvvs[1];
-                em.CompleteDependencyBeforeRW<WorldTransform>();
-                var transformLookup = em.GetComponentLookup<WorldTransform>(false);
-                if (em.HasComponent<WorldTransform>(child))
-                {
-                    var ema = new EntityManagerAccess(em);
-                    Propagate.WriteAndPropagate(childHandle.m_hierarchy, childHandle.m_extraHierarchy, dummy, command, ref ema, ref ema);
-                }
-                if (em.HasComponent<TickedWorldTransform>(child))
-                {
-                    var ema = new TickedEntityManagerAccess(em);
-                    Propagate.WriteAndPropagate(childHandle.m_hierarchy, childHandle.m_extraHierarchy, dummy, command, ref ema, ref ema);
-                }
-            }
-            else
-            {
-                // Compute new local transforms (and propagate if necessary)
-                if (em.HasComponent<WorldTransform>(child))
-                {
-                    var childTransform = em.GetComponentData<WorldTransform>(child);
-                    SetWorldTransform(child, in childTransform.worldTransform, em);
-                }
-                if (em.HasComponent<TickedWorldTransform>(child))
-                {
-                    var childTransform = em.GetComponentData<TickedWorldTransform>(child);
-                    SetTickedWorldTransform(child, in childTransform.worldTransform, em);
-                }
-            }
-        }
-
-        #region Solo Children
-        static void AddSoloChildToSoloParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parent  = childWorkState.parent;
-            var child   = childWorkState.child;
-            var flags   = childWorkState.flags;
-            var options = childWorkState.options;
-
-            // Construct the hierarchy and copy it to cleanup if needed.
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            TreeKernels.BuildOriginalParentChildHierarchy(ref hierarchy, parent, child, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
-
-            // If we need LEG, add the child to the parent. Then optionally remove the child's LEG.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                TreeKernels.AddEntityToLeg(ref leg, child);
-                if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
-                {
-                    var childLeg = em.GetBuffer<LinkedEntityGroup>(child, true);
-                    if (childLeg.Length < 2)
-                        em.RemoveComponent<LinkedEntityGroup>(child);
-                }
-            }
-
-            Validate(em, parent, child);
-        }
-
-        static void AddSoloChildToRootParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parent  = childWorkState.parent;
-            var child   = childWorkState.child;
-            var flags   = childWorkState.flags;
-            var options = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // Clean the root parent, then add the child to it. We can handle cleanup now too since all components have been added.
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            CleanHierarchy(ref tsa, em, parent, ref hierarchy, !childWorkState.addedLeg, out var removeParentLeg);
-            TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, 0, child, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup || em.HasBuffer<EntityInHierarchyCleanup>(parent))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Add child to parent's LEG, then optionally remove LEG from child. Also, cleaning might cause parent to drop LEG.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                TreeKernels.AddEntityToLeg(ref leg, child);
-                if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
-                {
-                    var childLeg = em.GetBuffer<LinkedEntityGroup>(child, true);
-                    if (childLeg.Length < 2)
-                        em.RemoveComponent<LinkedEntityGroup>(child);
-                }
-            }
-            else if (removeParentLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parent);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddSoloChildToInternalParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-            var options              = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // For this case, we know upfront whether we need LEG or Cleanup. Apply structural changes immediately.
-            var childAddSet = childWorkState.childAddSet;
-            var root        = parentClassification.root;
-            var hierarchy   = GetRootHierarchy(em, parentClassification, true);
-
-            // We insert the new entity into the hierarchy before cleaning, because otherwise we lose where the parent it.
-            hierarchy = GetRootHierarchy(em, parentClassification, false);
-            var old   = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, child, flags);
-            CleanHierarchy(ref tsa, em, parentClassification.root, ref hierarchy, !childWorkState.addedLeg, out var removeRootLeg);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup || (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(root)))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Add child to parent's LEG, then optionally remove LEG from child. Also, cleaning might cause root to drop LEG.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
-                TreeKernels.AddEntityToLeg(ref leg, child);
-                if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
-                {
-                    var childLeg = em.GetBuffer<LinkedEntityGroup>(child, true);
-                    if (childLeg.Length < 2)
-                        em.RemoveComponent<LinkedEntityGroup>(child);
-                }
-            }
-            else if (removeRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(root);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-        #endregion
-
-        #region Root Children
-        static void AddRootChildToSoloParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parent  = childWorkState.parent;
-            var child   = childWorkState.child;
-            var flags   = childWorkState.flags;
-            var options = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // Clean child hierarchy
-            var oldChildHierarchy = em.GetBuffer<EntityInHierarchy>(child);
-            CleanHierarchy(ref tsa, em, child, ref oldChildHierarchy, true, out var removeChildLeg);
-
-            // Extract LEG entities
-            ProcessRootChildLeg(ref tsa, em, child, oldChildHierarchy.AsNativeArray(), options, out var removeChildLeg2, out var dstHierarchyNeedsCleanup,
-                                out var childLegEntities);
-            removeChildLeg |= removeChildLeg2;
-
-            // Build new hierarchy
-            var hierarchy     = em.GetBuffer<EntityInHierarchy>(parent, false);
-            oldChildHierarchy = em.GetBuffer<EntityInHierarchy>(child, true);
-            TreeKernels.BuildOriginalParentWithDescendantHierarchy(ref hierarchy, parent, oldChildHierarchy.AsNativeArray(), flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
-
-            // Add LEG entities
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                if (childLegEntities.Length > 0)
-                    TreeKernels.AddEntitiesToLeg(ref leg, childLegEntities);
-                else
-                    TreeKernels.AddEntityToLeg(ref leg, child);
-            }
-
-            // Remove old root components from child
-            TreeKernels.RemoveRootComponents(em, child, removeChildLeg);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddRootChildToRootParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parent  = childWorkState.parent;
-            var child   = childWorkState.child;
-            var flags   = childWorkState.flags;
-            var options = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We know the parent is a root with a valid hierarchy, so we can apply the hierarchy changes and cleaning now.
-            var oldChildHierarchy = em.GetBuffer<EntityInHierarchy>(child);
-            CleanHierarchy(ref tsa, em, child,  ref oldChildHierarchy, true,                     out var removeChildLeg);
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            CleanHierarchy(ref tsa, em, parent, ref hierarchy,         !childWorkState.addedLeg, out var removeParentLeg);
-            TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, 0, oldChildHierarchy.AsNativeArray().AsReadOnlySpan(), flags);
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Extract LEG entities
-            ProcessRootChildLeg(ref tsa, em, child, oldChildHierarchy.AsNativeArray(), options, out var removeChildLeg2, out var dstHierarchyNeedsCleanup,
-                                out var childLegEntities);
-            removeChildLeg |= removeChildLeg2;
-
-            // Now we can process cleanup
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup || em.HasBuffer<EntityInHierarchyCleanup>(parent))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-
-            // Add LEG entities, and maybe remove the parent LEG after cleanup
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                if (childLegEntities.Length > 0)
-                    TreeKernels.AddEntitiesToLeg(ref leg, childLegEntities);
-                else
-                    TreeKernels.AddEntityToLeg(ref leg, child);
-            }
-            else if (removeParentLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parent);
-
-            // Remove old root components from child
-            TreeKernels.RemoveRootComponents(em, child, removeChildLeg);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddRootChildToInternalParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-            var options              = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // Get the components to add, but only apply them to the child, since we don't know yet if the parent's root needs cleanup.
-            var childAddSet = childWorkState.childAddSet;
-            var root        = parentClassification.root;
-            var hierarchy   = GetRootHierarchy(em, parentClassification, true);
-
-            // Clean the old hierarchy, then insert it into the new hierarchy while we know the new hierarchy's parent index, and then clean the new hierarchy.
-            // Todo: We redundantly clean the entities that move between hierarchies. This could be improved.
-            hierarchy             = GetRootHierarchy(em, parentClassification, false);
-            var oldChildHierarchy = em.GetBuffer<EntityInHierarchy>(child);
-            CleanHierarchy(ref tsa, em, child, ref oldChildHierarchy, true, out var removeChildLeg);
-            var old = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, oldChildHierarchy.AsNativeArray().AsReadOnlySpan(), flags);
-            CleanHierarchy(ref tsa, em, root, ref hierarchy, !childWorkState.addedLeg, out var removeRootLeg);
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Extract LEG entities
-            ProcessRootChildLeg(ref tsa, em, child, oldChildHierarchy.AsNativeArray(), options, out var removeChildLeg2, out var dstHierarchyNeedsCleanup,
-                                out var childLegEntities);
-            removeChildLeg |= removeChildLeg2;
-
-            // Now we can add perform cleanup.
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup || (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(parent)))
-            {
-                hierarchy   = em.GetBuffer<EntityInHierarchy>(root, true);
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-
-            // Add LEG entities. Also, cleaning might result in us removing LEG from the root.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
-                if (childLegEntities.Length > 0)
-                    TreeKernels.AddEntitiesToLeg(ref leg, childLegEntities);
-                else
-                    TreeKernels.AddEntityToLeg(ref leg, child);
-            }
-            else if (removeRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(root);
-
-            // Remove old root components from child
-            TreeKernels.RemoveRootComponents(em, child, removeChildLeg);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        #endregion
-
-        #region Internal Children without Subtrees
-        static void AddInternalChildWithoutSubtreeToSoloParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-            var options              = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We are only moving one entity, so we know the components to add up front.
-            var oldRoot = childClassification.root;
-
-            // We remove the child from the old hierarchy, clean the old hierarchy, and dispatch root references.
-            // Note: ProcessInternalChildLegNoSubtree can make structural changes and invalidate buffers.
-            var oldChildHierarchy   = GetRootHierarchy(em, childClassification, false);
-            var oldRootEntities     = TreeKernels.CopyHierarchyEntities(ref tsa, oldChildHierarchy.AsNativeArray());
-            var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldChildHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
-            TreeKernels.RemoveSoloFromHierarchy(ref oldChildHierarchy, childClassification.indexInHierarchy);
-            CleanHierarchy(ref tsa, em, oldRoot, ref oldChildHierarchy, true, out var removeOldRootLeg);
-            TreeKernels.UpdateRootReferencesFromDiff(oldChildHierarchy.AsNativeArray(), oldRootEntities, em);
-            bool convertOldRootToSolo = oldChildHierarchy.Length < 2;
-
-            // And then we construct the new hierarchy, and optionally apply cleanup.
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            TreeKernels.BuildOriginalParentChildHierarchy(ref hierarchy, parent, child, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
-
-            // Now process LEG
-            ProcessInternalChildLegNoSubtree(em, oldRoot, childClassification.isRootAlive, child, oldAncestorEntities, options, out bool removeChildLeg,
-                                             out bool removeOldRootLeg2);
-            removeOldRootLeg |= removeOldRootLeg2;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                TreeKernels.AddEntityToLeg(ref leg, child);
-            }
-
-            // Remove old root components
-            if (convertOldRootToSolo)
-                TreeKernels.RemoveRootComponents(em, oldRoot, removeOldRootLeg);
-            else if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            if (removeChildLeg)
-                em.RemoveComponent<LinkedEntityGroup>(child);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithoutSubtreeToRootParentSameRoot(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var childClassification = childWorkState.childClassification;
-            var parent              = childWorkState.parent;
-            var child               = childWorkState.child;
-            var flags               = childWorkState.flags;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We do not need to account for ticked vs unticked in the ancestry, because the root should already have everything
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            TreeKernels.RemoveSoloFromHierarchy(ref hierarchy, childClassification.indexInHierarchy);
-            TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, 0, child, flags);
-            CleanHierarchy(ref tsa, em, parent, ref hierarchy, true, out var removeLeg);
-            if (em.HasBuffer<EntityInHierarchyCleanup>(parent))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Cleaning can still result in LEG being removed.
-            if (removeLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parent);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithoutSubtreeToRootParentDifferentRoot(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var childClassification = childWorkState.childClassification;
-            var parent              = childWorkState.parent;
-            var child               = childWorkState.child;
-            var flags               = childWorkState.flags;
-            var options             = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We are only moving one entity, so we know the components to add up front.
-            var oldRoot = childClassification.root;
-
-            // We remove the child from the old hierarchy, clean the old hierarchy, and dispatch root references.
-            // Note: ProcessInternalChildLegNoSubtree can make structural changes and invalidate buffers.
-            var oldChildHierarchy   = GetRootHierarchy(em, childClassification, false);
-            var oldRootEntities     = TreeKernels.CopyHierarchyEntities(ref tsa, oldChildHierarchy.AsNativeArray());
-            var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldChildHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
-            TreeKernels.RemoveSoloFromHierarchy(ref oldChildHierarchy, childClassification.indexInHierarchy);
-            CleanHierarchy(ref tsa, em, oldRoot, ref oldChildHierarchy, true, out var removeOldRootLeg);
-            TreeKernels.UpdateRootReferencesFromDiff(oldChildHierarchy.AsNativeArray(), oldRootEntities, em);
-            bool convertOldRootToSolo = oldChildHierarchy.Length < 2;
-
-            // And then we insert the child into the new hierarchy. Since the parent is the root, we do so after cleaning.
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            CleanHierarchy(ref tsa, em, parent, ref hierarchy, !childWorkState.addedLeg, out var removeParentLeg);
-            TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, 0, child, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup || em.HasBuffer<EntityInHierarchyCleanup>(parent))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Now process LEG
-            ProcessInternalChildLegNoSubtree(em, oldRoot, childClassification.isRootAlive, child, oldAncestorEntities, options, out bool removeChildLeg,
-                                             out bool removeOldRootLeg2);
-            removeOldRootLeg |= removeOldRootLeg2;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                TreeKernels.AddEntityToLeg(ref leg, child);
-            }
-
-            // Remove old root components
-            if (convertOldRootToSolo)
-                TreeKernels.RemoveRootComponents(em, oldRoot, removeOldRootLeg);
-            else if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            if (removeChildLeg)
-                em.RemoveComponent<LinkedEntityGroup>(child);
-            if (removeParentLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parent);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithoutSubtreeToInternalParentSameRoot(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We still need to account for ticked vs unticked in the ancestry
-            var childAddSet = childWorkState.childAddSet;
-            var hierarchy   = GetRootHierarchy(em, parentClassification, false);
-
-            hierarchy = GetRootHierarchy(em, parentClassification, false);
-            var old   = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            TreeKernels.RemoveSoloFromHierarchy(ref hierarchy, childClassification.indexInHierarchy);
-            // When we remove from the hierarchy, our parent's index might have shifted by an index if the child preceeded the parent
-            if (parentClassification.indexInHierarchy >= hierarchy.Length || hierarchy[parentClassification.indexInHierarchy].entity != parent)
-                parentClassification.indexInHierarchy--;
-            TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, child, flags);
-            CleanHierarchy(ref tsa, em, parentClassification.root, ref hierarchy, parentClassification.isRootAlive, out var removeLeg);
-            if (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(parentClassification.root))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parentClassification.root, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Cleaning can still result in LEG being removed.
-            if (removeLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parentClassification.root);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithoutSubtreeToInternalParentDifferentRoots(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-            var options              = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We are only moving one entity, so we know the components to add up front.
-            var oldRoot     = childClassification.root;
-            var root        = parentClassification.root;
-            var childAddSet = childWorkState.childAddSet;
-            var hierarchy   = GetRootHierarchy(em, parentClassification, false);
-
-            // We remove the child from the old hierarchy, clean the old hierarchy, and dispatch root references.
-            // Note: ProcessInternalChildLegNoSubtree can make structural changes and invalidate buffers.
-            var oldChildHierarchy   = GetRootHierarchy(em, childClassification, false);
-            var oldRootEntities     = TreeKernels.CopyHierarchyEntities(ref tsa, oldChildHierarchy.AsNativeArray());
-            var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldChildHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
-            TreeKernels.RemoveSoloFromHierarchy(ref oldChildHierarchy, childClassification.indexInHierarchy);
-            CleanHierarchy(ref tsa, em, oldRoot, ref oldChildHierarchy, true, out var removeOldRootLeg);
-            TreeKernels.UpdateRootReferencesFromDiff(oldChildHierarchy.AsNativeArray(), oldRootEntities, em);
-            bool convertOldRootToSolo = oldChildHierarchy.Length < 2;
-
-            // And then we insert the child into the new hierarchy. We do this before cleaning while we know the index of the parent.
-            hierarchy = GetRootHierarchy(em, parentClassification, false);
-            var old   = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, child, flags);
-            CleanHierarchy(ref tsa, em, root, ref hierarchy, !childWorkState.addedLeg, out var removeRootLeg);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup || em.HasBuffer<EntityInHierarchyCleanup>(parent))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Now process LEG
-            ProcessInternalChildLegNoSubtree(em, oldRoot, childClassification.isRootAlive, child, oldAncestorEntities, options, out bool removeChildLeg,
-                                             out bool removeOldRootLeg2);
-            removeOldRootLeg |= removeOldRootLeg2;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
-                TreeKernels.AddEntityToLeg(ref leg, child);
-            }
-
-            // Remove old root components
-            if (convertOldRootToSolo)
-                TreeKernels.RemoveRootComponents(em, oldRoot, removeOldRootLeg);
-            else if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            if (removeChildLeg)
-                em.RemoveComponent<LinkedEntityGroup>(child);
-            if (removeRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(root);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-        #endregion
-
-        #region Internal Children with Subtrees
-        static void AddInternalChildWithSubtreeToSoloParent(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var childClassification = childWorkState.childClassification;
-            var parent              = childWorkState.parent;
-            var child               = childWorkState.child;
-            var flags               = childWorkState.flags;
-            var options             = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // Add only the components for the child. We don't yet know if the new root needs cleanup or not.
-            var oldRoot = childClassification.root;
-
-            // We need the hierarchy index to extract the subtree, but we also need a clean subtree to get accurate LEG list.
-            // Thus, we clean the hierarchy first, then find our entity in it. Then we can extract the subtree.
-            var oldHierarchy        = GetRootHierarchy(em, childClassification, false);
-            var oldChildEntities    = TreeKernels.CopyHierarchyEntities(ref tsa, oldHierarchy.AsNativeArray());
-            var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
-            CleanHierarchy(ref tsa, em, oldRoot, ref oldHierarchy, childClassification.isRootAlive, out bool removeOldRootLeg);
-            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
-            var subtree                          = TreeKernels.ExtractSubtree(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy);
-            TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
-            TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
-            bool convertOldRootToSolo = oldHierarchy.Length < 2;
-
-            // Next, we need to remove the LEG from the old hierarchy
-            ProcessInternalChildLegWithSubtree(ref tsa,
-                                               em,
-                                               oldRoot,
-                                               childClassification.isRootAlive,
-                                               child,
-                                               oldAncestorEntities,
-                                               subtree,
-                                               options,
-                                               out var removeChildLeg,
-                                               out var removeOldRootLeg2,
-                                               out var dstHierarchyNeedsCleanup,
-                                               out var legEntitiesToAddToDst);
-            removeOldRootLeg |= removeOldRootLeg2;
-
-            // Build new hierarchy
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            TreeKernels.BuildOriginalParentWithDescendantHierarchy(ref hierarchy, parent, subtree, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
-
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                if (legEntitiesToAddToDst.IsEmpty)
-                    TreeKernels.AddEntityToLeg(ref leg, child);
-                else
-                    TreeKernels.AddEntitiesToLeg(ref leg, legEntitiesToAddToDst);
-            }
-
-            // Remove old root components
-            if (convertOldRootToSolo)
-                TreeKernels.RemoveRootComponents(em, oldRoot, removeOldRootLeg);
-            else if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            if (removeChildLeg)
-                em.RemoveComponent<LinkedEntityGroup>(child);
-            if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithSubtreeToRootParentSameRoot(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var childClassification = childWorkState.childClassification;
-            var parent              = childWorkState.parent;
-            var child               = childWorkState.child;
-            var flags               = childWorkState.flags;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We do not need to account for ticked vs unticked in the ancestry, because the root should already have everything
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            var subtree   = TreeKernels.ExtractSubtree(ref tsa, hierarchy.AsNativeArray(), childClassification.indexInHierarchy);
-            TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref hierarchy, childClassification.indexInHierarchy, subtree);
-            TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, 0, subtree, flags);
-            CleanHierarchy(ref tsa, em, parent, ref hierarchy, true, out var removeLeg);
-            if (em.HasBuffer<EntityInHierarchyCleanup>(parent))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Cleaning can still result in LEG being removed.
-            if (removeLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parent);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithSubtreeToRootParentDifferentRoot(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var childClassification = childWorkState.childClassification;
-            var parent              = childWorkState.parent;
-            var child               = childWorkState.child;
-            var flags               = childWorkState.flags;
-            var options             = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // Add only the components for the child. We don't yet know if the new root needs cleanup or not.
-            var oldRoot = childClassification.root;
-
-            // We need the hierarchy index to extract the subtree, but we also need a clean subtree to get accurate LEG list.
-            // Thus, we clean the hierarchy first, then find our entity in it. Then we can extract the subtree.
-            var oldHierarchy        = GetRootHierarchy(em, childClassification, false);
-            var oldChildEntities    = TreeKernels.CopyHierarchyEntities(ref tsa, oldHierarchy.AsNativeArray());
-            var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
-            CleanHierarchy(ref tsa, em, oldRoot, ref oldHierarchy, childClassification.isRootAlive, out bool removeOldRootLeg);
-            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
-            var subtree                          = TreeKernels.ExtractSubtree(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy);
-            TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
-            TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
-            bool convertOldRootToSolo = oldHierarchy.Length < 2;
-
-            // Next, we need to remove the LEG from the old hierarchy
-            ProcessInternalChildLegWithSubtree(ref tsa,
-                                               em,
-                                               oldRoot,
-                                               childClassification.isRootAlive,
-                                               child,
-                                               oldAncestorEntities,
-                                               subtree,
-                                               options,
-                                               out var removeChildLeg,
-                                               out var removeOldRootLeg2,
-                                               out var dstHierarchyNeedsCleanup,
-                                               out var legEntitiesToAddToDst);
-            removeOldRootLeg |= removeOldRootLeg2;
-
-            // Build new hierarchy
-            var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
-            var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            CleanHierarchy(ref tsa, em, parent, ref hierarchy, !childWorkState.addedLeg, out var removeParentLeg);
-            TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, 0, subtree, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
-                if (legEntitiesToAddToDst.IsEmpty)
-                    TreeKernels.AddEntityToLeg(ref leg, child);
-                else
-                    TreeKernels.AddEntitiesToLeg(ref leg, legEntitiesToAddToDst);
-            }
-
-            // Remove old root components
-            if (convertOldRootToSolo)
-                TreeKernels.RemoveRootComponents(em, oldRoot, removeOldRootLeg);
-            else if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            if (removeChildLeg)
-                em.RemoveComponent<LinkedEntityGroup>(child);
-            if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-            if (removeParentLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parent);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithSubtreeToInternalParentSameRoot(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // We still need to account for ticked vs unticked in the ancestry
-            var childAddSet = childWorkState.childAddSet;
-            var hierarchy   = GetRootHierarchy(em, parentClassification, false);
-
-            hierarchy   = GetRootHierarchy(em, parentClassification, false);
-            var old     = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            var subtree = TreeKernels.ExtractSubtree(ref tsa, hierarchy.AsNativeArray(), childClassification.indexInHierarchy);
-            TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref hierarchy, childClassification.indexInHierarchy, subtree);
-            // When we remove from the hierarchy, our parent's index might have moved and we need to refind it
-            parentClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(hierarchy.AsNativeArray(), parent, parentClassification.indexInHierarchy);
-            TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, subtree, flags);
-            CleanHierarchy(ref tsa, em, parentClassification.root, ref hierarchy, parentClassification.isRootAlive, out var removeLeg);
-            if (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(parentClassification.root))
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parentClassification.root, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            // Cleaning can still result in LEG being removed.
-            if (removeLeg)
-                em.RemoveComponent<LinkedEntityGroup>(parentClassification.root);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-
-        static void AddInternalChildWithSubtreeToInternalParentDifferentRoots(EntityManager em, ref ChildWorkState childWorkState)
-        {
-            var parentClassification = childWorkState.parentClassification;
-            var childClassification  = childWorkState.childClassification;
-            var parent               = childWorkState.parent;
-            var child                = childWorkState.child;
-            var flags                = childWorkState.flags;
-            var options              = childWorkState.options;
-
-            var tsa = ThreadStackAllocator.GetAllocator();
-
-            // Add only the components for the child. We don't yet know if the new root needs cleanup or not.
-            var oldRoot     = childClassification.root;
-            var root        = parentClassification.root;
-            var childAddSet = childWorkState.childAddSet;
-            var hierarchy   = GetRootHierarchy(em, parentClassification, true);
-
-            // We need the hierarchy index to extract the subtree, but we also need a clean subtree to get accurate LEG list.
-            // Thus, we clean the hierarchy first, then find our entity in it. Then we can extract the subtree.
-            var oldHierarchy        = GetRootHierarchy(em, childClassification, false);
-            var oldChildEntities    = TreeKernels.CopyHierarchyEntities(ref tsa, oldHierarchy.AsNativeArray());
-            var oldAncestorEntities = GetAncestorEntitiesIfNeededForLeg(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy, options);
-            CleanHierarchy(ref tsa, em, oldRoot, ref oldHierarchy, childClassification.isRootAlive, out bool removeOldRootLeg);
-            childClassification.indexInHierarchy = TreeKernels.FindEntityAfterCleaning(oldHierarchy.AsNativeArray(), child, childClassification.indexInHierarchy);
-            var subtree                          = TreeKernels.ExtractSubtree(ref tsa, oldHierarchy.AsNativeArray(), childClassification.indexInHierarchy);
-            TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
-            TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
-            bool convertOldRootToSolo = oldHierarchy.Length < 2;
-
-            // Next, we need to remove the LEG from the old hierarchy
-            ProcessInternalChildLegWithSubtree(ref tsa,
-                                               em,
-                                               oldRoot,
-                                               childClassification.isRootAlive,
-                                               child,
-                                               oldAncestorEntities,
-                                               subtree,
-                                               options,
-                                               out var removeChildLeg,
-                                               out var removeOldRootLeg2,
-                                               out var dstHierarchyNeedsCleanup,
-                                               out var legEntitiesToAddToDst);
-            removeOldRootLeg |= removeOldRootLeg2;
-
-            // Build new hierarchy
-            hierarchy = GetRootHierarchy(em, parentClassification, false);
-            var old   = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-            CleanHierarchy(ref tsa, em, root, ref hierarchy, !childWorkState.addedLeg, out var removeRootLeg);
-            TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, subtree, flags);
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
-                TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
-            }
-            TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
-
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
-                if (legEntitiesToAddToDst.IsEmpty)
-                    TreeKernels.AddEntityToLeg(ref leg, child);
-                else
-                    TreeKernels.AddEntitiesToLeg(ref leg, legEntitiesToAddToDst);
-            }
-
-            // Remove old root components
-            if (convertOldRootToSolo)
-                TreeKernels.RemoveRootComponents(em, oldRoot, removeOldRootLeg);
-            else if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-
-            if (removeChildLeg)
-                em.RemoveComponent<LinkedEntityGroup>(child);
-            if (removeOldRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(oldRoot);
-            if (removeRootLeg)
-                em.RemoveComponent<LinkedEntityGroup>(root);
-
-            Validate(em, parent, child);
-
-            tsa.Dispose();
-        }
-        #endregion
-
-        #region Subprocesses
-        static DynamicBuffer<EntityInHierarchy> GetRootHierarchy(EntityManager em, TreeKernels.TreeClassification classification, bool isReadOnly)
-        {
-            if (classification.isRootAlive)
-                return em.GetBuffer<EntityInHierarchy>(classification.root, isReadOnly);
-            else
-                return em.GetBuffer<EntityInHierarchyCleanup>(classification.root, isReadOnly).Reinterpret<EntityInHierarchy>();
-        }
-
-        static void CleanHierarchy(ref ThreadStackAllocator parentTsa,
-                                   EntityManager em,
-                                   Entity rootToClean,
-                                   ref DynamicBuffer<EntityInHierarchy> hierarchy,
-                                   bool checkForLeg,
-                                   out bool removeLeg)
-        {
-            removeLeg = false;
-            if (checkForLeg && em.HasBuffer<LinkedEntityGroup>(rootToClean))
-            {
-                var leg = em.GetBuffer<LinkedEntityGroup>(rootToClean, false);
-                TreeKernels.RemoveDeadDescendantsFromHierarchyAndLeg(ref parentTsa, ref hierarchy, ref leg, em);
-                removeLeg = leg.Length < 2;
-            }
-            else
-                TreeKernels.RemoveDeadDescendantsFromHierarchy(ref parentTsa, ref hierarchy, em);
-        }
-
-        static void ProcessRootChildLeg(ref ThreadStackAllocator tsa,
-                                        EntityManager em,
-                                        Entity child,
-                                        in ReadOnlySpan<EntityInHierarchy> hierarchy,
-                                        AddChildOptions options,
-                                        out bool removeLeg,
-                                        out bool dstHierarchyNeedsCleanup,
-                                        out Span<Entity>                   entitiesInLegAndHierarchy)
-        {
-            dstHierarchyNeedsCleanup = false;
-            removeLeg                = false;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
-            {
-                var  childLeg = em.GetBuffer<LinkedEntityGroup>(child, options == AddChildOptions.AttachLinkedEntityGroup);
-                bool matchedAll;
-                if (options == AddChildOptions.AttachLinkedEntityGroup)
-                    entitiesInLegAndHierarchy = TreeKernels.GetHierarchyEntitiesInLeg(ref tsa, hierarchy, childLeg.Reinterpret<Entity>().AsNativeArray(), out matchedAll);
-                else
-                {
-                    entitiesInLegAndHierarchy = TreeKernels.GetAndRemoveHierarchyEntitiesFromLeg(ref tsa, ref childLeg, hierarchy, out matchedAll);
-                    if (childLeg.Length < 2)
-                        removeLeg = true;
-                }
-                dstHierarchyNeedsCleanup = !matchedAll;
-            }
-            else
-            {
-                dstHierarchyNeedsCleanup  = true;
-                entitiesInLegAndHierarchy = default;
-            }
-        }
-
-        static Span<Entity> GetAncestorEntitiesIfNeededForLeg(ref ThreadStackAllocator tsa, in ReadOnlySpan<EntityInHierarchy> hierarchy, int childIndex, AddChildOptions options)
-        {
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-                return default;
-            return TreeKernels.GetAncestryEntitiesExcludingRoot(ref tsa, hierarchy, childIndex);
-        }
-
-        static void ProcessInternalChildLegNoSubtree(EntityManager em,
-                                                     Entity root,
-                                                     bool isRootAlive,
-                                                     Entity child,
-                                                     in ReadOnlySpan<Entity> ancestorEntities,
-                                                     AddChildOptions options,
-                                                     out bool removeLegFromChild,
-                                                     out bool removeLegFromRoot)
-        {
-            removeLegFromChild = false;
-            removeLegFromRoot  = false;
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-                return;
-
-            if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
-            {
-                if (em.GetBuffer<LinkedEntityGroup>(child, true).Length < 2)
-                    removeLegFromChild = true;
-            }
-
-            if (isRootAlive && em.HasBuffer<LinkedEntityGroup>(root))
-            {
-                var rootLeg = em.GetBuffer<LinkedEntityGroup>(root, false);
-                TreeKernels.RemoveEntityFromLeg(ref rootLeg, child, out var matched);
-                removeLegFromRoot = rootLeg.Length < 2;
-            }
-
-            foreach (var e in ancestorEntities)
-            {
-                if (em.IsAlive(e) && em.HasBuffer<LinkedEntityGroup>(e))
-                {
-                    var leg = em.GetBuffer<LinkedEntityGroup>(e);
-                    TreeKernels.RemoveEntityFromLeg(ref leg, child, out _);
-                    if (leg.Length < 2)
-                        em.RemoveComponent<LinkedEntityGroup>(e);
-                }
-            }
-        }
-
-        static void ProcessInternalChildLegWithSubtree(ref ThreadStackAllocator tsa,
-                                                       EntityManager em,
-                                                       Entity root,
-                                                       bool isRootAlive,
-                                                       Entity child,
-                                                       in ReadOnlySpan<Entity>            ancestorEntities,
-                                                       in ReadOnlySpan<EntityInHierarchy> subtree,
-                                                       AddChildOptions options,
-                                                       out bool removeLegFromChild,
-                                                       out bool removeLegFromRoot,
-                                                       out bool dstHierarchyNeedsCleanup,
-                                                       out Span<Entity>                   legEntitiesToAddToDst)
-        {
-            removeLegFromChild       = false;
-            removeLegFromRoot        = false;
-            dstHierarchyNeedsCleanup = true;
-            legEntitiesToAddToDst    = default;
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
-                return;
-
-            if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
-            {
-                var childLeg = em.GetBuffer<LinkedEntityGroup>(child, false);
-                TreeKernels.RemoveHierarchyEntitiesFromLeg(ref childLeg, subtree);
-                if (childLeg.Length < 2)
-                    removeLegFromChild = true;
-            }
-
-            if (isRootAlive && em.HasBuffer<LinkedEntityGroup>(root))
-            {
-                var rootLeg              = em.GetBuffer<LinkedEntityGroup>(root, false);
-                legEntitiesToAddToDst    = TreeKernels.GetAndRemoveHierarchyEntitiesFromLeg(ref tsa, ref rootLeg, subtree, out bool matchedAll);
-                removeLegFromRoot        = rootLeg.Length < 2;
-                dstHierarchyNeedsCleanup = !matchedAll;
-            }
-
-            foreach (var e in ancestorEntities)
-            {
-                if (em.IsAlive(e) && em.HasBuffer<LinkedEntityGroup>(e))
-                {
-                    var leg = em.GetBuffer<LinkedEntityGroup>(e);
-                    TreeKernels.RemoveHierarchyEntitiesFromLeg(ref leg, subtree);
-                    if (leg.Length < 2)
-                        em.RemoveComponent<LinkedEntityGroup>(e);
-                }
-            }
-        }
-        #endregion
-
-        [Conditional("VALIDATE")]
-        static void Validate(EntityManager em, Entity parent, Entity child)
-        {
-            var rootRef = em.GetComponentData<RootReference>(child);
-            var handle  = rootRef.ToHandle(em);
-            if (handle.entity != child)
-                throw new System.InvalidOperationException("Child handle is invalid.");
-            var parentHandle = handle.bloodParent;
-            if (parentHandle.entity != parent)
-                throw new System.InvalidOperationException("Parent handle is invalid.");
-            var last = handle.GetFromIndexInHierarchy(handle.totalInHierarchy - 1);
-            if (last.m_hierarchy[last.indexInHierarchy].firstChildIndex != last.totalInHierarchy)
-            {
-                throw new System.InvalidOperationException($"Bad things happened during validation. Last did not match hierarchy length. root: {handle.root.entity}");
-            }
-            for (int i = 1; i < last.m_hierarchy.Length; i++)
-            {
-                var b = last.m_hierarchy[i];
-                var a = last.m_hierarchy[i - 1];
-                if (b.firstChildIndex != a.firstChildIndex + a.childCount)
-                    throw new System.InvalidOperationException($"Bad things happened during validation. Index {i} has bad indexing. root: {handle.root.entity}");
-            }
-            if (handle.entity != child || parentHandle.entity != parent)
-            {
-                throw new System.InvalidOperationException("Our entities got mixed up.");
             }
         }
         #endregion

@@ -34,6 +34,22 @@ namespace Latios.Transforms
                                                                   deadCount);
         }
 
+        public static void RemoveDeadAndUnreferencedDescendantsFromHierarchy(ref ThreadStackAllocator parentTsa,
+                                                                             ref DynamicBuffer<EntityInHierarchy>      hierarchy,
+                                                                             EntityStorageInfoLookup esil,
+                                                                             ref ComponentLookup<WorldTransform>       worldTransformRO,
+                                                                             ref ComponentLookup<TickedWorldTransform> tickedTransformRO,
+                                                                             ref ComponentLookup<RootReference>        rootReferenceRO)
+        {
+            var srcScan   = hierarchy.AsNativeArray().AsSpan();
+            int deadCount = CountAndMarkDeadAndUnreferencedDescendantsInHierarchy(srcScan, ref rootReferenceRO);
+            if (deadCount == 0)
+                return;
+
+            PatchLocalTransformsFromChildrenOfMarkedDead(srcScan, esil, ref worldTransformRO, ref tickedTransformRO);
+            hierarchy.Length = RemoveMarkedDescendantsInHierarchy(ref parentTsa, srcScan, deadCount);
+        }
+
         public static void RemoveDeadDescendantsFromHierarchyAndLeg(ref ThreadStackAllocator parentTsa, ref DynamicBuffer<EntityInHierarchy> hierarchy,
                                                                     ref DynamicBuffer<LinkedEntityGroup> leg, EntityManager em)
         {
@@ -63,6 +79,21 @@ namespace Latios.Transforms
             RemoveMarkedDescendantsFromLeg(ref leg, srcScan);
             hierarchy.Length = RemoveMarkedDescendantsInHierarchy(ref parentTsa, srcScan, deadCount);
         }
+
+        public static void RemoveDeadEntitiesFromLeg(ref DynamicBuffer<LinkedEntityGroup> leg, EntityStorageInfoLookup esil)
+        {
+            int dst  = 0;
+            var span = leg.AsNativeArray().AsSpan();
+            for (int i = 0; i < leg.Length; i++)
+            {
+                if (esil.IsAlive(span[i].Value))
+                {
+                    span[dst] = span[i];
+                    dst++;
+                }
+            }
+            leg.Length = dst;
+        }
         #endregion
 
         #region Impl
@@ -86,6 +117,20 @@ namespace Latios.Transforms
             for (int i = 1; i < hierarchy.Length; i++)
             {
                 if (!esil.IsAlive(hierarchy[i].entity))
+                {
+                    hierarchy[i].m_firstChildIndex = int.MaxValue;
+                    deadCount++;
+                }
+            }
+            return deadCount;
+        }
+
+        static int CountAndMarkDeadAndUnreferencedDescendantsInHierarchy(Span<EntityInHierarchy> hierarchy, ref ComponentLookup<RootReference> rootRefRO)
+        {
+            int deadCount = 0;
+            for (int i = 1; i < hierarchy.Length; i++)
+            {
+                if (!rootRefRO.TryGetComponent(hierarchy[i].entity, out var rootRef) || rootRef.rootEntity != hierarchy[0].entity)
                 {
                     hierarchy[i].m_firstChildIndex = int.MaxValue;
                     deadCount++;

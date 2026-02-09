@@ -109,7 +109,7 @@ namespace Latios.Transforms
             return result;
         }
 
-        public static int FindEntityAfterCleaning(in ReadOnlySpan<EntityInHierarchy> hierarchy, Entity entity, int oldIndex)
+        public static int FindEntityAfterChange(in ReadOnlySpan<EntityInHierarchy> hierarchy, Entity entity, int oldIndex)
         {
             if (oldIndex < hierarchy.Length && hierarchy[oldIndex].entity == entity)
                 return oldIndex;
@@ -448,6 +448,14 @@ namespace Latios.Transforms
             buffer.EnsureCapacity(buffer.Length + entities.Length);
             foreach (var e in entities)
                 buffer.Add(e);
+        }
+
+        public static void AddHierarchyToLeg(ref DynamicBuffer<LinkedEntityGroup> leg, ReadOnlySpan<EntityInHierarchy> hierarchy)
+        {
+            var buffer = leg.Reinterpret<Entity>();
+            buffer.EnsureCapacity(buffer.Length + hierarchy.Length);
+            foreach (var e in hierarchy)
+                buffer.Add(e.entity);
         }
 
         public static void RemoveEntityFromLeg(ref DynamicBuffer<LinkedEntityGroup> leg, Entity entity, out bool matched)
