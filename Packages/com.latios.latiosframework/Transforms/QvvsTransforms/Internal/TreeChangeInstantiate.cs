@@ -1,9 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Latios.Unsafe;
-using static Latios.Transforms.TransformTools;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -18,21 +16,40 @@ namespace Latios.Transforms
     {
         static readonly Unity.Profiling.ProfilerMarker specializedMarker = new Unity.Profiling.ProfilerMarker("Specialized");
 
-        public static void AddChildren(ref IInstantiateCommand.Context context)
+        public static void AddChildren(ref IInstantiateCommand.Context context, bool hasLocalTransformsToWrite)
         {
             var entities        = context.entities;
             var em              = context.entityManager;
             var childWorkStates = new NativeArray<ChildWorkState>(entities.Length, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
-            for (int i = 0; i < entities.Length; i++)
+            if (hasLocalTransformsToWrite)
             {
-                var command        = context.ReadCommand<ParentCommand>(i);
-                childWorkStates[i] = new ChildWorkState
+                for (int i = 0; i < entities.Length; i++)
                 {
-                    child   = entities[i],
-                    parent  = command.parent,
-                    flags   = command.inheritanceFlags,
-                    options = command.options
-                };
+                    var command        = context.ReadCommand<ParentAndLocalTransformCommand>(i);
+                    childWorkStates[i] = new ChildWorkState
+                    {
+                        child                = entities[i],
+                        parent               = command.parent,
+                        flags                = command.inheritanceFlags,
+                        options              = command.options,
+                        localTransform       = command.newLocalTransform,
+                        tickedLocalTransform = command.newLocalTransform,
+                    };
+                }
+            }
+            else
+            {
+                for (int i = 0; i < entities.Length; i++)
+                {
+                    var command        = context.ReadCommand<ParentCommand>(i);
+                    childWorkStates[i] = new ChildWorkState
+                    {
+                        child   = entities[i],
+                        parent  = command.parent,
+                        flags   = command.inheritanceFlags,
+                        options = command.options
+                    };
+                }
             }
 
             var batchedAddSetsStream = new NativeStream(childWorkStates.Length, Allocator.TempJob);
@@ -46,6 +63,8 @@ namespace Latios.Transforms
                 rootReferenceLookup   = em.GetComponentLookup<RootReference>(true),
                 hierarchyLookup       = em.GetBufferLookup<EntityInHierarchy>(true),
                 cleanupLookup         = em.GetBufferLookup<EntityInHierarchyCleanup>(true),
+                legLookup             = em.GetBufferLookup<LinkedEntityGroup>(true),
+                hasLocalTransforms    = hasLocalTransformsToWrite
             }.ScheduleParallel(childWorkStates.Length, 32, default);
             var batchedAddSets = new NativeList<BatchedAddSet>(Allocator.TempJob);
             var sortChildAddJh = new SortAndMergeBatchAddSetsJob
@@ -174,6 +193,9 @@ namespace Latios.Transforms
             [ReadOnly] public ComponentLookup<RootReference>         rootReferenceLookup;
             [ReadOnly] public BufferLookup<EntityInHierarchy>        hierarchyLookup;
             [ReadOnly] public BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
+            [ReadOnly] public BufferLookup<LinkedEntityGroup>        legLookup;
+
+            public bool hasLocalTransforms;
 
             HasChecker<TickedEntityTag>    tickedEntityChecker;
             HasChecker<LiveBakedTag>       liveBakedChecker;
@@ -192,16 +214,24 @@ namespace Latios.Transforms
 
                 batchAddSetsStream.BeginForEachIndex(i);
 
-                bool hadNormal                 = transformLookup.TryGetComponent(workState.child, out var worldTransform, out _);
-                bool hadTicked                 = tickedTransformLookup.TryGetComponent(workState.child, out var tickedTransform, out _);
-                workState.localTransform       = hadNormal ? worldTransform.worldTransform : TransformQvvs.identity;
-                workState.tickedLocalTransform = hadTicked ? tickedTransform.worldTransform : workState.localTransform;
-                if (hadTicked && !hadNormal)
-                    workState.localTransform = workState.tickedLocalTransform;
+                bool hadNormal = transformLookup.TryGetComponent(workState.child, out var worldTransform);
+                bool hadTicked = tickedTransformLookup.TryGetComponent(workState.child, out var tickedTransform);
+                if (!hasLocalTransforms)
+                {
+                    workState.localTransform       = hadNormal ? worldTransform.worldTransform : TransformQvvs.identity;
+                    workState.tickedLocalTransform = hadTicked ? tickedTransform.worldTransform : workState.localTransform;
+                    if (hadTicked && !hadNormal)
+                        workState.localTransform = workState.tickedLocalTransform;
+                }
 
                 workState.childClassification  = TreeKernels.ClassifyAlive(ref rootReferenceLookup, ref hierarchyLookup, ref cleanupLookup, workState.child);
                 workState.parentClassification = TreeKernels.ClassifyAlive(ref rootReferenceLookup, ref hierarchyLookup, ref cleanupLookup, workState.parent);
                 CheckDeadRootLegRules(in workState.parentClassification, workState.options);
+                CheckNewEntitiesAreSupported(workState.child, in workState.childClassification);
+
+                // If we pass the safety checks, then we know we can ignore the children of the child.
+                if (workState.childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalWithChildren)
+                    workState.childClassification.role = TreeKernels.TreeClassification.TreeRole.InternalNoChildren;
 
                 var childStorageInfo  = esil[workState.child];
                 workState.childAddSet = GetChildComponentsToAdd(workState.child, workState.childClassification.role, workState.flags, hadNormal, hadTicked);
@@ -372,6 +402,64 @@ namespace Latios.Transforms
                     if (!esil.IsAlive(parentClassification.root))
                         throw new InvalidOperationException(
                             $"Cannot add LinkedEntityGroup to a new hierarchy whose root has been destroyed. Root: {parentClassification.root.ToFixedString()}");
+                }
+            }
+
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            void CheckNewEntitiesAreSupported(Entity child, in TreeKernels.TreeClassification childClassification)
+            {
+                if (!legLookup.TryGetBuffer(child, out var legBuffer))
+                    return;
+                var leg = legBuffer.Reinterpret<Entity>().AsNativeArray();
+                if (leg.Length < 2)
+                    return;
+                if (childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalWithChildren)
+                {
+                    for (int i = 1; i < leg.Length; i++)
+                    {
+                        var e = leg[i];
+                        if (rootReferenceLookup.HasComponent(e))
+                        {
+                            throw new NotSupportedException(
+                                "An instantiated entity with a RootReference component based on an entity with children has other entities in its LinkedEntityGroup with RootReference components not referencing the instantiated entity. This can happen if you instantiate a child entity in a hierarchy which itself has children. This is not supported at this time.");
+                        }
+                    }
+                }
+                else if (childClassification.role == TreeKernels.TreeClassification.TreeRole.Solo)
+                {
+                    for (int i = 1; i < leg.Length; i++)
+                    {
+                        var e = leg[i];
+                        if (rootReferenceLookup.HasComponent(e))
+                        {
+                            throw new NotSupportedException(
+                                "An instantiated entity that is not a hierarchy root nor has a RootReference component has other entities in its LinkedEntityGroup with RootReference components not referencing the instantiated entity. This usually indicates mismanagement of the LinkedEntityGroup buffer. This is not supported at this time.");
+                        }
+                    }
+                }
+                else if (childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalNoChildren)
+                {
+                    for (int i = 1; i < leg.Length; i++)
+                    {
+                        var e = leg[i];
+                        if (rootReferenceLookup.HasComponent(e))
+                        {
+                            throw new NotSupportedException(
+                                "An instantiated entity with a RootReference component based on an entity without children has other entities in its LinkedEntityGroup with RootReference components not referencing the instantiated entity. This is not supported at this time.");
+                        }
+                    }
+                }
+                else if (childClassification.role == TreeKernels.TreeClassification.TreeRole.Root)
+                {
+                    for (int i = 1; i < leg.Length; i++)
+                    {
+                        var e = leg[i];
+                        if (rootReferenceLookup.TryGetComponent(e, out var rootRef) && rootRef.rootEntity != child)
+                        {
+                            throw new NotSupportedException(
+                                "An instantiated root entity has other entities in its LinkedEntityGroup with RootReference components not referencing the instantiated entity. This is not supported at this time.");
+                        }
+                    }
                 }
             }
         }

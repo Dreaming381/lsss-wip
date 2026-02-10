@@ -25,6 +25,9 @@ namespace Latios.Transforms.Systems
             EnableSystemSorting = true;
 
             GetOrCreateAndAddUnmanagedSystem<MotionHistoryInitializeSystem>();
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            GetOrCreateAndAddUnmanagedSystem<ValidateRootReferencesSystem>();
+#endif
         }
     }
 

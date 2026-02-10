@@ -31,7 +31,7 @@ namespace Lsss
             var shipLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
             var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
-            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform>().AsParallelWriter();
+            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
 
             new BulletFirerJob { frameId = m_frameId, lastSystemVersion = state.LastSystemVersion }.ScheduleParallel();
 
@@ -86,7 +86,7 @@ namespace Lsss
             [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabLookup;
             public int                                             frameId;
 
-            public InstantiateCommandBuffer<WorldTransform>.ParallelWriter icb;
+            public InstantiateCommandBufferCommand1<WorldTransformCommand>.ParallelWriter icb;
 
             public void Execute(in FindPairsResult result)
             {
@@ -114,9 +114,10 @@ namespace Lsss
                     var hitPrefab = shipHitEffectPrefabLookup[result.entityB];
                     if (hitPrefab.hitEffectPrefab != Entity.Null)
                     {
-                        float3 upDir                                                           = math.select(math.up(), math.forward(), math.abs(hitData.normalB.y) == 1f);
-                        var    rotation                                                        = quaternion.LookRotationSafe(hitData.normalB, upDir);
-                        icb.Add(hitPrefab.hitEffectPrefab, new WorldTransform { worldTransform = new TransformQvvs( hitData.hitpointB, rotation) }, result.jobIndex);
+                        float3 upDir =
+                            math.select(math.up(), math.forward(), math.abs(hitData.normalB.y) == 1f);
+                        var rotation                                                                     = quaternion.LookRotationSafe(hitData.normalB, upDir);
+                        icb.Add(hitPrefab.hitEffectPrefab, new WorldTransformCommand { newWorldTransform = new TransformQvvs( hitData.hitpointB, rotation) }, result.jobIndex);
                     }
                 }
             }

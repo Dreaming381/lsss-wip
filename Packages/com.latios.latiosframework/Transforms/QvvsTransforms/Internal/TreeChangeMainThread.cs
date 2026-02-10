@@ -24,6 +24,26 @@ namespace Latios.Transforms
             var parentClassification = TreeKernels.ClassifyAlive(em, parent);
             var childClassification  = TreeKernels.ClassifyAlive(em, child);
 
+            if (parentClassification.role == TreeKernels.TreeClassification.TreeRole.InternalNoChildren ||
+                parentClassification.role == TreeKernels.TreeClassification.TreeRole.InternalWithChildren)
+            {
+                TreeChangeSafetyChecks.CheckInternalParentHasValidRootReference(em, parent, in parentClassification);
+            }
+            if (childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalNoChildren ||
+                childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalWithChildren)
+            {
+                var rr     = new RootReference { m_rootEntity = childClassification.root, m_indexInHierarchy = childClassification.indexInHierarchy };
+                var handle                                                                                   = rr.ToHandle(em);
+                if (handle.entity != child)
+                {
+                    TreeChangeSafetyChecks.CheckLegEntitiesHaveValidRootReferences(em, child);
+                    // The entity was just instantiated and has a bad RootReference, but it doesn't have children with this issue. We can just remove the bad RootReference and correct the role.
+                    em.RemoveComponent<RootReference>(child);
+                    childClassification      = default;
+                    childClassification.role = TreeKernels.TreeClassification.TreeRole.Solo;
+                }
+            }
+
             switch (childClassification.role, parentClassification.role)
             {
                 case (TreeKernels.TreeClassification.TreeRole.Solo, TreeKernels.TreeClassification.TreeRole.Solo):

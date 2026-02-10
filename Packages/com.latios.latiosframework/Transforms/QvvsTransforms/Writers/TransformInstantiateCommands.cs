@@ -106,7 +106,7 @@ namespace Latios.Transforms
 
         static void OnPlaybackBatched(ref IInstantiateCommand.Context context)
         {
-            TreeChangeInstantiate.AddChildren(ref context);
+            TreeChangeInstantiate.AddChildren(ref context, false);
         }
     }
 
@@ -145,23 +145,7 @@ namespace Latios.Transforms
         [BurstCompile]
         static void OnPlayback(ref IInstantiateCommand.Context context)
         {
-            var entities = context.entities;
-            var em       = context.entityManager;
-            for (int i = 0; i < entities.Length; i++)
-            {
-                var entity  = entities[i];
-                var command = context.ReadCommand<ParentAndLocalTransformCommand>(i);
-                if (!em.IsAlive(command.parent))
-                {
-                    context.RequestDestroyEntity(entity);
-                    continue;
-                }
-                em.AddChild(command.parent, entity, command.inheritanceFlags, command.options);
-                if (em.HasComponent<WorldTransform>(entity))
-                    TransformTools.SetLocalTransform(entity, command.newLocalTransform, em);
-                if (em.HasComponent<TickedWorldTransform>(entity))
-                    TransformTools.SetTickedLocalTransform(entity, command.newLocalTransform, em);
-            }
+            TreeChangeInstantiate.AddChildren(ref context, true);
         }
     }
 }

@@ -24,7 +24,7 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform, BulletFirer>().AsParallelWriter();
+            var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<BulletFirer, WorldTransformCommand>().AsParallelWriter();
             var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>().AsParallelWriter();
             float dt        = Time.DeltaTime;
 
@@ -43,9 +43,9 @@ namespace Lsss
         [BurstCompile]
         partial struct Job : IJobEntity
         {
-            public InstantiateCommandBuffer<WorldTransform, BulletFirer>.ParallelWriter bulletIcb;
-            public InstantiateCommandBufferCommand1<ParentCommand>.ParallelWriter       effectIcb;
-            public float                                                                dt;
+            public InstantiateCommandBufferCommand1<BulletFirer, WorldTransformCommand>.ParallelWriter bulletIcb;
+            public InstantiateCommandBufferCommand1<ParentCommand>.ParallelWriter                      effectIcb;
+            public float                                                                               dt;
 
             [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
             [ReadOnly] public ComponentLookup<BulletCollider> colliderLookup;
@@ -70,8 +70,8 @@ namespace Lsss
                             var   gunPointTransform                    = worldTransformLookup[gunPoints[i].gun];
                             gunPointTransform.worldTransform.position += gunPointTransform.forwardDirection * halfLength;
                             bulletIcb.Add(bulletPrefab.bulletPrefab,
-                                          gunPointTransform,
                                           new BulletFirer { entity = entity, initialized = false },
+                                          new WorldTransformCommand(gunPointTransform.worldTransform),
                                           chunkIndexInQuery);
                             if (effectPrefab.effectPrefab != Entity.Null)
                             {

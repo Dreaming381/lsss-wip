@@ -31,6 +31,37 @@ namespace Latios.Transforms
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        public static void CheckLegEntitiesHaveValidRootReferences(EntityManager em, Entity child)
+        {
+            if (!em.HasBuffer<LinkedEntityGroup>(child))
+                return;
+
+            var leg = em.GetBuffer<LinkedEntityGroup>(child, true).Reinterpret<Entity>().AsNativeArray();
+            for (int i = 1; i < leg.Length; i++)
+            {
+                var e = leg[i];
+                if (em.HasComponent<RootReference>(e))
+                {
+                    var rr     = em.GetComponentData<RootReference>(e);
+                    var handle = rr.ToHandle(em);
+                    if (handle.entity != e)
+                        throw new System.NotSupportedException(
+                            $"Child {child.ToFixedString()} appears to be an instantiated entity, as its RootReference clones another entity. In it's LinkedEntityGroup, another entity also appears to be a clone. This is not supported at this time.");
+                }
+            }
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        public static void CheckInternalParentHasValidRootReference(EntityManager em, Entity parent, in TreeKernels.TreeClassification parentClassification)
+        {
+            var rr     = new RootReference { m_rootEntity = parentClassification.root, m_indexInHierarchy = parentClassification.indexInHierarchy };
+            var handle                                                                                    = rr.ToHandle(em);
+            if (handle.entity != parent)
+                throw new System.InvalidOperationException(
+                    $"Parent {parent.ToFixedString()} appears to be an instantiated entity, as its RootReference clones another entity. It cannot become a parent until this issue is corrected.");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         public static void CheckNotAssigningChildToDescendant(EntityManager em,
                                                               Entity parent,
                                                               Entity child,

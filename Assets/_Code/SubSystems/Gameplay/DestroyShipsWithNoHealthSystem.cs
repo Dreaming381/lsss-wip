@@ -30,7 +30,7 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransform>().AsParallelWriter();
+            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
             var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
             new Job { dcb = dcb, icb = icb }.ScheduleParallel();
@@ -40,8 +40,8 @@ namespace Lsss
         [WithChangeFilter(typeof(ShipHealth))]
         partial struct Job : IJobEntity
         {
-            public InstantiateCommandBuffer<WorldTransform>.ParallelWriter icb;
-            public DestroyCommandBuffer.ParallelWriter                     dcb;
+            public InstantiateCommandBufferCommand1<WorldTransformCommand>.ParallelWriter icb;
+            public DestroyCommandBuffer.ParallelWriter                                    dcb;
 
             public void Execute(Entity entity,
                                 [ChunkIndexInQuery] int chunkIndexInQuery,
@@ -53,7 +53,7 @@ namespace Lsss
                 {
                     dcb.Add(entity, chunkIndexInQuery);
                     if (explosionPrefab.explosionPrefab != Entity.Null)
-                        icb.Add(explosionPrefab.explosionPrefab, worldTransform, chunkIndexInQuery);
+                        icb.Add(explosionPrefab.explosionPrefab, new WorldTransformCommand(worldTransform.worldTransform), chunkIndexInQuery);
                 }
             }
         }
