@@ -4,6 +4,7 @@ using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -20,16 +21,28 @@ namespace Latios.Transforms.Systems
         LatiosWorldUnmanaged latiosWorld;
         EntityQuery          m_rootsQuery;
         EntityQuery          m_childrenQuery;
+        EntityQuery          m_worldTransformsQuery;
+        EntityQuery          m_tickedTransformsQuery;
+        EntityQuery          m_dynamicParentQuery;
+        bool                 m_firstUpdate;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            m_rootsQuery    = state.Fluent().With<EntityInHierarchy>(true).IncludePrefabs().IncludeDisabledEntities().Build();
-            m_childrenQuery = state.Fluent().With<RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            m_rootsQuery           = state.Fluent().With<LiveBakedTag, EntityInHierarchy>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            m_childrenQuery        = state.Fluent().With<LiveBakedTag, RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            m_worldTransformsQuery =
+                state.Fluent().With<LiveBakedTag, WorldTransform>(true).WithAnyEnabled<EntityInHierarchy, RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            m_tickedTransformsQuery =
+                state.Fluent().With<LiveBakedTag, TickedWorldTransform>(true).WithAnyEnabled<EntityInHierarchy,
+                                                                                             RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            m_dynamicParentQuery = state.Fluent().WithAnyEnabled<LiveAddedParentTag, LiveRemovedParentTag>(true).Build();
 
             latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new LiveTransformCapture());
+
+            m_firstUpdate = true;
         }
 
         [BurstCompile]
@@ -74,6 +87,37 @@ namespace Latios.Transforms.Systems
                 tickedWorldTransformLookup     = GetComponentLookup<TickedWorldTransform>(true),
             }.ScheduleParallel(m_childrenQuery, state.Dependency);
 
+            bool editorWorld       = (state.WorldUnmanaged.Flags & WorldFlags.Editor) == WorldFlags.Editor;
+            bool hasDynamicParents = !m_dynamicParentQuery.IsEmptyIgnoreFilter;
+            bool somethingChanged  = !m_firstUpdate;
+            if (somethingChanged)
+            {
+                var  capture                             = latiosWorld.worldBlackboardEntity.GetCollectionComponent<LiveTransformCapture>(false);
+                bool rootsChangedStructurally            = rootsOrderVersion != capture.rootsOrderVersion;
+                bool childrenChangedStructurally         = childrenOrderVersion != capture.childrenOrderVersion;
+                bool worldTransformsChangedStructurally  = worldTransformOrderVersion != capture.worldTransformOrderVersion;
+                bool tickedTransformsChangedStructurally = tickedWorldTransformOrderVersion != capture.tickedWorldTransformOrderVersion;
+
+                m_rootsQuery.SetChangedVersionFilter(ComponentType.ReadOnly<EntityInHierarchy>());
+                m_childrenQuery.SetChangedVersionFilter(ComponentType.ReadOnly<RootReference>());
+                m_worldTransformsQuery.SetChangedVersionFilter(ComponentType.ReadOnly<WorldTransform>());
+                m_tickedTransformsQuery.SetChangedVersionFilter(ComponentType.ReadOnly<TickedWorldTransform>());
+
+                m_rootsQuery.SetOverrideChangeFilterVersion(capture.changeVersion);
+                m_childrenQuery.SetOverrideChangeFilterVersion(capture.changeVersion);
+                m_worldTransformsQuery.SetOverrideChangeFilterVersion(capture.changeVersion);
+                m_tickedTransformsQuery.SetOverrideChangeFilterVersion(capture.changeVersion);
+
+                bool hierarchyBuffersChanged = !m_rootsQuery.IsEmpty;
+                bool rootReferencesChanged   = !m_childrenQuery.IsEmpty;
+                bool worldTransformsChanged  = !m_worldTransformsQuery.IsEmpty;
+                bool tickedTransformsChanged = !m_tickedTransformsQuery.IsEmpty;
+
+                somethingChanged = rootsChangedStructurally || childrenChangedStructurally || worldTransformsChangedStructurally || tickedTransformsChangedStructurally ||
+                                   hierarchyBuffersChanged || rootReferencesChanged || worldTransformsChanged || tickedTransformsChanged;
+
+                m_firstUpdate = false;
+            }
             latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new LiveTransformCapture
             {
                 roots                            = roots,
@@ -83,6 +127,7 @@ namespace Latios.Transforms.Systems
                 childrenOrderVersion             = childrenOrderVersion,
                 worldTransformOrderVersion       = worldTransformOrderVersion,
                 tickedWorldTransformOrderVersion = tickedWorldTransformOrderVersion,
+                cleanEditorWorld                 = editorWorld && !hasDynamicParents && !somethingChanged
             });
         }
 

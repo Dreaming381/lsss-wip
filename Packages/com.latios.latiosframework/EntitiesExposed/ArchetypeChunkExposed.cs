@@ -84,6 +84,11 @@ namespace Unity.Entities.Exposed
             return query._GetImpl()->_QueryData->HasEnableableComponents != 0;
         }
 
+        public static void SetOverrideChangeFilterVersion(in this EntityQuery query, uint overrideVersion)
+        {
+            query.SetChangedFilterRequiredVersion(overrideVersion);
+        }
+
         public static unsafe bool IsCreated(in this EntityStorageInfoLookup entityStorageInfoLookup)
         {
             var                     esil = entityStorageInfoLookup;

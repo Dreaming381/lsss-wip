@@ -407,6 +407,7 @@ namespace Latios.Transforms
         public int                childrenOrderVersion;
         public int                worldTransformOrderVersion;
         public int                tickedWorldTransformOrderVersion;
+        public bool               cleanEditorWorld;
 
         public JobHandle TryDispose(JobHandle inputDeps)
         {

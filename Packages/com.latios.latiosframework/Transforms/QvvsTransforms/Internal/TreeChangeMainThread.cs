@@ -42,6 +42,12 @@ namespace Latios.Transforms
                     childClassification      = default;
                     childClassification.role = TreeKernels.TreeClassification.TreeRole.Solo;
                 }
+                else if (handle.bloodParent.entity == parent)
+                {
+                    // Todo: We should always be able to return here, but we need a dedicated method for setting the InheritanceFlags.
+                    if (flags == handle.inheritanceFlags)
+                        return;
+                }
             }
 
             switch (childClassification.role, parentClassification.role)

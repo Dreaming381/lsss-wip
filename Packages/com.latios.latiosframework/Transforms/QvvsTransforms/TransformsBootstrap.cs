@@ -26,6 +26,7 @@ namespace Latios.Transforms
 
 #if UNITY_EDITOR
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsRecordSystem>(),        world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsFixupSystem>(),         world);
 #endif
         }
     }
