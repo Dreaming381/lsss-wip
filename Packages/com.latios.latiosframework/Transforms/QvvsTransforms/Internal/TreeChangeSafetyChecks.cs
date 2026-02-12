@@ -90,6 +90,13 @@ namespace Latios.Transforms
                 throw new System.ArgumentException(
                     $"Cannot make an entity a child of one of its own descendants. Reassign the descendant's parent first. Parent: {parent.ToFixedString()}  Child: {rootChild.ToFixedString()}");
         }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        public static void CheckChildToRemoveIsAlive(EntityManager em, Entity child)
+        {
+            if (!em.IsAlive(child))
+                throw new System.ArgumentException("Cannot convert a dead child into a hierarchy root. Consider cleaning the hierarchy instead.");
+        }
     }
 }
 

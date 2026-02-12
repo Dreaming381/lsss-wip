@@ -175,6 +175,185 @@ namespace Latios.Transforms
             tsa.Dispose();
         }
 
+        public static void RemoveChild(EntityManager em, Entity child, RemoveChildOptions options)
+        {
+            TreeChangeSafetyChecks.CheckChildToRemoveIsAlive(em, child);
+
+            if (!em.HasComponent<RootReference>(child))
+                return; // Child has no parent. Do nothing.
+
+            var tsa = ThreadStackAllocator.GetAllocator();
+
+            // Get old hierarchy
+            var  rootReference = em.GetComponentData<RootReference>(child);
+            bool isRootAlive   = em.IsAlive(rootReference.rootEntity);
+            var  hierarchy     =
+                isRootAlive ? em.GetBuffer<EntityInHierarchy>(rootReference.rootEntity) : em.GetBuffer<EntityInHierarchyCleanup>(rootReference.rootEntity).Reinterpret<EntityInHierarchy>();
+            var oldEntities = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
+
+            if (hierarchy[rootReference.indexInHierarchy].childCount > 0)
+            {
+                var subtree = TreeKernels.ExtractSubtree(ref tsa, hierarchy.AsNativeArray(), rootReference.indexInHierarchy);
+
+                // Find LEG entities to remove from ancestry except root
+                Span<Entity> ancestorsWithLegsToRemove = default;
+                if (options == RemoveChildOptions.TransferLinkedEntityGroup)
+                {
+                    var hierarchyArray = hierarchy.AsNativeArray();
+                    int ancestorCount  = 0;
+                    for (int i = hierarchyArray[rootReference.indexInHierarchy].parentIndex; i > 0; i = hierarchyArray[i].parentIndex)
+                        ancestorCount++;
+                    ancestorsWithLegsToRemove = tsa.AllocateAsSpan<Entity>(ancestorCount);
+                    ancestorCount             = 0;
+                    for (int i = hierarchyArray[rootReference.indexInHierarchy].parentIndex; i > 0; i = hierarchyArray[i].parentIndex)
+                    {
+                        if (em.HasBuffer<LinkedEntityGroup>(hierarchyArray[i].entity))
+                        {
+                            var leg = em.GetBuffer<LinkedEntityGroup>(hierarchyArray[i].entity, false);
+                            TreeKernels.RemoveHierarchyEntitiesFromLeg(ref leg, subtree);
+                            if (i > 0 && leg.Length < 2)
+                            {
+                                ancestorsWithLegsToRemove[ancestorCount] = hierarchyArray[i].entity;
+                                ancestorCount++;
+                            }
+                        }
+                    }
+                    ancestorsWithLegsToRemove = ancestorsWithLegsToRemove.Slice(0, ancestorCount);
+                }
+
+                // Find LEG entities to copy or remove from root
+                Span<Entity> entitiesToAddToNewLeg = default;
+                bool         needsCleanup          = true;
+                if (options != RemoveChildOptions.IgnoreLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(rootReference.rootEntity))
+                {
+                    var leg = em.GetBuffer<LinkedEntityGroup>(rootReference.rootEntity, options == RemoveChildOptions.TransferLinkedEntityGroup);
+
+                    bool matchedAll;
+                    if (options == RemoveChildOptions.TransferLinkedEntityGroup)
+                        entitiesToAddToNewLeg = TreeKernels.GetAndRemoveHierarchyEntitiesFromLeg(ref tsa, ref leg, subtree, out matchedAll);
+                    else
+                        entitiesToAddToNewLeg = TreeKernels.GetHierarchyEntitiesInLeg(ref tsa, subtree, leg.Reinterpret<Entity>().AsNativeArray(), out matchedAll);
+                    needsCleanup              = !matchedAll;
+                }
+
+                // Update old hierarchy
+                TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref hierarchy, rootReference.indexInHierarchy, subtree);
+                CleanHierarchy(ref tsa, em, rootReference.rootEntity, ref hierarchy, true, out var removeLegFromRoot);
+                if (isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(rootReference.rootEntity))
+                {
+                    var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(rootReference.rootEntity);
+                    TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
+                }
+                TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), oldEntities, em);
+
+                // Remove components
+                bool convertRootToSolo = hierarchy.Length < 2;
+                em.RemoveComponent<RootReference>(child);
+                if (convertRootToSolo)
+                    TreeKernels.RemoveRootComponents(em, rootReference.rootEntity, removeLegFromRoot);
+                else if (removeLegFromRoot)
+                    em.RemoveComponent<LinkedEntityGroup>(rootReference.rootEntity);
+                foreach (var e in ancestorsWithLegsToRemove)
+                    em.RemoveComponent<LinkedEntityGroup>(e);
+
+                // Add or update child LEG if required
+                if ((entitiesToAddToNewLeg.Length > 1 || (entitiesToAddToNewLeg.Length == 1 && entitiesToAddToNewLeg[0] != child)) &&
+                    !em.HasBuffer<LinkedEntityGroup>(child))
+                {
+                    var leg = em.AddBuffer<LinkedEntityGroup>(child).Reinterpret<Entity>();
+                    leg.Add(child);
+                    foreach (var e in entitiesToAddToNewLeg)
+                    {
+                        if (e != child)
+                            leg.Add(e);
+                    }
+                }
+                else if (options != RemoveChildOptions.IgnoreLinkedEntityGroup && entitiesToAddToNewLeg.Length > 2 && em.HasBuffer<LinkedEntityGroup>(child))
+                {
+                    var leg = em.GetBuffer<LinkedEntityGroup>(child).Reinterpret<Entity>();
+                    foreach (var e in entitiesToAddToNewLeg)
+                    {
+                        if (e == child)
+                            continue;
+                        // If the entity was added to the parent with AttachLinkedEntityGroup, then it may already have the LEG entities. We don't want to duplicate.
+                        if (leg.AsNativeArray().Contains(child))
+                            continue;
+                        leg.Add(e);
+                    }
+                }
+
+                // Add to new hierarchy, then clean it. There is a small chance we might have to undo adding it and the LinkedEntityGroup if all the descendants are dead.
+                var newHierarchy    = em.AddBuffer<EntityInHierarchy>(child);
+                newHierarchy.Length = subtree.Length;
+                subtree.CopyTo(newHierarchy.AsNativeArray().AsSpan());
+                CleanHierarchy(ref tsa, em, child, ref newHierarchy, options != RemoveChildOptions.IgnoreLinkedEntityGroup, out var removeLegFromChild);
+                if (newHierarchy.Length < 2)
+                    TreeKernels.RemoveRootComponents(em, child, removeLegFromChild);
+                else
+                {
+                    TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
+                    if (needsCleanup)
+                    {
+                        var newCleanup = em.AddBuffer<EntityInHierarchyCleanup>(child);
+                        newHierarchy   = em.GetBuffer<EntityInHierarchy>(child);
+                        TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref newCleanup);
+                    }
+                    if (removeLegFromChild)
+                        em.RemoveComponent<LinkedEntityGroup>(child);
+                }
+            }
+            else
+            {
+                // Find the child to remove from ancestry LEGs including root
+                Span<Entity> ancestorsWithLegsToRemove = default;
+                if (options == RemoveChildOptions.TransferLinkedEntityGroup)
+                {
+                    var hierarchyArray = hierarchy.AsNativeArray();
+                    int ancestorCount  = 0;
+                    for (int i = hierarchyArray[rootReference.indexInHierarchy].parentIndex; i >= 0; i = hierarchyArray[i].parentIndex)
+                        ancestorCount++;
+                    ancestorsWithLegsToRemove = tsa.AllocateAsSpan<Entity>(ancestorCount - 1);
+                    ancestorCount             = 0;
+                    for (int i = hierarchyArray[rootReference.indexInHierarchy].parentIndex; i >= 0; i = hierarchyArray[i].parentIndex)
+                    {
+                        if (em.HasBuffer<LinkedEntityGroup>(hierarchyArray[i].entity))
+                        {
+                            var leg = em.GetBuffer<LinkedEntityGroup>(hierarchyArray[i].entity, false);
+                            TreeKernels.RemoveEntityFromLeg(ref leg, child, out _);
+                            if (i > 0 && leg.Length < 2)
+                            {
+                                ancestorsWithLegsToRemove[ancestorCount] = hierarchyArray[i].entity;
+                                ancestorCount++;
+                            }
+                        }
+                    }
+                    ancestorsWithLegsToRemove = ancestorsWithLegsToRemove.Slice(0, ancestorCount);
+                }
+
+                // Update old hierarchy
+                TreeKernels.RemoveSoloFromHierarchy(ref hierarchy, rootReference.indexInHierarchy);
+                CleanHierarchy(ref tsa, em, rootReference.rootEntity, ref hierarchy, true, out var removeLegFromRoot);
+                if (isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(rootReference.rootEntity))
+                {
+                    var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(rootReference.rootEntity);
+                    TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
+                }
+                TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), oldEntities, em);
+
+                // Remove components
+                bool convertRootToSolo = hierarchy.Length < 2;
+                em.RemoveComponent<RootReference>(child);
+                if (convertRootToSolo)
+                    TreeKernels.RemoveRootComponents(em, rootReference.rootEntity, removeLegFromRoot);
+                else if (removeLegFromRoot)
+                    em.RemoveComponent<LinkedEntityGroup>(rootReference.rootEntity);
+                foreach (var e in ancestorsWithLegsToRemove)
+                    em.RemoveComponent<LinkedEntityGroup>(e);
+            }
+
+            tsa.Dispose();
+        }
+
         #region Solo Children
         static void AddSoloChildToSoloParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, AddChildOptions options)
         {

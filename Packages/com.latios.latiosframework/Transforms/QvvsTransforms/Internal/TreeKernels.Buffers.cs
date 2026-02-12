@@ -471,10 +471,6 @@ namespace Latios.Transforms
                 matched = false;
         }
 
-        public static void RemoveEntityFromAllAncestorLegs(ReadOnlySpan<EntityInHierarchy> hierarchy, int indexToRemove, EntityManager em)
-        {
-        }
-
         public static void RemoveHierarchyEntitiesFromLeg(ref DynamicBuffer<LinkedEntityGroup> leg, ReadOnlySpan<EntityInHierarchy> hierarchy)
         {
             foreach (var h in hierarchy)

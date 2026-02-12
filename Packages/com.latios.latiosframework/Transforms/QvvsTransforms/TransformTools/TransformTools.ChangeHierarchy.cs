@@ -27,6 +27,28 @@ namespace Latios.Transforms
         IgnoreLinkedEntityGroup
     }
 
+    public enum RemoveChildOptions : byte
+    {
+        /// <summary>
+        /// The child and all of its descendants are removed from the LinkedEntityGroup of all old ancestors. Every entity
+        /// that was removed from the old root is added to the child's LinkedEntityGroup. If the child has children of its
+        /// own, a LinkedEntityGroup is added to the child if it does not already exist.
+        /// </summary>
+        TransferLinkedEntityGroup,
+        /// <summary>
+        /// The child and every descendant which is part of the old root's LinkedEntityGroup is added to the child's
+        /// LinkedEntityGroup. If the child has children of its own, a LinkedEntityGroup is added to the child if it
+        /// does not already exist.
+        /// </summary>
+        AddLinkedEntityGroup,
+        /// <summary>
+        /// LinkedEntityGroup is left untouched. EntityInHierarchyCleanup may be added to the child to ensure no dangling
+        /// RootReferences on its descendants are left behind if the child were to be destroyed. This has a cost associated
+        /// with it.
+        /// </summary>
+        IgnoreLinkedEntityGroup
+    }
+
     public static unsafe partial class TransformTools
     {
         /// <summary>
@@ -60,6 +82,18 @@ namespace Latios.Transforms
         public static void CleanHierarchy(this EntityManager em, Entity entity)
         {
             TreeChangeMainThread.CleanHierarchy(em, entity);
+        }
+
+        /// <summary>
+        /// Removes the child and its descendants (if any) from its parent. If the entity is not a child, this method does nothing.
+        /// During the process, all hierarchies touched are cleaned. If any entity sees its LinkedEntityGroup size decrease below 2,
+        /// then LinkedEneityGroup will be removed from that entity.
+        /// </summary>
+        /// <param name="child">The entity which should be removed from its parent</param>
+        /// <param name="removeChildOptions">The options for handling LinkedEntityGroup on the entities</param>
+        public static void RemoveChild(this EntityManager em, Entity child, RemoveChildOptions removeChildOptions = RemoveChildOptions.TransferLinkedEntityGroup)
+        {
+            TreeChangeMainThread.RemoveChild(em, child, removeChildOptions);
         }
     }
 }
