@@ -105,6 +105,15 @@ namespace Unity.Entities.Exposed
 #endif
         }
 
+        public static unsafe BufferTypeHandle<T> ToHandle<T>(this BufferLookup<T> lookup, bool isReadOnly) where T : unmanaged, IBufferElementData
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            return new BufferTypeHandle<T>(lookup.m_Safety0, lookup.m_ArrayInvalidationSafety, isReadOnly, lookup.GlobalSystemVersion);
+#else
+            return new BufferTypeHandle<T>(isReadOnly, lookup.GlobalSystemVersion);
+#endif
+        }
+
         // The following do not check safety. Always check some safety handle such as EntityStorageInfoLookup.Exists() before use.
         public static unsafe ulong GetBloomMask(in this EntityArchetype archetype) => archetype.Archetype->BloomFilterMask;
         public static unsafe bool HasChunkHeader(in this EntityArchetype archetype) => archetype.Archetype->HasChunkHeader;

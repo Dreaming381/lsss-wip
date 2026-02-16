@@ -60,11 +60,33 @@ namespace Latios.Transforms.Systems
     /// at this time.
     /// </summary>
     /// [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
+    [UpdateInGroup(typeof(PostSyncPointGroup), OrderLast = true)]
+    [DisableAutoCreation]
+    public partial class ExportToGameObjectTransformsEndInitializationSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = true;
+
+#if !UNITY_DISABLE_MANAGED_COMPONENTS
+            GetOrCreateAndAddUnmanagedSystem<CompanionGameObjectUpdateTransformSystem>();
+#endif
+            GetOrCreateAndAddUnmanagedSystem<CopyGameObjectTransformFromEntitySystem>();
+        }
+    }
+
+    /// <summary>
+    /// This group updates at the end of simulation, and is when any logic that exports entity data back to GameObject
+    /// data should occur.
+    /// You can use [UpdateInGroup(typeof(PostTransformSuperSystem))] to add systems that should be updated
+    /// at this time.
+    /// </summary>
+    /// [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderLast = true)]
     [UpdateBefore(typeof(EndSimulationEntityCommandBufferSystem))]
     [UpdateAfter(typeof(LateSimulationSystemGroup))]
     [DisableAutoCreation]
-    public partial class ExportToGameObjectTransformsSuperSystem : SuperSystem
+    public partial class ExportToGameObjectTransformsEndSimulationSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {

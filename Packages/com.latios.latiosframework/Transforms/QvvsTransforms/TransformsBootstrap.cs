@@ -18,15 +18,16 @@ namespace Latios.Transforms
             if (world.Unmanaged.IsSystemValid(companionTransformSystem))
                 world.Unmanaged.ResolveSystemStateRef(companionTransformSystem).Enabled = false;
 
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.HierarchyCleanupSystem>(),                  world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.MotionHistoryInitializeSuperSystem>(),      world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.MotionHistoryUpdateSuperSystem>(),          world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.ExportToGameObjectTransformsSuperSystem>(), world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.HybridTransformsSyncPointSuperSystem>(),    world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.HierarchyCleanupSystem>(),                                   world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.MotionHistoryInitializeSuperSystem>(),                       world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.MotionHistoryUpdateSuperSystem>(),                           world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.ExportToGameObjectTransformsEndInitializationSuperSystem>(), world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.ExportToGameObjectTransformsEndSimulationSuperSystem>(),     world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.HybridTransformsSyncPointSuperSystem>(),                     world);
 
 #if UNITY_EDITOR
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsRecordSystem>(),        world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsFixupSystem>(),         world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsRecordSystem>(),                         world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.LiveBakingTransformsFixupSystem>(),                          world);
 #endif
         }
     }

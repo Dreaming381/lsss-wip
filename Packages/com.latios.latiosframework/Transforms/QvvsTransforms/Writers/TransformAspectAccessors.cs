@@ -25,13 +25,13 @@ namespace Latios.Transforms
         [ReadOnly] BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
         [ReadOnly] EntityStorageInfoLookup                esil;
 
-        public TransformAspectLookup(ComponentLookup<WorldTransform>        worldTransformLookup,
+        public TransformAspectLookup(ComponentLookup<WorldTransform>        worldTransformLookupRW,
                                      ComponentLookup<RootReference>         rootReferenceLookupRO,
                                      BufferLookup<EntityInHierarchy>        entityInHierarchyLookupRO,
                                      BufferLookup<EntityInHierarchyCleanup> entityInHierarchyCleanupRO,
                                      EntityStorageInfoLookup entityStorageInfoLookup)
         {
-            transformLookup = worldTransformLookup;
+            transformLookup = worldTransformLookupRW;
             rootRefLookup   = rootReferenceLookupRO;
             eihLookup       = entityInHierarchyLookupRO;
             cleanupLookup   = entityInHierarchyCleanupRO;

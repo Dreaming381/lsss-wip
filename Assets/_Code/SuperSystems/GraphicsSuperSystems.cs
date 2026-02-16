@@ -1,5 +1,4 @@
 ﻿using Latios;
-using Unity.Transforms;
 
 namespace Lsss.SuperSystems
 {
@@ -19,7 +18,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddUnmanagedSystem<SpawnPointAnimationSystem>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnPointAnimationSystem2>();
             //GetOrCreateAndAddSystem<GravityWarpShaderUpdateSystem>();
             GetOrCreateAndAddUnmanagedSystem<LifetimeFadeSystem>();
             GetOrCreateAndAddUnmanagedSystem<SpeedShaderUpdateSystem>();

@@ -470,9 +470,18 @@ namespace Latios.Transforms
             [ReadOnly] public NativeStream   batchAddSetsStream;
             public NativeList<BatchedAddSet> outputBatchAddSets;
 
+            static readonly Unity.Profiling.ProfilerMarker kReadStream   = new Unity.Profiling.ProfilerMarker("Read stream");
+            static readonly Unity.Profiling.ProfilerMarker kHashChunks   = new Unity.Profiling.ProfilerMarker("Hash chunks");
+            static readonly Unity.Profiling.ProfilerMarker kSortEntities = new Unity.Profiling.ProfilerMarker("Sort entities");
+            static readonly Unity.Profiling.ProfilerMarker kMergeFlags   = new Unity.Profiling.ProfilerMarker("Merge flags");
+            static readonly Unity.Profiling.ProfilerMarker kSortSets     = new Unity.Profiling.ProfilerMarker("Sort sets");
+
             public void Execute()
             {
-                var addSets        = batchAddSetsStream.ToNativeArray<BatchedAddSet>(Allocator.Temp);
+                kReadStream.Begin();
+                var addSets = batchAddSetsStream.ToNativeArray<BatchedAddSet>(Allocator.Temp);
+                kReadStream.End();
+                kHashChunks.Begin();
                 var hashToOrderMap = new UnsafeHashMap<int, int>(addSets.Length, Allocator.Temp);
                 for (int i = 0; i < addSets.Length; i++)
                 {
@@ -489,9 +498,13 @@ namespace Latios.Transforms
                     }
                     addSets[i] = addSet;
                 }
+                kHashChunks.End();
+                kSortEntities.Begin();
                 addSets.Sort(new EntitySorter());
+                kSortEntities.End();
 
                 // Matching entities should now be adjacent in memory. Merge the flags.
+                kMergeFlags.Begin();
                 outputBatchAddSets.Capacity = addSets.Length;
                 for (int i = 0; i < addSets.Length; )
                 {
@@ -506,8 +519,11 @@ namespace Latios.Transforms
                     }
                     outputBatchAddSets.Add(baseAddSet);
                 }
+                kMergeFlags.End();
 
+                kSortSets.Begin();
                 outputBatchAddSets.Sort();
+                kSortSets.End();
             }
 
             struct EntitySorter : IComparer<BatchedAddSet>

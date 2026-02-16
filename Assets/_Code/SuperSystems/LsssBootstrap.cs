@@ -82,6 +82,9 @@ public class LatiosBootstrap : ICustomBootstrap
         BootstrapTools.AddWorldToCurrentPlayerLoopWithDelayedSimulation(world);
         var loop = PlayerLoop.GetCurrentPlayerLoop();
 
+        // disable end simulation syncing since we use n-1 rendering
+        world.GetExistingSystemManaged<Latios.Transforms.Systems.ExportToGameObjectTransformsEndSimulationSuperSystem>().Enabled = false;
+
 #if UNITY_EDITOR
         //ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(beforeGpuProfiling, ref loop, typeof(PostLateUpdate));
 #else

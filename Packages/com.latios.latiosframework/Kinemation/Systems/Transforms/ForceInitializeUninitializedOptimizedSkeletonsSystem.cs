@@ -6,7 +6,7 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
 #if !LATIOS_TRANSFORMS_UNITY
-    [UpdateInGroup(typeof(Latios.Transforms.Systems.ExportToGameObjectTransformsSuperSystem), OrderFirst = true)]
+    [UpdateInGroup(typeof(Latios.Transforms.Systems.ExportToGameObjectTransformsEndInitializationSuperSystem), OrderFirst = true)]
 #else
     [UpdateInGroup(typeof(Unity.Transforms.TransformSystemGroup))]
     [UpdateBefore(typeof(UpdateSocketsSystem))]
