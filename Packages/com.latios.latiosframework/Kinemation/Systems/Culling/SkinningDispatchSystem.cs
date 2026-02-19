@@ -134,7 +134,6 @@ namespace Latios.Kinemation.Systems
                 chunksToProcess              = meshChunks.AsParallelWriter(),
                 perDispatchCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                 perFrameCullingMaskHandle    = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                skeletonDependentHandle      = SystemAPI.GetComponentTypeHandle<SkeletonDependent>(true)
             }.ScheduleParallel(m_skinnedMeshMetaQuery, state.Dependency);
 
             collectJh = new CollectVisibleMeshesJob
@@ -508,9 +507,10 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameCullingMaskHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>           skeletonDependentHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
+
+            HasChecker<SkeletonDependent> skeletonDependentChecker;
 
             [Unity.Burst.CompilerServices.SkipLocalsInit]
             public unsafe void Execute(in ArchetypeChunk metaChunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
@@ -526,7 +526,7 @@ namespace Latios.Kinemation.Systems
                     var frameMask    = frameMasks[i];
                     var lower        = dispatchMask.lower.Value & (~frameMask.lower.Value);
                     var upper        = dispatchMask.upper.Value & (~frameMask.upper.Value);
-                    if ((lower | upper) != 0 && headers[i].ArchetypeChunk.Has(ref skeletonDependentHandle))
+                    if ((lower | upper) != 0 && skeletonDependentChecker[headers[i].ArchetypeChunk])
                     {
                         chunksCache[chunksCount] = headers[i].ArchetypeChunk;
                         chunksCount++;

@@ -44,22 +44,21 @@ namespace Latios.Kinemation
 
             state.Dependency = new FindAndValidateMeshesJob
             {
-                collectedChunks         = collectedChunks,
-                colorHandle             = GetBufferTypeHandle<UniqueMeshColor>(true),
-                configHandle            = GetComponentTypeHandle<UniqueMeshConfig>(false),
-                entityHandle            = GetEntityTypeHandle(),
-                indexHandle             = GetBufferTypeHandle<UniqueMeshIndex>(true),
-                maskHandle              = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                meshIDsToInvalidate     = meshIDsToInvalidate,
-                meshPool                = meshPool,
-                mmiHandle               = GetComponentTypeHandle<MaterialMeshInfo>(true),
-                normalHandle            = GetBufferTypeHandle<UniqueMeshNormal>(true),
-                positionHandle          = GetBufferTypeHandle<UniqueMeshPosition>(true),
-                submeshHandle           = GetBufferTypeHandle<UniqueMeshSubmesh>(true),
-                tangentHandle           = GetBufferTypeHandle<UniqueMeshTangent>(true),
-                trackedUniqueMeshHandle = GetComponentTypeHandle<TrackedUniqueMesh>(true),
-                uv0xyHandle             = GetBufferTypeHandle<UniqueMeshUv0xy>(true),
-                uv3xyzHandle            = GetBufferTypeHandle<UniqueMeshUv3xyz>(true),
+                collectedChunks     = collectedChunks,
+                colorHandle         = GetBufferTypeHandle<UniqueMeshColor>(true),
+                configHandle        = GetComponentTypeHandle<UniqueMeshConfig>(false),
+                entityHandle        = GetEntityTypeHandle(),
+                indexHandle         = GetBufferTypeHandle<UniqueMeshIndex>(true),
+                maskHandle          = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
+                meshIDsToInvalidate = meshIDsToInvalidate,
+                meshPool            = meshPool,
+                mmiHandle           = GetComponentTypeHandle<MaterialMeshInfo>(true),
+                normalHandle        = GetBufferTypeHandle<UniqueMeshNormal>(true),
+                positionHandle      = GetBufferTypeHandle<UniqueMeshPosition>(true),
+                submeshHandle       = GetBufferTypeHandle<UniqueMeshSubmesh>(true),
+                tangentHandle       = GetBufferTypeHandle<UniqueMeshTangent>(true),
+                uv0xyHandle         = GetBufferTypeHandle<UniqueMeshUv0xy>(true),
+                uv3xyzHandle        = GetBufferTypeHandle<UniqueMeshUv3xyz>(true),
             }.ScheduleParallel(m_query, state.Dependency);
 
             var meshesNeeded = new NativeReference<int>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
@@ -161,7 +160,6 @@ namespace Latios.Kinemation
             [ReadOnly] public BufferTypeHandle<UniqueMeshIndex>                indexHandle;
             [ReadOnly] public BufferTypeHandle<UniqueMeshSubmesh>              submeshHandle;
             [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> maskHandle;
-            [ReadOnly] public ComponentTypeHandle<TrackedUniqueMesh>           trackedUniqueMeshHandle;
             [ReadOnly] public UniqueMeshPool                                   meshPool;
 
             public ComponentTypeHandle<UniqueMeshConfig>                            configHandle;
@@ -171,10 +169,12 @@ namespace Latios.Kinemation
             [NativeSetThreadIndex]
             int threadIndex;
 
+            HasChecker<TrackedUniqueMesh> trackedUniqueMeshChecker;
+
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 // 1) Only consider meshes that have a MaterialMeshInfo or a TrackedUniqueMesh.
-                if (!(chunk.Has(ref mmiHandle) || chunk.Has(ref trackedUniqueMeshHandle)))
+                if (!(chunk.Has(ref mmiHandle) || trackedUniqueMeshChecker[chunk]))
                     return;
 
                 var configurations = (UniqueMeshConfig*)chunk.GetRequiredComponentDataPtrRO(ref configHandle);

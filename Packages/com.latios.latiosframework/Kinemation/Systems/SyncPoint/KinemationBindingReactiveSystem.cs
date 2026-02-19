@@ -258,7 +258,6 @@ namespace Latios.Kinemation.Systems
                         skinnedMeshRemoveOpsBlockList = skinnedMeshRemoveOpsBlockList,
                         needsBindingHandle            = GetComponentTypeHandle<NeedsBindingFlag>(false),
                         newMeshesJob                  = newMeshJob,
-                        needsReinitHandle             = GetComponentTypeHandle<BoundMeshNeedsReinit>(true)
                     }.ScheduleParallel(m_bindableMeshesQuery, state.Dependency);
                 }
             }
@@ -939,8 +938,6 @@ namespace Latios.Kinemation.Systems
             public ComponentTypeHandle<SkeletonDependent> depsHandle;
             public ComponentTypeHandle<NeedsBindingFlag>  needsBindingHandle;
 
-            [ReadOnly] public ComponentTypeHandle<BoundMeshNeedsReinit> needsReinitHandle;
-
             public UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList;
             public UnsafeParallelBlockList<SkinnedMeshRemoveOperation> skinnedMeshRemoveOpsBlockList;
 
@@ -948,9 +945,11 @@ namespace Latios.Kinemation.Systems
 
             [NativeSetThreadIndex] int m_nativeThreadIndex;
 
+            HasChecker<BoundMeshNeedsReinit> needsReinitChecker;
+
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                bool needsReinint     = chunk.Has(ref needsReinitHandle);
+                bool needsReinint     = needsReinitChecker[chunk];
                 bool hasNeedsBindings = chunk.Has(ref needsBindingHandle);
 
                 // The general strategy here is to unbind anything requesting a rebind

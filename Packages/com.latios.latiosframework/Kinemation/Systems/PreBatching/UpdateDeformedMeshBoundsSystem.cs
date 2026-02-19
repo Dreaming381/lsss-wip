@@ -31,7 +31,6 @@ namespace Latios.Kinemation.Systems
             state.Dependency = new Job
             {
                 blobHandle                             = GetComponentTypeHandle<BoundMesh>(true),
-                skeletonDependentHandle                = GetComponentTypeHandle<SkeletonDependent>(true),
                 dynamicMeshMaxVertexDisplacementHandle = GetComponentTypeHandle<DynamicMeshMaxVertexDisplacement>(true),
                 blendShapeWeightsHandle                = GetBufferTypeHandle<BlendShapeWeight>(true),
                 blendShapeStateHandle                  = GetComponentTypeHandle<BlendShapeState>(true),
@@ -46,7 +45,6 @@ namespace Latios.Kinemation.Systems
         struct Job : IJobChunk
         {
             [ReadOnly] public ComponentTypeHandle<BoundMesh>                        blobHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>                skeletonDependentHandle;
             [ReadOnly] public ComponentTypeHandle<DynamicMeshMaxVertexDisplacement> dynamicMeshMaxVertexDisplacementHandle;
             [ReadOnly] public BufferTypeHandle<BlendShapeWeight>                    blendShapeWeightsHandle;
             [ReadOnly] public ComponentTypeHandle<BlendShapeState>                  blendShapeStateHandle;
@@ -59,12 +57,14 @@ namespace Latios.Kinemation.Systems
 
             [NoAlias, NativeDisableContainerSafetyRestriction] NativeArray<float> tempFloatBuffer;
 
+            HasChecker<SkeletonDependent> skeletonDependentChecker;
+
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 bool hasDynamicMesh  = chunk.Has(ref dynamicMeshMaxVertexDisplacementHandle);
                 bool hasBlendShapes  = chunk.Has(ref blendShapeWeightsHandle) && chunk.Has(ref blendShapeStateHandle);
                 bool hasShaderBounds = chunk.Has(ref shaderBoundsHandle);
-                bool hasSkeleton     = chunk.Has(ref skeletonDependentHandle);
+                bool hasSkeleton     = skeletonDependentChecker[chunk];
                 bool hasLocalBounds  = chunk.Has(ref localBoundsHandle);
                 bool didOrderChange  = chunk.DidOrderChange(lastSystemVersion);
 

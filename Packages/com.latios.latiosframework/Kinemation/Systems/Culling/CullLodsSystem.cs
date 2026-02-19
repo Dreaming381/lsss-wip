@@ -131,7 +131,6 @@ namespace Latios.Kinemation.Systems
                     worldTransformHandle                           = m_worldTransformHandle,
                     lodHeightPercentagesHandle                     = GetComponentTypeHandle<LodHeightPercentages>(true),
                     lodHeightPercentagesWithCrossfadeMarginsHandle = GetComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins>(true),
-                    speedTreeTagHandle                             = GetComponentTypeHandle<SpeedTreeCrossfadeTag>(true),
                     chunkInfoHandle                                = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(false),
                     crossfadeHandle                                = GetComponentTypeHandle<LodCrossfade>(false),
                     cameraPosition                                 = cameraPosition,
@@ -154,7 +153,6 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle                       worldTransformHandle;
             [ReadOnly] public ComponentTypeHandle<LodHeightPercentages>                     lodHeightPercentagesHandle;
             [ReadOnly] public ComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins> lodHeightPercentagesWithCrossfadeMarginsHandle;
-            [ReadOnly] public ComponentTypeHandle<SpeedTreeCrossfadeTag>                    speedTreeTagHandle;
 
             public ComponentTypeHandle<EntitiesGraphicsChunkInfo> chunkInfoHandle;
             public ComponentTypeHandle<LodCrossfade>              crossfadeHandle;
@@ -163,6 +161,8 @@ namespace Latios.Kinemation.Systems
             public float  cameraHeightMultiplier;
             public int    maxResolutionLodLevel;
             public bool   isPerspective;
+
+            HasChecker<SpeedTreeCrossfadeTag> speedTreeChecker;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -178,7 +178,7 @@ namespace Latios.Kinemation.Systems
                 {
                     crossfades             = chunk.GetNativeArray(ref crossfadeHandle);
                     var  crossfadeEnableds = chunk.GetEnabledMask(ref crossfadeHandle);
-                    bool isSpeedTree       = chunk.Has(ref speedTreeTagHandle);
+                    bool isSpeedTree       = speedTreeChecker[chunk];
 
                     chunk.SetComponentEnabledForAll(ref crossfadeHandle, false);
 
