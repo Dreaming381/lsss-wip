@@ -36,7 +36,6 @@ namespace Latios.Kinemation.Systems
                 blendShapeStateHandle                  = GetComponentTypeHandle<BlendShapeState>(true),
                 shaderBoundsHandle                     = GetComponentTypeHandle<ShaderEffectRadialBounds>(true),
                 localBoundsHandle                      = GetComponentTypeHandle<RenderBounds>(false),
-                dependentSkinnedMeshLookup             = GetBufferLookup<DependentSkinnedMesh>(false),
                 lastSystemVersion                      = state.LastSystemVersion
             }.ScheduleParallel(m_query, state.Dependency);
         }
@@ -50,8 +49,7 @@ namespace Latios.Kinemation.Systems
             [ReadOnly] public ComponentTypeHandle<BlendShapeState>                  blendShapeStateHandle;
             [ReadOnly] public ComponentTypeHandle<ShaderEffectRadialBounds>         shaderBoundsHandle;
 
-            public ComponentTypeHandle<RenderBounds>                                        localBoundsHandle;
-            [NativeDisableParallelForRestriction] public BufferLookup<DependentSkinnedMesh> dependentSkinnedMeshLookup;
+            public ComponentTypeHandle<RenderBounds> localBoundsHandle;
 
             public uint lastSystemVersion;
 

@@ -21,23 +21,30 @@ namespace Latios.Transforms.Authoring.Systems
     {
         [BakingType] struct TrackedTag : ICleanupComponentData { }
         [BakingType] struct LocalOverrideCleanupTag : ICleanupComponentData { }
+        [BakingType] struct ParentOverrideCleanupTag : ICleanupComponentData { }
 
         EntityQuery m_query;
         EntityQuery m_newQuery;
         EntityQuery m_deadQuery;
         EntityQuery m_newLocalOverrideQuery;
         EntityQuery m_deadLocalOverrideQuery;
+        EntityQuery m_newParentOverrideQuery;
+        EntityQuery m_deadParentOverrideQuery;
 
         Hierarchy m_hierarchy;
 
         public void OnCreate(ref SystemState state)
         {
-            m_query                  = state.Fluent().With<TransformAuthoring>(true).IncludeDisabledEntities().IncludePrefabs().Build();
-            m_newQuery               = state.Fluent().With<TransformAuthoring>(true).Without<TrackedTag>().IncludeDisabledEntities().IncludePrefabs().Build();
-            m_deadQuery              = state.Fluent().With<TrackedTag>(true).Without<TransformAuthoring>().IncludeDisabledEntities().IncludePrefabs().Build();
-            m_newLocalOverrideQuery  = state.Fluent().With<BakedLocalTransformOverride>(true).Without<LocalOverrideCleanupTag>().IncludeDisabledEntities().IncludePrefabs().Build();
-            m_deadLocalOverrideQuery = state.Fluent().With<LocalOverrideCleanupTag>(true).Without<BakedLocalTransformOverride>().IncludeDisabledEntities().IncludePrefabs().Build();
-            m_hierarchy              = new Hierarchy(256, Allocator.Persistent);
+            m_query                 = state.Fluent().With<TransformAuthoring>(true).IncludeDisabledEntities().IncludePrefabs().Build();
+            m_newQuery              = state.Fluent().With<TransformAuthoring>(true).Without<TrackedTag>().IncludeDisabledEntities().IncludePrefabs().Build();
+            m_deadQuery             = state.Fluent().With<TrackedTag>(true).Without<TransformAuthoring>().IncludeDisabledEntities().IncludePrefabs().Build();
+            m_newLocalOverrideQuery =
+                state.Fluent().With<BakedLocalTransformOverride>(true).Without<LocalOverrideCleanupTag>().IncludeDisabledEntities().IncludePrefabs().Build();
+            m_deadLocalOverrideQuery =
+                state.Fluent().With<LocalOverrideCleanupTag>(true).Without<BakedLocalTransformOverride>().IncludeDisabledEntities().IncludePrefabs().Build();
+            m_newParentOverrideQuery  = state.Fluent().With<BakedParentOverride>(true).Without<ParentOverrideCleanupTag>().IncludeDisabledEntities().IncludePrefabs().Build();
+            m_deadParentOverrideQuery = state.Fluent().With<ParentOverrideCleanupTag>(true).Without<BakedParentOverride>().IncludeDisabledEntities().IncludePrefabs().Build();
+            m_hierarchy               = new Hierarchy(256, Allocator.Persistent);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -77,6 +84,8 @@ namespace Latios.Transforms.Authoring.Systems
                 entityInHierarchyLookup           = GetBufferLookup<EntityInHierarchy>(true),
                 bakedLocalTransformOverrideHandle = GetComponentTypeHandle<BakedLocalTransformOverride>(true),
                 localOverrideCleanupTagHandle     = GetComponentTypeHandle<LocalOverrideCleanupTag>(true),
+                bakedParentOverrideHandle         = GetComponentTypeHandle<BakedParentOverride>(true),
+                parentOverrideCleanupTagHandle    = GetComponentTypeHandle<ParentOverrideCleanupTag>(true),
                 staticHandle                      = GetComponentTypeHandle<Unity.Transforms.Static>(true),
                 worldTransformHandle              = GetComponentTypeHandle<WorldTransform>(false),
                 entityHierarchyChangeStream       = entityInHierarchyChangeStream.AsWriter(),
@@ -100,6 +109,8 @@ namespace Latios.Transforms.Authoring.Systems
             ecb.Playback(state.EntityManager);
             state.EntityManager.RemoveComponent<LocalOverrideCleanupTag>(m_deadLocalOverrideQuery);
             state.EntityManager.AddComponent<LocalOverrideCleanupTag>(m_newLocalOverrideQuery);
+            state.EntityManager.RemoveComponent<ParentOverrideCleanupTag>(m_deadParentOverrideQuery);
+            state.EntityManager.AddComponent<ParentOverrideCleanupTag>(m_newParentOverrideQuery);
             applyHierarchyChangesJh.Complete();
 
             for (int i = 0; i < dirtyRootsList.Length; i++)
@@ -289,6 +300,8 @@ namespace Latios.Transforms.Authoring.Systems
             [ReadOnly] public BufferLookup<EntityInHierarchy>                  entityInHierarchyLookup;
             [ReadOnly] public ComponentTypeHandle<BakedLocalTransformOverride> bakedLocalTransformOverrideHandle;
             [ReadOnly] public ComponentTypeHandle<LocalOverrideCleanupTag>     localOverrideCleanupTagHandle;
+            [ReadOnly] public ComponentTypeHandle<BakedParentOverride>         bakedParentOverrideHandle;
+            [ReadOnly] public ComponentTypeHandle<ParentOverrideCleanupTag>    parentOverrideCleanupTagHandle;
             [ReadOnly] public ComponentTypeHandle<Unity.Transforms.Static>     staticHandle;  // Despite the namespace, this is in Unity.Entities assembly
             public ComponentTypeHandle<WorldTransform>                         worldTransformHandle;
 
@@ -298,11 +311,12 @@ namespace Latios.Transforms.Authoring.Systems
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                bool localOverrideChanged = chunk.DidChange(ref bakedLocalTransformOverrideHandle, lastSystemVersion);
+                bool localOverrideChanged  = chunk.DidChange(ref bakedLocalTransformOverrideHandle, lastSystemVersion);
+                bool parentOverrideChanged = chunk.DidChange(ref bakedParentOverrideHandle, lastSystemVersion);
                 if (!chunk.DidChange(ref transformAuthoringHandle, lastSystemVersion) &&
                     !chunk.DidChange(ref authoringSiblingIndexHandle, lastSystemVersion) &&
                     !chunk.DidChange(ref mergedInheritanceFlagsHandle, lastSystemVersion) &&
-                    !localOverrideChanged &&
+                    !localOverrideChanged && !parentOverrideChanged &&
                     !chunk.DidOrderChange(lastSystemVersion))
                     return;
 
@@ -313,7 +327,9 @@ namespace Latios.Transforms.Authoring.Systems
                 bool hasAuthoringSiblingIndex  = chunk.Has(ref authoringSiblingIndexHandle);
                 bool hasInheritanceFlags       = chunk.Has(ref mergedInheritanceFlagsHandle);
                 bool hasStatic                 = chunk.Has(ref staticHandle);
+                bool hasParentOverride         = chunk.Has(ref bakedParentOverrideHandle);
                 localOverrideChanged          |= chunk.Has(ref bakedLocalTransformOverrideHandle) != chunk.Has(ref localOverrideCleanupTagHandle);
+                parentOverrideChanged         |= hasParentOverride != chunk.Has(ref parentOverrideCleanupTagHandle);
 
                 var entities                   = chunk.GetNativeArray(entityHandle);
                 var transformAuthoringArray    = chunk.GetNativeArray(ref transformAuthoringHandle);
@@ -321,6 +337,7 @@ namespace Latios.Transforms.Authoring.Systems
                 var authoringSiblingIndexArray = chunk.GetNativeArray(ref authoringSiblingIndexHandle);
                 var inheritanceFlagsArray      = chunk.GetNativeArray(ref mergedInheritanceFlagsHandle);
                 var worldTransformArray        = chunk.GetNativeArray(ref worldTransformHandle);
+                var overrideParentArray        = chunk.GetNativeArray(ref bakedParentOverrideHandle);
 
                 for (int i = 0; i < chunk.Count; i++)
                 {
@@ -356,7 +373,7 @@ namespace Latios.Transforms.Authoring.Systems
                     else
                     {
                         needsWorldTransform = (transformAuthoring.RuntimeTransformUsage & RuntimeTransformComponentFlags.LocalToWorld) != 0;
-                        needsLocalTransform = (transformAuthoring.RuntimeTransformUsage & RuntimeTransformComponentFlags.RequestParent) != 0;
+                        needsLocalTransform = (transformAuthoring.RuntimeTransformUsage & RuntimeTransformComponentFlags.RequestParent) != 0 || hasParentOverride;
                     }
 
                     if (needsLocalTransform == false && needsWorldTransform == false && hasWorldTransform)
@@ -439,7 +456,8 @@ namespace Latios.Transforms.Authoring.Systems
                         }
 
                         hierarchy.GetOrderAndParent(entities[i], out var order, out var parent);
-                        var parentChanged = parent != transformAuthoring.RuntimeParent;
+                        var targetParent  = hasParentOverride ? overrideParentArray[i].parent : transformAuthoring.RuntimeParent;
+                        var parentChanged = parent != targetParent;
                         var currentOrder  = hasAuthoringSiblingIndex ? authoringSiblingIndexArray[i].index : -1;
 
                         // We check for override changes, flags, parent change, order change, and dirty transform data (change in positions, rotation, and scale)
@@ -449,7 +467,7 @@ namespace Latios.Transforms.Authoring.Systems
                             entityHierarchyChangeStream.Write(new EntityHierarchyChange
                             {
                                 entity        = entities[i],
-                                parent        = transformAuthoring.RuntimeParent,
+                                parent        = targetParent,
                                 order         = currentOrder,
                                 parentChanged = parentChanged
                             });
