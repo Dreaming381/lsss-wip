@@ -13,11 +13,11 @@ namespace Latios.Transforms
 {
     internal static unsafe class TreeChangeMainThread
     {
-        public static void AddChild(EntityManager em,
-                                    Entity parent,
-                                    Entity child,
-                                    InheritanceFlags flags,
-                                    AddChildOptions options)
+        public static void SetParent(EntityManager em,
+                                     Entity parent,
+                                     Entity child,
+                                     InheritanceFlags flags,
+                                     SetParentOptions options)
         {
             TreeChangeSafetyChecks.CheckChangeParent(em, parent, child, flags, options);
 
@@ -175,7 +175,7 @@ namespace Latios.Transforms
             tsa.Dispose();
         }
 
-        public static void RemoveChild(EntityManager em, Entity child, RemoveChildOptions options)
+        public static void ClearParent(EntityManager em, Entity child, ClearParentOptions options)
         {
             TreeChangeSafetyChecks.CheckChildToRemoveIsAlive(em, child);
 
@@ -197,7 +197,7 @@ namespace Latios.Transforms
 
                 // Find LEG entities to remove from ancestry except root
                 Span<Entity> ancestorsWithLegsToRemove = default;
-                if (options == RemoveChildOptions.TransferLinkedEntityGroup)
+                if (options == ClearParentOptions.TransferLinkedEntityGroup)
                 {
                     var hierarchyArray = hierarchy.AsNativeArray();
                     int ancestorCount  = 0;
@@ -224,12 +224,12 @@ namespace Latios.Transforms
                 // Find LEG entities to copy or remove from root
                 Span<Entity> entitiesToAddToNewLeg = default;
                 bool         needsCleanup          = true;
-                if (options != RemoveChildOptions.IgnoreLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(rootReference.rootEntity))
+                if (options != ClearParentOptions.IgnoreLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(rootReference.rootEntity))
                 {
-                    var leg = em.GetBuffer<LinkedEntityGroup>(rootReference.rootEntity, options == RemoveChildOptions.TransferLinkedEntityGroup);
+                    var leg = em.GetBuffer<LinkedEntityGroup>(rootReference.rootEntity, options == ClearParentOptions.TransferLinkedEntityGroup);
 
                     bool matchedAll;
-                    if (options == RemoveChildOptions.TransferLinkedEntityGroup)
+                    if (options == ClearParentOptions.TransferLinkedEntityGroup)
                         entitiesToAddToNewLeg = TreeKernels.GetAndRemoveHierarchyEntitiesFromLeg(ref tsa, ref leg, subtree, out matchedAll);
                     else
                         entitiesToAddToNewLeg = TreeKernels.GetHierarchyEntitiesInLeg(ref tsa, subtree, leg.Reinterpret<Entity>().AsNativeArray(), out matchedAll);
@@ -268,7 +268,7 @@ namespace Latios.Transforms
                             leg.Add(e);
                     }
                 }
-                else if (options != RemoveChildOptions.IgnoreLinkedEntityGroup && entitiesToAddToNewLeg.Length > 2 && em.HasBuffer<LinkedEntityGroup>(child))
+                else if (options != ClearParentOptions.IgnoreLinkedEntityGroup && entitiesToAddToNewLeg.Length > 2 && em.HasBuffer<LinkedEntityGroup>(child))
                 {
                     var leg = em.GetBuffer<LinkedEntityGroup>(child).Reinterpret<Entity>();
                     foreach (var e in entitiesToAddToNewLeg)
@@ -286,7 +286,7 @@ namespace Latios.Transforms
                 var newHierarchy    = em.AddBuffer<EntityInHierarchy>(child);
                 newHierarchy.Length = subtree.Length;
                 subtree.CopyTo(newHierarchy.AsNativeArray().AsSpan());
-                CleanHierarchy(ref tsa, em, child, ref newHierarchy, options != RemoveChildOptions.IgnoreLinkedEntityGroup, out var removeLegFromChild);
+                CleanHierarchy(ref tsa, em, child, ref newHierarchy, options != ClearParentOptions.IgnoreLinkedEntityGroup, out var removeLegFromChild);
                 if (newHierarchy.Length < 2)
                     TreeKernels.RemoveRootComponents(em, child, removeLegFromChild);
                 else
@@ -306,7 +306,7 @@ namespace Latios.Transforms
             {
                 // Find the child to remove from ancestry LEGs including root
                 Span<Entity> ancestorsWithLegsToRemove = default;
-                if (options == RemoveChildOptions.TransferLinkedEntityGroup)
+                if (options == ClearParentOptions.TransferLinkedEntityGroup)
                 {
                     var hierarchyArray = hierarchy.AsNativeArray();
                     int ancestorCount  = 0;
@@ -355,7 +355,7 @@ namespace Latios.Transforms
         }
 
         #region Solo Children
-        static void AddSoloChildToSoloParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, AddChildOptions options)
+        static void AddSoloChildToSoloParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, SetParentOptions options)
         {
             // For this case, we know upfront whether we need LEG or Cleanup. Apply structural changes immediately.
             var childAddSet  = TreeKernels.GetChildComponentsToAdd(em, child, TreeKernels.TreeClassification.TreeRole.Solo, flags);
@@ -374,11 +374,11 @@ namespace Latios.Transforms
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
 
             // If we need LEG, add the child to the parent. Then optionally remove the child's LEG.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 TreeKernels.AddEntityToLeg(ref leg, child);
-                if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
+                if (options == SetParentOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
                 {
                     var childLeg = em.GetBuffer<LinkedEntityGroup>(child, true);
                     if (childLeg.Length < 2)
@@ -389,7 +389,7 @@ namespace Latios.Transforms
             Validate(em, parent, child);
         }
 
-        static void AddSoloChildToRootParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, AddChildOptions options)
+        static void AddSoloChildToRootParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -412,11 +412,11 @@ namespace Latios.Transforms
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
 
             // Add child to parent's LEG, then optionally remove LEG from child. Also, cleaning might cause parent to drop LEG.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 TreeKernels.AddEntityToLeg(ref leg, child);
-                if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
+                if (options == SetParentOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
                 {
                     var childLeg = em.GetBuffer<LinkedEntityGroup>(child, true);
                     if (childLeg.Length < 2)
@@ -436,7 +436,7 @@ namespace Latios.Transforms
                                                  TreeKernels.TreeClassification parentClassification,
                                                  Entity child,
                                                  InheritanceFlags flags,
-                                                 AddChildOptions options)
+                                                 SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -463,11 +463,11 @@ namespace Latios.Transforms
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
 
             // Add child to parent's LEG, then optionally remove LEG from child. Also, cleaning might cause root to drop LEG.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
                 TreeKernels.AddEntityToLeg(ref leg, child);
-                if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
+                if (options == SetParentOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
                 {
                     var childLeg = em.GetBuffer<LinkedEntityGroup>(child, true);
                     if (childLeg.Length < 2)
@@ -484,7 +484,7 @@ namespace Latios.Transforms
         #endregion
 
         #region Root Children
-        static void AddRootChildToSoloParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, AddChildOptions options)
+        static void AddRootChildToSoloParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -518,7 +518,7 @@ namespace Latios.Transforms
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
 
             // Add LEG entities
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 if (childLegEntities.Length > 0)
@@ -535,7 +535,7 @@ namespace Latios.Transforms
             tsa.Dispose();
         }
 
-        static void AddRootChildToRootParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, AddChildOptions options)
+        static void AddRootChildToRootParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -568,7 +568,7 @@ namespace Latios.Transforms
             }
 
             // Add LEG entities, and maybe remove the parent LEG after cleanup
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 if (childLegEntities.Length > 0)
@@ -592,7 +592,7 @@ namespace Latios.Transforms
                                                  TreeKernels.TreeClassification parentClassification,
                                                  Entity child,
                                                  InheritanceFlags flags,
-                                                 AddChildOptions options)
+                                                 SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -631,7 +631,7 @@ namespace Latios.Transforms
             }
 
             // Add LEG entities. Also, cleaning might result in us removing LEG from the root.
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
                 if (childLegEntities.Length > 0)
@@ -658,7 +658,7 @@ namespace Latios.Transforms
                                                                Entity child,
                                                                TreeKernels.TreeClassification childClassification,
                                                                InheritanceFlags flags,
-                                                               AddChildOptions options)
+                                                               SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -693,7 +693,7 @@ namespace Latios.Transforms
             ProcessInternalChildLegNoSubtree(em, oldRoot, childClassification.isRootAlive, child, oldAncestorEntities, options, out bool removeChildLeg,
                                              out bool removeOldRootLeg2);
             removeOldRootLeg |= removeOldRootLeg2;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 TreeKernels.AddEntityToLeg(ref leg, child);
@@ -748,7 +748,7 @@ namespace Latios.Transforms
                                                                             Entity child,
                                                                             TreeKernels.TreeClassification childClassification,
                                                                             InheritanceFlags flags,
-                                                                            AddChildOptions options)
+                                                                            SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -785,7 +785,7 @@ namespace Latios.Transforms
             ProcessInternalChildLegNoSubtree(em, oldRoot, childClassification.isRootAlive, child, oldAncestorEntities, options, out bool removeChildLeg,
                                              out bool removeOldRootLeg2);
             removeOldRootLeg |= removeOldRootLeg2;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 TreeKernels.AddEntityToLeg(ref leg, child);
@@ -853,7 +853,7 @@ namespace Latios.Transforms
                                                                                  Entity child,
                                                                                  TreeKernels.TreeClassification childClassification,
                                                                                  InheritanceFlags flags,
-                                                                                 AddChildOptions options)
+                                                                                 SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -894,7 +894,7 @@ namespace Latios.Transforms
             ProcessInternalChildLegNoSubtree(em, oldRoot, childClassification.isRootAlive, child, oldAncestorEntities, options, out bool removeChildLeg,
                                              out bool removeOldRootLeg2);
             removeOldRootLeg |= removeOldRootLeg2;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
                 TreeKernels.AddEntityToLeg(ref leg, child);
@@ -923,7 +923,7 @@ namespace Latios.Transforms
                                                             Entity child,
                                                             TreeKernels.TreeClassification childClassification,
                                                             InheritanceFlags flags,
-                                                            AddChildOptions options)
+                                                            SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -974,7 +974,7 @@ namespace Latios.Transforms
             }
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), default, em);
 
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 if (legEntitiesToAddToDst.IsEmpty)
@@ -1035,7 +1035,7 @@ namespace Latios.Transforms
                                                                          Entity child,
                                                                          TreeKernels.TreeClassification childClassification,
                                                                          InheritanceFlags flags,
-                                                                         AddChildOptions options)
+                                                                         SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -1088,7 +1088,7 @@ namespace Latios.Transforms
             }
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
 
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(parent, false);
                 if (legEntitiesToAddToDst.IsEmpty)
@@ -1161,7 +1161,7 @@ namespace Latios.Transforms
                                                                               Entity child,
                                                                               TreeKernels.TreeClassification childClassification,
                                                                               InheritanceFlags flags,
-                                                                              AddChildOptions options)
+                                                                              SetParentOptions options)
         {
             var tsa = ThreadStackAllocator.GetAllocator();
 
@@ -1218,7 +1218,7 @@ namespace Latios.Transforms
             }
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
 
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup)
             {
                 var leg = em.GetBuffer<LinkedEntityGroup>(root, false);
                 if (legEntitiesToAddToDst.IsEmpty)
@@ -1277,18 +1277,18 @@ namespace Latios.Transforms
                                         EntityManager em,
                                         Entity child,
                                         in ReadOnlySpan<EntityInHierarchy> hierarchy,
-                                        AddChildOptions options,
+                                        SetParentOptions options,
                                         out bool removeLeg,
                                         out bool dstHierarchyNeedsCleanup,
                                         out Span<Entity>                   entitiesInLegAndHierarchy)
         {
             dstHierarchyNeedsCleanup = false;
             removeLeg                = false;
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
             {
-                var  childLeg = em.GetBuffer<LinkedEntityGroup>(child, options == AddChildOptions.AttachLinkedEntityGroup);
+                var  childLeg = em.GetBuffer<LinkedEntityGroup>(child, options == SetParentOptions.AttachLinkedEntityGroup);
                 bool matchedAll;
-                if (options == AddChildOptions.AttachLinkedEntityGroup)
+                if (options == SetParentOptions.AttachLinkedEntityGroup)
                     entitiesInLegAndHierarchy = TreeKernels.GetHierarchyEntitiesInLeg(ref tsa, hierarchy, childLeg.Reinterpret<Entity>().AsNativeArray(), out matchedAll);
                 else
                 {
@@ -1305,9 +1305,9 @@ namespace Latios.Transforms
             }
         }
 
-        static Span<Entity> GetAncestorEntitiesIfNeededForLeg(ref ThreadStackAllocator tsa, in ReadOnlySpan<EntityInHierarchy> hierarchy, int childIndex, AddChildOptions options)
+        static Span<Entity> GetAncestorEntitiesIfNeededForLeg(ref ThreadStackAllocator tsa, in ReadOnlySpan<EntityInHierarchy> hierarchy, int childIndex, SetParentOptions options)
         {
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options == SetParentOptions.IgnoreLinkedEntityGroup)
                 return default;
             return TreeKernels.GetAncestryEntitiesExcludingRoot(ref tsa, hierarchy, childIndex);
         }
@@ -1317,16 +1317,16 @@ namespace Latios.Transforms
                                                      bool isRootAlive,
                                                      Entity child,
                                                      in ReadOnlySpan<Entity> ancestorEntities,
-                                                     AddChildOptions options,
+                                                     SetParentOptions options,
                                                      out bool removeLegFromChild,
                                                      out bool removeLegFromRoot)
         {
             removeLegFromChild = false;
             removeLegFromRoot  = false;
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options == SetParentOptions.IgnoreLinkedEntityGroup)
                 return;
 
-            if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
+            if (options == SetParentOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
             {
                 if (em.GetBuffer<LinkedEntityGroup>(child, true).Length < 2)
                     removeLegFromChild = true;
@@ -1358,7 +1358,7 @@ namespace Latios.Transforms
                                                        Entity child,
                                                        in ReadOnlySpan<Entity>            ancestorEntities,
                                                        in ReadOnlySpan<EntityInHierarchy> subtree,
-                                                       AddChildOptions options,
+                                                       SetParentOptions options,
                                                        out bool removeLegFromChild,
                                                        out bool removeLegFromRoot,
                                                        out bool dstHierarchyNeedsCleanup,
@@ -1368,10 +1368,10 @@ namespace Latios.Transforms
             removeLegFromRoot        = false;
             dstHierarchyNeedsCleanup = true;
             legEntitiesToAddToDst    = default;
-            if (options == AddChildOptions.IgnoreLinkedEntityGroup)
+            if (options == SetParentOptions.IgnoreLinkedEntityGroup)
                 return;
 
-            if (options == AddChildOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
+            if (options == SetParentOptions.TransferLinkedEntityGroup && em.HasBuffer<LinkedEntityGroup>(child))
             {
                 var childLeg = em.GetBuffer<LinkedEntityGroup>(child, false);
                 TreeKernels.RemoveHierarchyEntitiesFromLeg(ref childLeg, subtree);

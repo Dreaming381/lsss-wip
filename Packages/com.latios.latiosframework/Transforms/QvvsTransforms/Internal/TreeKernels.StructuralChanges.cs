@@ -134,7 +134,7 @@ namespace Latios.Transforms
                                                                Entity parent,
                                                                TreeClassification.TreeRole role,
                                                                ComponentAddSet childAddSet,
-                                                               AddChildOptions options,
+                                                               SetParentOptions options,
                                                                bool considerTransforms = true)
         {
             ComponentAddSet addSet = default;
@@ -170,9 +170,9 @@ namespace Latios.Transforms
 
             if (role == TreeClassification.TreeRole.Solo || role == TreeClassification.TreeRole.Root)
             {
-                if (options != AddChildOptions.IgnoreLinkedEntityGroup && !em.HasBuffer<LinkedEntityGroup>(parent))
+                if (options != SetParentOptions.IgnoreLinkedEntityGroup && !em.HasBuffer<LinkedEntityGroup>(parent))
                     addSet.linkedEntityGroup = true;
-                if (options == AddChildOptions.IgnoreLinkedEntityGroup)
+                if (options == SetParentOptions.IgnoreLinkedEntityGroup)
                     addSet.entityInHierarchyCleanup = true;
             }
             return addSet;
@@ -183,7 +183,7 @@ namespace Latios.Transforms
                                                                        ReadOnlySpan<EntityInHierarchy> hierarchy,
                                                                        TreeClassification parentClassification,
                                                                        ComponentAddSet childAddSet,
-                                                                       AddChildOptions options)
+                                                                       SetParentOptions options)
         {
             var  resultBuffer         = tsa.AllocateAsSpan<ComponentAddSet>(parentClassification.indexInHierarchy + 1);
             var  resultCount          = 0;

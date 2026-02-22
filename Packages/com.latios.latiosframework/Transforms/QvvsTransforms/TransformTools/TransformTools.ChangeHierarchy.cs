@@ -3,7 +3,7 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-    public enum AddChildOptions : byte
+    public enum SetParentOptions : byte
     {
         /// <summary>
         /// If the child is already a child of a previous hierarchy, then it and its descendants are removed from all
@@ -27,7 +27,7 @@ namespace Latios.Transforms
         IgnoreLinkedEntityGroup
     }
 
-    public enum RemoveChildOptions : byte
+    public enum ClearParentOptions : byte
     {
         /// <summary>
         /// The child and all of its descendants are removed from the LinkedEntityGroup of all old ancestors. Every entity
@@ -59,17 +59,17 @@ namespace Latios.Transforms
         /// touched are cleaned. If any entity sees its LinkedEntityGroup size decrease below 2, then LinkedEntityGroup
         /// is removed from that entity.
         /// </summary>
-        /// <param name="parent">The target parent</param>
         /// <param name="child">The entity which should have its parent assigned</param>
+        /// <param name="parent">The target parent</param>
         /// <param name="inheritanceFlags">The inheritance flags the child will use</param>
-        /// <param name="addChildOptions">The options for handling LinkedEntityGroup on the entities</param>
-        public static void AddChild(this EntityManager em,
-                                    Entity parent,
-                                    Entity child,
-                                    InheritanceFlags inheritanceFlags = InheritanceFlags.Normal,
-                                    AddChildOptions addChildOptions  = AddChildOptions.AttachLinkedEntityGroup)
+        /// <param name="setParentOptions">The options for handling LinkedEntityGroup on the entities</param>
+        public static void SetParent(this EntityManager em,
+                                     Entity child,
+                                     Entity parent,
+                                     InheritanceFlags inheritanceFlags = InheritanceFlags.Normal,
+                                     SetParentOptions setParentOptions = SetParentOptions.AttachLinkedEntityGroup)
         {
-            TreeChangeMainThread.AddChild(em, parent, child, inheritanceFlags, addChildOptions);
+            TreeChangeMainThread.SetParent(em, parent, child, inheritanceFlags, setParentOptions);
             return;
         }
 
@@ -90,10 +90,10 @@ namespace Latios.Transforms
         /// then LinkedEneityGroup will be removed from that entity.
         /// </summary>
         /// <param name="child">The entity which should be removed from its parent</param>
-        /// <param name="removeChildOptions">The options for handling LinkedEntityGroup on the entities</param>
-        public static void RemoveChild(this EntityManager em, Entity child, RemoveChildOptions removeChildOptions = RemoveChildOptions.TransferLinkedEntityGroup)
+        /// <param name="clearParentOptions">The options for handling LinkedEntityGroup on the entities</param>
+        public static void ClearParent(this EntityManager em, Entity child, ClearParentOptions clearParentOptions = ClearParentOptions.TransferLinkedEntityGroup)
         {
-            TreeChangeMainThread.RemoveChild(em, child, removeChildOptions);
+            TreeChangeMainThread.ClearParent(em, child, clearParentOptions);
         }
     }
 }

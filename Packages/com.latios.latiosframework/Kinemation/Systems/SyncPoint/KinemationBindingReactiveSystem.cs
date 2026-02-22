@@ -436,7 +436,7 @@ namespace Latios.Kinemation.Systems
                 {
                     state.EntityManager.SetComponentData(op.meshEntity, op.skinnedState);
                     if (op.skinnedState.root == Entity.Null)
-                        state.EntityManager.AddChild(m_failedSkeletonMeshBindingEntity, op.meshEntity, InheritanceFlags.CopyParent, AddChildOptions.TransferLinkedEntityGroup);
+                        state.EntityManager.SetParent(op.meshEntity, m_failedSkeletonMeshBindingEntity, InheritanceFlags.CopyParent, SetParentOptions.TransferLinkedEntityGroup);
                     else
                     {
                         bool reparent = true;
@@ -446,7 +446,7 @@ namespace Latios.Kinemation.Systems
                             reparent    = rootRef.ToHandle(state.EntityManager).bloodParent.entity != op.skinnedState.root;
                         }
                         if (reparent)
-                            state.EntityManager.AddChild(op.skinnedState.root, op.meshEntity, InheritanceFlags.CopyParent, AddChildOptions.TransferLinkedEntityGroup);
+                            state.EntityManager.SetParent(op.meshEntity, op.skinnedState.root, InheritanceFlags.CopyParent, SetParentOptions.TransferLinkedEntityGroup);
                     }
                 }
 #endif

@@ -144,7 +144,7 @@ namespace Latios.Transforms
             public Entity                         parent;
             public Entity                         child;
             public InheritanceFlags               flags;
-            public AddChildOptions                options;
+            public SetParentOptions                options;
             public bool                           parentIsDead;
             public bool                           addedLeg;
             public TransformQvvs                  localTransform;
@@ -308,7 +308,7 @@ namespace Latios.Transforms
             BatchedAddSet GetParentComponentsToAdd(Entity parent,
                                                    TreeKernels.TreeClassification.TreeRole role,
                                                    TreeKernels.ComponentAddSet childAddSet,
-                                                   AddChildOptions options,
+                                                   SetParentOptions options,
                                                    bool considerTransforms = true)
             {
                 TreeKernels.ComponentAddSet addSet = default;
@@ -346,9 +346,9 @@ namespace Latios.Transforms
 
                 if (role == TreeKernels.TreeClassification.TreeRole.Solo || role == TreeKernels.TreeClassification.TreeRole.Root)
                 {
-                    if (options != AddChildOptions.IgnoreLinkedEntityGroup && !legChecker[esi.Chunk])
+                    if (options != SetParentOptions.IgnoreLinkedEntityGroup && !legChecker[esi.Chunk])
                         addSet.linkedEntityGroup = true;
-                    if (options == AddChildOptions.IgnoreLinkedEntityGroup)
+                    if (options == SetParentOptions.IgnoreLinkedEntityGroup)
                         addSet.entityInHierarchyCleanup = true;
                 }
                 return new BatchedAddSet
@@ -362,7 +362,7 @@ namespace Latios.Transforms
             void GetAncestorComponentsToAdd(ReadOnlySpan<EntityInHierarchy> hierarchy,
                                             TreeKernels.TreeClassification parentClassification,
                                             TreeKernels.ComponentAddSet childAddSet,
-                                            AddChildOptions options,
+                                            SetParentOptions options,
                                             out bool addedLeg)
             {
                 var  parentAddSet         = GetParentComponentsToAdd(hierarchy[parentClassification.indexInHierarchy].entity, parentClassification.role, childAddSet, options);
@@ -393,9 +393,9 @@ namespace Latios.Transforms
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-            void CheckDeadRootLegRules(in TreeKernels.TreeClassification parentClassification, AddChildOptions options)
+            void CheckDeadRootLegRules(in TreeKernels.TreeClassification parentClassification, SetParentOptions options)
             {
-                if (options != AddChildOptions.IgnoreLinkedEntityGroup &&
+                if (options != SetParentOptions.IgnoreLinkedEntityGroup &&
                     (parentClassification.role == TreeKernels.TreeClassification.TreeRole.InternalNoChildren ||
                      parentClassification.role == TreeKernels.TreeClassification.TreeRole.InternalWithChildren))
                 {
@@ -680,10 +680,10 @@ namespace Latios.Transforms
                         childWorkState.childClassification.role == TreeKernels.TreeClassification.TreeRole.InternalNoChildren)
                     {
                         TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, parentIndex, childWorkState.child, childWorkState.flags);
-                        if (childWorkState.options != AddChildOptions.IgnoreLinkedEntityGroup)
+                        if (childWorkState.options != SetParentOptions.IgnoreLinkedEntityGroup)
                         {
                             TreeKernels.AddEntityToLeg(ref rootLeg, childWorkState.child);
-                            if (childWorkState.options == AddChildOptions.TransferLinkedEntityGroup)
+                            if (childWorkState.options == SetParentOptions.TransferLinkedEntityGroup)
                             {
                                 var childEsi = esil[childWorkState.child];
                                 if (childEsi.Chunk.Has(ref legHandle))
@@ -713,10 +713,10 @@ namespace Latios.Transforms
                         TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentIndex, childHierarchy.AsNativeArray(), childWorkState.flags);
 
                         bool removeLeg = false;
-                        if (childWorkState.options != AddChildOptions.IgnoreLinkedEntityGroup)
+                        if (childWorkState.options != SetParentOptions.IgnoreLinkedEntityGroup)
                         {
                             TreeKernels.AddHierarchyToLeg(ref rootLeg, childHierarchy.AsNativeArray());
-                            if (childWorkState.options == AddChildOptions.TransferLinkedEntityGroup && hasLeg)
+                            if (childWorkState.options == SetParentOptions.TransferLinkedEntityGroup && hasLeg)
                             {
                                 TreeKernels.RemoveHierarchyEntitiesFromLeg(ref childLeg, childHierarchy.AsNativeArray());
                                 removeLeg = childLeg.Length < 2;

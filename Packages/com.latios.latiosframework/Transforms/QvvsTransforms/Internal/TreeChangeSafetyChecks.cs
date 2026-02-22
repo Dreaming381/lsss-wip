@@ -9,7 +9,7 @@ namespace Latios.Transforms
     internal static class TreeChangeSafetyChecks
     {
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        public static void CheckChangeParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, AddChildOptions options)
+        public static void CheckChangeParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, SetParentOptions options)
         {
             if (parent == child)
                 throw new ArgumentException($"Cannot make an entity a child of itself. {parent.ToFixedString()}");
@@ -21,7 +21,7 @@ namespace Latios.Transforms
                 throw new ArgumentException($"The child does not exist. Parent: {parent.ToFixedString()}  Child: {child.ToFixedString()}");
             if (!em.IsAlive(child))
                 throw new ArgumentException($"The child has been destroyed. Parent: {parent.ToFixedString()}  Child: {child.ToFixedString()}");
-            if (options != AddChildOptions.IgnoreLinkedEntityGroup && em.HasComponent<RootReference>(parent))
+            if (options != SetParentOptions.IgnoreLinkedEntityGroup && em.HasComponent<RootReference>(parent))
             {
                 var rootRef = em.GetComponentData<RootReference>(parent);
                 if (!em.IsAlive(rootRef.rootEntity))
