@@ -425,11 +425,11 @@ namespace Latios.Transforms.Authoring.Systems
                         {
                             worldTransform = new TransformQvvs
                             {
-                                position   = transformAuthoring.LocalPosition,
-                                rotation   = transformAuthoring.LocalRotation,
-                                scale      = scale,
-                                stretch    = stretch,
-                                worldIndex = 0
+                                position  = transformAuthoring.LocalPosition,
+                                rotation  = transformAuthoring.LocalRotation,
+                                scale     = scale,
+                                stretch   = stretch,
+                                context32 = 0
                             };
                         }
 
@@ -486,11 +486,11 @@ namespace Latios.Transforms.Authoring.Systems
 
                     return new TransformQvvs
                     {
-                        position   = transformAuthoring.LocalPosition,
-                        rotation   = transformAuthoring.LocalRotation,
-                        scale      = scale,
-                        stretch    = stretch,
-                        worldIndex = 0
+                        position  = transformAuthoring.LocalPosition,
+                        rotation  = transformAuthoring.LocalRotation,
+                        scale     = scale,
+                        stretch   = stretch,
+                        context32 = 0
                     };
                 }
                 else

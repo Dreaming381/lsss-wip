@@ -266,13 +266,13 @@ namespace Latios.Transforms
         }
 
         /// <summary>
-        /// The worldIndex of the entity that can be read or modified.
+        /// The context32 of the entity that can be read or modified.
         /// It is a user value (do what you want with it) and not used directly by Latios Transforms (though other modules may support specific use cases).
         /// </summary>
         public int worldIndex
         {
             get => m_worldTransform.ValueRO.worldIndex;
-            set => m_worldTransform.ValueRW.worldTransform.worldIndex = value;
+            set => m_worldTransform.ValueRW.worldTransform.context32 = value;
         }
 
         /// <summary>

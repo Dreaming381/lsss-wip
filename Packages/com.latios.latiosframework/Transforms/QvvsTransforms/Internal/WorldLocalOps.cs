@@ -249,7 +249,7 @@ namespace Latios.Transforms
                                                  bool isTicked)
         {
             var local       = GetLocalTransformRO(in parent, in child, in parentHandle, in childHandle, isTicked);
-            var localAsQvvs = new TransformQvvs(local.position, local.rotation, local.scale, child.stretch, child.worldIndex);
+            var localAsQvvs = new TransformQvvs(local.position, local.rotation, local.scale, child.stretch, child.context32);
             var newLocal    = qvvs.inversemul(in transform, in localAsQvvs);
             // If the passed in transform had zero scaling, we just set the local positions and scales to 0.
             newLocal.position = math.select(float3.zero, newLocal.position, math.isfinite(newLocal.position));

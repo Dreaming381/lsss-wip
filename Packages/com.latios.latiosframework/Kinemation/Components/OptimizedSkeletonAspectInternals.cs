@@ -196,7 +196,7 @@ namespace Latios.Kinemation
         {
             var ptr = (TransformQvvs*)bones.GetUnsafePtr();
             for (int i = 0; i < bones.Length; i++)
-                ptr[i].worldIndex = math.asint(1f);
+                ptr[i].context32 = math.asint(1f);
         }
     }
 
@@ -388,7 +388,7 @@ namespace Latios.Kinemation
         internal void ApplyRootTransformChanges(Span<TransformQvvs> rootTransformsWithIndices, int currentRootBaseIndex)
         {
             rootTransformsWithIndices.Sort(new TransformWithIndicesComparer());
-            var     firstChangedBoneIndex = rootTransformsWithIndices[0].worldIndex;
+            var     firstChangedBoneIndex = rootTransformsWithIndices[0].context32;
             ref var childrenIndicesBlob   = ref m_allChildrenIndices;
             ref var parentIndicesBlob     = ref m_skeletonHierarchyBlobRef.ValueRO.blob.Value.parentIndices;
             var     queue                 = new PropagationQueue(stackalloc ParentChild[childrenIndicesBlob.Length - firstChangedBoneIndex]);
@@ -401,7 +401,7 @@ namespace Latios.Kinemation
                 if (!hasDirtyTransform && !hasNextChild)
                     return;
 
-                var nextTransformBoneIndex = hasDirtyTransform ? rootTransformsWithIndices[transformSpanIndex].worldIndex : childrenIndicesBlob.Length;
+                var nextTransformBoneIndex = hasDirtyTransform ? rootTransformsWithIndices[transformSpanIndex].context32 : childrenIndicesBlob.Length;
                 var nextChildIndex         = math.select(childrenIndicesBlob.Length, parentChild.child, hasNextChild);
                 if (nextChildIndex < nextTransformBoneIndex)
                 {
@@ -449,7 +449,7 @@ namespace Latios.Kinemation
 
         struct TransformWithIndicesComparer : IComparer<TransformQvvs>
         {
-            public int Compare(TransformQvvs x, TransformQvvs y) => x.worldIndex.CompareTo(y.worldIndex);
+            public int Compare(TransformQvvs x, TransformQvvs y) => x.context32.CompareTo(y.context32);
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

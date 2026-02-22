@@ -51,9 +51,9 @@ namespace Latios.Transforms
         /// </summary>
         public float3 nonUniformScale => scale * stretch;
         /// <summary>
-        /// The worldIndex whose purpose is up to the user
+        /// The context32 whose purpose is up to the user
         /// </summary>
-        public int worldIndex => worldTransform.worldIndex;
+        public int worldIndex => worldTransform.context32;
 
         /// <summary>
         /// The unit forward vector (local Z+) of the entity in world-space
@@ -205,9 +205,9 @@ namespace Latios.Transforms
         /// </summary>
         public float3 nonUniformScale => scale * stretch;
         /// <summary>
-        /// The worldIndex whose purpose is up to the user
+        /// The context32 whose purpose is up to the user
         /// </summary>
-        public int worldIndex => worldTransform.worldIndex;
+        public int worldIndex => worldTransform.context32;
 
         /// <summary>
         /// The unit forward vector (local Z+) of the entity in world-space

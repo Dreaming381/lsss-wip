@@ -94,8 +94,8 @@ namespace Latios.Kinemation
         /// To ensure the contents are valid, call CopyFromPrevious() if isDirty was false.
         /// This method sets isDirty and needsSync to true. Root-space transforms are not automatically synced
         /// when you make changes to this array. You must call EndSamplingAndSync() when you are done making changes.
-        /// The worldIndex of each transform is treated as a float representing the accumulated weights of all samples.
-        /// Assign any transform's worldIndex with math.asint(1f) to disable normalization fo that transform during sync.
+        /// The context32 of each transform is treated as a float representing the accumulated weights of all samples.
+        /// Assign any transform's context32 with math.asint(1f) to disable normalization fo that transform during sync.
         /// If you want the hierarchy to remain in sync at all times, iterate through the bones property instead.
         /// </summary>
         public NativeArray<TransformQvvs> rawLocalTransformsRW
@@ -139,7 +139,7 @@ namespace Latios.Kinemation
             for (int i = 0; i < transforms.Length; i++)
             {
                 transforms[i]            = qvvs.inversemulqvvs(in skeletonTransform, in transforms[i]);
-                transforms[i].worldIndex = boneIndices[i];
+                transforms[i].context32 = boneIndices[i];
             }
             bones[0].ApplyRootTransformChanges(transforms, m_currentBaseRootIndexWrite);
         }
@@ -154,7 +154,7 @@ namespace Latios.Kinemation
         {
             for (int i = 0; i < transforms.Length; i++)
             {
-                transforms[i].worldIndex = boneIndices[i];
+                transforms[i].context32 = boneIndices[i];
             }
             bones[0].ApplyRootTransformChanges(transforms, m_currentBaseRootIndexWrite);
         }

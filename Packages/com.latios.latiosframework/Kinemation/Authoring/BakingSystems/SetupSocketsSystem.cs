@@ -170,11 +170,11 @@ namespace Latios.Kinemation.Authoring.Systems
         static TransformQvvs ComputeRootTransformOfBone(int index, in DynamicBuffer<OptimizedBoneTransform> transforms)
         {
             var result = transforms[index].boneTransform;
-            var parent = result.worldIndex;
+            var parent = result.context32;
             while (parent > 0)
             {
                 var parentTransform = transforms[parent].boneTransform;
-                parent              = parentTransform.worldIndex;
+                parent              = parentTransform.context32;
                 result              = qvvs.mul(parentTransform, result);
             }
             return result;
