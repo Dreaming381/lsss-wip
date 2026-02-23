@@ -1,3 +1,4 @@
+using Latios.Transforms.Authoring;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -16,12 +17,12 @@ namespace Latios.Kinemation.Authoring.Systems
         {
             new ClearJob().ScheduleParallel();
 
-            var ecbAdd                 = new EntityCommandBuffer(state.WorldUpdateAllocator);
-            var bindSkeletonRootLookup = GetComponentLookup<BindSkeletonRoot>(false);
+            var ecbAdd = new EntityCommandBuffer(state.WorldUpdateAllocator);
             new BindJob
             {
-                ecb        = ecbAdd.AsParallelWriter(),
-                rootLookup = bindSkeletonRootLookup
+                ecb                  = ecbAdd.AsParallelWriter(),
+                rootLookup           = GetComponentLookup<BindSkeletonRoot>(false),
+                parentOverrideLookup = GetComponentLookup<BakedParentOverride>(false)
             }.ScheduleParallel();
 
             var ecbRemove       = new EntityCommandBuffer(state.WorldUpdateAllocator);
@@ -47,8 +48,9 @@ namespace Latios.Kinemation.Authoring.Systems
         [BurstCompile]
         partial struct BindJob : IJobEntity
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<BindSkeletonRoot> rootLookup;
-            public EntityCommandBuffer.ParallelWriter                                      ecb;
+            [NativeDisableParallelForRestriction] public ComponentLookup<BindSkeletonRoot>    rootLookup;
+            [NativeDisableParallelForRestriction] public ComponentLookup<BakedParentOverride> parentOverrideLookup;
+            public EntityCommandBuffer.ParallelWriter                                         ecb;
 
             public void Execute(Entity entity, [ChunkIndexInQuery] int chunkIndexInQuery, in DynamicBuffer<AutoBindSkinnedMeshToSkeleton> skinnedMeshes)
             {
@@ -62,6 +64,15 @@ namespace Latios.Kinemation.Authoring.Systems
                     {
                         ecb.AddComponent(chunkIndexInQuery, skinnedMesh.skinnedMeshEntity, new BindSkeletonRoot { root = entity });
                     }
+
+                    if (parentOverrideLookup.HasComponent(skinnedMesh.skinnedMeshEntity))
+                    {
+                        // Only write if this changed, to avoid triggering the change filter later down the line.
+                        if (parentOverrideLookup[skinnedMesh.skinnedMeshEntity].parent != entity)
+                            parentOverrideLookup[skinnedMesh.skinnedMeshEntity] = new BakedParentOverride { parent = entity };
+                    }
+                    else
+                        ecb.AddComponent(chunkIndexInQuery, skinnedMesh.skinnedMeshEntity, new BakedParentOverride { parent = entity });
                 }
             }
         }
@@ -76,7 +87,8 @@ namespace Latios.Kinemation.Authoring.Systems
             {
                 if (root.root == Entity.Null)
                 {
-                    ecb.RemoveComponent<BindSkeletonRoot>( chunkIndexInQuery, entity);
+                    ecb.RemoveComponent<BindSkeletonRoot>(    chunkIndexInQuery, entity);
+                    ecb.RemoveComponent<BakedParentOverride>( chunkIndexInQuery, entity);
                 }
             }
         }

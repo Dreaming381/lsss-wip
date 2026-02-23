@@ -269,9 +269,9 @@ namespace Latios.Transforms
         /// The context32 of the entity that can be read or modified.
         /// It is a user value (do what you want with it) and not used directly by Latios Transforms (though other modules may support specific use cases).
         /// </summary>
-        public int worldIndex
+        public int context32
         {
-            get => m_worldTransform.ValueRO.worldIndex;
+            get => m_worldTransform.ValueRO.context32;
             set => m_worldTransform.ValueRW.worldTransform.context32 = value;
         }
 
@@ -451,6 +451,7 @@ namespace Latios.Transforms
                         result.m_worldTransform = default;
                         break;
                 }
+                CheckWorldTransformIsValid(in result.m_worldTransform);
                 return result;
             }
         }
@@ -779,6 +780,13 @@ namespace Latios.Transforms
         {
             if (m_handle.isNull || otherHandle.isNull || m_handle.m_hierarchy != otherHandle.m_hierarchy)
                 throw new System.ArgumentException("The EntityInHierarchyHandle does not belong to the same hierarchy as this TransformAspect.");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckWorldTransformIsValid(in RefRW<WorldTransform> transform)
+        {
+            if (!transform.IsValid)
+                throw new System.ArgumentException("The Entity did not have a WorldTransform, either because it is ticking only or because it is no longer alive.");
         }
         #endregion
     }

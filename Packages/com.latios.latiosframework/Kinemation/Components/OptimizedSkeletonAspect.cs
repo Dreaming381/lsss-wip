@@ -1,7 +1,8 @@
 using System;
 using System.Diagnostics;
+using Latios.Kinemation.InternalSourceGen;
 using Latios.Transforms;
-using Latios.Transforms.Abstract;
+using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,22 +14,136 @@ namespace Latios.Kinemation
     /// An aspect that provides full editing of an optimized skeleton's transforms.
     /// This also provides access to the inertial blending interface built into optimized skeletons.
     /// </summary>
-#pragma warning disable CS0618
-    public readonly partial struct OptimizedSkeletonAspect : IAspect
-#pragma warning restore CS0618
+    public partial struct OptimizedSkeletonAspect
     {
-        readonly WorldTransformReadOnlyAspect                   m_worldTransform;
-        readonly RefRO<OptimizedSkeletonHierarchyBlobReference> m_skeletonHierarchyBlobRef;
-        readonly RefRW<OptimizedSkeletonState>                  m_skeletonState;
-        readonly DynamicBuffer<OptimizedBoneTransform>          m_boneTransforms;
-        readonly DynamicBuffer<OptimizedBoneInertialBlendState> m_bonesInertialBlendStates;
+        OptimizedSkeletonWorldTransform m_worldTransform;
+
+        RefRO<OptimizedSkeletonHierarchyBlobReference> m_skeletonHierarchyBlobRef;
+        RefRW<OptimizedSkeletonState>                  m_skeletonState;
+        DynamicBuffer<OptimizedBoneTransform>          m_boneTransforms;
+        DynamicBuffer<OptimizedBoneInertialBlendState> m_bonesInertialBlendStates;
+
+        short m_boneCount;
+        short m_socketCount;  // Only used for QVVS
+
+        #region Constructors
+        public OptimizedSkeletonAspect(
+#if LATIOS_TRANSFORMS_UNITY
+            in Unity.Transforms.LocalToWorld localToWorld,
+#else
+            TransformAspect transformAspect,
+            ref ComponentLookup<Socket> socketLookup,
+#endif
+            RefRO<OptimizedSkeletonHierarchyBlobReference>     optimizedSkeletonHierarchyBlobReference,
+            RefRW<OptimizedSkeletonState>                      optimizedSkeletonState,
+            ref DynamicBuffer<OptimizedBoneTransform>          optimizedBoneTransformBuffer,
+            ref DynamicBuffer<OptimizedBoneInertialBlendState> optimizedBoneInertialBlendStateBuffer,
+            DynamicBuffer<DependentSkinnedMesh>                optionalDependentSkinnedMeshesBufferRO
+            )
+        {
+            this = default;
+#if LATIOS_TRANSFORMS_UNITY
+            m_worldTransform = new OptimizedSkeletonWorldTransform(localToWorld);
+#else
+            m_worldTransform = new OptimizedSkeletonWorldTransform(transformAspect);
+#endif
+            m_skeletonHierarchyBlobRef = optimizedSkeletonHierarchyBlobReference;
+            m_skeletonState            = optimizedSkeletonState;
+            m_boneTransforms           = optimizedBoneTransformBuffer;
+            m_bonesInertialBlendStates = optimizedBoneInertialBlendStateBuffer;
+
+            {
+                var requiredBones = m_skeletonHierarchyBlobRef.ValueRO.blob.Value.parentIndices.Length;
+                if (requiredBones * 6 == m_boneTransforms.Length)
+                    return;
+
+                if (m_boneTransforms.Length == requiredBones)
+                {
+                    m_boneTransforms.Resize(requiredBones * 6, NativeArrayOptions.UninitializedMemory);
+                    var array = m_boneTransforms.AsNativeArray();
+                    InitWeights(array.GetSubArray(0, requiredBones).Reinterpret<TransformQvvs>());
+                    array.GetSubArray(requiredBones, requiredBones).CopyFrom(array.GetSubArray(0, requiredBones));
+                    Sync(true);
+                    array.GetSubArray(requiredBones * 2, requiredBones * 2).CopyFrom(array.GetSubArray(0, requiredBones * 2));
+                    array.GetSubArray(requiredBones * 4, requiredBones * 2).CopyFrom(array.GetSubArray(0, requiredBones * 2));
+                }
+                else
+                {
+                    m_boneTransforms.Resize(requiredBones * 6, NativeArrayOptions.ClearMemory);
+                    m_skeletonState.ValueRW.state |= OptimizedSkeletonState.Flags.NeedsHistorySync;
+                }
+            }
+
+            m_boneCount = (short)skeletonHierarchyBlob.parentIndices.Length;
+
+#if !LATIOS_TRANSFORMS_UNITY
+            {
+                var worldTransformBones = m_boneTransforms.AsNativeArray().GetSubArray(m_currentBaseRootIndexWrite, boneCount);
+                for (int i = 0; i < boneCount; i++)
+                {
+                    var bone                     = worldTransformBones[i];
+                    bone.boneTransform.context32 = -1;
+                    worldTransformBones[i]       = bone;
+                }
+
+                var                                handle        = transformAspect.entityInHierarchyHandle;
+                ReadOnlySpan<DependentSkinnedMesh> skinnedMeshes =
+                    optionalDependentSkinnedMeshesBufferRO.IsCreated ? optionalDependentSkinnedMeshesBufferRO.AsNativeArray() : default;
+                foreach (var child in handle.bloodChildren)
+                {
+                    var  entity = child.entity;
+                    bool isMesh = false;
+                    // Todo: Optimize this with a hashmap when the skinned mesh count is huge
+                    foreach (var mesh in skinnedMeshes)
+                    {
+                        if (mesh.skinnedMesh == entity)
+                        {
+                            isMesh = true;
+                            break;
+                        }
+                    }
+                    if (isMesh)
+                        continue;
+
+                    if (!socketLookup.TryGetComponent(entity, out var socket))
+                        continue;
+
+                    // Index 0 is the root. So just ignore this.
+                    if (socket.boneIndex == 0)
+                        continue;
+
+                    var bone = worldTransformBones[socket.boneIndex];
+                    if (bone.boneTransform.context32 == -1)
+                    {
+                        bone.boneTransform.context32 = handle.indexInHierarchy;
+                        m_socketCount++;
+                    }
+                    else if (bone.boneTransform.context32 >= 0)
+                    {
+                        ThrowIfDuplicateSocket(handle.root.entity, socket.boneIndex);
+                        // In release builds, just ignore the duplicate socket.
+                        continue;
+                    }
+                    worldTransformBones[socket.boneIndex] = bone;
+                }
+            }
+#endif
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void ThrowIfDuplicateSocket(Entity skeleton, int socket)
+        {
+            throw new System.InvalidOperationException(
+                $"Skeleton {skeleton.ToFixedString()} has multiple sockets targeting non-zero bone index {socket}, which is not currently supported when using QVVS Transforms.");
+        }
+        #endregion
 
         #region ReadOnly Properties
         /// <summary>
         /// The skeleton's world transform. An optimized skeleton stores its bones in local and root space,
         /// so to get the world-space transforms of the bones, this component's value is used.
         /// </summary>
-        public TransformQvvs skeletonWorldTransform => m_worldTransform.worldTransformQvvs;
+        public TransformQvvs skeletonWorldTransform => m_worldTransform.worldTransform;
         /// <summary>
         /// The blob value of the Optimized skeleton hierarchy
         /// </summary>
@@ -36,7 +151,7 @@ namespace Latios.Kinemation
         /// <summary>
         /// The number of bones in the skeleton
         /// </summary>
-        public int boneCount => m_boneTransforms.Length / 6;
+        public int boneCount => m_boneCount;
         /// <summary>
         /// Access to the array of bone handles for bones in the skeleton.
         /// Transform data for the bone at index 0 contains root-motion sampled data.
@@ -48,7 +163,8 @@ namespace Latios.Kinemation
             m_skeletonHierarchyBlobRef = m_skeletonHierarchyBlobRef,
             m_skeletonState            = m_skeletonState,
             m_boneTransforms           = m_boneTransforms,
-            m_boneCount                = (short)boneCount
+            m_boneCount                = (short)boneCount,
+            m_socketCount              = m_socketCount
         };
 
         /// <summary>
@@ -138,7 +254,7 @@ namespace Latios.Kinemation
             var skeletonTransform = skeletonWorldTransform;
             for (int i = 0; i < transforms.Length; i++)
             {
-                transforms[i]            = qvvs.inversemulqvvs(in skeletonTransform, in transforms[i]);
+                transforms[i]           = qvvs.inversemulqvvs(in skeletonTransform, in transforms[i]);
                 transforms[i].context32 = boneIndices[i];
             }
             bones[0].ApplyRootTransformChanges(transforms, m_currentBaseRootIndexWrite);
@@ -250,37 +366,6 @@ namespace Latios.Kinemation
             state         |= OptimizedSkeletonState.Flags.IsDirty;
             state         &= ~(OptimizedSkeletonState.Flags.NeedsSync | OptimizedSkeletonState.Flags.NextSampleShouldAdd);
         }
-
-        /// <summary>
-        /// Forces the skeleton to initialize into a valid expanded state.
-        /// Prefabs are stored in a compressed state to reduce serialization and instantiation costs.
-        /// Normally, skeletons are automatically expanded during MotionHistoryUpdateSuperSystem.
-        /// However, if you created a skeleton after that point, you may need to perform the expansion
-        /// using this method.
-        /// </summary>
-        public void ForceInitialize()
-        {
-            var requiredBones = m_skeletonHierarchyBlobRef.ValueRO.blob.Value.parentIndices.Length;
-            if (requiredBones == boneCount)
-                return;
-
-            if (m_boneTransforms.Length == requiredBones)
-            {
-                m_boneTransforms.Resize(requiredBones * 6, NativeArrayOptions.UninitializedMemory);
-                var array = m_boneTransforms.AsNativeArray();
-                InitWeights(array.GetSubArray(0, requiredBones).Reinterpret<TransformQvvs>());
-                array.GetSubArray(requiredBones, requiredBones).CopyFrom(array.GetSubArray(0, requiredBones));
-                Sync(true);
-                array.GetSubArray(requiredBones * 2, requiredBones * 2).CopyFrom(array.GetSubArray(0, requiredBones * 2));
-                array.GetSubArray(requiredBones * 4, requiredBones * 2).CopyFrom(array.GetSubArray(0, requiredBones * 2));
-            }
-            else
-            {
-                m_boneTransforms.Resize(requiredBones * 6, NativeArrayOptions.ClearMemory);
-                m_skeletonState.ValueRW.state |= OptimizedSkeletonState.Flags.NeedsHistorySync;
-            }
-        }
-
         #endregion
     }
 
@@ -365,6 +450,7 @@ namespace Latios.Kinemation
             m_boneTransforms           = m_boneTransforms,
             m_index                    = m_index,
             m_boneCount                = m_boneCount,
+            m_socketCount              = m_socketCount,
         };
 
         /// <summary>
@@ -442,7 +528,12 @@ namespace Latios.Kinemation
                 else
                     local.boneTransform.position = value;
                 if (m_index > 0)
-                    PropagatePositionChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetPosition(root.boneTransform.context32, value);
+                    PropagatePositionChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -464,7 +555,12 @@ namespace Latios.Kinemation
                 else
                     local.boneTransform.rotation = value;
                 if (m_index > 0)
-                    PropagateRotationChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetRotation(root.boneTransform.context32, value);
+                    PropagateRotationChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -486,7 +582,12 @@ namespace Latios.Kinemation
                 else
                     local.boneTransform.scale = value;
                 if (m_index > 0)
-                    PropagateScaleChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetScale(root.boneTransform.context32, value);
+                    PropagateScaleChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -508,7 +609,12 @@ namespace Latios.Kinemation
                 else
                     root.boneTransform.position = value;
                 if (m_index > 0)
-                    PropagatePositionChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetPosition(root.boneTransform.context32, value);
+                    PropagatePositionChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -530,7 +636,12 @@ namespace Latios.Kinemation
                 else
                     root.boneTransform.rotation = value;
                 if (m_index > 0)
-                    PropagateRotationChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetRotation(root.boneTransform.context32, value);
+                    PropagateRotationChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -552,7 +663,12 @@ namespace Latios.Kinemation
                 else
                     root.boneTransform.scale = value;
                 if (m_index > 0)
-                    PropagateScaleChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetScale(root.boneTransform.context32, value);
+                    PropagateScaleChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -571,7 +687,12 @@ namespace Latios.Kinemation
                 ref var root                = ref m_boneTransforms.ElementAt(currentRootIndex);
                 root.boneTransform.stretch  = value;
                 if (m_index > 0)
-                    PropagateStretchChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetStretch(root.boneTransform.context32, value);
+                    PropagateStretchChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -596,14 +717,21 @@ namespace Latios.Kinemation
             {
                 var     currentRootIndex = m_currentRootIndexWrite;
                 ref var root             = ref m_boneTransforms.ElementAt(currentRootIndex);
+                value.context32          = root.boneTransform.context32;
                 root.boneTransform       = value;
                 ref var local            = ref m_boneTransforms.ElementAt(currentRootIndex + m_boneCount);
                 if (Hint.Likely(TryGetParentRootTransformIgnoreRootBone(currentRootIndex, out var parentRootTransform)))
                     local.boneTransform = qvvs.inversemulqvvs(in parentRootTransform, value);
                 else
-                    local.boneTransform = value;
+                    local.boneTransform       = value;
+                local.boneTransform.context32 = math.asint(1f);
                 if (m_index > 0)
-                    PropagateTransformChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetTransform(root.boneTransform.context32, value);
+                    PropagateTransformChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
 
@@ -616,16 +744,24 @@ namespace Latios.Kinemation
             get => m_boneTransforms[m_currentRootIndexRead + m_boneCount].boneTransform;
             set
             {
-                var     currentRootIndex = m_currentRootIndexWrite;
-                ref var local            = ref m_boneTransforms.ElementAt(currentRootIndex + m_boneCount);
-                local.boneTransform      = value;
-                ref var root             = ref m_boneTransforms.ElementAt(currentRootIndex);
+                var     currentRootIndex      = m_currentRootIndexWrite;
+                ref var local                 = ref m_boneTransforms.ElementAt(currentRootIndex + m_boneCount);
+                local.boneTransform           = value;
+                local.boneTransform.context32 = math.asint(1f);
+                ref var root                  = ref m_boneTransforms.ElementAt(currentRootIndex);
+                var     context32             = root.boneTransform.context32;
                 if (Hint.Likely(TryGetParentRootTransformIgnoreRootBone(currentRootIndex, out var parentRootTransform)))
                     root.boneTransform = qvvs.mul(in parentRootTransform, value);
                 else
-                    root.boneTransform = value;
+                    root.boneTransform       = value;
+                root.boneTransform.context32 = context32;
                 if (m_index > 0)
-                    PropagateTransformChangeToChildren(ref m_allChildrenIndices, currentRootIndex - m_index, m_index);
+                {
+                    var socketUpdater = new SocketUpdater(m_skeletonWorldTransform, m_socketCount);
+                    socketUpdater.SetTransform(root.boneTransform.context32, value);
+                    PropagateTransformChangeToChildren(ref m_allChildrenIndices, ref socketUpdater, currentRootIndex - m_index, m_index);
+                    socketUpdater.ApplyAndDispose();
+                }
             }
         }
         #endregion
@@ -638,12 +774,13 @@ namespace Latios.Kinemation
     /// </summary>
     public struct OptimizedBoneChildrenArray
     {
-        internal WorldTransformReadOnlyAspect                   m_skeletonWorldTransform;
+        internal OptimizedSkeletonWorldTransform                m_skeletonWorldTransform;
         internal RefRO<OptimizedSkeletonHierarchyBlobReference> m_skeletonHierarchyBlobRef;
         internal RefRW<OptimizedSkeletonState>                  m_skeletonState;
         internal DynamicBuffer<OptimizedBoneTransform>          m_boneTransforms;
         internal short                                          m_index;
         internal short                                          m_boneCount;
+        internal short                                          m_socketCount;
 
         /// <summary>
         /// The number of children this bone has
@@ -668,6 +805,7 @@ namespace Latios.Kinemation
                     m_skeletonState            = m_skeletonState,
                     m_boneTransforms           = m_boneTransforms,
                     m_boneCount                = m_boneCount,
+                    m_socketCount              = m_socketCount,
                     m_index                    = m_skeletonHierarchyBlobRef.ValueRO.blob.Value.childrenIndices[m_index][childIndex]
                 };
             }
@@ -679,11 +817,12 @@ namespace Latios.Kinemation
     /// </summary>
     public struct OptimizedBoneInSkeletonArray
     {
-        internal WorldTransformReadOnlyAspect                   m_skeletonWorldTransform;
+        internal OptimizedSkeletonWorldTransform                m_skeletonWorldTransform;
         internal RefRO<OptimizedSkeletonHierarchyBlobReference> m_skeletonHierarchyBlobRef;
         internal RefRW<OptimizedSkeletonState>                  m_skeletonState;
         internal DynamicBuffer<OptimizedBoneTransform>          m_boneTransforms;
         internal short                                          m_boneCount;
+        internal short                                          m_socketCount;
 
         /// <summary>
         /// Gets the bone handle for the bone at boneIndex in the skeleton.
@@ -699,6 +838,7 @@ namespace Latios.Kinemation
                     m_skeletonState            = m_skeletonState,
                     m_boneTransforms           = m_boneTransforms,
                     m_boneCount                = m_boneCount,
+                    m_socketCount              = m_socketCount,
                     m_index                    = (short)boneIndex
                 };
             }

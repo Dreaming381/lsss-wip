@@ -53,7 +53,7 @@ namespace Latios.Transforms
         /// <summary>
         /// The context32 whose purpose is up to the user
         /// </summary>
-        public int worldIndex => worldTransform.context32;
+        public int context32 => worldTransform.context32;
 
         /// <summary>
         /// The unit forward vector (local Z+) of the entity in world-space
