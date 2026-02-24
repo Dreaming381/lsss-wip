@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics;
-using Latios.Kinemation.InternalSourceGen;
 using Latios.Transforms;
-using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Entities;
@@ -367,41 +365,6 @@ namespace Latios.Kinemation
             state         &= ~(OptimizedSkeletonState.Flags.NeedsSync | OptimizedSkeletonState.Flags.NextSampleShouldAdd);
         }
         #endregion
-    }
-
-    /// <summary>
-    /// A handle to the root bone's QVVS in the entity's local space, which is unused in hierarchy calculations and often
-    /// contains the root motion delta.
-    /// </summary>
-#pragma warning disable CS0618
-    public readonly partial struct OptimizedRootDeltaROAspect : IAspect
-#pragma warning restore CS0618
-    {
-        readonly RefRO<OptimizedSkeletonState>                    m_skeletonState;
-        [ReadOnly] readonly DynamicBuffer<OptimizedBoneTransform> m_boneTransforms;
-
-        public TransformQvvs rootDelta
-        {
-            get
-            {
-                var state = m_skeletonState.ValueRO.state;
-                EnsureLocalRootIsAccessible(state);
-                var  mask      = (byte)(state & OptimizedSkeletonState.Flags.RotationMask);
-                bool isDirty   = (state & OptimizedSkeletonState.Flags.IsDirty) == OptimizedSkeletonState.Flags.IsDirty;
-                int  boneCount = m_boneTransforms.Length / 6;
-                var  index     = math.select(OptimizedSkeletonState.PreviousFromMask[mask], OptimizedSkeletonState.CurrentFromMask[mask], isDirty) * boneCount * 2 + boneCount;
-                return m_boneTransforms[index].boneTransform;
-            }
-        }
-
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
-        void EnsureLocalRootIsAccessible(OptimizedSkeletonState.Flags state)
-        {
-            if ((state & OptimizedSkeletonState.Flags.NeedsSync) == OptimizedSkeletonState.Flags.NeedsSync ||
-                (state & OptimizedSkeletonState.Flags.NeedsHistorySync) == OptimizedSkeletonState.Flags.NeedsHistorySync)
-                throw new InvalidOperationException(
-                    "OptimizedBoneDeltaRO is trying to access an optimized skeleton which is not synced. You must sync the skeleton first via OptimizedSkeletonAspect.EndSamplingAndSync() and OptimizedSkeletonAspect.SyncHistory().");
-        }
     }
 
     /// <summary>

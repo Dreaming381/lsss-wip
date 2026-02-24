@@ -1,4 +1,3 @@
-using Latios.Kinemation.InternalSourceGen;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -24,11 +23,6 @@ namespace Latios.Kinemation.Systems
 
             latiosWorld.worldBlackboardEntity.AddComponent<MaxRequiredDeformData>();
             latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new DeformClassificationMap());
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
         }
 
         [BurstCompile]

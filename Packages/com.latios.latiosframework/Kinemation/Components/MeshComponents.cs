@@ -159,6 +159,33 @@ namespace Latios.Kinemation
     /// </summary>
     public struct DualQuaternionSkinningDeformTag : IComponentData { }
 
+    /// <summary>
+    /// A component used to track the binding of a skinned mesh to a skeleton.
+    /// Usage: ReadOnly, do not modify in any way.
+    /// </summary>
+    public struct SkeletonDependent : ICleanupComponentData
+    {
+        /// <summary>
+        /// The Skeleton entity this skinned mesh is currently bound to
+        /// </summary>
+        public EntityWith<SkeletonRootTag> root;
+        /// <summary>
+        /// The binding paths that the mesh used, for ref-counting purposes
+        /// </summary>
+        public BlobAssetReference<MeshBindingPathsBlob> meshBindingBlob;
+        /// <summary>
+        /// The binding paths of the skeleton bound to, for ref-counting purposes
+        /// </summary>
+        public BlobAssetReference<SkeletonBindingPathsBlob> skeletonBindingBlob;
+        /// <summary>
+        /// The index into an internal table which defines the relationship between skeleton bones and mesh bone influences
+        /// </summary>
+        public int boneOffsetEntryIndex;
+        /// <summary>
+        /// The index of this mesh in the skeleton's DynamicBuffer<DependentSkinnedMesh>
+        /// </summary>
+        public int indexInDependentSkinnedMeshesBuffer;
+    }
     #endregion
 
     #region Other Mesh Deformations

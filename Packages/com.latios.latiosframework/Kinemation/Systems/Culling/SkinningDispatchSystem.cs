@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Latios.Kinemation.InternalSourceGen;
 using Latios.Psyshock;
 using Latios.Transforms;
 using Latios.Transforms.Abstract;

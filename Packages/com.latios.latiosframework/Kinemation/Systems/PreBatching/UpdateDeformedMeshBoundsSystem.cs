@@ -1,4 +1,3 @@
-using Latios.Kinemation.InternalSourceGen;
 using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
