@@ -368,8 +368,6 @@ namespace Latios.Kinemation
         public NativeList<UnityObjectRef<UnityEngine.Mesh> > unusedMeshes;
         public NativeList<UnityObjectRef<UnityEngine.Mesh> > allMeshes;
         // int = BatchMeshID as int, which is MaterialMeshInfo.Mesh. MaterialMeshInfo.MeshID asserts when using ranges with a mesh override.
-        public NativeHashSet<int>                                    invalidMeshesToCull;
-        public NativeHashSet<int>                                    meshesPrevalidatedThisFrame;
         public NativeHashMap<UnityObjectRef<UnityEngine.Mesh>, int>  meshToIdMap;
         public NativeHashMap<int, UnityObjectRef<UnityEngine.Mesh> > idToMeshMap;
 
@@ -381,8 +379,6 @@ namespace Latios.Kinemation
                 GraphicsUnmanaged.DestroyMeshes(allMeshes.AsArray());
                 unusedMeshes.Dispose();
                 allMeshes.Dispose();
-                invalidMeshesToCull.Dispose();
-                meshesPrevalidatedThisFrame.Dispose();
                 meshToIdMap.Dispose();
                 idToMeshMap.Dispose();
                 return default;

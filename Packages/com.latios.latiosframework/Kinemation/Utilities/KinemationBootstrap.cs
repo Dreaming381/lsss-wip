@@ -42,7 +42,6 @@ namespace Latios.Kinemation
                 unityUpdateBounds.Enabled = false;
 
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<UpdateGraphicsBufferBrokerSystem>(),                     world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<KinemationRenderUpdateSuperSystem>(),                    world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<KinemationRenderSyncPointSuperSystem>(),                 world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<KinemationFrameSyncPointSuperSystem>(),                  world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<LatiosEntitiesGraphicsSystem>(),                         world);
@@ -59,19 +58,6 @@ namespace Latios.Kinemation
 #else
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<UpdateSocketsSystem>(),                                  world);
 #endif
-        }
-
-        /// <summary>
-        /// Installs a system that causes all dirty unique meshes to be uploaded within the custom graphics GPU dispatch systems.
-        /// This is a workaround for Unity versions that internally delay the mesh upload and usage to the following frame if the
-        /// mesh is uploaded during a BatchRendererGroup callback.
-        /// This is typically only installed in runtime worlds.
-        /// </summary>
-        /// <param name="world">The World to install the system into. Must be a LatiosWorld.</param>
-        public static void InstallUniqueMeshesEarlyUploader(LatiosWorld world)
-        {
-            world.worldBlackboardEntity.AddComponent<EnableCustomGraphicsTag>();
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<EnableUniqueMeshCustomGraphicsUploadSystem>(), world);
         }
     }
 }

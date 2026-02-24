@@ -316,23 +316,6 @@ namespace Latios.Kinemation
             get => Bits.GetBit(packed, 2);
             set => Bits.SetBit(ref packed, 2, value);
         }
-        /// <summary>
-        /// Commands Kinemation to ignore the fact that a mesh may be empty or invalid and to generate a draw command anyways if the
-        /// entity otherwise passes culling. In Unity 6 and newer, you must set this if you modify the mesh during DispatchRoundRobinEarlyExtensionsSuperSystem.
-        /// </summary>
-        public bool disableEmptyAndInvalidMeshCulling
-        {
-            get => Bits.GetBit(packed, 3);
-            set => Bits.SetBit(ref packed, 3, value);
-        }
-        /// <summary>
-        /// Commands Kinemation to upload the mesh, even if the entity is culled from rendering.
-        /// </summary>
-        public bool forceUpload
-        {
-            get => Bits.GetBit(packed, 4);
-            set => Bits.SetBit(ref packed, 4, value);
-        }
     }
     /// <summary>
     /// Specifies the vertex positions of the unique mesh. The RenderBounds will NOT be automatically updated.

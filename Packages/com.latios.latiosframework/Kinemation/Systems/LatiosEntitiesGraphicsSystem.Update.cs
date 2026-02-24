@@ -127,20 +127,16 @@ namespace Latios.Kinemation.Systems
                 jh.Complete();
 
                 m_cullPassIndexThisFrame       = 0;
-                m_dispatchPassIndexThisFrame   = 0;
+                m_dispatchPassIndexThisFrame   = 1;
                 m_cullPassIndexForLastDispatch = -1;
                 //m_GPUPersistentInstanceBufferHandle = materialsContext.gpuPersistentInstanceBufferHandle;
 
-                if (latiosWorld.worldBlackboardEntity.HasComponent<EnableCustomGraphicsTag>())
+                latiosWorld.worldBlackboardEntity.SetComponentData(new DispatchContext
                 {
-                    m_dispatchPassIndexThisFrame = 1;
-                    latiosWorld.worldBlackboardEntity.SetComponentData(new DispatchContext
-                    {
-                        dispatchIndexThisFrame                      = 0,
-                        lastSystemVersionOfLatiosEntitiesGraphics   = state.LastSystemVersion,
-                        globalSystemVersionOfLatiosEntitiesGraphics = state.GlobalSystemVersion
-                    });
-                }
+                    dispatchIndexThisFrame                      = 0,
+                    lastSystemVersionOfLatiosEntitiesGraphics   = state.LastSystemVersion,
+                    globalSystemVersionOfLatiosEntitiesGraphics = state.GlobalSystemVersion
+                });
 
                 m_LastSystemVersionAtLastUpdate   = state.LastSystemVersion;
                 m_globalSystemVersionAtLastUpdate = state.GlobalSystemVersion;
