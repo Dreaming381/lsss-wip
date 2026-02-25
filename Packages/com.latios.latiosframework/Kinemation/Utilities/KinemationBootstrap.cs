@@ -58,6 +58,10 @@ namespace Latios.Kinemation
 #else
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<UpdateSocketsSystem>(),                                  world);
 #endif
+
+#if UNITY_EDITOR
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<KinemationAfterLiveBakingSuperSystem>(), world);
+#endif
         }
     }
 }

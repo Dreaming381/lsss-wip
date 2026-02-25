@@ -47,5 +47,14 @@ namespace Latios
     /// Such entities are volatile to unexpected changes in their components due to live baking.
     /// </summary>
     public struct LiveBakedTag : IComponentData { }
+
+    /// <summary>
+    /// The Global System Version at the end of BeforeLiveBakingSuperSystem, which can be used to detect change filters triggered by baking.
+    /// This component lives on the worldBlackboardEntity in the Editor.
+    /// </summary>
+    public struct SystemVersionBeforeLiveBake : IComponentData
+    {
+        public uint version;
+    }
 }
 

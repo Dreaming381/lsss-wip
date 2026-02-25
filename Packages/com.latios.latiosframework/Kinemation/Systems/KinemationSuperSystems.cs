@@ -145,48 +145,6 @@ namespace Latios.Kinemation.Systems
     }
 
     /// <summary>
-    /// This super system runs during the sync point stage of PresentationSystemGroup.
-    /// Often, none of the systems in this stage do anything, so there may not actually
-    /// be a real sync point here.
-    /// </summary>
-    [UpdateInGroup(typeof(StructuralChangePresentationSystemGroup))]
-    [DisableAutoCreation]
-    public partial class KinemationRenderSyncPointSuperSystem : SuperSystem
-    {
-        protected override void CreateSystems()
-        {
-            EnableSystemSorting = false;
-
-            GetOrCreateAndAddUnmanagedSystem<LatiosUpdateEntitiesGraphicsChunkStructureSystem>();
-            GetOrCreateAndAddUnmanagedSystem<LatiosAddWorldAndChunkRenderBoundsSystem>();
-            GetOrCreateAndAddUnmanagedSystem<KinemationBindingReactiveSystem>();
-        }
-    }
-
-    /// <summary>
-    /// This super system runs during the Latios Framework sync point stage in InitializationSystemGroup.
-    /// This helps prevent sync points from happening in PresentationSystemGroup.
-    /// </summary>
-    [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup), OrderLast = true)]
-    [DisableAutoCreation]
-    public partial class KinemationFrameSyncPointSuperSystem : SuperSystem
-    {
-        protected override void CreateSystems()
-        {
-            EnableSystemSorting = false;
-
-            if ((World.Flags & WorldFlags.Editor) == WorldFlags.Editor)
-                GetOrCreateAndAddUnmanagedSystem<LiveBakingCheckForReinitsSystem>();
-
-            GetOrCreateAndAddUnmanagedSystem<LatiosUpdateEntitiesGraphicsChunkStructureSystem>();
-            GetOrCreateAndAddUnmanagedSystem<LatiosAddWorldAndChunkRenderBoundsSystem>();
-            GetOrCreateAndAddUnmanagedSystem<KinemationBindingReactiveSystem>();
-        }
-    }
-    #endregion
-
-    #region Custom Graphics SuperSystems
-    /// <summary>
     /// This super system executes special dispatch custom graphics systems in round-robin fashion.
     /// This is because dispatch systems typically require two separate sync points each to
     /// interact with the graphics API. By executing these phases in round-robin, the worker
@@ -217,6 +175,58 @@ namespace Latios.Kinemation.Systems
         {
             worldBlackboardEntity.SetComponentData(new CullingComputeDispatchActiveState { state = nextState });
             base.OnUpdate();
+        }
+    }
+
+    /// <summary>
+    /// This super system runs during the sync point stage of PresentationSystemGroup.
+    /// Often, none of the systems in this stage do anything, so there may not actually
+    /// be a real sync point here.
+    /// </summary>
+    [UpdateInGroup(typeof(StructuralChangePresentationSystemGroup))]
+    [DisableAutoCreation]
+    public partial class KinemationRenderSyncPointSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = false;
+
+            GetOrCreateAndAddUnmanagedSystem<LatiosUpdateEntitiesGraphicsChunkStructureSystem>();
+            GetOrCreateAndAddUnmanagedSystem<LatiosAddWorldAndChunkRenderBoundsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<KinemationBindingReactiveSystem>();
+        }
+    }
+
+    /// <summary>
+    /// This super system runs during the Latios Framework sync point stage in InitializationSystemGroup.
+    /// This helps prevent sync points from happening in PresentationSystemGroup.
+    /// </summary>
+    [UpdateInGroup(typeof(Latios.Systems.LatiosWorldSyncGroup), OrderLast = true)]
+    [DisableAutoCreation]
+    public partial class KinemationFrameSyncPointSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = false;
+
+            GetOrCreateAndAddUnmanagedSystem<LatiosUpdateEntitiesGraphicsChunkStructureSystem>();
+            GetOrCreateAndAddUnmanagedSystem<LatiosAddWorldAndChunkRenderBoundsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<KinemationBindingReactiveSystem>();
+        }
+    }
+    #endregion
+
+    #region Live Baking SuperSystems
+    [UpdateInGroup(typeof(Latios.Systems.AfterLiveBakingSuperSystem))]
+    [DisableAutoCreation]
+    public partial class KinemationAfterLiveBakingSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = false;
+
+            GetOrCreateAndAddUnmanagedSystem<LiveBakingCheckForReinitsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<LiveBakingEnableChangedUniqueMeshesSystem>();
         }
     }
     #endregion

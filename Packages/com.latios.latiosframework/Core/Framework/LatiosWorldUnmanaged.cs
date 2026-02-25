@@ -66,6 +66,10 @@ namespace Latios
             }
         }
 
+        /// <summary>
+        /// True if live baking occurred for this update frame. This is set and cleared right after Unity's live baking systems update.
+        /// This should always be false in builds.
+        /// </summary>
         public bool liveBakedThisFrame
         {
             get

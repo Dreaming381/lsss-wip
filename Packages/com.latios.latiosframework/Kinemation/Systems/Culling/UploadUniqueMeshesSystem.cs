@@ -298,12 +298,15 @@ namespace Latios.Kinemation
             [NativeDisableContainerSafetyRestriction] NativeList<float4>                    tempTangents;
             [NativeDisableContainerSafetyRestriction] NativeList<VertexAttributeDescriptor> tempDescriptors;
 
+            public HasChecker<LiveBakedTag> liveBakedChecker;
+
             public unsafe void Execute(int chunkIndex)
             {
                 if (!tempDescriptors.IsCreated)
                     tempDescriptors = new NativeList<VertexAttributeDescriptor>(8, Allocator.Temp);
 
-                var chunk = collectedChunks[chunkIndex];
+                var  chunk     = collectedChunks[chunkIndex];
+                bool liveBaked = liveBakedChecker[chunk.chunk];
 
                 // Assign all the meshes now for a little better cache coherency.
                 var mask    = chunk.chunk.GetEnabledMask(ref configHandle);
@@ -538,7 +541,7 @@ namespace Latios.Kinemation
                     }
 
                     // Process buffer clearing option
-                    if (config.reclaimDynamicBufferMemoryAfterUpload)
+                    if (config.reclaimDynamicBufferMemoryAfterUpload && !liveBaked)
                     {
                         if (positionBuffers.Length > 0)
                         {

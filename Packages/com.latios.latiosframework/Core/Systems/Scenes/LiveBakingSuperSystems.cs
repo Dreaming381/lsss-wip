@@ -15,6 +15,7 @@ namespace Latios.Systems
         protected override void CreateSystems()
         {
             EnableSystemSorting = true;
+            worldBlackboardEntity.AddComponent<SystemVersionBeforeLiveBake>();
         }
 
         protected override void OnUpdate()
@@ -25,6 +26,10 @@ namespace Latios.Systems
             liveBakeTriggered = true;
             var unmanaged     = latiosWorldUnmanaged;
             base.OnUpdate();
+            worldBlackboardEntity.SetComponentData(new SystemVersionBeforeLiveBake
+            {
+                version = GlobalSystemVersion
+            });
         }
     }
 
