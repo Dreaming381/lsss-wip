@@ -55,7 +55,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                 controlHandle          = GetComponentTypeHandle<TextRenderControl>(false),
                 materialMeshInfoHandle = GetComponentTypeHandle<MaterialMeshInfo>(false),
                 gpuResidentHandle      = GetComponentTypeHandle<GpuResidentUpdateFlag>(false),
-                lastSystemVersion      = state.GetLiveBakeSafeLastSystemVersion()
+                lastSystemVersion      = state.LastSystemVersion
             }.ScheduleParallel(m_singleFontQuery, state.Dependency);
 
             state.Dependency = new MultiFontJob
@@ -67,7 +67,7 @@ namespace Latios.Calligraphics.Rendering.Systems
                 glyphHandle                 = GetBufferTypeHandle<RenderGlyph>(true),
                 glyphMaskLookup             = GetBufferLookup<RenderGlyphMask>(false),
                 gpuResidentAllocationLookup = GetComponentLookup<GpuResidentUpdateFlag>(false),
-                lastSystemVersion           = state.GetLiveBakeSafeLastSystemVersion(),
+                lastSystemVersion           = state.LastSystemVersion,
                 materialMeshInfoLookup      = GetComponentLookup<MaterialMeshInfo>(false),
                 selectorHandle              = GetBufferTypeHandle<FontMaterialSelectorForGlyph>(true)
             }.ScheduleParallel(m_multiFontQuery, state.Dependency);

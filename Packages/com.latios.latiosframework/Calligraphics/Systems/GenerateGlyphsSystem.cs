@@ -40,7 +40,7 @@ namespace Latios.Calligraphics.Systems
                 fontBlobReferenceLookup     = GetComponentLookup<FontBlobReference>(true),
                 glyphMappingElementHandle   = GetBufferTypeHandle<GlyphMappingElement>(false),
                 glyphMappingMaskHandle      = GetComponentTypeHandle<GlyphMappingMask>(true),
-                lastSystemVersion           = state.GetLiveBakeSafeLastSystemVersion(),
+                lastSystemVersion           = state.LastSystemVersion,
                 renderGlyphHandle           = GetBufferTypeHandle<RenderGlyph>(false),
                 selectorHandle              = GetBufferTypeHandle<FontMaterialSelectorForGlyph>(false),
                 textBaseConfigurationHandle = GetComponentTypeHandle<TextBaseConfiguration>(true),

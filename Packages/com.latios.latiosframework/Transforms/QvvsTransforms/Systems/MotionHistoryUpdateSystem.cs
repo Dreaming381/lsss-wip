@@ -31,7 +31,7 @@ namespace Latios.Transforms.Systems
                 worldTransformHandle    = GetComponentTypeHandle<WorldTransform>(true),
                 previousTransformHandle = GetComponentTypeHandle<PreviousTransform>(false),
                 twoAgoTransformHandle   = GetComponentTypeHandle<TwoAgoTransform>(false),
-                lastSystemVersion       = state.GetLiveBakeSafeLastSystemVersion()
+                lastSystemVersion       = state.LastSystemVersion
             }.ScheduleParallel(m_query, state.Dependency);
         }
 
