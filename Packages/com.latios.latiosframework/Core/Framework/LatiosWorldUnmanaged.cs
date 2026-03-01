@@ -606,10 +606,12 @@ namespace Latios
         public WorldUnmanaged                   m_worldUnmanaged;
         public UnsafeList<SystemHandle>         m_executingSystemStack;
         public UnsafeList<CollectionDependency> m_collectionDependencies;
+        public SystemChainUpdatesManager        m_systemChainUpdatesManager;
         public bool                             m_zeroToleranceForExceptionsEnabled;
         public bool                             m_errorState;
         public bool                             m_registeredSystemOnce;
         public bool                             m_liveBakedThisFrame;
+        public int                              m_frameCounter;
 
         public Systems.SyncPointPlaybackSystem* m_syncPointPlaybackSystem;
 
@@ -662,6 +664,7 @@ namespace Latios
                 }
             }
 #endif
+            m_systemChainUpdatesManager.BeforeOnUpdate(ref m_worldUnmanaged.ResolveSystemStateRef(system), m_frameCounter);
 
             m_executingSystemStack.Add(system);
         }

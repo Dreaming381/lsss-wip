@@ -66,6 +66,7 @@ using static Unity.Entities.SystemAPI;
 
 namespace Latios.Kinemation.Systems
 {
+    [DontSyncPreviousUpdatesThisFrame(32)]
     [DisableAutoCreation]
     [BurstCompile]
     public unsafe partial struct CullLodsSystem : ISystem, ISystemShouldUpdate
