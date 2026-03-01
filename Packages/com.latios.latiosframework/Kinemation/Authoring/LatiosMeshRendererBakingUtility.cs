@@ -15,8 +15,11 @@ namespace Latios.Kinemation.Authoring
     {
         [BakingType] struct RequestPreviousTag : IRequestPreviousTransform { }
 
-        static List<int>  s_validIndexCache   = new List<int>();
-        static Material[] s_materialSpanCache = new Material[1];
+        static List<int>                                 s_validIndexCache                          = new List<int>();
+        static Material[]                                s_materialSpanCache                        = new Material[1];
+        static List<BakingStreamingTexture>              s_bakingStreamingTextureCache              = new List<BakingStreamingTexture>();
+        static List<BakingStreamingTextureMeshUv0Metric> s_bakingStreamingTextureMeshUv0MetricCache = new List<BakingStreamingTextureMeshUv0Metric>();
+        static List<int>                                 s_texturePropertyIDsCache                  = new List<int>();
 
         internal static void Convert(IBaker baker,
                                      ReadOnlySpan<MeshRendererBakeSettings>    rendererSettings,
@@ -201,6 +204,7 @@ namespace Latios.Kinemation.Authoring
                     var mmsBuffer      = baker.AddBuffer<BakingMaterialMeshSubmesh>(renderer.targetEntity);
                     mmsBuffer.Capacity = s_validIndexCache.Count;
 
+                    s_bakingStreamingTextureCache.Clear();
                     foreach (var i in s_validIndexCache)
                     {
                         var src = meshMaterialSubmeshes[i];
@@ -210,6 +214,19 @@ namespace Latios.Kinemation.Authoring
                             material = src.material,
                             submesh  = src.submesh | (src.lodMask << 24)
                         });
+                        AddMeshAndMaterialToMipMapStreamingCache(baker, src);
+                    }
+                    if (s_bakingStreamingTextureCache.Count > 0)
+                    {
+                        var bstBuffer = baker.AddBuffer<BakingStreamingTexture>(renderer.targetEntity);
+                        bstBuffer.EnsureCapacity(s_bakingStreamingTextureCache.Count);
+                        foreach (var t in s_bakingStreamingTextureCache)
+                            bstBuffer.Add(t);
+                        var metricsBuffer = baker.AddBuffer<BakingStreamingTextureMeshUv0Metric>(renderer.targetEntity);
+                        metricsBuffer.EnsureCapacity(s_bakingStreamingTextureMeshUv0MetricCache.Count);
+                        foreach (var m in s_bakingStreamingTextureMeshUv0MetricCache)
+                            metricsBuffer.Add(m);
+                        baker.AddComponent<StreamingMipMapArray>(renderer.targetEntity);
                     }
                 }
                 rangeStart += meshMaterialSubmeshCountsByRenderer[rendererIndex];
@@ -261,6 +278,42 @@ namespace Latios.Kinemation.Authoring
             if (material.HasProperty(s_twoAgoDeformProperty))
                 classification |= DeformClassification.TwoAgoDeform;
             return classification;
+        }
+
+        internal static void AddMeshAndMaterialToMipMapStreamingCache(IBaker baker, MeshMaterialSubmeshSettings mms)
+        {
+            s_texturePropertyIDsCache.Clear();
+            Material material = mms.material;
+            material.GetTexturePropertyNameIDs(s_texturePropertyIDsCache);
+            bool added = false;
+            foreach (var id in s_texturePropertyIDsCache)
+            {
+                var t = material.GetTexture(id) as Texture2D;
+                if (t == null)
+                    continue;
+                baker.DependsOn(t);
+                if (!t.streamingMipmaps || t.mipmapCount < 2)
+                    continue;
+
+                s_bakingStreamingTextureCache.Add(new BakingStreamingTexture
+                {
+                    material   = mms.material,
+                    texture    = t,
+                    uvScale    = material.GetTextureScale(id),
+                    texelCount = t.width * t.height
+                });
+                added = true;
+            }
+
+            if (added)
+            {
+                Mesh mesh = mms.mesh;
+                s_bakingStreamingTextureMeshUv0MetricCache.Add(new BakingStreamingTextureMeshUv0Metric
+                {
+                    mesh      = mms.mesh,
+                    uv0Metric = mesh.GetUVDistributionMetric(0)
+                });
+            }
         }
 
         private static void AddRendererComponents(Entity entity, IBaker baker, in MeshRendererBakeSettings settings, RenderMeshUtility.EntitiesGraphicsComponentFlags baseFlags)

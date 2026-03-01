@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.Exposed;
 using Unity.Mathematics;
 using Unity.Rendering;
 
@@ -161,6 +164,66 @@ namespace Latios.Kinemation
     public struct MeshLodCrossfadeMargin : IComponentData
     {
         public half margin;
+    }
+
+    /// <summary>
+    /// A shared component that may exist in tandem with RenderMeshArray, specifying the textures
+    /// within that RenderMeshArray which use mipmap streaming. This also stores a mapping of
+    /// materials to those textures and cached UV metrics for meshes.
+    /// </summary>
+    public struct StreamingMipMapArray : ISharedComponentData, IEquatable<StreamingMipMapArray>
+    {
+        public struct RangeByMaterial
+        {
+            public int start;
+            public int count;
+        }
+
+        public struct StreamingTextureInMaterial
+        {
+            public UnityObjectRef<UnityEngine.Texture2D> streamingTexture;
+            public float2                                textureScale;
+            public int                                   texelCount;
+        }
+
+        public StreamingTextureInMaterial[] streamingTextures;
+        public RangeByMaterial[]            ranges;
+        public float[]                      uv0Metrics;
+        public uint4                        renderMeshArrayHash;
+        public uint4                        metadataHash;
+
+        public static uint4 ComputeMetadataHash(ReadOnlySpan<StreamingTextureInMaterial> streamingTextureInMaterials,
+                                                ReadOnlySpan<RangeByMaterial>            rangesByMaterial,
+                                                ReadOnlySpan<float>                      uv0Metrics)
+        {
+            var hash = new xxHash3.StreamingState(false);
+
+            hash.Update(streamingTextureInMaterials.Length);
+            hash.Update(rangesByMaterial.Length);
+            hash.Update(uv0Metrics.Length);
+
+            foreach (var metric in uv0Metrics)
+                hash.Update(metric);
+            foreach (var range in rangesByMaterial)
+                hash.Update(range);
+            foreach (var texture in streamingTextureInMaterials)
+            {
+                hash.Update(texture.texelCount);
+                hash.Update(texture.textureScale);
+                AssetHashExtras.UpdateAsset(ref hash, texture.streamingTexture);
+            }
+            return hash.DigestHash128();
+        }
+
+        public bool Equals(StreamingMipMapArray other)
+        {
+            return renderMeshArrayHash.Equals(other.renderMeshArrayHash) && metadataHash.Equals(other.metadataHash);
+        }
+
+        public override int GetHashCode()
+        {
+            return new uint4x2(renderMeshArrayHash, metadataHash).GetHashCode();
+        }
     }
 
     /// <summary>
