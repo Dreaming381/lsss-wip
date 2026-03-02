@@ -297,10 +297,11 @@ namespace Latios.Kinemation.Authoring
 
                 s_bakingStreamingTextureCache.Add(new BakingStreamingTexture
                 {
-                    material   = mms.material,
-                    texture    = t,
-                    uvScale    = material.GetTextureScale(id),
-                    texelCount = t.width * t.height
+                    material    = mms.material,
+                    texture     = t,
+                    uvScale     = material.GetTextureScale(id),
+                    texelCount  = t.width * t.height,
+                    mipmapCount = t.mipmapCount
                 });
                 added = true;
             }
@@ -310,8 +311,9 @@ namespace Latios.Kinemation.Authoring
                 Mesh mesh = mms.mesh;
                 s_bakingStreamingTextureMeshUv0MetricCache.Add(new BakingStreamingTextureMeshUv0Metric
                 {
-                    mesh      = mms.mesh,
-                    uv0Metric = mesh.GetUVDistributionMetric(0)
+                    mesh               = mms.mesh,
+                    uv0Metric          = mesh.GetUVDistributionMetric(0),
+                    localBoundsExtents = mesh.bounds.extents,
                 });
             }
         }

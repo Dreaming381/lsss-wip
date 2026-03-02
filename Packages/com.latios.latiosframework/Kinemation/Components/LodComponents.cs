@@ -184,25 +184,32 @@ namespace Latios.Kinemation
             public UnityObjectRef<UnityEngine.Texture2D> streamingTexture;
             public float2                                textureScale;
             public int                                   texelCount;
+            public int                                   mipmapCount;
+        }
+
+        public struct MeshMetric
+        {
+            public float  uv0Metric;
+            public float3 meshLocalBounds;
         }
 
         public StreamingTextureInMaterial[] streamingTextures;
         public RangeByMaterial[]            ranges;
-        public float[]                      uv0Metrics;
+        public MeshMetric[]                 meshMetrics;
         public uint4                        renderMeshArrayHash;
         public uint4                        metadataHash;
 
         public static uint4 ComputeMetadataHash(ReadOnlySpan<StreamingTextureInMaterial> streamingTextureInMaterials,
                                                 ReadOnlySpan<RangeByMaterial>            rangesByMaterial,
-                                                ReadOnlySpan<float>                      uv0Metrics)
+                                                ReadOnlySpan<MeshMetric>                 meshMetrics)
         {
             var hash = new xxHash3.StreamingState(false);
 
             hash.Update(streamingTextureInMaterials.Length);
             hash.Update(rangesByMaterial.Length);
-            hash.Update(uv0Metrics.Length);
+            hash.Update(meshMetrics.Length);
 
-            foreach (var metric in uv0Metrics)
+            foreach (var metric in meshMetrics)
                 hash.Update(metric);
             foreach (var range in rangesByMaterial)
                 hash.Update(range);
@@ -290,6 +297,23 @@ namespace Latios.Kinemation
         }
 
         /// <summary>
+        /// Computes a mipmap streaming camera factor from the specified LOD parameters.
+        /// Use the result in calls to DesiredMipMapLevelFrom
+        /// The value is equivalent to m_CameraEyeToScreenDistanceSquared based on this example:
+        /// https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Mesh.GetUVDistributionMetric.html
+        /// </summary>
+        /// <param name="lodParameters">The LOD parameters, which can be obtained from CullingContext on the worldBlackboardEntity</param>
+        /// <param name="aspectRatio">The largest aspect ratio to be used by the </param>
+        /// <returns>A factor to be multiplied with the uv metric</returns>
+        public static float CameraMipMapFactorFrom(in UnityEngine.Rendering.LODParameters lodParameters, float aspectRatio)
+        {
+            var factor = math.square(CameraFactorFrom(in lodParameters, lodParameters.cameraPixelHeight * 0.5f));
+            if (aspectRatio > 1f)
+                factor *= aspectRatio;
+            return factor;
+        }
+
+        /// <summary>
         /// Computes the view-space height for LOD evaluation.
         /// For orthographic comparisons, you can directly compare this against screen fraction values [0, 1].
         /// For perspective comparisons, you must divide the result by the distance of the renderable to the camera
@@ -303,6 +327,47 @@ namespace Latios.Kinemation
         public static float ViewHeightFrom(float localHeight, float scale, float3 stretch, float cameraFactor)
         {
             return cameraFactor * math.abs(localHeight) * math.abs(scale) * math.cmax(math.abs(stretch));
+        }
+
+        /// <summary>
+        /// Computes the highest resolution mip-map level needed based on the various parameters
+        /// </summary>
+        /// <param name="worldRenderBounds">The world-space bounding box of the mesh</param>
+        /// <param name="meshMetric">Parameters that describe the baked mesh UV distribution for reference</param>
+        /// <param name="textureScale">The scale of the texture</param>
+        /// <param name="texelCount">The number of texels in the texture</param>
+        /// <param name="cameraPosition">The current position of the camera in world-space</param>
+        /// <param name="cameraMipMapFactor">A camera factor derived from CameraMipMapFactorFrom</param>
+        /// <param name="isPerspective">True if the camera uses perspective projection, false if it is orthographic</param>
+        /// <returns>A mip-map level, where 0 is the most detailed mip level</returns>
+        public static int DesiredMipMapLevelFrom(in WorldRenderBounds worldRenderBounds,
+                                                 in StreamingMipMapArray.MeshMetric meshMetric,
+                                                 float2 textureScale,
+                                                 int texelCount,
+                                                 float3 cameraPosition,
+                                                 float cameraMipMapFactor,
+                                                 bool isPerspective)
+        {
+            float distanceSq = 1f;
+            if (isPerspective)
+            {
+                distanceSq = math.distancesq(worldRenderBounds.Value.Center, cameraPosition);
+                if (distanceSq < 1e-6f)
+                    return 0;
+            }
+
+            var   boundsScale = worldRenderBounds.Value.Extents / math.max(1e-6f, meshMetric.meshLocalBounds);
+            float areaScale;
+            if (boundsScale.x > boundsScale.y)
+                areaScale = boundsScale.x * math.max(boundsScale.y, boundsScale.z);
+            else
+                areaScale = boundsScale.y * math.max(boundsScale.x, boundsScale.z);
+
+            var distributionMetric = meshMetric.uv0Metric * areaScale / (textureScale.x * textureScale.y);
+
+            var v      = (texelCount * distanceSq) / (distributionMetric * cameraMipMapFactor);
+            var result = 0.5f * math.log2(math.abs(v));
+            return math.max((int)result, 0);
         }
     }
 }

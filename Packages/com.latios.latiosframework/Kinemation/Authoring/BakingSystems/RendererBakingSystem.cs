@@ -129,7 +129,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     var mipmapRanges = CollectionHelper.CreateNativeArray<StreamingMipMapArray.RangeByMaterial>(materialList.Length,
                                                                                                                 WorldUpdateAllocator,
                                                                                                                 NativeArrayOptions.ClearMemory);
-                    var meshMetrics = CollectionHelper.CreateNativeArray<float>(meshList.Length, WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
+                    var meshMetrics = CollectionHelper.CreateNativeArray<StreamingMipMapArray.MeshMetric>(meshList.Length, WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
                     new CollectStreamingTexturesJob
                     {
                         materialMap = materialMap,
@@ -152,7 +152,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     {
                         ranges              = mipmapRanges.ToArray(),
                         streamingTextures   = streamingTexturesList.AsArray().ToArray(),
-                        uv0Metrics          = meshMetrics.ToArray(),
+                        meshMetrics         = meshMetrics.ToArray(),
                         renderMeshArrayHash = rma.GetHash128(),
                         metadataHash        = StreamingMipMapArray.ComputeMetadataHash(streamingTexturesList.AsArray().AsSpan(), mipmapRanges.AsSpan(), meshMetrics.AsSpan())
                     };
@@ -198,7 +198,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     var mipmapRanges = CollectionHelper.CreateNativeArray<StreamingMipMapArray.RangeByMaterial>(materialList.Length,
                                                                                                                 WorldUpdateAllocator,
                                                                                                                 NativeArrayOptions.ClearMemory);
-                    var meshMetrics = CollectionHelper.CreateNativeArray<float>(meshList.Length, WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
+                    var meshMetrics = CollectionHelper.CreateNativeArray<StreamingMipMapArray.MeshMetric>(meshList.Length, WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
                     new CollectStreamingTexturesJob
                     {
                         materialMap = materialMap,
@@ -221,7 +221,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     {
                         ranges              = mipmapRanges.ToArray(),
                         streamingTextures   = streamingTexturesList.AsArray().ToArray(),
-                        uv0Metrics          = meshMetrics.ToArray(),
+                        meshMetrics         = meshMetrics.ToArray(),
                         renderMeshArrayHash = rma.GetHash128(),
                         metadataHash        = StreamingMipMapArray.ComputeMetadataHash(streamingTexturesList.AsArray().AsSpan(), mipmapRanges.AsSpan(), meshMetrics.AsSpan())
                     };
@@ -425,7 +425,7 @@ namespace Latios.Kinemation.Authoring.Systems
             [ReadOnly] public NativeHashMap<UnityObjectRef<Mesh>, int>     meshMap;
             [ReadOnly] public NativeHashMap<UnityObjectRef<Material>, int> materialMap;
             public NativeArray<StreamingMipMapArray.RangeByMaterial>       ranges;
-            public NativeArray<float>                                      meshMetrics;
+            public NativeArray<StreamingMipMapArray.MeshMetric>            meshMetrics;
 
             public void Execute(in DynamicBuffer<BakingStreamingTexture> textureBuffer, in DynamicBuffer<BakingStreamingTextureMeshUv0Metric> metricBuffer)
             {
@@ -460,7 +460,11 @@ namespace Latios.Kinemation.Authoring.Systems
                 foreach (var metric in metricBuffer)
                 {
                     if (meshMap.TryGetValue(metric.mesh, out var meshIndex))
-                        meshMetrics[meshIndex] = metric.uv0Metric;
+                        meshMetrics[meshIndex] = new StreamingMipMapArray.MeshMetric
+                        {
+                            uv0Metric       = metric.uv0Metric,
+                            meshLocalBounds = metric.localBoundsExtents,
+                        };
                 }
             }
         }
@@ -513,7 +517,8 @@ namespace Latios.Kinemation.Authoring.Systems
                                 {
                                     streamingTexture = texture.texture,
                                     texelCount       = texture.texelCount,
-                                    textureScale     = texture.uvScale
+                                    textureScale     = texture.uvScale,
+                                    mipmapCount      = texture.mipmapCount,
                                 };
                                 range.count++;
                                 ranges[previousMaterialIndex] = range;
@@ -528,7 +533,8 @@ namespace Latios.Kinemation.Authoring.Systems
                         {
                             streamingTexture = texture.texture,
                             texelCount       = texture.texelCount,
-                            textureScale     = texture.uvScale
+                            textureScale     = texture.uvScale,
+                            mipmapCount      = texture.mipmapCount,
                         };
                         range.count++;
                         ranges[previousMaterialIndex] = range;

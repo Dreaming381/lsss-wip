@@ -387,6 +387,21 @@ namespace Latios.Kinemation
             return inputDeps;
         }
     }
+
+    [InternalBufferCapacity(0)]
+    internal struct MipMapStreamingAssignment : IBufferElementData
+    {
+        public UnityObjectRef<UnityEngine.Texture2D> texture;
+        public int                                   level;
+    }
+
+    [InternalBufferCapacity(0)]
+    internal struct MipMapCameraParameters : IBufferElementData
+    {
+        public float3 position;
+        public float  cameraFactor;
+        public bool   isPerspective;
+    }
     #endregion
 }
 

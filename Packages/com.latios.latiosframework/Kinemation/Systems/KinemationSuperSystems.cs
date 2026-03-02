@@ -76,6 +76,7 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddManagedSystem<KinemationPostRenderCollectSuperSystem>();
 
             GetOrCreateAndAddUnmanagedSystem<BeginPerFrameDeformMeshBuffersUploadSystem>();
+            GetOrCreateAndAddUnmanagedSystem<ApplyMipMapStreamingLevelsSystem>();
             GetOrCreateAndAddManagedSystem<KinemationPostRenderWriteSuperSystem>();
 
             GetOrCreateAndAddUnmanagedSystem<UpdateDeformedMeshBoundsSystem>();
@@ -281,6 +282,7 @@ namespace Latios.Kinemation.Systems
 
             GetOrCreateAndAddUnmanagedSystem<ApplyDispatchMasksToFrameMasksSystem>();
             GetOrCreateAndAddUnmanagedSystem<SetRenderVisibilityFeedbackFlagsSystem>();
+            GetOrCreateAndAddUnmanagedSystem<EvaluateMipMapStreamingLevelsSystem>();
 
             SetRateManagerCreateAllocator(null);
         }

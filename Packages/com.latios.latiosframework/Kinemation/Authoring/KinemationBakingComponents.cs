@@ -138,6 +138,7 @@ namespace Latios.Kinemation.Authoring
         public UnityObjectRef<Material>  material;
         public float2                    uvScale;
         public int                       texelCount;
+        public int                       mipmapCount;
     }
 
     [BakingType]
@@ -146,6 +147,7 @@ namespace Latios.Kinemation.Authoring
     {
         public UnityObjectRef<Mesh> mesh;
         public float                uv0Metric;
+        public float3               localBoundsExtents;
     }
     #endregion
 }
