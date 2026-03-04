@@ -27,6 +27,7 @@ namespace Latios.Calci
 
         public void Dispose() => m_impl.Dispose();
         public JobHandle Dispose(JobHandle inputDeps) => m_impl.Dispose(inputDeps);
+        public void EnsureCapacity(int capacity) => m_impl.EnsureCapacity(capacity);
         public void Clear() => m_impl.Clear();
         public void Enqueue(in TElement element) => m_impl.Enqueue(in element);
         public bool TryPeek(out TElement element) => m_impl.TryPeek(out element);
@@ -64,6 +65,11 @@ namespace Latios.Calci
         public void Dispose() => m_heap.Dispose();
         public JobHandle Dispose(JobHandle inputDeps) => m_heap.Dispose(inputDeps);
 
+        public void EnsureCapacity(int capacity)
+        {
+            if (capacity > m_heap.Capacity)
+                m_heap.Capacity = capacity;
+        }
         public void Clear() => m_heap.Clear();
         public void Enqueue(in TElement element)
         {
