@@ -80,8 +80,8 @@ namespace Latios.Calci
         public bool TryPeek(out TElement element)
         {
             bool empty = isEmpty;
-            element    = empty ? default : m_heap[0];
-                             return !empty;
+            element    = (empty ? default : m_heap[0]);
+            return !empty;
         }
         public bool TryDequeue(out TElement element)
         {
@@ -120,7 +120,7 @@ namespace Latios.Calci
             while (i != 0)
             {
                 var     parent      = ParentOf(i);
-                ref var parentValue = ref m_heap.ElementAt(i);
+                ref var parentValue = ref m_heap.ElementAt(parent);
                 if (m_comparer.Compare(current, parentValue) >= 0)
                     break;
 
@@ -135,26 +135,48 @@ namespace Latios.Calci
             int i          = 0;
             int firstChild = FirstChildOf(i);
             var current    = m_heap[0];
-            while (firstChild < m_heap.Length)
+            while (firstChild < m_heap.Length && TryGetMinChildIndex(firstChild, out var minIndex))
             {
-                bool found         = false;
-                var  childrenCount = math.min(4, m_heap.Length - firstChild);
-                for (int j = 0; j < childrenCount; j++)
+                ref var child = ref m_heap.ElementAt(minIndex);
+                if (m_comparer.Compare(current, child) >= 0)
                 {
-                    ref var child = ref m_heap.ElementAt(firstChild + j);
-                    if (m_comparer.Compare(current, child) >= 0)
-                    {
-                        m_heap[i]  = child;
-                        i          = firstChild + j;
-                        firstChild = FirstChildOf(i);
-                        found      = true;
-                        break;
-                    }
+                    m_heap[i]  = child;
+                    i          = minIndex;
+                    firstChild = FirstChildOf(i);
                 }
-                if (!found)
+                else
                     break;
             }
             m_heap[i] = current;
+        }
+
+        bool TryGetMinChildIndex(int firstChildIndex, out int minChildIndex)
+        {
+            var childrenCount = math.min(4, m_heap.Length - firstChildIndex);
+            switch (childrenCount)
+            {
+                case 0:
+                    minChildIndex = 0;
+                    return false;
+                case 1:
+                    minChildIndex = firstChildIndex;
+                    return true;
+                case 2:
+                    minChildIndex = math.select(firstChildIndex, firstChildIndex + 1, m_comparer.Compare(m_heap[firstChildIndex], m_heap[firstChildIndex + 1]) > 0);
+                    return true;
+                case 3:
+                    minChildIndex = math.select(firstChildIndex, firstChildIndex + 1, m_comparer.Compare(m_heap[firstChildIndex], m_heap[firstChildIndex + 1]) > 0);
+                    minChildIndex = math.select(minChildIndex, firstChildIndex + 2, m_comparer.Compare(m_heap[minChildIndex], m_heap[firstChildIndex + 2]) > 0);
+                    return true;
+                case 4:
+                    var leftIndex  = math.select(firstChildIndex, firstChildIndex + 1, m_comparer.Compare(m_heap[firstChildIndex], m_heap[firstChildIndex + 1]) > 0);
+                    var rightIndex = math.select(firstChildIndex + 2, firstChildIndex + 3, m_comparer.Compare(m_heap[firstChildIndex + 2], m_heap[firstChildIndex + 3]) > 0);
+                    minChildIndex  = math.select(leftIndex, rightIndex, m_comparer.Compare(m_heap[leftIndex], m_heap[rightIndex]) > 0);
+                    return true;
+                default:
+                    minChildIndex = 0;
+                    return false;
+            }
         }
 
         static int ParentOf(int i) => (i - 1) / 4;

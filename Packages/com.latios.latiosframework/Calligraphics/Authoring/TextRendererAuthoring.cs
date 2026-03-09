@@ -1,158 +1,112 @@
-using System;
-using System.Collections.Generic;
-using Latios.Authoring;
-using Latios.Calligraphics.Rendering;
-using Latios.Calligraphics.Rendering.Authoring;
-using Latios.Kinemation.Authoring;
+#if UNITY_EDITOR
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Entities.Graphics;
 using Unity.Mathematics;
-using Unity.Rendering;
+using UnityEditor;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.TextCore.Text;
 
-namespace Latios.Calligraphics.Authoring
+namespace TextMeshDOTS.Authoring
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("Latios/Calligraphics/Text Renderer (Calligraphics)")]
+    [AddComponentMenu("TextMeshDOTS/Text Renderer")]
     public class TextRendererAuthoring : MonoBehaviour
     {
+        public FontCollectionAsset fontCollectionAsset;
+        [Tooltip("Select the default font family for this TextRenderer. Ensure to assign the font collection asset first")]
+        public string defaultFont;
+
         [TextArea(5, 10)]
         public string text;
 
-        public float                      fontSize            = 12f;
-        public bool                       wordWrap            = true;
-        public float                      maxLineWidth        = float.MaxValue;
+        [EnumButtons]
+        public FontStyles fontStyles = FontStyles.Normal;
+
+        public float fontSize = 12f;
+        public Color32 color = Color.white;
         public HorizontalAlignmentOptions horizontalAlignment = HorizontalAlignmentOptions.Left;
-        public VerticalAlignmentOptions   verticalAlignment   = VerticalAlignmentOptions.TopAscent;
-        public bool                       isOrthographic      = false;
-        public bool                       enableKerning       = true;
-        public FontStyles                 fontStyle           = FontStyles.Normal;
-        public FontWeight                 fontWeight          = FontWeight.Regular;
+        public VerticalAlignmentOptions verticalAlignment = VerticalAlignmentOptions.TopAscent;
+        public bool wordWrap = true;
+        public float maxLineWidth = 30;
+        public bool isOrthographic = false;
         [Tooltip("Additional word spacing in font units where a value of 1 equals 1/100em.")]
         public float wordSpacing = 0;
         [Tooltip("Additional line spacing in font units where a value of 1 equals 1/100em.")]
         public float lineSpacing = 0;
         [Tooltip("Paragraph spacing in font units where a value of 1 equals 1/100em.")]
         public float paragraphSpacing = 0;
-
-        public Color32 color = UnityEngine.Color.white;
-
-        public List<FontMaterialPair> fontsAndMaterials;
-
-        [Tooltip("If enabled, text is stored perpetually in GPU memory and always uploaded on change, regardless of visibility.")]
-        public bool gpuResident;
+        [Tooltip("Use BCP 47 conform tags to set the language of this text https://en.wikipedia.org/wiki/IETF_language_tag#List_of_common_primary_language_subtags)")]
+        public string language = "en";
+        public Material material;
+        public FontTextureSize fontTextureSize;
     }
 
-    [Serializable]
-    public struct FontMaterialPair
-    {
-        public FontAsset font;
-        public Material  overrideMaterial;
-
-        public Material material => overrideMaterial == null ? font.material : overrideMaterial;
-    }
-
-    [TemporaryBakingType]
-    internal class TextRendererBaker : Baker<TextRendererAuthoring>
+    class TextRendererBaker : Baker<TextRendererAuthoring>
     {
         public override void Bake(TextRendererAuthoring authoring)
         {
-            if (authoring.fontsAndMaterials == null || authoring.fontsAndMaterials.Count == 0)
+            DependsOn(authoring.fontCollectionAsset);
+            int fontCount = 0;
+            if (authoring.fontCollectionAsset == null ||
+                (fontCount = authoring.fontCollectionAsset.fontReferences.Count) == 0 ||
+                authoring.defaultFont == string.Empty ||
+                authoring.material == null ||
+                authoring.language.Length == 0)
                 return;
+
+            string[] guids = AssetDatabase.FindAssets("TextBackendMesh t:mesh", null);
+            if (guids.Length == 0 || guids[0] == null)
+                return;
+
+            var backEndMesh = AssetDatabase.LoadAssetByGUID(new GUID(guids[0]), typeof(Mesh)) as Mesh;
+
+            //add MeshFilter and MeshRender on main entity to ensure it correctly converted 
+            var meshRenderer = GetComponent<MeshRenderer>();
+            if (meshRenderer == null)
+                meshRenderer = authoring.gameObject.AddComponent<MeshRenderer>();
+            var meshFilter = GetComponent<MeshFilter>();
+            if (meshFilter == null)
+                meshFilter = authoring.gameObject.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = backEndMesh;
+            meshRenderer.material = authoring.material;
 
             var entity = GetEntity(TransformUsageFlags.Renderable);
-
-            // Fonts and rendering
-            AddFontRendering(entity, authoring.fontsAndMaterials[0]);
+            AddComponent<TextShaderIndex>(entity);
             AddBuffer<RenderGlyph>(entity);
-            if (authoring.gpuResident)
-                AddComponent<GpuResidentTextTag>(entity);
-
-            if (authoring.fontsAndMaterials.Count > 1)
-            {
-                AddComponent<TextMaterialMaskShaderIndex>(entity);
-                AddBuffer<FontMaterialSelectorForGlyph>(entity);
-                AddBuffer<RenderGlyphMask>(             entity);
-                var additionalEntities = AddBuffer<Rendering.AdditionalFontMaterialEntity>(entity).Reinterpret<Entity>();
-                for (int i = 1; i < authoring.fontsAndMaterials.Count; i++)
-                {
-                    if (authoring.fontsAndMaterials[i].font == null)
-                        continue;
-                    var newEntity = CreateAdditionalEntity(TransformUsageFlags.Renderable);
-                    AddFontRendering(newEntity, authoring.fontsAndMaterials[i]);
-                    AddComponent<TextMaterialMaskShaderIndex>(newEntity);
-                    AddBuffer<RenderGlyphMask>(newEntity);
-                    additionalEntities.Add(newEntity);
-                    if (authoring.gpuResident)
-                        AddComponent<GpuResidentTextTag>(newEntity);
-                }
-            }
-
-            // Text Content
-            var calliString = new CalliString(AddBuffer<CalliByte>(entity));
+            var calliByte = AddBuffer<CalliByte>(entity);
+            var calliString = new CalliString(calliByte);
             calliString.Append(authoring.text);
-            AddComponent(entity, new TextBaseConfiguration
+            var textBaseConfiguraton = new TextBaseConfiguration
             {
-                fontSize          = authoring.fontSize,
-                color             = authoring.color,
-                maxLineWidth      = math.select(float.MaxValue, authoring.maxLineWidth, authoring.wordWrap),
+                defaultFontFamilyHash = TextHelper.GetHashCodeCaseInsensitive(authoring.defaultFont),
+                fontSize = (half)authoring.fontSize,
+                color = authoring.color,
+                maxLineWidth = math.select(float.MaxValue, authoring.maxLineWidth, authoring.wordWrap),
                 lineJustification = authoring.horizontalAlignment,
                 verticalAlignment = authoring.verticalAlignment,
-                isOrthographic    = authoring.isOrthographic,
-                enableKerning     = authoring.enableKerning,
-                fontStyle         = authoring.fontStyle,
-                fontWeight        = authoring.fontWeight,
-                wordSpacing       = authoring.wordSpacing,
-                lineSpacing       = authoring.lineSpacing,
-                paragraphSpacing  = authoring.paragraphSpacing,
-            });
+                isOrthographic = authoring.isOrthographic,
+                fontStyles = authoring.fontStyles,
+                fontWeight = (authoring.fontStyles & FontStyles.Bold) == FontStyles.Bold ? FontWeight.Bold : FontWeight.Normal,
+                fontWidth = FontWidth.Normal, //cannot be set from UI, 
+                wordSpacing = (half)authoring.wordSpacing,
+                lineSpacing = (half)authoring.lineSpacing,
+                paragraphSpacing = (half)authoring.paragraphSpacing,
+                language = BakeLangugeString(authoring.language),
+                fontTextureSize = authoring.fontTextureSize
+            };
+            AddComponent(entity, textBaseConfiguraton);           
         }
-
-        void AddFontRendering(Entity entity, FontMaterialPair fontMaterialPair)
+        BlobAssetReference<LanguageBlob> BakeLangugeString(FixedString128Bytes language)
         {
-            if (fontMaterialPair.font == null)
-                return;
-            DependsOn(fontMaterialPair.font);
-            DependsOn(fontMaterialPair.material);
-            var layer = GetLayer();
-            this.BakeTextBackendMeshAndMaterial(new MeshRendererBakeSettings
+            var customHash = new Unity.Entities.Hash128((uint)language.GetHashCode(), 0, 0, 0);
+            if (!TryGetBlobAssetReference(customHash, out BlobAssetReference<LanguageBlob> blobReference))
             {
-                targetEntity          = entity,
-                renderMeshDescription = new RenderMeshDescription
-                {
-                    FilterSettings = new RenderFilterSettings
-                    {
-                        Layer              = layer,
-                        RenderingLayerMask = (uint)(1 << layer),
-                        ShadowCastingMode  = ShadowCastingMode.Off,
-                        ReceiveShadows     = false,
-                        MotionMode         = MotionVectorGenerationMode.Object,
-                        StaticShadowCaster = false,
-                    },
-                    LightProbeUsage = LightProbeUsage.Off,
-                },
-            }, fontMaterialPair.material);
-
-            AddComponent<FontBlobReference>(entity);
-
-            this.AddPostProcessItem(entity, new FontBlobBakeItem
-            {
-                fontBlobHandle = this.RequestCreateBlobAsset(fontMaterialPair.font, fontMaterialPair.material)
-            });
+                blobReference = TextRendererUtility.BakeLanguage(language);                
+                AddBlobAssetWithCustomHash(ref blobReference, customHash); // Register the Blob Asset to the Baker for de-duplication and reverting.
+            }
+            return blobReference;
         }
-    }
-
-    struct FontBlobBakeItem : ISmartPostProcessItem
-    {
-        public SmartBlobberHandle<FontBlob> fontBlobHandle;
-
-        public void PostProcessBlobRequests(EntityManager entityManager, Entity entity)
-        {
-            entityManager.SetComponentData(entity, new FontBlobReference { blob = fontBlobHandle.Resolve(entityManager) });
-        }
-    }
+     
+        
+    }     
 }
-
+#endif
