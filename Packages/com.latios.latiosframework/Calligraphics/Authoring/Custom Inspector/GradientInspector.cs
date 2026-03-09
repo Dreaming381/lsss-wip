@@ -1,12 +1,12 @@
 #if UNITY_EDITOR
 using System;
-using TextMeshDOTS.Authoring;
+using Latios.Calligraphics.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.TextCore.Text;
 using UnityEngine.UIElements;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     [CustomEditor(typeof(TextGradientAuthoring))]
     public class GradientInspector : Editor

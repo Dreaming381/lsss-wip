@@ -1,4 +1,4 @@
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Burst;
 using Unity.Burst.CompilerServices;
 using Unity.Burst.Intrinsics;
@@ -6,9 +6,8 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
-using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial struct GenerateGlyphsSystem
     {

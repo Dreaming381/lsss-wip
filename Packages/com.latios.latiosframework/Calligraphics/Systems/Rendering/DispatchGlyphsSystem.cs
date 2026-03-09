@@ -1,5 +1,5 @@
+using Latios.Calligraphics.HarfBuzz;
 using static Unity.Entities.SystemAPI;
-using TextMeshDOTS.HarfBuzz;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -8,7 +8,7 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     [DisableAutoCreation]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]

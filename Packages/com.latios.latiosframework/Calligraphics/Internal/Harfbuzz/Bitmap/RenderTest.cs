@@ -1,7 +1,7 @@
-﻿using Font = TextMeshDOTS.HarfBuzz.Font;
-using TextMeshDOTS;
-using TextMeshDOTS.HarfBuzz;
-using TextMeshDOTS.HarfBuzz.Bitmap;
+﻿using Font = Latios.Calligraphics.HarfBuzz.Font;
+using Latios.Calligraphics;
+using Latios.Calligraphics.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz.Bitmap;
 using Unity.Collections;
 using Unity.Profiling;
 using UnityEditor;

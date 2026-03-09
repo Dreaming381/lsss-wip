@@ -1,10 +1,10 @@
 using System;
-using TextMeshDOTS.HarfBuzz;
-using TextMeshDOTS.RichText;
+using Latios.Calligraphics.HarfBuzz;
+using Latios.Calligraphics.RichText;
 using Unity.Collections;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial struct GenerateGlyphsSystem
     {
@@ -15,17 +15,17 @@ namespace TextMeshDOTS
                 //https://learn.microsoft.com/en-us/typography/opentype/spec/featurelist
 
                 public NativeList<Feature> values;
-                public int smallCapsStartID;
-                public int subscriptStartID;
-                public int superscriptStartID;
-                public int fractionStartID;
+                public int                 smallCapsStartID;
+                public int                 subscriptStartID;
+                public int                 superscriptStartID;
+                public int                 fractionStartID;
                 public OpenTypeFeatureConfig(int size, Allocator allocator)
                 {
-                    values = new NativeList<Feature>(size, allocator);
-                    smallCapsStartID = -1;
-                    subscriptStartID = -1;
+                    values             = new NativeList<Feature>(size, allocator);
+                    smallCapsStartID   = -1;
+                    subscriptStartID   = -1;
                     superscriptStartID = -1;
-                    fractionStartID = -1;
+                    fractionStartID    = -1;
                 }
                 public void FinalizeOpenTypeFeatures(int position)
                 {
@@ -91,7 +91,6 @@ namespace TextMeshDOTS
                             }
                             return;
                     }
-
                 }
                 public void SetGlobalFeatures(in TextBaseConfiguration textBaseConfiguration, uint textLength)
                 {
@@ -107,15 +106,16 @@ namespace TextMeshDOTS
                 public void Clear()
                 {
                     values.Clear();
-                    smallCapsStartID = -1;
-                    subscriptStartID = -1;
+                    smallCapsStartID   = -1;
+                    subscriptStartID   = -1;
                     superscriptStartID = -1;
-                    fractionStartID = -1;
+                    fractionStartID    = -1;
                 }
 
                 public void Dispose()
                 {
-                    if (values.IsCreated) values.Dispose();
+                    if (values.IsCreated)
+                        values.Dispose();
                 }
             }
 
@@ -124,13 +124,13 @@ namespace TextMeshDOTS
                 public int m_faceIndex;
                 public int m_namedVariationIndex;
 
-                public int m_fontFamilyHash;
+                public int                     m_fontFamilyHash;
                 public FixedStack512Bytes<int> m_fontFamilyHashStack;
 
-                public float m_fontWeight;
+                public float                     m_fontWeight;
                 public FixedStack512Bytes<float> m_fontWeightStack;
 
-                public float m_fontWidth;
+                public float                     m_fontWidth;
                 public FixedStack512Bytes<float> m_fontWidthStack;
 
                 public bool m_isItalic;
@@ -167,17 +167,17 @@ namespace TextMeshDOTS
                         //so switch default font family to the family at faceIndex 0,
                         //leave everything else the same (weight, width etc), and search matching faceIndex
                         //Debug.Log($"Could not find FontAssetRef: {FontAssetRef}");
-                        defaultFaceIndex = 0;
+                        defaultFaceIndex        = 0;
                         var defaultFontAssetRef = fontTable.fontAssetRefs[defaultFaceIndex];
-                        m_fontFamilyHash = defaultFontAssetRef.familyHash;
-                        defaultFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
+                        m_fontFamilyHash        = defaultFontAssetRef.familyHash;
+                        defaultFaceIndex        = fontTable.GetFaceIndex(FontAssetRef);
 
                         //var face = fontTable.faces[defaultFaceIndex];
                         //var language = Language.English();
                         //Debug.Log($"set default FontAssetRef to {FontAssetRef} ({face.GetName(NameID.FONT_FAMILY, language)} {face.GetName(NameID.FONT_SUBFAMILY, language)})");
                     }
                     m_faceIndex = defaultFaceIndex == -1 ? m_faceIndex : defaultFaceIndex;
-                    
+
                     if (fontTable.faces[m_faceIndex].HasVarData)
                         fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                 }
@@ -194,7 +194,7 @@ namespace TextMeshDOTS
                                 m_isItalic = false;
 
                             newFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
-                            m_faceIndex = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
+                            m_faceIndex  = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
                             if (fontTable.faces[m_faceIndex].HasVarData)
                                 fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                             return;
@@ -208,7 +208,7 @@ namespace TextMeshDOTS
                                 m_fontWeight = m_fontWeightStack.RemoveExceptRoot();
 
                             newFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
-                            m_faceIndex = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
+                            m_faceIndex  = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
                             if (fontTable.faces[m_faceIndex].HasVarData)
                                 fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                             return;
@@ -222,7 +222,7 @@ namespace TextMeshDOTS
                                 m_fontWeight = m_fontWeightStack.RemoveExceptRoot();
 
                             newFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
-                            m_faceIndex = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
+                            m_faceIndex  = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
                             if (fontTable.faces[m_faceIndex].HasVarData)
                                 fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                             return;
@@ -236,7 +236,7 @@ namespace TextMeshDOTS
                                 m_fontWidth = m_fontWidthStack.RemoveExceptRoot();
 
                             newFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
-                            m_faceIndex = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
+                            m_faceIndex  = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
                             if (fontTable.faces[m_faceIndex].HasVarData)
                                 fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                             return;
@@ -249,14 +249,14 @@ namespace TextMeshDOTS
                                 {
                                     //fetch name of font from calliStringRaw Buffer
                                     //To-Do: better to store valueHash in tag struct
-                                    FixedString128Bytes stringValue = default; //should not happen too often, so should be OK to allocate here
+                                    FixedString128Bytes stringValue = default;  //should not happen too often, so should be OK to allocate here
                                     calliStringRaw.GetSubString(ref stringValue, tag.value.valueStart, tag.value.valueLength);
                                     m_fontFamilyHash = TextHelper.GetHashCodeCaseInsensitive(stringValue);
                                     m_fontFamilyHashStack.Add(m_fontFamilyHash);
                                 }
 
                                 newFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
-                                m_faceIndex = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
+                                m_faceIndex  = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
                                 if (fontTable.faces[m_faceIndex].HasVarData)
                                     fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                                 return;
@@ -266,17 +266,17 @@ namespace TextMeshDOTS
                                 m_fontFamilyHash = m_fontFamilyHashStack.RemoveExceptRoot();
 
                                 newFaceIndex = fontTable.GetFaceIndex(FontAssetRef);
-                                m_faceIndex = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
+                                m_faceIndex  = newFaceIndex == -1 ? m_faceIndex : newFaceIndex;
                                 if (fontTable.faces[m_faceIndex].HasVarData)
                                     fontTable.GetNamedVariationLookup(FontAssetRef, out m_namedVariationIndex);
                             }
-                        return;
+                            return;
                     }
                 }
             }
 
             // Use LayoutConfig to change case prior to hb-shape. Works only for latin text
-            // Should this use cases really be in scope of TextMeshDOTS? 
+            // Should this use cases really be in scope of Latios.Calligraphics?
             struct LayoutConfig
             {
                 public FontStyles m_fontStyles;
@@ -316,3 +316,4 @@ namespace TextMeshDOTS
         }
     }
 }
+

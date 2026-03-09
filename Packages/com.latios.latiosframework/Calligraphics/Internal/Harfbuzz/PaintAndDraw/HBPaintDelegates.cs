@@ -2,13 +2,13 @@
 using System;
 using UnityEngine;
 using Unity.Mathematics;
-using static TextMeshDOTS.HarfBuzz.DrawDelegates;
+using static Latios.Calligraphics.HarfBuzz.DrawDelegates;
 using Unity.Collections;
 using Unity.Burst;
 using AOT;
-using TextMeshDOTS.HarfBuzz.Bitmap;
+using Latios.Calligraphics.HarfBuzz.Bitmap;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     [BurstCompile]
     internal struct PaintDelegates : IDisposable
@@ -134,8 +134,8 @@ namespace TextMeshDOTS.HarfBuzz
             var colorARGB = (ColorARGB)color;
             var solidColor = new SolidColor(colorARGB);
 
-            //AntiAliasedRasterizerTextMeshDOTS.Rasterize(ref data.clipGlyph, data.paintSurface, solidColor, data.clipRect);
-            AntiAliasedRasterizerTextMeshDOTS.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, solidColor, PaintCompositeMode.SRC_OVER, data.clipRect);
+            //AntiAliasedRasterizer.Rasterize(ref data.clipGlyph, data.paintSurface, solidColor, data.clipRect);
+            AntiAliasedRasterizer.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, solidColor, PaintCompositeMode.SRC_OVER, data.clipRect);
         }
         [BurstCompile]
         [MonoPInvokeCallback(typeof(LinearOrRadialGradientDelegate))]
@@ -148,8 +148,8 @@ namespace TextMeshDOTS.HarfBuzz
 
             lineGradient.InitializeColorLine(colorLine);
 
-            //AntiAliasedRasterizerTextMeshDOTS.Rasterize(ref data.clipGlyph, data.paintSurface, lineGradient, data.clipRect);
-            AntiAliasedRasterizerTextMeshDOTS.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, lineGradient, PaintCompositeMode.SRC_OVER,data.clipRect);
+            //AntiAliasedRasterizer.Rasterize(ref data.clipGlyph, data.paintSurface, lineGradient, data.clipRect);
+            AntiAliasedRasterizer.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, lineGradient, PaintCompositeMode.SRC_OVER,data.clipRect);
         }
         [BurstCompile]
         [MonoPInvokeCallback(typeof(LinearOrRadialGradientDelegate))]
@@ -162,8 +162,8 @@ namespace TextMeshDOTS.HarfBuzz
 
             radialGradient.InitializeColorLine(colorLine);
 
-            //AntiAliasedRasterizerTextMeshDOTS.Rasterize(ref data.clipGlyph, data.paintSurface, radialGradient, data.clipRect);
-            AntiAliasedRasterizerTextMeshDOTS.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, radialGradient, PaintCompositeMode.SRC_OVER, data.clipRect);
+            //AntiAliasedRasterizer.Rasterize(ref data.clipGlyph, data.paintSurface, radialGradient, data.clipRect);
+            AntiAliasedRasterizer.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, radialGradient, PaintCompositeMode.SRC_OVER, data.clipRect);
         }
         [BurstCompile]
         [MonoPInvokeCallback(typeof(SweepGradientDelegate))]
@@ -175,8 +175,8 @@ namespace TextMeshDOTS.HarfBuzz
             if (!sweepGradient.isValid)
                 return;
 
-            //AntiAliasedRasterizerTextMeshDOTS.Rasterize(ref data.clipGlyph, data.paintSurface, sweepGradient, data.clipRect);
-            AntiAliasedRasterizerTextMeshDOTS.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, sweepGradient, PaintCompositeMode.SRC_OVER, data.clipRect);
+            //AntiAliasedRasterizer.Rasterize(ref data.clipGlyph, data.paintSurface, sweepGradient, data.clipRect);
+            AntiAliasedRasterizer.RasterizeAndBlend(ref data.clipGlyph, data.paintSurface, sweepGradient, PaintCompositeMode.SRC_OVER, data.clipRect);
         }
         [BurstCompile]
         [MonoPInvokeCallback(typeof(PopDelegate))]

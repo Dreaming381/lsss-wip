@@ -1,10 +1,10 @@
 using Unity.Entities;
 using Unity.Jobs;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     // This type is defined to help maintain consistency with Calligraphics.
-    // TextMeshDOTS uses these as singletons.
+    // Latios.Calligraphics uses these as singletons.
     internal interface ICollectionComponent : IComponentData
     {
         /// <summary>

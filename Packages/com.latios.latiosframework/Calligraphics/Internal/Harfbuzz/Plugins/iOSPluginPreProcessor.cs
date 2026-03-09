@@ -4,7 +4,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
 
     public class IOSPluginPreProcessor : IPreprocessBuildWithReport

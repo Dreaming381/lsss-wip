@@ -6,10 +6,10 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace TextMeshDOTS.Authoring
+namespace Latios.Calligraphics.Authoring
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("TextMeshDOTS/TMD Runtime Material")]
+    [AddComponentMenu("Calligraphics/TMD Runtime Material")]
     public class TMDRuntimeMaterialAuthoring : MonoBehaviour
     {
         [Tooltip("Drop here the material you wou like to use for Text Renderer spawned at runtime")]

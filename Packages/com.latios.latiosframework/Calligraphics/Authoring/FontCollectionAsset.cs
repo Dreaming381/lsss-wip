@@ -1,16 +1,16 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
-using Font = TextMeshDOTS.HarfBuzz.Font;
+using Font = Latios.Calligraphics.HarfBuzz.Font;
 using Object = UnityEngine.Object;
 
-namespace TextMeshDOTS.Authoring
+namespace Latios.Calligraphics.Authoring
 {
-    [CreateAssetMenu(fileName = "FontCollectionAsset", menuName = "TextMeshDOTS/Font Collection Asset")]
+    [CreateAssetMenu(fileName = "FontCollectionAsset", menuName = "Calligraphics/Font Collection Asset")]
     public class FontCollectionAsset : ScriptableObject
     {
         [Tooltip("Drop here Unity Font assets of system font files (.otf .ttf .ttc). Disable \"Include Font Data\" option in these Unity Font assets to ensure fonts are NOT included in your build.")]

@@ -1,4 +1,5 @@
 using System;
+using Latios.Unsafe;
 using static Unity.Entities.SystemAPI;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
@@ -9,7 +10,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     [DisableAutoCreation]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]

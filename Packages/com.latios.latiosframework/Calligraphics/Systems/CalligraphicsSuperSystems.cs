@@ -1,5 +1,3 @@
-using TextMeshDOTS;
-using TextMeshDOTS.Rendering;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;

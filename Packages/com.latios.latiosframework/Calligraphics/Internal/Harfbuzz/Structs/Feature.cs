@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     [StructLayout(LayoutKind.Sequential)]
     internal struct Feature

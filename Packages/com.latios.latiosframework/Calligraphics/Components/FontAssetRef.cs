@@ -1,7 +1,7 @@
 using System;
 using Unity.Collections;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     // Todo: This is used by FontRequest. Once we decide what to do with that, we can maybe internalize this.
 

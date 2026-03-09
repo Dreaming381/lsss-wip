@@ -1,10 +1,10 @@
 using UnityEngine;
-using TextMeshDOTS.HarfBuzz.Bitmap;
+using Latios.Calligraphics.HarfBuzz.Bitmap;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal struct DrawData
     {

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Unity.Entities;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     [StructLayout(LayoutKind.Sequential)]
     internal struct GlyphInfo : IBufferElementData

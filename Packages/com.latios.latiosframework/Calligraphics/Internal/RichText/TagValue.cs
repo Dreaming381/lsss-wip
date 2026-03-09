@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
-namespace TextMeshDOTS.RichText
+namespace Latios.Calligraphics.RichText
 {   
         
     [StructLayout(LayoutKind.Explicit, Size = 16)]

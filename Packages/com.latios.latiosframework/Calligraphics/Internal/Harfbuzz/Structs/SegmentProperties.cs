@@ -1,4 +1,4 @@
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal unsafe struct SegmentProperties
     {

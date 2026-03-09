@@ -1,6 +1,6 @@
 //using System;
 //using System.IO;
-//using TextMeshDOTS.HarfBuzz;
+//using Latios.Calligraphics.HarfBuzz;
 //using Unity.Collections;
 //using Unity.Collections.LowLevel.Unsafe;
 //using Unity.Entities;
@@ -8,10 +8,9 @@
 //using Unity.Jobs.LowLevel.Unsafe;
 //using Unity.Scenes;
 //using UnityEngine;
-//using Font = TextMeshDOTS.HarfBuzz.Font;
+//using Font = Latios.Calligraphics.HarfBuzz.Font;
 
-
-//namespace TextMeshDOTS
+//namespace Latios.Calligraphics
 //{
 
 //    // To-Do: re-design to be able to load collection fonts (contains multiple subfamilies),
@@ -167,7 +166,7 @@
 //                        AxisInfo axisInfo;
 //                        float coord;
 
-//                        //fetch a list of named variants                        
+//                        //fetch a list of named variants
 //                        //Debug.Log($"found {axisCount} variation axis for font {fontReference.fontFamily} {fontReference.fontSubFamily}, {face.NamedInstanceCount} named instances");
 //                        Span<float> coords = stackalloc float[axisCount];
 //                        for (int k = 0, kk = (int)face.NamedInstanceCount; k < kk; k++)
@@ -198,7 +197,7 @@
 //                }
 //            }
 
-//            //blob can be disposed here, face and font are disposed at world shutdown via FontTable.TryDispose 
+//            //blob can be disposed here, face and font are disposed at world shutdown via FontTable.TryDispose
 //            blob.Dispose();
 //        }
 
@@ -228,3 +227,4 @@
 //        }
 //    }
 //}
+

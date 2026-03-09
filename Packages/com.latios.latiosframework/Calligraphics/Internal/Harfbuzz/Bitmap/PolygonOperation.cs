@@ -2,7 +2,7 @@ using Latios.Calci;
 using Unity.Collections;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal class PolygonOperation
     {

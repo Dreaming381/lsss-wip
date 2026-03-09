@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial class DispatchGlyphsSystem
     {
@@ -110,7 +110,7 @@ namespace TextMeshDOTS
 
             public void GetAtlasPtrsForDirtyIndices(ReadOnlySpan<uint> dirtyIndicesSorted, Span<AtlasPtr> ptrs)
             {
-                var atlasesNeeded = 1 + (int)(dirtyIndicesSorted[^1] & 0x3fffffffu);
+                var atlasesNeeded = 1 + (int)(dirtyIndicesSorted[^ 1] & 0x3fffffffu);
                 if (atlasesNeeded >= atlasCount)
                 {
                     if (useComputeUpload)

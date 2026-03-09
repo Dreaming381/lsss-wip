@@ -1,8 +1,8 @@
 ﻿using System.Runtime.InteropServices;
-using TextMeshDOTS.RichText;
+using Latios.Calligraphics.RichText;
 using Unity.Entities;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     /// <summary>
     /// The raw byte element as part of the text string.

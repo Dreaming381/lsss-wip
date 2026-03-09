@@ -1,7 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     internal struct TextColorGradientArray
     {

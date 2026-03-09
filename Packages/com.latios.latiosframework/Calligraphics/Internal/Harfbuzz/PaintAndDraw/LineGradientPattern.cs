@@ -5,7 +5,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     //To-Do: implement this via matrix rotation. Would avoid  "horizontal" and "vertical" check for every pixel
     internal struct LineGradient : IPattern

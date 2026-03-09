@@ -32,7 +32,7 @@ using UnityEngine.Rendering;
 // sprites and rasterized emojis. Access APIs can also be found in the hlsl file. Any shader including
 // that file will have access to these global resources. 
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     /// <summary>
     /// The glyphs to be rendered based on the processed CalliByte buffer.

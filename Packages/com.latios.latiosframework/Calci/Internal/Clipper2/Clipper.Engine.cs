@@ -578,7 +578,7 @@ namespace Latios.Calci.Clipper2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool PopScanline(out long y)
         {
-            if (_scanlineList.TryDequeue(out y))
+            if (!_scanlineList.TryDequeue(out y))
             {
                 y = 0;
                 return false;
@@ -3087,18 +3087,46 @@ namespace Latios.Calci.Clipper2
                 if (InternalClipper.SegsIntersect(op2Prev.pt,
                                                   op2.pt, op2Next.pt, op2NextNext.pt))
                 {
-                    if (op2ID == outrec.pts || op2.next == outrec.pts)
-                        outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
-                    DoSplitOp(outrecID, op2ID);
-                    if ((outrec = _outrecList[outrecID]).pts == -1)
-                        return;
-                    op2ID   = outrec.pts;
-                    op2     = ref _outPtList.ElementAt(op2ID);
-                    op2Next = ref _outPtList.ElementAt(op2.next);
-                    // triangles can't self-intersect
-                    if (op2.prev == op2Next.next)
-                        break;
-                    continue;
+                    //if (op2ID == outrec.pts || op2.next == outrec.pts)
+                    //    outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
+                    //DoSplitOp(outrecID, op2ID);
+                    //if ((outrec = _outrecList[outrecID]).pts == -1)
+                    //    return;
+                    //op2ID   = outrec.pts;
+                    //op2     = ref _outPtList.ElementAt(op2ID);
+                    //op2Next = ref _outPtList.ElementAt(op2.next);
+                    //// triangles can't self-intersect
+                    //if (op2.prev == op2Next.next)
+                    //    break;
+                    //continue;
+
+                    if (InternalClipper.SegsIntersect(op2Prev.pt,
+                                                      op2.pt, op2NextNext.pt, op2NextNextNext.pt))
+                    {
+                        // adjacent intersections (ie a micro self-intersection)
+                        op2ID           = DuplicateOp(op2ID, false);
+                        op2             = ref _outPtList.ElementAt(op2ID);
+                        op2Next         = ref _outPtList.ElementAt(op2.next);
+                        op2NextNext     = ref _outPtList.ElementAt(op2Next.next);
+                        op2NextNextNext = ref _outPtList.ElementAt(op2NextNext.next);
+                        op2.pt          = op2NextNextNext.pt;
+                        op2ID           = op2.next;
+                    }
+                    else
+                    {
+                        if (op2ID == outrec.pts || op2.next == outrec.pts)
+                            outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
+                        DoSplitOp(outrecID, op2ID);
+                        if ((outrec = _outrecList[outrecID]).pts == -1)
+                            return;
+                        op2ID   = outrec.pts;
+                        op2     = ref _outPtList.ElementAt(op2ID);
+                        op2Next = ref _outPtList.ElementAt(op2.next);
+                        // triangles can't self-intersect
+                        if (op2.prev == op2Next.next)
+                            break;
+                        continue;
+                    }
                 }
 
                 op2ID = op2.next;
@@ -3262,7 +3290,7 @@ namespace Latios.Calci.Clipper2
                 split                = ref _outrecList.ElementAt(splitID);
                 split.recursiveSplit = outrecID;  //#599
 
-                if(split.splits != -1 && CheckSplitOwner(outrecID, split.splits))
+                if (split.splits != -1 && CheckSplitOwner(outrecID, split.splits))
                     return true;
 
                 if (!CheckBounds(splitID) ||
@@ -3424,7 +3452,7 @@ namespace Latios.Calci.Clipper2
             for (int c = nodes[exteriorNode].firstChild; c != -1; c = nodes[c].nextSibling)
                 queue.Add(c);
 
-            for(int i = 0, ii = queue.Length; i < ii; i++)
+            for (int i = 0, ii = queue.Length; i < ii; i++)
             {
                 int     nodeIndex = queue[i];
                 var     node      = nodes[nodeIndex];

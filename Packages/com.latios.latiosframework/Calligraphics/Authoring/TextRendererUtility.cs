@@ -6,7 +6,7 @@ using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     public static class TextRendererUtility
     {

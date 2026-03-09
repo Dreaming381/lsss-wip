@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -9,9 +9,9 @@ using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.TextCore.LowLevel;
 
-using Font = TextMeshDOTS.HarfBuzz.Font;
+using Font = Latios.Calligraphics.HarfBuzz.Font;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     [DisableAutoCreation]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]

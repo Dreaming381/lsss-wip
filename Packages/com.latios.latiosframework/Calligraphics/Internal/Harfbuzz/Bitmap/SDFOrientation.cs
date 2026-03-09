@@ -1,4 +1,4 @@
-namespace TextMeshDOTS.HarfBuzz.Bitmap
+namespace Latios.Calligraphics.HarfBuzz.Bitmap
 {
     internal enum SDFOrientation
     {

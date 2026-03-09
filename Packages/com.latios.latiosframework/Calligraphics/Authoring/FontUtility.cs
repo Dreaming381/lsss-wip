@@ -2,12 +2,12 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
-using TextMeshDOTS.HarfBuzz;
-using Font = TextMeshDOTS.HarfBuzz.Font;
+using Latios.Calligraphics.HarfBuzz;
+using Font = Latios.Calligraphics.HarfBuzz.Font;
 
-namespace TextMeshDOTS.Authoring
+namespace Latios.Calligraphics.Authoring
 {
-    [CreateAssetMenu(fileName = "FontUtility", menuName = "TextMeshDOTS/FontUtility")]
+    [CreateAssetMenu(fileName = "FontUtility", menuName = "Calligraphics/FontUtility")]
 
     // Use this utility to get the information requiered for spawning TextRenderer at runtime vai FontRequest. See
     // RuntimeSpawner/RuntimeSingleFontTextRendererSpawner and

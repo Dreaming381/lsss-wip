@@ -3,7 +3,7 @@ using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     [Serializable]
     [InternalBufferCapacity(0)]

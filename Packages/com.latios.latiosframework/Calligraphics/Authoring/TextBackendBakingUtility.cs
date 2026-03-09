@@ -4,7 +4,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS.Rendering.Authoring
+namespace Latios.Calligraphics.Rendering.Authoring
 {
     [BurstCompile]
     public static class TextBackendBakingUtility
@@ -15,8 +15,8 @@ namespace TextMeshDOTS.Rendering.Authoring
 
         #region Mesh Building
 #if UNITY_EDITOR
-        //is now part of samples user has to import, omitting the need for dedicated menue for TextMeshDOTS (which was a user request)
-        //[UnityEditor.MenuItem("TextMeshDOTS/Text BackendMesh")]
+        //is now part of samples user has to import, omitting the need for dedicated menue for Latios.Calligraphics (which was a user request)
+        //[UnityEditor.MenuItem("Calligraphics/Text BackendMesh")]
         static void CreateMeshAsset()
         {
             var glyphCounts = new NativeArray<int>(11, Allocator.Temp);

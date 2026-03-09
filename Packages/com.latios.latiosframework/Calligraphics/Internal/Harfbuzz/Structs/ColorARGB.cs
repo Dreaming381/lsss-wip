@@ -4,7 +4,7 @@ using System;
 using UnityEngine;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     [StructLayout(LayoutKind.Explicit)]
     internal struct ColorARGB : IEquatable<ColorARGB>

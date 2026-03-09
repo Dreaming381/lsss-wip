@@ -1,11 +1,11 @@
 using System;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
-using static TextMeshDOTS.HarfBuzz.DrawDelegates;
+using static Latios.Calligraphics.HarfBuzz.DrawDelegates;
 using AOT;
 
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal struct Blob : IDisposable
     {

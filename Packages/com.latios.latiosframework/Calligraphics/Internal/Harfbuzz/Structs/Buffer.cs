@@ -1,7 +1,7 @@
 using System;
 using Unity.Collections;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal unsafe struct Buffer : IDisposable
     {

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Unity.Collections;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     [StructLayout(LayoutKind.Sequential)]
     internal struct AxisInfo

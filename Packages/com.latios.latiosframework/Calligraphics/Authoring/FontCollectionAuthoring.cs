@@ -1,14 +1,14 @@
 #if UNITY_EDITOR
-using TextMeshDOTS;
-using TextMeshDOTS.Authoring;
+using Latios.Calligraphics;
+using Latios.Calligraphics.Authoring;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("TextMeshDOTS/Font Collection")]
+    [AddComponentMenu("Calligraphics/Font Collection")]
     public class FontCollectionAuthoring : MonoBehaviour
     {
         public FontCollectionAsset fontCollectionAsset;

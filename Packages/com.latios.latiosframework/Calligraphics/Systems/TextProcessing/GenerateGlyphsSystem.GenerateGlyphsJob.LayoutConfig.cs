@@ -1,8 +1,8 @@
-using TextMeshDOTS.RichText;
+using Latios.Calligraphics.RichText;
 using UnityEngine;
 
-namespace TextMeshDOTS
-{    
+namespace Latios.Calligraphics.Systems
+{
     public partial struct GenerateGlyphsSystem
     {
         partial struct GenerateRenderGlyphsJob
@@ -10,33 +10,33 @@ namespace TextMeshDOTS
             struct LayoutConfig
             {
                 //metrics
-                public float m_fontScaleMultiplier;  // Used for handling of superscript and subscript.
-                public float m_currentFontSize;
+                public float                     m_fontScaleMultiplier;  // Used for handling of superscript and subscript.
+                public float                     m_currentFontSize;
                 public FixedStack512Bytes<float> m_sizeStack;
 
                 public FontStyles m_fontStyles;
 
-                public float fontWeight;
+                public float                     fontWeight;
                 public FixedStack512Bytes<float> fontWeightStack;
 
-                public float fontWidth;
+                public float                     fontWidth;
                 public FixedStack512Bytes<float> fontWidthStack;
 
-                public HorizontalAlignmentOptions m_lineJustification;
+                public HorizontalAlignmentOptions                     m_lineJustification;
                 public FixedStack512Bytes<HorizontalAlignmentOptions> m_lineJustificationStack;
 
-                public float m_baselineOffset;
+                public float                     m_baselineOffset;
                 public FixedStack512Bytes<float> m_baselineOffsetStack;
 
-                public Color32 m_htmlColor;
+                public Color32                     m_htmlColor;
                 public FixedStack512Bytes<Color32> m_htmlColorStack;
-                public Color32 m_underlineColor;
+                public Color32                     m_underlineColor;
                 public FixedStack512Bytes<Color32> m_underlineColorStack;
-                public Color32 m_strikethroughColor;
+                public Color32                     m_strikethroughColor;
                 public FixedStack512Bytes<Color32> m_strikethroughColorStack;
 
-                public bool useGradient;
-                public TextColorGradient m_gradient;
+                public bool                                  useGradient;
+                public TextColorGradient                     m_gradient;
                 public FixedStack512Bytes<TextColorGradient> m_gradientStack;
 
                 public float m_lineOffset;
@@ -46,10 +46,10 @@ namespace TextMeshDOTS
                 public float m_monoSpacing;
                 public float m_xAdvance;
 
-                public float m_tagLineIndent;
-                public float m_tagIndent;
+                public float                     m_tagLineIndent;
+                public float                     m_tagIndent;
                 public FixedStack512Bytes<float> m_indentStack;
-                public bool m_tagNoParsing;
+                public bool                      m_tagNoParsing;
 
                 public bool m_isNonBreakingSpace;
 
@@ -62,33 +62,33 @@ namespace TextMeshDOTS
 
                     m_fontStyles = textBaseConfiguration.fontStyles;
 
-                    fontWeight = textBaseConfiguration.fontWeight.Value();
+                    fontWeight      = textBaseConfiguration.fontWeight.Value();
                     fontWeightStack = default;
                     fontWeightStack.Add(fontWeight);
 
-                    fontWidth = textBaseConfiguration.fontWidth.Value();
+                    fontWidth      = textBaseConfiguration.fontWidth.Value();
                     fontWidthStack = default;
                     fontWidthStack.Add(fontWidth);
 
                     m_currentFontSize = textBaseConfiguration.fontSize;
-                    m_sizeStack = default;
+                    m_sizeStack       = default;
                     m_sizeStack.Add(m_currentFontSize);
 
-                    m_lineJustification = textBaseConfiguration.lineJustification;
+                    m_lineJustification      = textBaseConfiguration.lineJustification;
                     m_lineJustificationStack = default;
                     m_lineJustificationStack.Add(m_lineJustification);
 
-                    m_baselineOffset = 0;
+                    m_baselineOffset      = 0;
                     m_baselineOffsetStack = default;
                     m_baselineOffsetStack.Add(m_baselineOffset);
 
-                    m_htmlColor = textBaseConfiguration.color;
-                    m_underlineColor = Color.white;
+                    m_htmlColor          = textBaseConfiguration.color;
+                    m_underlineColor     = Color.white;
                     m_strikethroughColor = Color.white;
 
-                    useGradient = false;
-                    m_gradient = default;
-                    m_gradientStack = default;
+                    useGradient      = false;
+                    m_gradient       = default;
+                    m_gradientStack  = default;
                     m_htmlColorStack = default;
                     m_htmlColorStack.Add(m_htmlColor);
                     m_underlineColorStack = default;
@@ -99,20 +99,20 @@ namespace TextMeshDOTS
                     m_lineOffset = 0;  // Amount of space between lines (font line spacing + m_linespacing).
                     m_lineHeight = float.MinValue;  //TMP_Math.FLOAT_UNSET -->is there a better way to do this?
 
-                    m_cSpacing = 0;  // Amount of space added between characters as a result of the use of the <cspace> tag.
+                    m_cSpacing    = 0;  // Amount of space added between characters as a result of the use of the <cspace> tag.
                     m_monoSpacing = 0;
-                    m_xAdvance = 0;  // Used to track the position of each character.
+                    m_xAdvance    = 0;  // Used to track the position of each character.
 
                     m_tagLineIndent = 0;  // Used for indentation of text.
-                    m_tagIndent = 0;
-                    m_indentStack = default;
+                    m_tagIndent     = 0;
+                    m_indentStack   = default;
                     m_indentStack.Add(m_tagIndent);
                     m_tagNoParsing = false;
 
                     m_isNonBreakingSpace = false;
 
                     m_fxRotationAngleCCW_degree = 0;
-                    m_fxScale = 1;
+                    m_fxScale                   = 1;
                 }
                 public void Reset(in TextBaseConfiguration textBaseConfiguration)
                 {
@@ -140,12 +140,12 @@ namespace TextMeshDOTS
                     m_baselineOffsetStack.Clear();
                     m_baselineOffsetStack.Add(0);
 
-                    m_htmlColor = textBaseConfiguration.color;
-                    m_underlineColor = Color.white;
+                    m_htmlColor          = textBaseConfiguration.color;
+                    m_underlineColor     = Color.white;
                     m_strikethroughColor = Color.white;
-                    useGradient = false;
-                    m_gradient = default;
-                    m_gradientStack = default;
+                    useGradient          = false;
+                    m_gradient           = default;
+                    m_gradientStack      = default;
 
                     m_htmlColorStack.Clear();
                     m_htmlColorStack.Add(m_htmlColor);
@@ -157,12 +157,12 @@ namespace TextMeshDOTS
                     m_lineOffset = 0;  // Amount of space between lines (font line spacing + m_linespacing).
                     m_lineHeight = float.MinValue;  //TMP_Math.FLOAT_UNSET -->is there a better way to do this?
 
-                    m_cSpacing = 0;  // Amount of space added between characters as a result of the use of the <cspace> tag.
+                    m_cSpacing    = 0;  // Amount of space added between characters as a result of the use of the <cspace> tag.
                     m_monoSpacing = 0;
-                    m_xAdvance = 0;  // Used to track the position of each character.
+                    m_xAdvance    = 0;  // Used to track the position of each character.
 
                     m_tagLineIndent = 0;  // Used for indentation of text.
-                    m_tagIndent = 0;
+                    m_tagIndent     = 0;
                     m_indentStack.Clear();
                     m_indentStack.Add(m_tagIndent);
                     m_tagNoParsing = false;
@@ -170,7 +170,7 @@ namespace TextMeshDOTS
                     m_isNonBreakingSpace = false;
 
                     m_fxRotationAngleCCW_degree = 0;
-                    m_fxScale = 1;
+                    m_fxScale                   = 1;
                 }
                 public void Update(ref XMLTag tag, in TextBaseConfiguration textBaseConfiguration, ref TextColorGradientArray textColorGradients)
                 {
@@ -180,7 +180,7 @@ namespace TextMeshDOTS
                         //    if (!tag.isClosing)
                         //        m_fontStyles |= FontStyles.Subscript;
                         //    else
-                        //        m_fontStyles &= ~FontStyles.Subscript;                    
+                        //        m_fontStyles &= ~FontStyles.Subscript;
                         //    return;
                         //case TagType.Superscript: //redundant to opentype feature set during shaping. only purpose is to simulate missing subscript glyphs, but unclear how to determine this
                         //    if (!tag.isClosing)
@@ -470,7 +470,7 @@ namespace TextMeshDOTS
                                 }
                             }
                             else
-                                m_lineHeight = float.MinValue;  //TMP_Math.FLOAT_UNSET -->is there a better way to do this?
+                                m_lineHeight = float.MinValue; //TMP_Math.FLOAT_UNSET -->is there a better way to do this?
                             return;
                         case TagType.Rotate:
                             if (!tag.isClosing)
@@ -501,7 +501,7 @@ namespace TextMeshDOTS
                             }
                             else
                             {
-                                var tmp = m_baselineOffset;
+                                var tmp          = m_baselineOffset;
                                 m_baselineOffset = m_baselineOffsetStack.RemoveExceptRoot();
                                 //Debug.Log($"revert from {tmp} to {m_baselineOffset}");
                             }
@@ -513,3 +513,4 @@ namespace TextMeshDOTS
         }
     }
 }
+

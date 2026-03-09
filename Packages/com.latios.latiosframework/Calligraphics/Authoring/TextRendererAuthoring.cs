@@ -5,10 +5,10 @@ using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 
-namespace TextMeshDOTS.Authoring
+namespace Latios.Calligraphics.Authoring
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("TextMeshDOTS/Text Renderer")]
+    [AddComponentMenu("Calligraphics/Text Renderer")]
     public class TextRendererAuthoring : MonoBehaviour
     {
         public FontCollectionAsset fontCollectionAsset;
@@ -21,13 +21,13 @@ namespace TextMeshDOTS.Authoring
         [EnumButtons]
         public FontStyles fontStyles = FontStyles.Normal;
 
-        public float fontSize = 12f;
-        public Color32 color = Color.white;
+        public float fontSize                                 = 12f;
+        public Color32 color                                  = Color.white;
         public HorizontalAlignmentOptions horizontalAlignment = HorizontalAlignmentOptions.Left;
-        public VerticalAlignmentOptions verticalAlignment = VerticalAlignmentOptions.TopAscent;
-        public bool wordWrap = true;
-        public float maxLineWidth = 30;
-        public bool isOrthographic = false;
+        public VerticalAlignmentOptions verticalAlignment     = VerticalAlignmentOptions.TopAscent;
+        public bool wordWrap                                  = true;
+        public float maxLineWidth                             = 30;
+        public bool isOrthographic                            = false;
         [Tooltip("Additional word spacing in font units where a value of 1 equals 1/100em.")]
         public float wordSpacing = 0;
         [Tooltip("Additional line spacing in font units where a value of 1 equals 1/100em.")]
@@ -59,7 +59,7 @@ namespace TextMeshDOTS.Authoring
 
             var backEndMesh = AssetDatabase.LoadAssetByGUID(new GUID(guids[0]), typeof(Mesh)) as Mesh;
 
-            //add MeshFilter and MeshRender on main entity to ensure it correctly converted 
+            //add MeshFilter and MeshRender on main entity to ensure it correctly converted
             var meshRenderer = GetComponent<MeshRenderer>();
             if (meshRenderer == null)
                 meshRenderer = authoring.gameObject.AddComponent<MeshRenderer>();
@@ -72,41 +72,40 @@ namespace TextMeshDOTS.Authoring
             var entity = GetEntity(TransformUsageFlags.Renderable);
             AddComponent<TextShaderIndex>(entity);
             AddBuffer<RenderGlyph>(entity);
-            var calliByte = AddBuffer<CalliByte>(entity);
+            var calliByte   = AddBuffer<CalliByte>(entity);
             var calliString = new CalliString(calliByte);
             calliString.Append(authoring.text);
             var textBaseConfiguraton = new TextBaseConfiguration
             {
                 defaultFontFamilyHash = TextHelper.GetHashCodeCaseInsensitive(authoring.defaultFont),
-                fontSize = (half)authoring.fontSize,
-                color = authoring.color,
-                maxLineWidth = math.select(float.MaxValue, authoring.maxLineWidth, authoring.wordWrap),
-                lineJustification = authoring.horizontalAlignment,
-                verticalAlignment = authoring.verticalAlignment,
-                isOrthographic = authoring.isOrthographic,
-                fontStyles = authoring.fontStyles,
-                fontWeight = (authoring.fontStyles & FontStyles.Bold) == FontStyles.Bold ? FontWeight.Bold : FontWeight.Normal,
-                fontWidth = FontWidth.Normal, //cannot be set from UI, 
-                wordSpacing = (half)authoring.wordSpacing,
-                lineSpacing = (half)authoring.lineSpacing,
-                paragraphSpacing = (half)authoring.paragraphSpacing,
-                language = BakeLangugeString(authoring.language),
-                fontTextureSize = authoring.fontTextureSize
+                fontSize              = (half)authoring.fontSize,
+                color                 = authoring.color,
+                maxLineWidth          = math.select(float.MaxValue, authoring.maxLineWidth, authoring.wordWrap),
+                lineJustification     = authoring.horizontalAlignment,
+                verticalAlignment     = authoring.verticalAlignment,
+                isOrthographic        = authoring.isOrthographic,
+                fontStyles            = authoring.fontStyles,
+                fontWeight            = (authoring.fontStyles & FontStyles.Bold) == FontStyles.Bold ? FontWeight.Bold : FontWeight.Normal,
+                fontWidth             = FontWidth.Normal,  //cannot be set from UI,
+                wordSpacing           = (half)authoring.wordSpacing,
+                lineSpacing           = (half)authoring.lineSpacing,
+                paragraphSpacing      = (half)authoring.paragraphSpacing,
+                language              = BakeLangugeString(authoring.language),
+                fontTextureSize       = authoring.fontTextureSize
             };
-            AddComponent(entity, textBaseConfiguraton);           
+            AddComponent(entity, textBaseConfiguraton);
         }
         BlobAssetReference<LanguageBlob> BakeLangugeString(FixedString128Bytes language)
         {
             var customHash = new Unity.Entities.Hash128((uint)language.GetHashCode(), 0, 0, 0);
             if (!TryGetBlobAssetReference(customHash, out BlobAssetReference<LanguageBlob> blobReference))
             {
-                blobReference = TextRendererUtility.BakeLanguage(language);                
-                AddBlobAssetWithCustomHash(ref blobReference, customHash); // Register the Blob Asset to the Baker for de-duplication and reverting.
+                blobReference = TextRendererUtility.BakeLanguage(language);
+                AddBlobAssetWithCustomHash(ref blobReference, customHash);  // Register the Blob Asset to the Baker for de-duplication and reverting.
             }
             return blobReference;
         }
-     
-        
-    }     
+    }
 }
 #endif
+

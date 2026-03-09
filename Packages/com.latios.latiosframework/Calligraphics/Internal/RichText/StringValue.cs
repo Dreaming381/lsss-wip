@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace TextMeshDOTS.RichText
+namespace Latios.Calligraphics.RichText
 {
     internal enum StringValue : byte
     {

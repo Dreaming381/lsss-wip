@@ -4,7 +4,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Profiling;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [RequireMatchingQueriesForUpdate]

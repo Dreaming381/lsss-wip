@@ -3,7 +3,7 @@ using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     ///// <summary>
     ///// PropertyDrawer for a FixedString128Bytes using UE Elements

@@ -6,7 +6,7 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     /// <summary>
     /// A Burst-compatible string type that wraps a DynamicBuffer of bytes

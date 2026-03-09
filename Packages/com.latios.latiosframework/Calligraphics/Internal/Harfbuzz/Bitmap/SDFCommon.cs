@@ -5,7 +5,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS.HarfBuzz.Bitmap
+namespace Latios.Calligraphics.HarfBuzz.Bitmap
 {   
     internal static class SDFCommon
     {

@@ -1,25 +1,25 @@
+using Font = Latios.Calligraphics.HarfBuzz.Font;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using Font = TextMeshDOTS.HarfBuzz.Font;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial struct GenerateGlyphsSystem
     {
         [BurstCompile]
         struct AllocateNewGlyphsJob : IJob
         {
-            [ReadOnly] public FontTable fontTable;
-            public GlyphTable glyphTable;
-            public NativeStream.Reader missingGlyphsStream;
+            [ReadOnly] public FontTable       fontTable;
+            public GlyphTable                 glyphTable;
+            public NativeStream.Reader        missingGlyphsStream;
             public NativeList<GlyphTable.Key> missingGlyphsToAdd;
 
             public void Execute()
             {
                 // Deduplicate
-                var requestCount = missingGlyphsStream.Count();
+                var requestCount          = missingGlyphsStream.Count();
                 var uniqueMissingGlyphSet = new UnsafeHashSet<GlyphTable.Key>(requestCount, Allocator.Temp);
                 for (int chunk = 0; chunk < missingGlyphsStream.ForEachCount; chunk++)
                 {
@@ -32,7 +32,7 @@ namespace TextMeshDOTS
                 }
 
                 missingGlyphsToAdd.Capacity = uniqueMissingGlyphSet.Count;
-                uint nextIndex = (uint)glyphTable.glyphHashToIdMap.Count;
+                uint nextIndex              = (uint)glyphTable.glyphHashToIdMap.Count;
                 foreach (var key in uniqueMissingGlyphSet)
                 {
                     missingGlyphsToAdd.AddNoResize(key);
@@ -48,16 +48,16 @@ namespace TextMeshDOTS
         [BurstCompile]
         struct PopulateNewGlyphsJob : IJobParallelForDefer, IJob
         {
-            [ReadOnly] public NativeArray<GlyphTable.Key> missingGlyphs;
-            [ReadOnly] public FontTable fontTable;
+            [ReadOnly] public NativeArray<GlyphTable.Key>                              missingGlyphs;
+            [ReadOnly] public FontTable                                                fontTable;
             [NativeDisableParallelForRestriction] public NativeArray<GlyphTable.Entry> glyphEntries;
 
             [NativeSetThreadIndex]
             int threadIndex;
 
-            GlyphTable.Key lastKey;
+            GlyphTable.Key                           lastKey;
             [NativeDisableUnsafePtrRestriction] Font lastFont;
-            bool initialized;
+            bool                                     initialized;
 
             public void Execute()
             {
@@ -70,7 +70,7 @@ namespace TextMeshDOTS
             public void Execute(int i)
             {
                 var missingGlyph = missingGlyphs[i];
-                var font = lastFont;
+                var font         = lastFont;
 
                 if (!initialized || RequiresFontSetup(lastKey, missingGlyph))
                 {
@@ -81,39 +81,39 @@ namespace TextMeshDOTS
                     var samplingSize = missingGlyph.GetSamplingSize();
                     font.SetScale(samplingSize, samplingSize);
                     initialized = true;
-                    lastFont = font;
-                    lastKey = missingGlyph;
+                    lastFont    = font;
+                    lastKey     = missingGlyph;
                 }
 
                 // performance watchout:  hb_font_get_glyph_extents is a very costly function.
                 // For a COLR glyph, rect is determined by parsing all vertices of maybe 20 sub-glyphs
                 // in my tests getting glyph extents in parallel resulted in
-                // total time = thread * (single thread time) 
+                // total time = thread * (single thread time)
                 // reason unknown. Could be mutex lock. Or single thread benefits more
                 // from font acceleration structures populated with each hb_font_get_glyph_extents call
                 font.GetGlyphExtents(missingGlyph.glyphIndex, out var extents);
 
                 var padding = missingGlyph.format switch
                 {
-                    RenderFormat.SDF8 => 9,     //determined via RenderTest Mono: padding of 9 works for both SPREAD 8 (SDF8) 
-                    RenderFormat.SDF16 => 9,    //and SPREAD 16 (SDF16), regardless if 64px or 128px
+                    RenderFormat.SDF8 => 9,  //determined via RenderTest Mono: padding of 9 works for both SPREAD 8 (SDF8)
+                    RenderFormat.SDF16 => 9,  //and SPREAD 16 (SDF16), regardless if 64px or 128px
                     RenderFormat.Bitmap8888 => 0,
                     _ => 0,
                 };
                 var newEntry = new GlyphTable.Entry
                 {
-                    key = missingGlyph,
+                    key      = missingGlyph,
                     refCount = 0,
-                    x = -1,
-                    y = -1,
-                    z = -1,
-                    width = (short)extents.width,
-                    height = (short)(extents.height),
+                    x        = -1,
+                    y        = -1,
+                    z        = -1,
+                    width    = (short)extents.width,
+                    height   = (short)(extents.height),
                     xBearing = (short)extents.x_bearing,
                     yBearing = (short)extents.y_bearing,  // Harfbuzz is y-up
-                    padding = (short)padding,
+                    padding  = (short)padding,
                 };
-                var baseIndex = glyphEntries.Length - missingGlyphs.Length;
+                var baseIndex               = glyphEntries.Length - missingGlyphs.Length;
                 glyphEntries[baseIndex + i] = newEntry;
             }
 
@@ -126,3 +126,4 @@ namespace TextMeshDOTS
         }
     }
 }
+

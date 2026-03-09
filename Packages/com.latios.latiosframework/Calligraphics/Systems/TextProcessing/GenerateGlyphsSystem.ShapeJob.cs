@@ -1,15 +1,13 @@
-using Buffer = TextMeshDOTS.HarfBuzz.Buffer;
-using TextMeshDOTS.HarfBuzz;
+using Buffer = Latios.Calligraphics.HarfBuzz.Buffer;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
-using Unity.Entities.UniversalDelegates;
 using Unity.Profiling;
-using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial struct GenerateGlyphsSystem
     {

@@ -1,7 +1,7 @@
 
 using Unity.Mathematics;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     /// <summary>
     /// IPattern behave like textures: are sampled by a given vertex, convert that into a "UV", and return the color for that UV

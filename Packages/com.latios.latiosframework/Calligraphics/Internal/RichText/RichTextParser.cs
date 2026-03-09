@@ -2,7 +2,7 @@ using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-namespace TextMeshDOTS.RichText
+namespace Latios.Calligraphics.RichText
 {    
     internal static class RichTextParser
     {

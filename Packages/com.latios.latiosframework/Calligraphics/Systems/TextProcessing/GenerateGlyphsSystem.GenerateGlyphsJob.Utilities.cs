@@ -1,11 +1,11 @@
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS
-{    
+namespace Latios.Calligraphics.Systems
+{
     public partial struct GenerateGlyphsSystem
     {
         partial struct GenerateRenderGlyphsJob
@@ -16,7 +16,7 @@ namespace TextMeshDOTS
                 return new float2(
                     translated.x * cos - translated.y * sin,
                     translated.x * sin + translated.y * cos
-                ) + pivot;
+                    ) + pivot;
             }
 
             static float GetTopAnchorForConfig(ref Font font, VerticalAlignmentOptions verticalMode, float baseScale, float oldValue = float.PositiveInfinity)
@@ -26,7 +26,8 @@ namespace TextMeshDOTS
                 {
                     case VerticalAlignmentOptions.TopBase: return 0f;
                     case VerticalAlignmentOptions.MiddleTopAscentToBottomDescent:
-                    case VerticalAlignmentOptions.TopAscent: return baseScale * math.max(font.fontExtents.ascender - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
+                    case VerticalAlignmentOptions.TopAscent: return baseScale *
+                               math.max(font.fontExtents.ascender - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
                     case VerticalAlignmentOptions.TopDescent: return baseScale * math.min(font.fontExtents.descender - font.baseLine, oldValue);
                     case VerticalAlignmentOptions.TopCap: return baseScale * math.max(font.capHeight - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
                     case VerticalAlignmentOptions.TopMean: return baseScale * math.max(font.xHeight - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
@@ -40,7 +41,8 @@ namespace TextMeshDOTS
                 switch (verticalMode)
                 {
                     case VerticalAlignmentOptions.BottomBase: return 0f;
-                    case VerticalAlignmentOptions.BottomAscent: return baseScale * math.max(font.fontExtents.ascender - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
+                    case VerticalAlignmentOptions.BottomAscent: return baseScale *
+                               math.max(font.fontExtents.ascender - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
                     case VerticalAlignmentOptions.MiddleTopAscentToBottomDescent:
                     case VerticalAlignmentOptions.BottomDescent: return baseScale * math.min(font.fontExtents.descender - font.baseLine, oldValue);
                     case VerticalAlignmentOptions.BottomCap: return baseScale * math.max(font.capHeight - font.baseLine, math.select(oldValue, float.NegativeInfinity, replace));
@@ -50,7 +52,7 @@ namespace TextMeshDOTS
             }
 
             static unsafe void ApplyHorizontalAlignmentToGlyphs(ref NativeArray<RenderGlyph> renderGlyphs,
-                                                                ref FixedList512Bytes<int> characterGlyphIndicesWithPreceedingSpacesInLine,
+                                                                ref FixedList512Bytes<int>   characterGlyphIndicesWithPreceedingSpacesInLine,
                                                                 float width,
                                                                 HorizontalAlignmentOptions alignMode)
             {
@@ -85,9 +87,9 @@ namespace TextMeshDOTS
                 }
                 else  // Justified
                 {
-                    float nudgePerSpace = (width - renderGlyphsPtr[renderGlyphs.Length - 1].trPosition.x) / characterGlyphIndicesWithPreceedingSpacesInLine.Length;
+                    float nudgePerSpace     = (width - renderGlyphsPtr[renderGlyphs.Length - 1].trPosition.x) / characterGlyphIndicesWithPreceedingSpacesInLine.Length;
                     float accumulatedOffset = 0f;
-                    int indexInIndices = 0;
+                    int   indexInIndices    = 0;
                     for (int i = 0; i < renderGlyphs.Length; i++)
                     {
                         while (indexInIndices < characterGlyphIndicesWithPreceedingSpacesInLine.Length &&
@@ -110,12 +112,12 @@ namespace TextMeshDOTS
             {
                 for (int i = 0; i < renderGlyphs.Length; i++)
                 {
-                    var glyph = renderGlyphs[i];
+                    var glyph           = renderGlyphs[i];
                     glyph.blPosition.y -= accumulatedVerticalOffset;
                     glyph.tlPosition.y -= accumulatedVerticalOffset;
                     glyph.trPosition.y -= accumulatedVerticalOffset;
                     glyph.brPosition.y -= accumulatedVerticalOffset;
-                    renderGlyphs[i] = glyph;
+                    renderGlyphs[i]     = glyph;
                 }
             }
 
@@ -165,7 +167,7 @@ namespace TextMeshDOTS
                     case VerticalAlignmentOptions.MiddleTopAscentToBottomDescent:
                     {
                         float fullHeight = accumulatedVerticalOffset - topAnchor - bottomAnchor;
-                        float offset = fullHeight / 2f;
+                        float offset     = fullHeight / 2f;
                         for (int i = 0; i < renderGlyphs.Length; i++)
                         {
                             renderGlyphsPtr[i].blPosition.y += offset;
@@ -204,3 +206,4 @@ namespace TextMeshDOTS
         }
     }
 }
+

@@ -1,10 +1,10 @@
 using System.IO;
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Collections;
 using UnityEngine;
-using Font = TextMeshDOTS.HarfBuzz.Font;
+using Font = Latios.Calligraphics.HarfBuzz.Font;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     internal static class TextHelper
     {

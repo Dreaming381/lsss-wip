@@ -2,10 +2,10 @@ using System;
 using System.Runtime.InteropServices;
 using Unity.Burst;
 using Unity.Collections;
-using static TextMeshDOTS.HarfBuzz.DrawDelegates;
-using static TextMeshDOTS.HarfBuzz.PaintDelegates;
+using static Latios.Calligraphics.HarfBuzz.DrawDelegates;
+using static Latios.Calligraphics.HarfBuzz.PaintDelegates;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal static unsafe class Harfbuzz
     {

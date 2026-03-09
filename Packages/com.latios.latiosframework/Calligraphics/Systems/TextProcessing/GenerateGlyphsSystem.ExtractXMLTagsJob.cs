@@ -1,11 +1,11 @@
-using TextMeshDOTS.RichText;
+using System.IO;
+using Latios.Calligraphics.RichText;
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Burst.Intrinsics;
-using System.IO;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial struct GenerateGlyphsSystem
     {
@@ -13,8 +13,8 @@ namespace TextMeshDOTS
         internal partial struct ExtractTagsJob : IJobChunk
         {
             [NativeDisableParallelForRestriction] public NativeStream.Writer xmlTagStream;
-            [ReadOnly] public NativeArray<int> firstEntityIndexInChunk;
-            [ReadOnly] public BufferTypeHandle<CalliByte> calliByteHandle;
+            [ReadOnly] public NativeArray<int>                               firstEntityIndexInChunk;
+            [ReadOnly] public BufferTypeHandle<CalliByte>                    calliByteHandle;
 
             public uint lastSystemVersion;
 
@@ -36,8 +36,8 @@ namespace TextMeshDOTS
 
                     var calliBytesBuffer = calliBytesBuffers[indexInChunk];
 
-                    var calliString = new CalliString(calliBytesBuffer);
-                    var rawCharacters = calliString.GetEnumerator();
+                    var calliString               = new CalliString(calliBytesBuffer);
+                    var rawCharacters             = calliString.GetEnumerator();
                     var previousRuneStartPosition = 0;
                     while (rawCharacters.MoveNext())
                     {
@@ -60,12 +60,13 @@ namespace TextMeshDOTS
             public struct TextHelperStruct
             {
                 public XMLTag tag;
-                public int position;
-                public int tagLength;
+                public int    position;
+                public int    tagLength;
             }
             public static void WriteCalliBytesToFile(string path, NativeArray<byte> callibyte)
             {
-                if (callibyte.Length == 0) return;
+                if (callibyte.Length == 0)
+                    return;
                 StreamWriter writer = new StreamWriter(path, false);
                 for (int i = 0, end = callibyte.Length; i < end; i++)
                 {
@@ -77,7 +78,8 @@ namespace TextMeshDOTS
             }
             public static void WriteCalliStringToFile(string path, NativeArray<TextHelperStruct> callibyte)
             {
-                if (callibyte.Length == 0) return;
+                if (callibyte.Length == 0)
+                    return;
                 StreamWriter writer = new StreamWriter(path, false);
                 for (int i = 0, end = callibyte.Length; i < end; i++)
                 {
@@ -86,7 +88,6 @@ namespace TextMeshDOTS
                         writer.WriteLine($"{c.position} {c.tagLength} {c.tag.tagType} {c.tag.value.valueStart} {c.tag.value.valueLength}");
                     else
                         writer.WriteLine($"{c.position} {c.tagLength} {c.tag.tagType} ");
-
                 }
                 writer.WriteLine();
                 writer.Close();
@@ -94,3 +95,4 @@ namespace TextMeshDOTS
         }
     }
 }
+

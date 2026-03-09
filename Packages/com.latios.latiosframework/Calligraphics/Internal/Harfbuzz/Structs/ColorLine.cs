@@ -4,7 +4,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Collections;
 using UnityEngine;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     [StructLayout(LayoutKind.Sequential)]
     internal struct ColorLine

@@ -1,7 +1,7 @@
 using Unity.Collections;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     internal static class CalligraphicsInternalExtensions
     {

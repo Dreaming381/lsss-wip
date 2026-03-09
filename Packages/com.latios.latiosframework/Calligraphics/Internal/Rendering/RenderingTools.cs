@@ -1,6 +1,6 @@
 using Unity.Rendering;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     internal static class RenderingTools
     {

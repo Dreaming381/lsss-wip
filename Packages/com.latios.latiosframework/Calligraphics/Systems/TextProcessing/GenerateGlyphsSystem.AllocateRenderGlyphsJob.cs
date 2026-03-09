@@ -1,9 +1,9 @@
 using Unity.Burst;
+using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Burst.Intrinsics;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial struct GenerateGlyphsSystem
     {
@@ -11,7 +11,7 @@ namespace TextMeshDOTS
         internal partial struct AllocateRenderGlyphsJob : IJobChunk
         {
             [ReadOnly] public BufferTypeHandle<CalliByte> calliByteHandle;
-            public BufferTypeHandle<RenderGlyph> renderGlyphHandle;
+            public BufferTypeHandle<RenderGlyph>          renderGlyphHandle;
 
             public uint lastSystemVersion;
 
@@ -20,17 +20,18 @@ namespace TextMeshDOTS
             {
                 if (!(chunk.DidChange(ref calliByteHandle, lastSystemVersion)))
                     return;
-                
-                var calliBytesBuffers = chunk.GetBufferAccessor(ref calliByteHandle);
+
+                var calliBytesBuffers  = chunk.GetBufferAccessor(ref calliByteHandle);
                 var renderGlyphBuffers = chunk.GetBufferAccessor(ref renderGlyphHandle);
 
                 for (int indexInChunk = 0; indexInChunk < chunk.Count; indexInChunk++)
                 {
-                    var calliBytesBuffer = calliBytesBuffers[indexInChunk];
+                    var calliBytesBuffer  = calliBytesBuffers[indexInChunk];
                     var renderGlyphBuffer = renderGlyphBuffers[indexInChunk];
                     renderGlyphBuffer.EnsureCapacity(calliBytesBuffer.Length);
                 }
-            }            
+            }
         }
     }
 }
+

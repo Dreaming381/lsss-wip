@@ -4,7 +4,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Profiling;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal static class PaintUtils
     {

@@ -4,7 +4,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS.HarfBuzz.Bitmap
+namespace Latios.Calligraphics.HarfBuzz.Bitmap
 {
     /*
         description of rasterizer: https://nothings.org/gamedev/rasterize/

@@ -2,13 +2,13 @@
 //using System;
 //using UnityEngine;
 //using Unity.Mathematics;
-//using static TextMeshDOTS.HarfBuzz.DrawDelegates;
+//using static Latios.Calligraphics.HarfBuzz.DrawDelegates;
 //using Unity.Collections;
 //using Unity.Burst;
 //using AOT;
-//using TextMeshDOTS.HarfBuzz.Bitmap;
+//using Latios.Calligraphics.HarfBuzz.Bitmap;
 
-//namespace TextMeshDOTS.HarfBuzz
+//namespace Latios.Calligraphics.HarfBuzz
 //{
 //    [BurstCompile]
 //    public struct PaintDeferredDelegates : IDisposable

@@ -1,7 +1,7 @@
 ﻿using Unity.Collections;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     /// <summary>
     /// textureData and clipRect (informing about texture width and height) are the ultimate output of the paint API

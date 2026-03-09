@@ -1,7 +1,7 @@
 using Unity.Entities;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     /// <summary>
     /// Definition of color gradients

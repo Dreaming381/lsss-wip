@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using UnityEngine.TextCore;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     /// <summary> Dimensions of glyph according to harfbuzz definition (y is top to bottom ). Invert height for use in a coordinate systems that grows up.</summary>
     [StructLayout(LayoutKind.Sequential)]

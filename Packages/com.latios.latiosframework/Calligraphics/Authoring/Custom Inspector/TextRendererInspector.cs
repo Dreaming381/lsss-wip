@@ -1,12 +1,11 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
-using TextMeshDOTS.Authoring;
+using Latios.Calligraphics.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
-
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     [CustomEditor(typeof(TextRendererAuthoring))]
     public class TextRendererInspector : Editor
@@ -24,7 +23,7 @@ namespace TextMeshDOTS
             var container = visualTreeAsset.Instantiate();
 
             fontCollectionAssetProperty = container.Q<PropertyField>("fontCollectionAsset");
-            fonts = container.Q<DropdownField>();
+            fonts                       = container.Q<DropdownField>();
 
             //try to add dropdown
             AddFontDropDown();
@@ -35,15 +34,16 @@ namespace TextMeshDOTS
             myInspector.Add(container);
             return myInspector;
         }
- 
+
         void AddFontDropDown()
         {
             var fontCollectionAsset = ((TextRendererAuthoring)this.target).fontCollectionAsset;
             if (fontCollectionAsset != null)
                 fonts.choices = fontCollectionAsset.fontFamilies;
             else
-                fonts.choices = emptyList;            
+                fonts.choices = emptyList;
         }
-    }    
+    }
 }
 #endif
+

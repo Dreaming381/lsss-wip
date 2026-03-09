@@ -1,9 +1,9 @@
 #if UNITY_EDITOR
-using TextMeshDOTS.Authoring;
+using Latios.Calligraphics.Authoring;
 using UnityEditor;
 using UnityEngine.UIElements;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     [CustomEditor(typeof(FontCollectionAsset))]
     public class FontCollectionInspector : Editor

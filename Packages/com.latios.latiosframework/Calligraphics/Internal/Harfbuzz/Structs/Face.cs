@@ -1,8 +1,8 @@
 using System;
-using TextMeshDOTS.HarfBuzz.Bitmap;
+using Latios.Calligraphics.HarfBuzz.Bitmap;
 using Unity.Collections;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal struct Face : IDisposable
     {

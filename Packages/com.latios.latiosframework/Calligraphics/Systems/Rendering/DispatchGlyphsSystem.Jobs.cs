@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Threading;
-using TextMeshDOTS.HarfBuzz;
-using TextMeshDOTS.HarfBuzz.Bitmap;
+using Latios.Calligraphics.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz.Bitmap;
+using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -11,7 +12,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public unsafe partial class DispatchGlyphsSystem
     {

@@ -3,25 +3,25 @@ using Unity.Burst;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics.Systems
 {
     public partial class DispatchGlyphsSystem
     {
         struct GraphicsBufferUploadPool : IDisposable
         {
-            GraphicsBuffer[] buffers;
-            int nextIndex;
+            GraphicsBuffer[]      buffers;
+            int                   nextIndex;
             GraphicsBuffer.Target target;
-            int stride;
+            int                   stride;
 
             public GraphicsBufferUploadPool(int initialCapacities, GraphicsBuffer.Target target, int stride)
             {
                 // SparseUploader.MaxFramesInFlight is internally, so we just use the max here.
                 int numRotations = math.max(4, QualitySettings.maxQueuedFrames);
-                nextIndex = 0;
-                this.target = target;
-                this.stride = stride;
-                buffers = new GraphicsBuffer[numRotations];
+                nextIndex        = 0;
+                this.target      = target;
+                this.stride      = stride;
+                buffers          = new GraphicsBuffer[numRotations];
                 for (int i = 0; i < numRotations; i++)
                 {
                     buffers[i] = new GraphicsBuffer(target, GraphicsBuffer.UsageFlags.LockBufferForWrite, initialCapacities, stride);
@@ -41,7 +41,7 @@ namespace TextMeshDOTS
                 if (buffer.count < requiredElements)
                 {
                     buffer.Dispose();
-                    buffer = new GraphicsBuffer(target, GraphicsBuffer.UsageFlags.LockBufferForWrite, math.ceilpow2(requiredElements), stride);
+                    buffer             = new GraphicsBuffer(target, GraphicsBuffer.UsageFlags.LockBufferForWrite, math.ceilpow2(requiredElements), stride);
                     buffers[nextIndex] = buffer;
                 }
                 nextIndex++;
@@ -53,10 +53,10 @@ namespace TextMeshDOTS
 
         internal struct PersistentBuffer : IDisposable
         {
-            GraphicsBuffer m_currentBuffer;
-            ComputeShader m_copyShader;
-            uint m_currentSize;
-            uint m_stride;
+            GraphicsBuffer        m_currentBuffer;
+            ComputeShader         m_copyShader;
+            uint                  m_currentSize;
+            uint                  m_stride;
             GraphicsBuffer.Target m_bindingTarget;
 
             static readonly SharedStatic<CopyShaderNames> s_copyShaderNames = SharedStatic<CopyShaderNames>.GetOrCreate<PersistentBuffer>();
@@ -72,8 +72,8 @@ namespace TextMeshDOTS
             {
                 s_copyShaderNames.Data = new CopyShaderNames
                 {
-                    _src = Shader.PropertyToID("_src"),
-                    _dst = Shader.PropertyToID("_dst"),
+                    _src   = Shader.PropertyToID("_src"),
+                    _dst   = Shader.PropertyToID("_dst"),
                     _start = Shader.PropertyToID("_start")
                 };
             }
@@ -83,11 +83,11 @@ namespace TextMeshDOTS
                                     GraphicsBuffer.Target bufferType,
                                     ComputeShader copyShader)
             {
-                uint size = math.ceilpow2(initialSize);
+                uint size       = math.ceilpow2(initialSize);
                 m_currentBuffer = new GraphicsBuffer(bufferType, GraphicsBuffer.UsageFlags.None, (int)size, (int)stride);
-                m_copyShader = copyShader;
-                m_currentSize = size;
-                m_stride = stride;
+                m_copyShader    = copyShader;
+                m_currentSize   = size;
+                m_stride        = stride;
                 m_bindingTarget = bufferType;
             }
 
@@ -111,8 +111,8 @@ namespace TextMeshDOTS
                 if (requiredSize * m_stride > 1024 * 1024 * 1024)
                     Debug.LogWarning("Attempted to allocate a persistent graphics buffer over 1 GB. Rendering artifacts may occur.");
                 if (requiredSize * m_stride < 1024 * 1024 * 1024 && size * m_stride > 1024 * 1024 * 1024)
-                    size = 1024 * 1024 * 1024 / m_stride;
-                var prevBuffer = m_currentBuffer;
+                    size        = 1024 * 1024 * 1024 / m_stride;
+                var prevBuffer  = m_currentBuffer;
                 m_currentBuffer = new GraphicsBuffer(m_bindingTarget, GraphicsBuffer.UsageFlags.None, (int)size, (int)m_stride);
                 if (m_copyShader != null)
                 {
@@ -126,7 +126,7 @@ namespace TextMeshDOTS
                         m_copyShader.SetInt(s_copyShaderNames.Data._start, (int)(start * threadGroupSize));
                         m_copyShader.Dispatch(0, (int)dispatchCount, 1, 1);
                         dispatchesRemaining -= dispatchCount;
-                        start += dispatchCount;
+                        start               += dispatchCount;
                         //UnityEngine.Debug.Log($"Dispatched buffer type: {m_bindingTarget} with dispatchCount: {dispatchCount}");
                     }
                 }
@@ -137,3 +137,4 @@ namespace TextMeshDOTS
         }
     }
 }
+

@@ -1,7 +1,7 @@
 using System;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal struct BBox: IEquatable<BBox>
     {

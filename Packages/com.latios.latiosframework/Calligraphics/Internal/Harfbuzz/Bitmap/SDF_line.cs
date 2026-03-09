@@ -3,7 +3,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine.TextCore;
 
-namespace TextMeshDOTS.HarfBuzz.Bitmap
+namespace Latios.Calligraphics.HarfBuzz.Bitmap
 {
     [BurstCompile]
     internal static class SDF_line

@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Mathematics;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal static class BezierMath
     {

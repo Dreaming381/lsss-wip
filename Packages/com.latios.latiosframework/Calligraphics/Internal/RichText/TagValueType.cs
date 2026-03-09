@@ -1,4 +1,4 @@
-namespace TextMeshDOTS.RichText
+namespace Latios.Calligraphics.RichText
 {
     internal enum TagValueType : byte
     {

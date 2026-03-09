@@ -2,7 +2,7 @@ using System;
 using Unity.Collections;
 using UnityEngine;
 
-namespace TextMeshDOTS.HarfBuzz
+namespace Latios.Calligraphics.HarfBuzz
 {
     internal class FontDebug
     {

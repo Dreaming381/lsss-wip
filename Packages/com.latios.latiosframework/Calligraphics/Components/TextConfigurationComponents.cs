@@ -1,11 +1,11 @@
 ﻿using System;
-using TextMeshDOTS.HarfBuzz;
+using Latios.Calligraphics.HarfBuzz;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace TextMeshDOTS
+namespace Latios.Calligraphics
 {
     /// <summary>
     /// The base settings of the text before any rich text tags or animations are applied.

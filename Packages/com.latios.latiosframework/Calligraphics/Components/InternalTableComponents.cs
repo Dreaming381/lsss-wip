@@ -1,21 +1,21 @@
 using System;
-using TextMeshDOTS.HarfBuzz;
+using Font = Latios.Calligraphics.HarfBuzz.Font;
+using Latios.Calligraphics.HarfBuzz;
+using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine;
 using UnityEngine.TextCore;
-using Font = TextMeshDOTS.HarfBuzz.Font;
 
-namespace TextMeshDOTS
-{    
+namespace Latios.Calligraphics
+{
     internal partial struct FontTable : ICollectionComponent
     {
         public NativeList<Face>                 faces;
-        public NativeArray<UnsafeList<Font>>    perThreadFontCaches;
+        public NativeArray<UnsafeList<Font> >   perThreadFontCaches;
         public NativeHashMap<FontAssetRef, int> fontAssetRefToFaceIndexMap;
         //variable fonts got names instances. create FontAssetRef for each instance,
         //and map it to index of named instance in face. Use this to lookup instance profile via FontAssetRef
@@ -23,13 +23,13 @@ namespace TextMeshDOTS
         public NativeList<FontAssetRef>         fontAssetRefs;
 
         public Font SetVariableProfile(int faceIndex, int threadIndex, int variableProfileIndex)
-        {            
+        {
             var fonts = perThreadFontCaches[threadIndex];
-            var font = fonts[faceIndex];
+            var font  = fonts[faceIndex];
 
-            font.VariationNamedInstance = (uint)variableProfileIndex;
+            font.VariationNamedInstance      = (uint)variableProfileIndex;
             font.currentVariableProfileIndex = variableProfileIndex;
-            fonts[faceIndex] = font;
+            fonts[faceIndex]                 = font;
             return font;
         }
         public bool GetNamedVariationLookup(FontAssetRef desiredFontAssetRef, out int namedVariationIndex)
@@ -52,7 +52,7 @@ namespace TextMeshDOTS
                 }
             }
             namedVariationIndex = default;
-            return false;            
+            return false;
         }
 
         public int GetFaceIndex(FontAssetRef desiredFontAssetRef)
@@ -82,19 +82,19 @@ namespace TextMeshDOTS
             {
                 //Debug.Log($"fallback candidate: {fontAssetRefs[i].ToString()}");
                 if (fontAssetRefs[i].familyHash == desiredFontAssetRef.familyHash)
-                    return fontAssetRefToFaceIndexMap[fontAssetRefs[i]];                
+                    return fontAssetRefToFaceIndexMap[fontAssetRefs[i]];
             }
             //Debug.Log($"Requested font {desiredFontAssetRef} not found");
             return -1;
         }
 
         public Font GetOrCreateFont(int faceIndex, int threadIndex)
-        {            
+        {
             var fonts = perThreadFontCaches[threadIndex];
             var font  = fonts[faceIndex];
             if (font.ptr == IntPtr.Zero)
             {
-                var face = faces[faceIndex];
+                var face         = faces[faceIndex];
                 font             = new Font(face);
                 fonts[faceIndex] = font;
             }
@@ -106,7 +106,9 @@ namespace TextMeshDOTS
             if (faces.IsCreated)
             {
                 var jh = new DisposeInnerJob { table = this }.Schedule(inputDeps);
-                jh = JobHandle.CombineDependencies(faces.Dispose(jh), fontAssetRefToNamedVariationIndexMap.Dispose(jh), perThreadFontCaches.Dispose(jh));
+                jh                                   = JobHandle.CombineDependencies(faces.Dispose(jh),
+                                                                                     fontAssetRefToNamedVariationIndexMap.Dispose(jh),
+                                                                                     perThreadFontCaches.Dispose(jh));
                 return JobHandle.CombineDependencies(jh, fontAssetRefs.Dispose(jh), fontAssetRefToFaceIndexMap.Dispose(jh));
             }
             return inputDeps;
@@ -144,11 +146,11 @@ namespace TextMeshDOTS
 
     internal struct VariableProfile : IEquatable<VariableProfile>
     {
-        public FixedList64Bytes<Variation> variations;   // space for 8 variations (8 byte per variation axis)
+        public FixedList64Bytes<Variation> variations;  // space for 8 variations (8 byte per variation axis)
 
         public VariableProfile(NativeList<AxisInfo> axisInfos)
         {
-            variations=new FixedList64Bytes<Variation>();
+            variations = new FixedList64Bytes<Variation>();
             for (int i = 0, ii = axisInfos.Length; i < ii; i++)
             {
                 var axisInfo = axisInfos[i];
@@ -168,11 +170,11 @@ namespace TextMeshDOTS
         {
             variations = new FixedList64Bytes<Variation>();
             for (int i = 0, ii = variationsIN.Length; i < ii; i++)
-                variations.Add(variationsIN[i]);            
+                variations.Add(variationsIN[i]);
         }
         public VariableProfile(float weight, float width)
         {
-            variations = new FixedList64Bytes<Variation>() 
+            variations = new FixedList64Bytes<Variation>()
             {
                 new Variation(AxisTag.WEIGHT, weight),
                 new Variation(AxisTag.WIDTH, width),
@@ -316,16 +318,16 @@ namespace TextMeshDOTS
 
         public ref Entry GetEntryRW(uint glyphEntryID)
         {
-            return ref entries.ElementAt((int)(glyphEntryID & 0x3fffffff));// Lower 30 bits contain the entry index; upper bits are flags.
+            return ref entries.ElementAt((int)(glyphEntryID & 0x3fffffff));  // Lower 30 bits contain the entry index; upper bits are flags.
         }
 
         public Entry GetEntry(uint glyphEntryID)
         {
-            return entries[(int)(glyphEntryID & 0x3fffffff)]; // Lower 30 bits contain the entry index; upper bits are flags.
+            return entries[(int)(glyphEntryID & 0x3fffffff)];  // Lower 30 bits contain the entry index; upper bits are flags.
         }
         public readonly ref Entry GetEntryRef(uint glyphEntryID)
         {
-            return ref entries.ElementAt((int)(glyphEntryID & 0x3fffffff)); // Lower 30 bits contain the entry index; upper bits are flags. zero allocation access for IComparer
+            return ref entries.ElementAt((int)(glyphEntryID & 0x3fffffff));  // Lower 30 bits contain the entry index; upper bits are flags. zero allocation access for IComparer
         }
     }
 
@@ -349,26 +351,26 @@ namespace TextMeshDOTS
     {
         public AtlasTable(AllocatorManager.AllocatorHandle allocator, int textureDimension, int shelfAlignment)
         {
-            sdf8Shelves         = new NativeList<Shelf>(8, allocator);
-            sdf16Shelves        = new NativeList<Shelf>(8, allocator);
-            bitmapShelves       = new NativeList<Shelf>(8, allocator);
+            sdf8Shelves            = new NativeList<Shelf>(8, allocator);
+            sdf16Shelves           = new NativeList<Shelf>(8, allocator);
+            bitmapShelves          = new NativeList<Shelf>(8, allocator);
             atlasRemovalCandidates = new NativeHashSet<uint>(256, allocator);
-            this.allocator      = allocator;
-            dimension           = (uint)textureDimension;
-            this.shelfAlignment = shelfAlignment;
+            this.allocator         = allocator;
+            dimension              = (uint)textureDimension;
+            this.shelfAlignment    = shelfAlignment;
         }
 
         public JobHandle TryDispose(JobHandle inputDeps)
         {
-            var jh = new DisposeJob { atlasTable = this }.Schedule(inputDeps);
-            var jh2 = JobHandle.CombineDependencies(sdf8Shelves.Dispose(jh), sdf16Shelves.Dispose(jh));
-            jh2 = JobHandle.CombineDependencies(jh2, atlasRemovalCandidates.Dispose(jh), bitmapShelves.Dispose(jh));
+            var jh  = new DisposeJob { atlasTable = this }.Schedule(inputDeps);
+            var jh2                               = JobHandle.CombineDependencies(sdf8Shelves.Dispose(jh), sdf16Shelves.Dispose(jh));
+            jh2                                   = JobHandle.CombineDependencies(jh2, atlasRemovalCandidates.Dispose(jh), bitmapShelves.Dispose(jh));
             return jh2;
         }
 
         public bool TryAllocateNoNewSlice(uint glyphEntryId, short width, short height, out short x, out short y, out short z)
         {
-            var format = (RenderFormat)Bits.GetBits(glyphEntryId, 30, 2);
+            var format  = (RenderFormat)Bits.GetBits(glyphEntryId, 30, 2);
             var shelves = sdf8Shelves;
             if (format == RenderFormat.SDF16)
                 shelves = sdf16Shelves;
@@ -388,7 +390,7 @@ namespace TextMeshDOTS
                     var found = GapAllocator.TryAllocate(ref shelf.gaps, (uint)width, ref shelf.reservedX, out var foundX, dimension);
                     if (found)
                         shelf.usedX += width;
-                    shelves[i] = shelf;
+                    shelves[i]       = shelf;
                     if (found)
                     {
                         x = (short)foundX;
@@ -401,7 +403,7 @@ namespace TextMeshDOTS
 
             // We did not found a suitable shelf. Create a new one without creating a new Texture slice
             var previousMaxYPlus = (int)dimension + 1;
-            var previousZ = -1;
+            var previousZ        = -1;
 
             for (int i = 0; i < shelves.Length; i++)
             {
@@ -412,19 +414,19 @@ namespace TextMeshDOTS
                     {
                         var newShelf = new Shelf
                         {
-                            y = (short)previousMaxYPlus,
-                            z = (short)previousZ,
-                            height = (short)alignedHeight,
+                            y                   = (short)previousMaxYPlus,
+                            z                   = (short)previousZ,
+                            height              = (short)alignedHeight,
                             requiresCoellescing = false,
-                            reservedX = (uint)width,
-                            usedX = width,
-                            gaps = new UnsafeList<uint2>(8, allocator)
+                            reservedX           = (uint)width,
+                            usedX               = width,
+                            gaps                = new UnsafeList<uint2>(8, allocator)
                         };
                         shelves.InsertRange(i, 1);
                         shelves[i] = newShelf;
-                        x = 0;
-                        y = newShelf.y;
-                        z = newShelf.z;
+                        x          = 0;
+                        y          = newShelf.y;
+                        z          = newShelf.z;
                         return true;
                     }
                     //else if (nextShelf.z > previousZ + 1)
@@ -452,19 +454,19 @@ namespace TextMeshDOTS
                         // Free shelf space on the same array index as the next
                         var newShelf = new Shelf
                         {
-                            y = 0,
-                            z = nextShelf.z,
-                            height = (short)alignedHeight,
+                            y                   = 0,
+                            z                   = nextShelf.z,
+                            height              = (short)alignedHeight,
                             requiresCoellescing = false,
-                            reservedX = (uint)width,
-                            usedX = width,
-                            gaps = new UnsafeList<uint2>(8, allocator)
+                            reservedX           = (uint)width,
+                            usedX               = width,
+                            gaps                = new UnsafeList<uint2>(8, allocator)
                         };
                         shelves.InsertRange(i, 1);
                         shelves[i] = newShelf;
-                        x = 0;
-                        y = newShelf.y;
-                        z = newShelf.z;
+                        x          = 0;
+                        y          = newShelf.y;
+                        z          = newShelf.z;
                         return true;
                     }
                 }
@@ -472,23 +474,23 @@ namespace TextMeshDOTS
                 {
                     var newShelf = new Shelf
                     {
-                        y = (short)previousMaxYPlus,
-                        z = (short)previousZ,
-                        height = (short)alignedHeight,
+                        y                   = (short)previousMaxYPlus,
+                        z                   = (short)previousZ,
+                        height              = (short)alignedHeight,
                         requiresCoellescing = false,
-                        reservedX = (uint)width,
-                        usedX = width,
-                        gaps = new UnsafeList<uint2>(8, allocator)
+                        reservedX           = (uint)width,
+                        usedX               = width,
+                        gaps                = new UnsafeList<uint2>(8, allocator)
                     };
                     shelves.InsertRange(i, 1);
                     shelves[i] = newShelf;
-                    x = 0;
-                    y = newShelf.y;
-                    z = newShelf.z;
+                    x          = 0;
+                    y          = newShelf.y;
+                    z          = newShelf.z;
                     return true;
                 }
                 previousMaxYPlus = nextShelf.y + nextShelf.height;
-                previousZ = nextShelf.z;
+                previousZ        = nextShelf.z;
             }
 
             // We couldn't insert a shelf, so we have to append a new one.
@@ -497,13 +499,13 @@ namespace TextMeshDOTS
                 // There's still some space in the last array index
                 var newShelf = new Shelf
                 {
-                    y = (short)previousMaxYPlus,
-                    z = (short)previousZ,
-                    height = (short)alignedHeight,
+                    y                   = (short)previousMaxYPlus,
+                    z                   = (short)previousZ,
+                    height              = (short)alignedHeight,
                     requiresCoellescing = false,
-                    reservedX = (uint)width,
-                    usedX = width,
-                    gaps = new UnsafeList<uint2>(8, allocator)
+                    reservedX           = (uint)width,
+                    usedX               = width,
+                    gaps                = new UnsafeList<uint2>(8, allocator)
                 };
                 shelves.Add(newShelf);
                 x = 0;
@@ -708,8 +710,8 @@ namespace TextMeshDOTS
             entriesToRemove.Sort();  // Determinism for debugging
             foreach (var id in entriesToRemove)
             {
-                ref var entry = ref glyphTable.GetEntryRW(id);
-                var doublePadding = 2 * entry.padding;
+                ref var entry         = ref glyphTable.GetEntryRW(id);
+                var     doublePadding = 2 * entry.padding;
                 Free(id, (short)(entry.width + doublePadding), (short)(entry.height + doublePadding), entry.x, entry.y, entry.z);
                 //if (entry.key.format == RenderFormat.SDF8)
                 //    UnityEngine.Debug.Log($"Freeing {entry.x} {entry.y}, width {entry.width}");
@@ -733,8 +735,8 @@ namespace TextMeshDOTS
                 if (shelf.y == y && shelf.z == z)
                 {
                     shelf.gaps.Add(new uint2((uint)x, (uint)width));
-                    shelf.requiresCoellescing = true;
-                    shelf.usedX -= width;
+                    shelf.requiresCoellescing  = true;
+                    shelf.usedX               -= width;
                     // Todo: We don't support reallocating removed shelves right now. So just leave it empty.
                     //if (shelf.usedX <= 0)
                     //{
