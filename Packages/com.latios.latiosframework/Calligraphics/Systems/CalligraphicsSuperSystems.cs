@@ -12,7 +12,7 @@ namespace Latios.Calligraphics.Systems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddManagedSystem<NativeFontLoaderSystem>();
+            GetOrCreateAndAddUnmanagedSystem<NativeFontLoaderSystem>();
             GetOrCreateAndAddUnmanagedSystem<TextRendererInitializeSystem>();
         }
     }

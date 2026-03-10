@@ -5,10 +5,10 @@ using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
-namespace Latios.Calligraphics
+namespace Latios.Calligraphics.Editor
 {
     [CustomEditor(typeof(TextRendererAuthoring))]
-    public class TextRendererInspector : Editor
+    public class TextRendererInspector : UnityEditor.Editor
     {
         public VisualTreeAsset visualTreeAsset;
         PropertyField fontCollectionAssetProperty;

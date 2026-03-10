@@ -16,11 +16,11 @@ namespace Latios.Calligraphics
     {
         public NativeList<Face>                 faces;
         public NativeArray<UnsafeList<Font> >   perThreadFontCaches;
-        public NativeHashMap<FontAssetRef, int> fontAssetRefToFaceIndexMap;
-        //variable fonts got names instances. create FontAssetRef for each instance,
-        //and map it to index of named instance in face. Use this to lookup instance profile via FontAssetRef
-        public NativeHashMap<FontAssetRef, int> fontAssetRefToNamedVariationIndexMap;
-        public NativeList<FontAssetRef>         fontAssetRefs;
+        public NativeHashMap<FontLookupKey, int> fontAssetRefToFaceIndexMap;
+        //variable fonts got names instances. create FontLookupKey for each instance,
+        //and map it to index of named instance in face. Use this to lookup instance profile via FontLookupKey
+        public NativeHashMap<FontLookupKey, int> fontAssetRefToNamedVariationIndexMap;
+        public NativeList<FontLookupKey>         fontAssetRefs;
 
         public Font SetVariableProfile(int faceIndex, int threadIndex, int variableProfileIndex)
         {
@@ -32,7 +32,7 @@ namespace Latios.Calligraphics
             fonts[faceIndex]                 = font;
             return font;
         }
-        public bool GetNamedVariationLookup(FontAssetRef desiredFontAssetRef, out int namedVariationIndex)
+        public bool GetNamedVariationLookup(FontLookupKey desiredFontAssetRef, out int namedVariationIndex)
         {
             if (fontAssetRefToNamedVariationIndexMap.ContainsKey(desiredFontAssetRef))
             {
@@ -55,7 +55,7 @@ namespace Latios.Calligraphics
             return false;
         }
 
-        public int GetFaceIndex(FontAssetRef desiredFontAssetRef)
+        public int GetFaceIndex(FontLookupKey desiredFontAssetRef)
         {
             //Debug.Log($"Search for: {desiredFontAssetRef}");
             //default: perfect match of family name, weight, width and italic/normal

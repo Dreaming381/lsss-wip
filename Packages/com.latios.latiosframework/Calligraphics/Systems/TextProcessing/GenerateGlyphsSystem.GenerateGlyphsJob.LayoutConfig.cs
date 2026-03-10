@@ -287,9 +287,9 @@ namespace Latios.Calligraphics.Systems
                                     case StringValue.justified:  // <align=justified>
                                         m_lineJustification = HorizontalAlignmentOptions.Justified;
                                         break;
-                                    case StringValue.flush:  // <align=flush>
-                                        m_lineJustification = HorizontalAlignmentOptions.Flush;
-                                        break;
+                                        //case StringValue.flush:  // <align=flush>
+                                        //    m_lineJustification = HorizontalAlignmentOptions.Flush;
+                                        //    break;
                                 }
                                 m_lineJustificationStack.Add(m_lineJustification);
                                 return;

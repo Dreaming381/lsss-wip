@@ -3,7 +3,7 @@ using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
 
-namespace Latios.Calligraphics
+namespace Latios.Calligraphics.Editor
 {
     ///// <summary>
     ///// PropertyDrawer for a FixedString128Bytes using UE Elements
@@ -19,7 +19,6 @@ namespace Latios.Calligraphics
     //        return textField;
     //    }
     //}
-
 
     /// <summary>
     /// PropertyDrawer for a FixedString128Bytes using ImGUI
@@ -61,3 +60,4 @@ namespace Latios.Calligraphics
     }
 }
 #endif
+

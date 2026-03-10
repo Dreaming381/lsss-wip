@@ -57,7 +57,7 @@ namespace Latios.Calligraphics.Systems
 
                 //shape plans can be cached..no use case found yet where there this makes a significant difference
                 //var shaperList = HB.hb_shape_list_shapers();
-                //var shapePlanCache = new NativeHashMap<FontAssetRef, ShapePlan>(16, Allocator.Temp);
+                //var shapePlanCache = new NativeHashMap<FontLookupKey, ShapePlan>(16, Allocator.Temp);
 
                 var          cleanedString = new NativeText(1024, Allocator.Temp);
                 LayoutConfig layoutConfig  = default;
@@ -276,10 +276,10 @@ namespace Latios.Calligraphics.Systems
                 //else
                 //    Debug.Log($"faceIndex: {faceIndex} {face.GetName(NameID.FONT_FAMILY, Language.English)}, {face.GetName(NameID.FONT_SUBFAMILY, Language.English)}");
 
-                //if (!shapePlanCache.TryGetValue(fontAssetRef, out var shapePlan))
+                //if (!shapePlanCache.TryGetValue(lookupKey, out var shapePlan))
                 //{
                 //    shapePlan = new ShapePlan(nativeFontPointer.face, ref segmentProperties, features, shaperList);
-                //    shapePlanCache.Add(fontAssetRef, shapePlan);
+                //    shapePlanCache.Add(lookupKey, shapePlan);
                 //}
                 //marker.Begin();
                 //shapePlan.Execute(font, buffer, features);

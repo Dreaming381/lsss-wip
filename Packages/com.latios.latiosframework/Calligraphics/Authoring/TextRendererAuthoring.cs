@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using Latios.Authoring;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -94,6 +95,10 @@ namespace Latios.Calligraphics.Authoring
                 fontTextureSize       = authoring.fontTextureSize
             };
             AddComponent(entity, textBaseConfiguraton);
+
+            var fontCollectionBaker = new FontCollectionAuthoringSmartBakeItem();
+            fontCollectionBaker.Bake(authoring.fontCollectionAsset, this);
+            this.AddPostProcessItem(entity, fontCollectionBaker);
         }
         BlobAssetReference<LanguageBlob> BakeLangugeString(FixedString128Bytes language)
         {

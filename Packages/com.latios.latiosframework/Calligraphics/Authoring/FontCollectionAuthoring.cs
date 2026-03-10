@@ -1,11 +1,9 @@
 #if UNITY_EDITOR
-using Latios.Calligraphics;
-using Latios.Calligraphics.Authoring;
-using Unity.Collections;
+using Latios.Authoring;
 using Unity.Entities;
 using UnityEngine;
 
-namespace Latios.Calligraphics
+namespace Latios.Calligraphics.Authoring
 {
     [DisallowMultipleComponent]
     [AddComponentMenu("Calligraphics/Font Collection")]
@@ -13,24 +11,39 @@ namespace Latios.Calligraphics
     {
         public FontCollectionAsset fontCollectionAsset;
     }
-    class FontCollectionBaker : Baker<FontCollectionAuthoring>
+
+    [TemporaryBakingType]
+    struct FontCollectionAuthoringSmartBakeItem : ISmartBakeItem<FontCollectionAuthoring>
     {
-        public override void Bake(FontCollectionAuthoring authoring)
+        SmartBlobberHandle<FontLoadDescriptionsBlob> handle;
+
+        public bool Bake(FontCollectionAuthoring authoring, IBaker baker) => Bake(authoring.fontCollectionAsset, baker);
+
+        public bool Bake(FontCollectionAsset fontCollectionAsset, IBaker baker)
         {
-            int fontCount;
-            if (authoring.fontCollectionAsset == null || (fontCount = authoring.fontCollectionAsset.fontReferences.Count) == 0)
-                return;
+            if (fontCollectionAsset == null)
+                return false;
+            baker.DependsOn(fontCollectionAsset);
+            var fontCount = fontCollectionAsset.fontReferences.Count;
+            if (fontCount == 0)
+                return false;
+            handle = baker.RequestCreateBlobAsset(fontCollectionAsset);
+            if (!handle.IsValid)
+                return false;
+            baker.AddComponent<FontLoadDescriptionsBlobReference>(baker.GetEntity(TransformUsageFlags.None));
+            return true;
+        }
 
-            var fontRequests = new NativeArray<FontReference>(fontCount, Allocator.Temp);
+        public void PostProcessBlobRequests(EntityManager entityManager, Entity entity)
+        {
+            var blob = handle.Resolve(entityManager);
+            entityManager.SetComponentData(entity, new FontLoadDescriptionsBlobReference { blob = blob });
+        }
+    }
 
-            var sourceFontRequests = authoring.fontCollectionAsset.fontReferences;
-            for (int i = 0, ii = sourceFontRequests.Count; i < ii; i++)
-                fontRequests[i] = sourceFontRequests[i];            
-
-            var entity = GetEntity(TransformUsageFlags.None);
-            var fontRequestsBuffer = AddBuffer<FontReference>(entity);
-            fontRequestsBuffer.AddRange(fontRequests);
-        }        
+    class FontCollectionBaker : SmartBaker<FontCollectionAuthoring, FontCollectionAuthoringSmartBakeItem>
+    {
     }
 }
 #endif
+

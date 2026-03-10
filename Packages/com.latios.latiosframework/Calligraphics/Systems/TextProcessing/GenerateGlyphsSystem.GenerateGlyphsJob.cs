@@ -14,20 +14,20 @@ namespace Latios.Calligraphics.Systems
         [BurstCompile]
         partial struct GenerateRenderGlyphsJob : IJobChunk
         {
-            public BufferTypeHandle<RenderGlyph> renderGlyphHandle;
+            public BufferTypeHandle<RenderGlyph>         renderGlyphHandle;
             public BufferTypeHandle<PreviousRenderGlyph> previousRenderGlyphHandle;
 
-            [ReadOnly] internal FontTable fontTable;
+            [ReadOnly] internal FontTable  fontTable;
             [ReadOnly] internal GlyphTable glyphTable;
-            
+
             [ReadOnly] public NativeStream.Reader glyphOTFStream;
             [ReadOnly] public NativeStream.Reader xmlTagStream;
-            [ReadOnly] public NativeArray<int> firstEntityIndexInChunk;
+            [ReadOnly] public NativeArray<int>    firstEntityIndexInChunk;
 
-            [ReadOnly] public BufferTypeHandle<CalliByte> calliByteHandle;
+            [ReadOnly] public BufferTypeHandle<CalliByte>                calliByteHandle;
             [ReadOnly] public ComponentTypeHandle<TextBaseConfiguration> textBaseConfigurationHandle;
 
-            public Entity textColorGradientEntity;
+            public Entity                                     textColorGradientEntity;
             [ReadOnly] public BufferLookup<TextColorGradient> textColorGradientLookup;
 
             public uint lastSystemVersion;
@@ -43,28 +43,27 @@ namespace Latios.Calligraphics.Systems
 
                 var firstEntityIndex = firstEntityIndexInChunk[unfilteredChunkIndex];
                 //Debug.Log("Generate glyphs job");
-                var calliBytesBuffers = chunk.GetBufferAccessor(ref calliByteHandle);
-                var renderGlyphBuffers = chunk.GetBufferAccessor(ref renderGlyphHandle);
+                var calliBytesBuffers          = chunk.GetBufferAccessor(ref calliByteHandle);
+                var renderGlyphBuffers         = chunk.GetBufferAccessor(ref renderGlyphHandle);
                 var previousRenderGlyphBuffers = chunk.GetBufferAccessor(ref previousRenderGlyphHandle);
-                var textBaseConfigurations = chunk.GetNativeArray(ref textBaseConfigurationHandle);
+                var textBaseConfigurations     = chunk.GetNativeArray(ref textBaseConfigurationHandle);
 
                 TextColorGradientArray textColorGradientArray = default;
                 textColorGradientArray.Initialize(textColorGradientEntity, textColorGradientLookup);
 
-
                 for (int indexInChunk = 0; indexInChunk < chunk.Count; indexInChunk++)
                 {
-                    int entityIndex = firstEntityIndex + indexInChunk;                    
+                    int entityIndex = firstEntityIndex + indexInChunk;
                     var xmlTagCount = xmlTagStream.BeginForEachIndex(entityIndex);
-                    var xmlTags = new NativeArray<XMLTag>(xmlTagCount, Allocator.Temp);
+                    var xmlTags     = new NativeArray<XMLTag>(xmlTagCount, Allocator.Temp);
                     for (int i = 0; i < xmlTagCount; i++)
                         xmlTags[i] = xmlTagStream.Read<XMLTag>();
                     xmlTagStream.EndForEachIndex();
 
-                    var calliBytes = calliBytesBuffers[indexInChunk];
-                    var renderGlyphs = renderGlyphBuffers[indexInChunk];
+                    var calliBytes                = calliBytesBuffers[indexInChunk];
+                    var renderGlyphs              = renderGlyphBuffers[indexInChunk];
                     var previousRenderGlyphBuffer = previousRenderGlyphBuffers[indexInChunk];
-                    var textBaseConfiguration = textBaseConfigurations[indexInChunk];
+                    var textBaseConfiguration     = textBaseConfigurations[indexInChunk];
 
                     renderGlyphs.Clear();
                     previousRenderGlyphBuffer.Clear();
@@ -72,7 +71,7 @@ namespace Latios.Calligraphics.Systems
                     if (glyphCount == 0)
                         continue;
 
-                    previousRenderGlyphBuffer.Capacity = glyphCount; //allocating here make this job 2x slower but UpdateChangedGlyphsJob 10x faster
+                    previousRenderGlyphBuffer.Capacity = glyphCount;  //allocating here make this job 2x slower but UpdateChangedGlyphsJob 10x faster
                     //renderGlyphs.Capacity = glyphCount; //not needed when done via single threaded pre-allocationjob
                     CreateRenderGlyphs(ref renderGlyphs,
                                        in calliBytes,
@@ -85,112 +84,113 @@ namespace Latios.Calligraphics.Systems
             }
 
             unsafe void CreateRenderGlyphs(ref DynamicBuffer<RenderGlyph> renderGlyphs,
-                                           in DynamicBuffer<CalliByte> calliBytesBuffer,
+                                           in DynamicBuffer<CalliByte>    calliBytesBuffer,
                                            ref NativeStream.Reader glyphOTFStream,
-                                           ref NativeArray<XMLTag> xmlTags,
+                                           ref NativeArray<XMLTag>        xmlTags,
                                            in TextBaseConfiguration textBaseConfiguration,
                                            ref TextColorGradientArray textColorGradientArray)
             {
                 //Debug.Log("CreateRenderGlyphs");
                 var calliString = new CalliString(calliBytesBuffer);
-                var characters = calliString.GetEnumerator();
+                var characters  = calliString.GetEnumerator();
 
                 var fontAssetRefs = fontTable.fontAssetRefs;
-                var layoutConfig = new LayoutConfig(in textBaseConfiguration);
+                var layoutConfig  = new LayoutConfig(in textBaseConfiguration);
 
-                XMLTag currentTag = default;
-                int tagsCounter = 0;
-                int nextSegmentEndID = xmlTags.Length > 0 ? xmlTags[tagsCounter].startID : calliString.Length;
-                int cleanedSegmentLength = nextSegmentEndID - currentTag.endID;
-                int richTextOffset = 0;
-                int nextTagPositionInCleanedText = cleanedSegmentLength;
+                XMLTag currentTag                   = default;
+                int    tagsCounter                  = 0;
+                int    nextSegmentEndID             = xmlTags.Length > 0 ? xmlTags[tagsCounter].startID : calliString.Length;
+                int    cleanedSegmentLength         = nextSegmentEndID - currentTag.endID;
+                int    richTextOffset               = 0;
+                int    nextTagPositionInCleanedText = cleanedSegmentLength;
                 //Debug.Log($"{currentTag.tagType} {cleanedSegmentLength} {nextTagPositionInCleanedText}");
 
-                int lastWordStartCharacterGlyphIndex = 0;
+                int                    lastWordStartCharacterGlyphIndex                = 0;
                 FixedList512Bytes<int> characterGlyphIndicesWithPreceedingSpacesInLine = default;
-                int startOfLineGlyphIndex = 0;
-                int lastCommittedStartOfLineGlyphIndex = -1;
-                bool isFirstLine = true;
-                bool isLineStart = true;
-                float currentLineHeight = 0f;
-                float ascentLineDelta = 0;
-                float decentLineDelta = 0;
-                float accumulatedVerticalOffset = 0f;
-                float maxLineAscender = float.MinValue;
-                float maxLineDescender = float.MaxValue;
-
+                int                    startOfLineGlyphIndex                           = 0;
+                int                    lastCommittedStartOfLineGlyphIndex              = -1;
+                bool                   isFirstLine                                     = true;
+                bool                   isLineStart                                     = true;
+                float                  currentLineHeight                               = 0f;
+                float                  ascentLineDelta                                 = 0;
+                float                  decentLineDelta                                 = 0;
+                float                  accumulatedVerticalOffset                       = 0f;
+                float                  maxLineAscender                                 = float.MinValue;
+                float                  maxLineDescender                                = float.MaxValue;
 
                 //var glyphOTF = glyphOTFBuffer[0];
-                var glyphOTF = glyphOTFStream.Peek<GlyphOTF>();
-                var glyphID = glyphTable.glyphHashToIdMap[glyphOTF.glyphKey];
+                var glyphOTF   = glyphOTFStream.Peek<GlyphOTF>();
+                var glyphID    = glyphTable.glyphHashToIdMap[glyphOTF.glyphKey];
                 var glyphEntry = glyphTable.GetEntry(glyphID);
 
                 var currentFaceIndex = glyphOTF.glyphKey.faceIndex;
-                var currentFace = fontTable.faces[currentFaceIndex];
-                var currentFont = fontTable.GetOrCreateFont(currentFaceIndex, threadIndex);
+                var currentFace      = fontTable.faces[currentFaceIndex];
+                var currentFont      = fontTable.GetOrCreateFont(currentFaceIndex, threadIndex);
                 if (currentFace.HasVarData && currentFont.currentVariableProfileIndex != glyphEntry.key.variableProfileIndex)
                     currentFont = fontTable.SetVariableProfile(currentFaceIndex, threadIndex, glyphEntry.key.variableProfileIndex);
 
                 var currentFontSamplingPointSize = glyphOTF.glyphKey.GetSamplingSize();
-                var currentFontWeigth = currentFont.GetStyleTag(StyleTag.WEIGHT);
-                var currentFontIsItalic = (byte)currentFont.GetStyleTag(StyleTag.ITALIC) == 1;
+                var currentFontWeigth            = currentFont.GetStyleTag(StyleTag.WEIGHT);
+                var currentFontIsItalic          = (byte)currentFont.GetStyleTag(StyleTag.ITALIC) == 1;
                 currentFont.SetScale(currentFontSamplingPointSize, currentFontSamplingPointSize);
-                currentFont.UpdateMetaData();
+                // Todo: Don't hardcode these when line-wrapping is moved to shaping
+                currentFont.UpdateMetaData(Direction.LTR, Script.LATIN, Language.English);
 
                 // Calculate the scale of the font based on selected font size and sampling point size.
-                // baseScale is calculated using the font asset assigned to the text object.            
-                float baseScale = textBaseConfiguration.fontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
+                // baseScale is calculated using the font asset assigned to the text object.
+                float baseScale           = textBaseConfiguration.fontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
                 float currentElementScale = baseScale;
-                float currentEmScale = textBaseConfiguration.fontSize * 0.01f * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
+                float currentEmScale      = textBaseConfiguration.fontSize * 0.01f * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
 
-                float topAnchor = GetTopAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
+                float topAnchor    = GetTopAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
                 float bottomAnchor = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
 
-                Unicode.Rune currentRune, previousRune = Unicode.BadRune;//input text unicode
+                Unicode.Rune currentRune, previousRune = Unicode.BadRune;  //input text unicode
                 //for (int k = 0, length = glyphOTFBuffer.Length; k < length; k++)
                 int k = 0;
                 while (glyphOTFStream.RemainingItemCount > 0)
                 {
                     glyphOTF = glyphOTFStream.Read<GlyphOTF>();
                     //glyphOTF = glyphOTFBuffer[k];
-                    glyphID = glyphTable.glyphHashToIdMap[glyphOTF.glyphKey];
+                    glyphID    = glyphTable.glyphHashToIdMap[glyphOTF.glyphKey];
                     glyphEntry = glyphTable.GetEntry(glyphID);
 
-                    var cluster = (int)glyphOTF.cluster; //cluster is char index in cleaned text = aligned with glyphOTF buffer
+                    var cluster = (int)glyphOTF.cluster;  //cluster is char index in cleaned text = aligned with glyphOTF buffer
                     if (currentFaceIndex != glyphOTF.glyphKey.faceIndex ||
-                         (currentFace.HasVarData && currentFont.currentVariableProfileIndex != glyphOTF.glyphKey.variableProfileIndex) ||
-                         currentFontSamplingPointSize != glyphOTF.glyphKey.GetSamplingSize())
+                        (currentFace.HasVarData && currentFont.currentVariableProfileIndex != glyphOTF.glyphKey.variableProfileIndex) ||
+                        currentFontSamplingPointSize != glyphOTF.glyphKey.GetSamplingSize())
                     {
                         //Debug.Log($"Switching font from {currentFaceIndex} to {glyphOTF.glyphKey.faceIndex}");
                         currentFaceIndex = glyphOTF.glyphKey.faceIndex;
-                        currentFace = fontTable.faces[currentFaceIndex];
-                        currentFont = fontTable.GetOrCreateFont(currentFaceIndex, threadIndex);
+                        currentFace      = fontTable.faces[currentFaceIndex];
+                        currentFont      = fontTable.GetOrCreateFont(currentFaceIndex, threadIndex);
                         if(currentFace.HasVarData && currentFont.currentVariableProfileIndex != glyphOTF.glyphKey.variableProfileIndex)
                             currentFont = fontTable.SetVariableProfile(currentFaceIndex, threadIndex, glyphOTF.glyphKey.variableProfileIndex);
 
                         currentFontSamplingPointSize = glyphOTF.glyphKey.GetSamplingSize();
-                        currentFontWeigth = currentFont.GetStyleTag(StyleTag.WEIGHT);
-                        currentFontIsItalic = (byte)currentFont.GetStyleTag(StyleTag.ITALIC) == 1;
+                        currentFontWeigth            = currentFont.GetStyleTag(StyleTag.WEIGHT);
+                        currentFontIsItalic          = (byte)currentFont.GetStyleTag(StyleTag.ITALIC) == 1;
                         currentFont.SetScale(currentFontSamplingPointSize, currentFontSamplingPointSize);
-                        currentFont.UpdateMetaData();
+                        // Todo: Don't hardcode these when line-wrapping is moved to shaping
+                        currentFont.UpdateMetaData(Direction.LTR, Script.LATIN, Language.English);
                     }
-                    
+
                     while (cluster >= nextTagPositionInCleanedText)
                     {
                         if (tagsCounter < xmlTags.Length)
                         {
-                            currentTag = xmlTags[tagsCounter++];
+                            currentTag      = xmlTags[tagsCounter++];
                             richTextOffset += currentTag.Length;
                             layoutConfig.Update(ref currentTag, textBaseConfiguration, ref textColorGradientArray);
-                            nextSegmentEndID = tagsCounter < xmlTags.Length ? xmlTags[tagsCounter].startID - 1 : calliString.Length;
-                            cleanedSegmentLength = nextSegmentEndID - currentTag.endID;
+                            nextSegmentEndID             = tagsCounter < xmlTags.Length ? xmlTags[tagsCounter].startID - 1 : calliString.Length;
+                            cleanedSegmentLength         = nextSegmentEndID - currentTag.endID;
                             nextTagPositionInCleanedText = cluster + cleanedSegmentLength;
 
                             //Debug.Log($"{currentTag.tagType} {cleanedSegmentLength} {nextTagPositionInCleanedText}");
                         }
                     }
 
-                    // need to add richTextOffset to fetch correct char from richtext buffer. 
+                    // need to add richTextOffset to fetch correct char from richtext buffer.
                     // note: upper/lowercase is not applied in richtextBuffer (is only applied to cleaned text just before shaping)...should not cause any issues here
                     characters.GotoByteIndex(richTextOffset + cluster);
                     currentRune = characters.Current;
@@ -202,7 +202,7 @@ namespace Latios.Calligraphics.Systems
 
                     if (isFirstLine)
                         topAnchor = GetTopAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale, topAnchor);
-                    bottomAnchor = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale, bottomAnchor);
+                    bottomAnchor  = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale, bottomAnchor);
 
                     #region Look up Character Data
                     //Debug.Log($"Render Glyph {glyphEntry.key.glyphIndex} from face {currentFaceIndex} using rect {glyphEntry.x} {glyphEntry.y} {glyphEntry.width} {glyphEntry.height} ({glyphEntry.PaddedWidth} {glyphEntry.PaddedHeight})");
@@ -211,19 +211,19 @@ namespace Latios.Calligraphics.Systems
                     // should not be rendered, but xAdvance should be processed
 
                     // Cache glyph metrics
-                    int x_bearing = glyphEntry.xBearing;
-                    int y_bearing = glyphEntry.yBearing;
+                    int x_bearing   = glyphEntry.xBearing;
+                    int y_bearing   = glyphEntry.yBearing;
                     int glyphHeight = glyphEntry.height;
-                    int glyphWidth = glyphEntry.width;
-                    int padding = glyphEntry.padding;
+                    int glyphWidth  = glyphEntry.width;
+                    int padding     = glyphEntry.padding;
 
-                    float adjustedScale = layoutConfig.m_currentFontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
-                    float elementAscentLine = currentFont.fontExtents.ascender;
+                    float adjustedScale      = layoutConfig.m_currentFontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
+                    float elementAscentLine  = currentFont.fontExtents.ascender;
                     float elementDescentLine = currentFont.fontExtents.descender;
 
                     //synthesize superscript and subscript redundant to opentype feature set during shaping.
                     //only purpose is to simulate missing subscript glyphs, but unclear how to determine this
-                    float fontScaleMultiplier = 1;
+                    float fontScaleMultiplier     = 1;
                     float m_subAndSupscriptOffset = 0;
                     //if ((layoutConfiguration.m_fontStyles & FontStyles.Subscript) == FontStyles.Subscript && !currentRune.IsDigit())
                     //{
@@ -237,7 +237,7 @@ namespace Latios.Calligraphics.Systems
                     //    m_SubAndSupscriptOffset = currentFont.superScriptEmYOffset * adjustedScale;
                     //}
 
-                    currentElementScale = adjustedScale * fontScaleMultiplier;
+                    currentElementScale  = adjustedScale * fontScaleMultiplier;
                     float baselineOffset = currentFont.baseLine * adjustedScale * fontScaleMultiplier;
                     #endregion
 
@@ -263,12 +263,12 @@ namespace Latios.Calligraphics.Systems
                     if (simulateBold)
                     {
                         //Debug.Log($"Simulate Bold (current: {currentFontWeigth})");
-                        boldSpacingAdjustment = 7; //this is not a property of font so might as well just set it here
+                        boldSpacingAdjustment = 7;  //this is not a property of font so might as well just set it here
                     }
                     #endregion Handle Style Padding
 
-                    var renderGlyph = new RenderGlyph();
-                    renderGlyph.arrayIndex = (uint)k;
+                    var renderGlyph          = new RenderGlyph();
+                    renderGlyph.arrayIndex   = (uint)k;
                     renderGlyph.glyphEntryId = glyphID;
 
                     // Determine the position of the vertices of the Character or Sprite.
@@ -315,9 +315,9 @@ namespace Latios.Calligraphics.Systems
                     #endregion
 
                     #region Setup Color
-                    if (layoutConfig.useGradient) //&& !isColorGlyph)
+                    if (layoutConfig.useGradient)  //&& !isColorGlyph)
                     {
-                        var gradient = layoutConfig.m_gradient;
+                        var gradient        = layoutConfig.m_gradient;
                         renderGlyph.blColor = GetColorAsHDRHalf4(gradient.bottomLeft);
                         renderGlyph.tlColor = GetColorAsHDRHalf4(gradient.topLeft);
                         renderGlyph.trColor = GetColorAsHDRHalf4(gradient.topRight);
@@ -325,7 +325,7 @@ namespace Latios.Calligraphics.Systems
                     }
                     else
                     {
-                        var m_htmlColor = GetColorAsHDRHalf4(layoutConfig.m_htmlColor);
+                        var m_htmlColor     = GetColorAsHDRHalf4(layoutConfig.m_htmlColor);
                         renderGlyph.blColor = m_htmlColor;
                         renderGlyph.tlColor = m_htmlColor;
                         renderGlyph.trColor = m_htmlColor;
@@ -350,15 +350,16 @@ namespace Latios.Calligraphics.Systems
                     {
                         //Debug.Log($"Simulate Italic {currentFontIsItalic}");
                         // Shift Top vertices forward by half (Shear Value * height of character) and Bottom vertices back by same amount.
-                        var italicsStyleSlant = 35; //this is not a property of font so might as well just set it here
-                        float shear_value = italicsStyleSlant * 0.01f;
-                        float midPoint = ((currentFont.capHeight - (currentFont.baseLine + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset)) / 2) * fontScaleMultiplier;
+                        var   italicsStyleSlant = 35;  //this is not a property of font so might as well just set it here
+                        float shear_value       = italicsStyleSlant * 0.01f;
+                        float midPoint          = ((currentFont.capHeight - (currentFont.baseLine + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset)) / 2) *
+                                                  fontScaleMultiplier;
                         float topShear = shear_value * ((y_bearing + padding - midPoint) * currentElementScale);
-                        bottomShear = shear_value * ((y_bearing - glyphHeight - padding - midPoint) * currentElementScale);
+                        bottomShear    = shear_value * ((y_bearing - glyphHeight - padding - midPoint) * currentElementScale);
 
-                        topLeft.x += topShear;
-                        bottomLeft.x += bottomShear;
-                        topRight.x += topShear;
+                        topLeft.x     += topShear;
+                        bottomLeft.x  += bottomShear;
+                        topRight.x    += topShear;
                         bottomRight.x += bottomShear;
                     }
                     #endregion Handle Italics & Shearing
@@ -372,9 +373,9 @@ namespace Latios.Calligraphics.Systems
                         float2 pivot = (topLeft + bottomRight) * 0.5f;
                         math.sincos(rotation, out float sinRotation, out float cosRotation);
 
-                        topLeft = RotatePoint(topLeft, pivot, sinRotation, cosRotation);
-                        bottomLeft = RotatePoint(bottomLeft, pivot, sinRotation, cosRotation);
-                        topRight = RotatePoint(topRight, pivot, sinRotation, cosRotation);
+                        topLeft     = RotatePoint(topLeft, pivot, sinRotation, cosRotation);
+                        bottomLeft  = RotatePoint(bottomLeft, pivot, sinRotation, cosRotation);
+                        topRight    = RotatePoint(topRight, pivot, sinRotation, cosRotation);
                         bottomRight = RotatePoint(bottomRight, pivot, sinRotation, cosRotation);
                     }
                     #endregion
@@ -385,7 +386,7 @@ namespace Latios.Calligraphics.Systems
                     renderGlyph.tlPosition = topLeft;
                     renderGlyph.blPosition = bottomLeft;
                     renderGlyph.brPosition = bottomRight;
-                    if (Hint.Likely(currentRune.value != 10)) //do not render LF 
+                    if (Hint.Likely(currentRune.value != 10))  //do not render LF
                     {
                         renderGlyphs.Add(renderGlyph);
                     }
@@ -399,19 +400,19 @@ namespace Latios.Calligraphics.Systems
                     // Element Descender in line space
                     float elementDescender = elementDescentLine * currentElementScale + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset;
 
-                    float adjustedAscender = elementAscender;
+                    float adjustedAscender  = elementAscender;
                     float adjustedDescender = elementDescender;
 
                     // Max line ascender and descender in line space
                     if (isLineStart || isWhiteSpace == false)
                     {
                         // Special handling for Superscript and Subscript where we use the unadjusted line ascender and descender
-                        if (m_subAndSupscriptOffset != 0) //To-Do: review (also voffset affecting m_baselineOffset), effect not clear. 
+                        if (m_subAndSupscriptOffset != 0)  //To-Do: review (also voffset affecting m_baselineOffset), effect not clear.
                         {
-                            adjustedAscender = math.max((elementAscender - m_subAndSupscriptOffset) / fontScaleMultiplier, adjustedAscender);
+                            adjustedAscender  = math.max((elementAscender - m_subAndSupscriptOffset) / fontScaleMultiplier, adjustedAscender);
                             adjustedDescender = math.min((elementDescender - m_subAndSupscriptOffset) / fontScaleMultiplier, adjustedDescender);
                         }
-                        maxLineAscender = math.max(adjustedAscender, maxLineAscender);
+                        maxLineAscender  = math.max(adjustedAscender, maxLineAscender);
                         maxLineDescender = math.min(adjustedDescender, maxLineDescender);
                     }
                     #endregion
@@ -419,13 +420,13 @@ namespace Latios.Calligraphics.Systems
                     #region XAdvance, Tabulation & Stops
                     if (currentRune.value == 9)
                     {
-                        float tabSize = currentFont.TabAdvance() * currentElementScale;
-                        float tabs = math.ceil(layoutConfig.m_xAdvance / tabSize) * tabSize;
+                        float tabSize           = currentFont.TabAdvance() * currentElementScale;
+                        float tabs              = math.ceil(layoutConfig.m_xAdvance / tabSize) * tabSize;
                         layoutConfig.m_xAdvance = tabs > layoutConfig.m_xAdvance ? tabs : layoutConfig.m_xAdvance + tabSize;
                     }
                     else if (layoutConfig.m_monoSpacing != 0)
                     {
-                        float monoAdjustment = layoutConfig.m_monoSpacing - monoAdvance;
+                        float monoAdjustment     = layoutConfig.m_monoSpacing - monoAdvance;
                         layoutConfig.m_xAdvance += (monoAdjustment + layoutConfig.m_cSpacing);
                         if (isWhiteSpace || currentRune.value == 0x200B)
                             layoutConfig.m_xAdvance += textBaseConfiguration.wordSpacing * currentEmScale;
@@ -433,7 +434,7 @@ namespace Latios.Calligraphics.Systems
                     else
                     {
                         layoutConfig.m_xAdvance += (glyphOTF.xAdvance * layoutConfig.m_fxScale) * currentElementScale +
-                                    boldSpacingAdjustment * currentEmScale + layoutConfig.m_cSpacing;
+                                                   boldSpacingAdjustment * currentEmScale + layoutConfig.m_cSpacing;
 
                         if (isWhiteSpace || currentRune.value == 0x200B)
                             layoutConfig.m_xAdvance += textBaseConfiguration.wordSpacing * currentEmScale;
@@ -442,16 +443,16 @@ namespace Latios.Calligraphics.Systems
 
                     #region Check for Line Feed and Last Character
                     if (isLineStart)
-                        isLineStart = false;
+                        isLineStart   = false;
                     currentLineHeight = (currentFont.fontExtents.ascender - currentFont.fontExtents.descender) * baseScale;
-                    ascentLineDelta = maxLineAscender - currentFont.fontExtents.ascender * baseScale;
-                    decentLineDelta = currentFont.fontExtents.descender * baseScale - maxLineDescender;
+                    ascentLineDelta   = maxLineAscender - currentFont.fontExtents.ascender * baseScale;
+                    decentLineDelta   = currentFont.fontExtents.descender * baseScale - maxLineDescender;
                     //if (currentRune.value == 10 || currentRune.value == 11 || currentRune.value == 0x03 || currentRune.value == 0x2028 ||
                     //    currentRune.value == 0x2029 || textConfiguration.m_characterCount == calliString.Length - 1)
                     if (currentRune.value == 10)
                     {
                         var renderGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
-                        var overrideMode = layoutConfig.m_lineJustification;
+                        var overrideMode     = layoutConfig.m_lineJustification;
                         if (overrideMode == HorizontalAlignmentOptions.Justified)
                         {
                             // Don't perform justified spacing for the last line in the paragraph.
@@ -474,18 +475,19 @@ namespace Latios.Calligraphics.Systems
                         accumulatedVerticalOffset += decentLineDelta;
                         //apply user configurable line and paragraph spacing
                         accumulatedVerticalOffset +=
-                            (textBaseConfiguration.lineSpacing + (currentRune.value == 10 || currentRune.value == 0x2029 ? textBaseConfiguration.paragraphSpacing : 0)) * currentEmScale;
+                            (textBaseConfiguration.lineSpacing +
+                             (currentRune.value == 10 || currentRune.value == 0x2029 ? textBaseConfiguration.paragraphSpacing : 0)) * currentEmScale;
 
                         //reset line status
-                        maxLineAscender = float.MinValue;
+                        maxLineAscender  = float.MinValue;
                         maxLineDescender = float.MaxValue;
 
-                        isFirstLine = false;
-                        isLineStart = true;
+                        isFirstLine  = false;
+                        isLineStart  = true;
                         bottomAnchor = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
 
                         layoutConfig.m_xAdvance = layoutConfig.m_tagIndent;
-                        previousRune = currentRune;
+                        previousRune            = currentRune;
                         continue;
                     }
                     #endregion
@@ -513,7 +515,7 @@ namespace Latios.Calligraphics.Systems
                         var xOffsetChange = renderGlyphs[lastWordStartCharacterGlyphIndex].blPosition.x - bottomShear - layoutConfig.m_tagIndent;
                         if (xOffsetChange > 0 && !dropSpace)  // Always allow one visible character
                         {
-                            // Finish line based on alignment                        
+                            // Finish line based on alignment
                             var renderGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, lastWordStartCharacterGlyphIndex - startOfLineGlyphIndex);
                             ApplyHorizontalAlignmentToGlyphs(ref renderGlyphsLine,
                                                              ref characterGlyphIndicesWithPreceedingSpacesInLine,
@@ -531,12 +533,12 @@ namespace Latios.Calligraphics.Systems
                             accumulatedVerticalOffset += textBaseConfiguration.lineSpacing * currentEmScale;
 
                             //reset line status
-                            maxLineAscender = float.MinValue;
+                            maxLineAscender  = float.MinValue;
                             maxLineDescender = float.MaxValue;
 
                             startOfLineGlyphIndex = lastWordStartCharacterGlyphIndex;
-                            isLineStart = true;
-                            isFirstLine = false;
+                            isLineStart           = true;
+                            isFirstLine           = false;
 
                             layoutConfig.m_xAdvance -= xOffsetChange;
 
@@ -568,7 +570,10 @@ namespace Latios.Calligraphics.Systems
                         // Don't perform justified spacing for the last line.
                         overrideMode = HorizontalAlignmentOptions.Left;
                     }
-                    ApplyHorizontalAlignmentToGlyphs(ref finalRenderGlyphsLine, ref characterGlyphIndicesWithPreceedingSpacesInLine, textBaseConfiguration.maxLineWidth, overrideMode);
+                    ApplyHorizontalAlignmentToGlyphs(ref finalRenderGlyphsLine,
+                                                     ref characterGlyphIndicesWithPreceedingSpacesInLine,
+                                                     textBaseConfiguration.maxLineWidth,
+                                                     overrideMode);
                     if (!isFirstLine)
                     {
                         accumulatedVerticalOffset += currentLineHeight;
@@ -581,7 +586,7 @@ namespace Latios.Calligraphics.Systems
                 // Remove all zero-sized glyphs since we don't rasterize those.
                 {
                     var glyphArray = renderGlyphs.AsNativeArray();
-                    int dst = 0;
+                    int dst        = 0;
                     for (int src = 0; src < glyphArray.Length; src++)
                     {
                         var glyph = renderGlyphs[src];
@@ -593,7 +598,8 @@ namespace Latios.Calligraphics.Systems
                     }
                     renderGlyphs.Length = dst;
                 }
-            }            
+            }
         }
     }
 }
+

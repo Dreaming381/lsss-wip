@@ -137,9 +137,9 @@ namespace Latios.Calligraphics.Systems
 
                 public FontTextureSize m_fontTextureSize;
 
-                FontAssetRef FontAssetRef
+                FontLookupKey FontAssetRef
                 {
-                    get { return new FontAssetRef(m_fontFamilyHash, m_fontWeight, m_fontWidth, m_isItalic); }
+                    get { return new FontLookupKey(m_fontFamilyHash, m_fontWeight, m_fontWidth, m_isItalic); }
                 }
 
                 public void Reset(in TextBaseConfiguration textBaseConfiguration, ref FontTable fontTable)
@@ -166,7 +166,7 @@ namespace Latios.Calligraphics.Systems
                         //fontTable does not contain a font of this family,
                         //so switch default font family to the family at faceIndex 0,
                         //leave everything else the same (weight, width etc), and search matching faceIndex
-                        //Debug.Log($"Could not find FontAssetRef: {FontAssetRef}");
+                        //Debug.Log($"Could not find FontLookupKey: {FontLookupKey}");
                         defaultFaceIndex        = 0;
                         var defaultFontAssetRef = fontTable.fontAssetRefs[defaultFaceIndex];
                         m_fontFamilyHash        = defaultFontAssetRef.familyHash;
@@ -174,7 +174,7 @@ namespace Latios.Calligraphics.Systems
 
                         //var face = fontTable.faces[defaultFaceIndex];
                         //var language = Language.English();
-                        //Debug.Log($"set default FontAssetRef to {FontAssetRef} ({face.GetName(NameID.FONT_FAMILY, language)} {face.GetName(NameID.FONT_SUBFAMILY, language)})");
+                        //Debug.Log($"set default FontLookupKey to {FontLookupKey} ({face.GetName(NameID.FONT_FAMILY, language)} {face.GetName(NameID.FONT_SUBFAMILY, language)})");
                     }
                     m_faceIndex = defaultFaceIndex == -1 ? m_faceIndex : defaultFaceIndex;
 

@@ -5,49 +5,49 @@ using Unity.Mathematics;
 using UnityEngine;
 
 namespace Latios.Calligraphics.HarfBuzz
-{    
+{
     internal struct Font : IDisposable
     {
         public IntPtr ptr;
 
         //variable profile data
-        internal int currentVariableProfileIndex; 
+        internal int currentVariableProfileIndex;
 
         //cache a couple of font meta data to avoid fetching them upon every font access
-        internal int baseLine;
+        internal int         baseLine;
         internal FontExtents fontExtents;
-        internal int capHeight;
-        internal int xHeight;
-        internal int xWidth;
+        internal int         capHeight;
+        internal int         xHeight;
+        internal int         xWidth;
         public Font(Face face)
         {
-            ptr = Harfbuzz.hb_font_create(face.ptr);
+            ptr                         = Harfbuzz.hb_font_create(face.ptr);
             currentVariableProfileIndex = -1;
-            baseLine = default;
-            fontExtents = default;
-            capHeight = default;
-            xHeight = default;
-            xWidth = default;
+            baseLine                    = default;
+            fontExtents                 = default;
+            capHeight                   = default;
+            xHeight                     = default;
+            xWidth                      = default;
         }
 
         /// <summary>
         /// Update font metadata, some of which depends on language and script direction..so watchout when to call this method
         /// </summary>
-        public void UpdateMetaData()
+        public void UpdateMetaData(Direction direction, Script script, Language language)
         {
-            this.GetBaseline(Direction.LTR, Script.LATIN, Language.English, out baseLine);
-            this.GetFontExtentsForDirection(Direction.LTR, out fontExtents);
+            this.GetBaseline(direction, script, language, out baseLine);
+            this.GetFontExtentsForDirection(direction, out fontExtents);
             this.GetMetrics(MetricTag.CAP_HEIGHT, out capHeight);
             this.GetMetrics(MetricTag.X_HEIGHT, out xHeight);
 
             // get width of space -->TO-DO: need to find an easier way to do this !!!
             // Why is this not accessible via a metric tag such as MetricTag.X_WIDTH?
-            var buffer = new Buffer(Direction.LTR, Script.LATIN, Language.English);
+            var buffer         = new Buffer(direction, script, language);
             buffer.ContentType = ContentType.UNICODE;
             buffer.Add(0x20, 0);
             this.Shape(buffer);
             var glyphPosition = buffer.GetGlyphPositionsSpan();
-            xWidth = glyphPosition[0].xAdvance;
+            xWidth            = glyphPosition[0].xAdvance;
             buffer.Dispose();
         }
         public int TabAdvance() => xWidth * 10;
@@ -106,7 +106,7 @@ namespace Latios.Calligraphics.HarfBuzz
         public bool GetGlyphExtents(uint glyph, out GlyphExtents extends)
         {
             var success = Harfbuzz.hb_font_get_glyph_extents(ptr, glyph, out extends);
-            extends.InvertY(); // For legacy reasons, Harfbuzz returns height as negative.
+            extends.InvertY();  // For legacy reasons, Harfbuzz returns height as negative.
             return success;
         }
         public void GetFontExtentsForDirection(Direction direction, out FontExtents fontExtents)
@@ -127,7 +127,7 @@ namespace Latios.Calligraphics.HarfBuzz
             unsafe
             {
                 Harfbuzz.hb_font_set_variations(ptr, (IntPtr)variations.GetUnsafePtr(), (uint)variations.Length);
-            }            
+            }
         }
 
         public uint VariationNamedInstance
@@ -135,7 +135,7 @@ namespace Latios.Calligraphics.HarfBuzz
             get { return Harfbuzz.hb_font_get_var_named_instance(ptr); }
             set { Harfbuzz.hb_font_set_var_named_instance(ptr, value); }
         }
-        
+
         public void Shape(Buffer buffer, NativeList<Feature> features)
         {
             unsafe
@@ -147,7 +147,6 @@ namespace Latios.Calligraphics.HarfBuzz
         {
             Harfbuzz.hb_shape(ptr, buffer.ptr, IntPtr.Zero, 0u);
         }
-
 
         //public void GetGlyphAdvanceForDirection(uint glyph, Direction direction, out int x, out int y)
         //{
@@ -168,3 +167,4 @@ namespace Latios.Calligraphics.HarfBuzz
         }
     }
 }
+
