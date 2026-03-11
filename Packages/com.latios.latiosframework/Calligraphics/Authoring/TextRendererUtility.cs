@@ -1,9 +1,6 @@
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Entities.Graphics;
 using Unity.Mathematics;
-using Unity.Rendering;
-using Unity.Transforms;
 using UnityEngine;
 
 namespace Latios.Calligraphics
@@ -17,13 +14,24 @@ namespace Latios.Calligraphics
         /// </summary>
         public static BlobAssetReference<LanguageBlob> BakeLanguage(FixedString128Bytes language)
         {
-            var              blobBuilder      = new BlobBuilder(Allocator.Temp);
+            var              blobBuilder      = new BlobBuilder(Allocator.Temp, 1024);
             ref LanguageBlob languageBlobRoot = ref blobBuilder.ConstructRoot<LanguageBlob>();
             blobBuilder.AllocateString(ref languageBlobRoot.langugage, ref language);
             var result = blobBuilder.CreateBlobAssetReference<LanguageBlob>(Allocator.Persistent);
             blobBuilder.Dispose();
             languageBlobRoot = result.Value;
             return result;
+        }
+
+        /// <summary>
+        /// Convert an opentype language tag into a blob asset. Risk of creating leaks when creating
+        /// such a blobasset at runtime is high: ensure to dispose it when there are no more BlobAssetReferences to this blob asset.
+        /// This is a non issue for the baking workflow as this is handled automatically.
+        /// </summary>
+        public static BlobAssetReference<LanguageBlob> BakeLanguage(char first, char second, char third, char fourth = ' ')
+        {
+            var language = HarfBuzz.Language.OpentypeTagToHBLanguage(HarfBuzz.Harfbuzz.HB_TAG(first, second, third, fourth)).LanguageToFixedString();
+            return BakeLanguage(language);
         }
 
         /// <summary>

@@ -30,7 +30,7 @@ using UnityEngine.Rendering;
 //
 // Similarly, global texture arrays are used to store SDFs for character glyphs and bitmaps for
 // sprites and rasterized emojis. Access APIs can also be found in the hlsl file. Any shader including
-// that file will have access to these global resources. 
+// that file will have access to these global resources.
 
 namespace Latios.Calligraphics
 {
@@ -39,33 +39,33 @@ namespace Latios.Calligraphics
     /// Copy this buffer to AnimatedRenderGlyph to apply animation to the data.
     /// </summary>
     [InternalBufferCapacity(0)]
-    public struct RenderGlyph : IBufferElementData 
+    public struct RenderGlyph : IBufferElementData
     {
-        public float2 blPosition;   //0
-        public float2 brPosition;   //8
-        public float2 tlPosition;   //16
-        public float2 trPosition;   //24
+        public float2 blPosition;  //0
+        public float2 brPosition;  //8
+        public float2 tlPosition;  //16
+        public float2 trPosition;  //24
 
-        public float2 blUVB;        //32
-        public float2 brUVB;        //40
-        public float2 tlUVB;        //48
-        public float2 trUVB;        //56
+        public float2 blUVB;  //32
+        public float2 brUVB;  //40
+        public float2 tlUVB;  //48
+        public float2 trUVB;  //56
 
-        public half4 blColor;       //64
-        public half4 brColor;       //72
-        public half4 tlColor;       //80
-        public half4 trColor;       //88
+        public half4 blColor;  //64
+        public half4 brColor;  //72
+        public half4 tlColor;  //80
+        public half4 trColor;  //88
 
         // These should be normalized relative to the padded bounding box extents of [0, 1]
         // The uploader will patch these with the atlas coordinates using math.lerp()
-        public float2 blUVA;        //96
-        public float2 trUVA;        //104
+        public float2 blUVA;  //96
+        public float2 trUVA;  //104
 
-        public uint arrayIndex;     //112  Converted to float in upload shader
-        public uint glyphEntryId;   //116
-        public float scale;         //120
-        public uint reserved;       //124
-                                    //128 bytes total size
+        public uint  arrayIndex;  //112  Converted to float in upload shader
+        public uint  glyphEntryId;  //116
+        public float scale;  //120
+        public uint  reserved;  //124
+                               //128 bytes total size
     }
 
     /// <summary>
@@ -79,23 +79,11 @@ namespace Latios.Calligraphics
         public RenderGlyph glyph;
     }
 
-
     [MaterialProperty("_TextShaderIndex")]
     public struct TextShaderIndex : IComponentData
     {
         public uint firstGlyphIndex;
         public uint glyphCount;
-    }
-
-    public struct RuntimeFontMaterial : IComponentData
-    {
-        public UnityObjectRef<Material> material;
-        public UnityObjectRef<Mesh> backendMesh;
-        public MaterialMeshInfo materialMeshInfo;
-    }
-    public struct RuntimeLanguage : IComponentData
-    {
-        public BlobAssetReference<LanguageBlob> value;
     }
 
     internal struct GpuState : IComponentData, IEnableableComponent  // Enabled to request dispatch
@@ -126,10 +114,9 @@ namespace Latios.Calligraphics
     internal partial struct NewEntitiesArrays : ICollectionComponent
     {
         public NativeArray<Entity> newGlyphEntities;
-        public uint lastTouchedGlobalSystemVersion;
+        public uint                lastTouchedGlobalSystemVersion;
 
         public JobHandle TryDispose(JobHandle inputDeps) => inputDeps;
     }
-    
 }
 

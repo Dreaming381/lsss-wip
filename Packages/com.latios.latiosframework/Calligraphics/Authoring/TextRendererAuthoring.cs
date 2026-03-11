@@ -1,10 +1,12 @@
-#if UNITY_EDITOR
 using Latios.Authoring;
+using Latios.Kinemation.Authoring;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.Graphics;
 using Unity.Mathematics;
-using UnityEditor;
+using Unity.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Latios.Calligraphics.Authoring
 {
@@ -22,13 +24,13 @@ namespace Latios.Calligraphics.Authoring
         [EnumButtons]
         public FontStyles fontStyles = FontStyles.Normal;
 
-        public float fontSize                                 = 12f;
-        public Color32 color                                  = Color.white;
+        public float                      fontSize            = 12f;
+        public Color32                    color               = Color.white;
         public HorizontalAlignmentOptions horizontalAlignment = HorizontalAlignmentOptions.Left;
-        public VerticalAlignmentOptions verticalAlignment     = VerticalAlignmentOptions.TopAscent;
-        public bool wordWrap                                  = true;
-        public float maxLineWidth                             = 30;
-        public bool isOrthographic                            = false;
+        public VerticalAlignmentOptions   verticalAlignment   = VerticalAlignmentOptions.TopAscent;
+        public bool                       wordWrap            = true;
+        public float                      maxLineWidth        = 30;
+        public bool                       isOrthographic      = false;
         [Tooltip("Additional word spacing in font units where a value of 1 equals 1/100em.")]
         public float wordSpacing = 0;
         [Tooltip("Additional line spacing in font units where a value of 1 equals 1/100em.")]
@@ -36,9 +38,11 @@ namespace Latios.Calligraphics.Authoring
         [Tooltip("Paragraph spacing in font units where a value of 1 equals 1/100em.")]
         public float paragraphSpacing = 0;
         [Tooltip("Use BCP 47 conform tags to set the language of this text https://en.wikipedia.org/wiki/IETF_language_tag#List_of_common_primary_language_subtags)")]
-        public string language = "en";
-        public Material material;
+        public string          language = "en";
+        public Material        material;
         public FontTextureSize fontTextureSize;
+
+        // Todo: Expose renderer settings?
     }
 
     class TextRendererBaker : Baker<TextRendererAuthoring>
@@ -54,21 +58,7 @@ namespace Latios.Calligraphics.Authoring
                 authoring.language.Length == 0)
                 return;
 
-            string[] guids = AssetDatabase.FindAssets("TextBackendMesh t:mesh", null);
-            if (guids.Length == 0 || guids[0] == null)
-                return;
-
-            var backEndMesh = AssetDatabase.LoadAssetByGUID(new GUID(guids[0]), typeof(Mesh)) as Mesh;
-
-            //add MeshFilter and MeshRender on main entity to ensure it correctly converted
-            var meshRenderer = GetComponent<MeshRenderer>();
-            if (meshRenderer == null)
-                meshRenderer = authoring.gameObject.AddComponent<MeshRenderer>();
-            var meshFilter = GetComponent<MeshFilter>();
-            if (meshFilter == null)
-                meshFilter = authoring.gameObject.AddComponent<MeshFilter>();
-            meshFilter.sharedMesh = backEndMesh;
-            meshRenderer.material = authoring.material;
+            var backendMesh = Resources.Load<Mesh>(TextBackendBakingUtility.kTextBackendMeshResource);
 
             var entity = GetEntity(TransformUsageFlags.Renderable);
             AddComponent<TextShaderIndex>(entity);
@@ -91,7 +81,7 @@ namespace Latios.Calligraphics.Authoring
                 wordSpacing           = (half)authoring.wordSpacing,
                 lineSpacing           = (half)authoring.lineSpacing,
                 paragraphSpacing      = (half)authoring.paragraphSpacing,
-                language              = BakeLangugeString(authoring.language),
+                language              = this.BakeLanguageStringBlob(authoring.language),
                 fontTextureSize       = authoring.fontTextureSize
             };
             AddComponent(entity, textBaseConfiguraton);
@@ -99,18 +89,53 @@ namespace Latios.Calligraphics.Authoring
             var fontCollectionBaker = new FontCollectionAuthoringSmartBakeItem();
             fontCollectionBaker.Bake(authoring.fontCollectionAsset, this);
             this.AddPostProcessItem(entity, fontCollectionBaker);
+
+            var layer            = GetLayer();
+            var rendererSettings = new MeshRendererBakeSettings
+            {
+                targetEntity          = entity,
+                renderMeshDescription = new RenderMeshDescription
+                {
+                    FilterSettings = new RenderFilterSettings
+                    {
+                        Layer              = layer,
+                        RenderingLayerMask = (uint)(1 << layer),
+                        ShadowCastingMode  = ShadowCastingMode.Off,
+                        ReceiveShadows     = false,
+                        MotionMode         = MotionVectorGenerationMode.Object,
+                        StaticShadowCaster = false,
+                    },
+                    LightProbeUsage = LightProbeUsage.Off,
+                },
+            };
+            this.BakeMeshAndMaterial(rendererSettings, backendMesh, authoring.material);
         }
-        BlobAssetReference<LanguageBlob> BakeLangugeString(FixedString128Bytes language)
+    }
+
+    public static class LanguageBakerExtensions
+    {
+        /// <summary>
+        /// Bakes the BCP 47 language string into a LanguageBlob asset
+        /// </summary>
+        public static BlobAssetReference<LanguageBlob> BakeLanguageStringBlob(this IBaker baker, in FixedString128Bytes language)
         {
             var customHash = new Unity.Entities.Hash128((uint)language.GetHashCode(), 0, 0, 0);
-            if (!TryGetBlobAssetReference(customHash, out BlobAssetReference<LanguageBlob> blobReference))
+            if (!baker.TryGetBlobAssetReference(customHash, out BlobAssetReference<LanguageBlob> blobReference))
             {
                 blobReference = TextRendererUtility.BakeLanguage(language);
-                AddBlobAssetWithCustomHash(ref blobReference, customHash);  // Register the Blob Asset to the Baker for de-duplication and reverting.
+                baker.AddBlobAssetWithCustomHash(ref blobReference, customHash);  // Register the Blob Asset to the Baker for de-duplication and reverting.
             }
             return blobReference;
         }
+
+        /// <summary>
+        /// Converts the Opentype language tag into an approximate BCP 47 language string, and then bakes the language string into a LanguageBlob asset
+        /// </summary>
+        public static BlobAssetReference<LanguageBlob> BakeLanguageStringBlob(this IBaker baker, char first, char second, char third, char fourth = ' ')
+        {
+            var language = HarfBuzz.Language.OpentypeTagToHBLanguage(HarfBuzz.Harfbuzz.HB_TAG(first, second, third, fourth)).LanguageToFixedString();
+            return BakeLanguageStringBlob(baker, in language);
+        }
     }
 }
-#endif
 

@@ -3,93 +3,84 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Rendering;
 
-namespace Latios.Calligraphics.Rendering.Authoring
+namespace Latios.Calligraphics.Authoring
 {
     [BurstCompile]
     public static class TextBackendBakingUtility
-    {        
-        public const string kResourcePath = "Assets/Resources";
-        //public const string kTextBackendMeshPath     = "Packages/com.textmeshdots/Resources/TextBackendMesh.mesh";
-        public const string kTextBackendMeshPath = "Assets/Resources/TextBackendMesh.mesh";
+    {
+        public const string kTextBackendMeshPath     = "Packages/com.latios.latiosframework/Calligraphics/Resources/LatiosTextBackendMesh.mesh";
+        public const string kTextBackendMeshResource = "LatiosTextBackendMesh";
 
         #region Mesh Building
 #if UNITY_EDITOR
-        //is now part of samples user has to import, omitting the need for dedicated menue for Latios.Calligraphics (which was a user request)
         //[UnityEditor.MenuItem("Calligraphics/Text BackendMesh")]
         static void CreateMeshAsset()
         {
-            var glyphCounts = new NativeArray<int>(11, Allocator.Temp);
+            var glyphCounts = new NativeArray<int>(10, Allocator.Temp);
             glyphCounts[0] = 4;
             glyphCounts[1] = 8;
             glyphCounts[2] = 16;
             glyphCounts[3] = 24;
             glyphCounts[4] = 32;
-            glyphCounts[5] = 48;
-            glyphCounts[6] = 64;
-            glyphCounts[7] = 256;
-            glyphCounts[8] = 1024;
-            glyphCounts[9] = 4096;
-            glyphCounts[10] = 8192;
-            //glyphCounts[10] = 16384;
+            glyphCounts[5] = 64;
+            glyphCounts[6] = 256;
+            glyphCounts[7] = 1024;
+            glyphCounts[8] = 4096;
+            glyphCounts[9] = 16384;
 
-            var mesh = CreateMesh(8192, glyphCounts);
-            if(!UnityEditor.AssetDatabase.IsValidFolder(kResourcePath))
-                UnityEditor.AssetDatabase.CreateFolder("Assets", "Resources");
+            var mesh = CreateMesh(16384, glyphCounts);
             UnityEditor.AssetDatabase.CreateAsset(mesh, kTextBackendMeshPath);
         }
 #endif
 
-        internal static unsafe Mesh CreateMesh(int glyphCount, NativeArray<int> glyphCountsBySubmesh)
+        struct Vertex
         {
-            Mesh mesh      = new Mesh();
-            var  f3Pattern = new NativeArray<float3>(4, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            f3Pattern[0]   = new float3(-1f, 0f, 0f);
-            f3Pattern[1]   = new float3(0f, 1f, 0f);
-            f3Pattern[2]   = new float3(1f, 1f, 0f);
-            f3Pattern[3]   = new float3(1f, 0f, 0f);
-            var f3s        = new NativeArray<float3>(glyphCount * 4, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            UnsafeUtility.MemCpyReplicate(f3s.GetUnsafePtr(), f3Pattern.GetUnsafePtr(), 48, glyphCount);
-            mesh.SetVertices(f3s);
-            var f4Pattern = new NativeArray<float4>(4, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            f4Pattern[0]  = new float4(0f, 0f, 0f, 0f);
-            f4Pattern[1]  = new float4(0f, 1f, 0f, 0f);
-            f4Pattern[2]  = new float4(1f, 1f, 0f, 0f);
-            f4Pattern[3]  = new float4(1f, 0f, 0f, 0f);
-            var f4s       = new NativeArray<float4>(glyphCount * 4, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            UnsafeUtility.MemCpyReplicate(f4s.GetUnsafePtr(), f4Pattern.GetUnsafePtr(), 64, glyphCount);
-            mesh.SetUVs(0, f4s);
-            mesh.SetColors(f4s);
-            var f2Pattern = new NativeArray<float2>(4, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            f2Pattern[0]  = new float2(0f, 0f);
-            f2Pattern[1]  = new float2(0f, 1f);
-            f2Pattern[2]  = new float2(1f, 1f);
-            f2Pattern[3]  = new float2(1f, 0f);
-            var f2s       = new NativeArray<float2>(glyphCount * 4, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-            UnsafeUtility.MemCpyReplicate(f2s.GetUnsafePtr(), f2Pattern.GetUnsafePtr(), 32, glyphCount);
-            mesh.SetUVs(2, f2s);
+            public float2 position;
+            //public float3 normal;
+            //public float4 tangent;
 
-            mesh.subMeshCount = glyphCountsBySubmesh.Length;
-            for (int submesh = 0; submesh < glyphCountsBySubmesh.Length; submesh++)
+            public Vertex(float positionX, float positionY)
             {
-                var indices = new NativeArray<ushort>(glyphCountsBySubmesh[submesh] * 6, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-                BuildIndexBuffer(ref indices);
-                mesh.SetIndices(indices, MeshTopology.Triangles, submesh);
+                this.position = new float2(positionX, positionY);
+                //normal        = new float3(0f, 0f, 1f);
+                //tangent       = new float4(1f, 0f, 0f, 0f);
             }
-
-            mesh.RecalculateNormals();
-            mesh.UploadMeshData(true);
-
-            return mesh;
         }
 
-        [BurstCompile]
-        public static void BuildIndexBuffer(ref NativeArray<ushort> indices)
+        internal static unsafe Mesh CreateMesh(int glyphCount, NativeArray<int> glyphCountsBySubmesh)
         {
-            int glyphCount = indices.Length / 6;
-            for (ushort i = 0; i < glyphCount; i++)
+            Mesh mesh       = new Mesh();
+            var  mda        = Mesh.AllocateWritableMeshData(1);
+            var  meshData   = mda[0];
+            var  attributes = new NativeArray<VertexAttributeDescriptor>(1, Allocator.Temp);
+            // Todo: Can we reduce the size to a 16-bit value in a cross-platform way?
+            attributes[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 2, 0);
+            //attributes[1] = new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0);
+            //attributes[2] = new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 0);
+            meshData.SetVertexBufferParams(glyphCount * 4, attributes);
+            var vertices = meshData.GetVertexData<Vertex>();
+            for (int i = 0; i < glyphCount; i++)
             {
-                ushort dst       = (ushort)(i * 6);
+                var columnBase      = (i % 256) * 2;
+                var rowBase         = (i / 256) * 2;
+                vertices[4 * i]     = new Vertex(columnBase, rowBase);
+                vertices[4 * i + 1] = new Vertex(columnBase, rowBase + 1);
+                vertices[4 * i + 2] = new Vertex(columnBase + 1, rowBase + 1);
+                vertices[4 * i + 3] = new Vertex(columnBase + 1, rowBase);
+            }
+
+            meshData.SetIndexBufferParams(glyphCount * 6, IndexFormat.UInt16);
+            meshData.subMeshCount = glyphCountsBySubmesh.Length;
+            for (int i = 0; i < glyphCountsBySubmesh.Length; i++)
+            {
+                meshData.SetSubMesh(i, new SubMeshDescriptor(0, glyphCountsBySubmesh[i] * 6), MeshUpdateFlags.DontValidateIndices);
+            }
+            var indices = meshData.GetIndexData<ushort>();
+            for (int i = 0; i < glyphCount; i++)
+            {
+                int    dst       = i * 6;
                 ushort src       = (ushort)(i * 4);
                 indices[dst]     = src;
                 indices[dst + 1] = (ushort)(src + 1);
@@ -98,6 +89,11 @@ namespace Latios.Calligraphics.Rendering.Authoring
                 indices[dst + 4] = (ushort)(src + 3);
                 indices[dst + 5] = src;
             }
+            Mesh.ApplyAndDisposeWritableMeshData(mda, mesh);
+            //mesh.RecalculateBounds();
+            mesh.UploadMeshData(true);
+
+            return mesh;
         }
         #endregion
     }

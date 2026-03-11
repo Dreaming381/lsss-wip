@@ -9,22 +9,21 @@ namespace Latios.Calligraphics.HarfBuzz
     {
         public IntPtr ptr;
 
-
         /// <summary> Converts str representing a BCP 47 language tag to the corresponding hb_language_t object </summary>
-        public Language(FixedString32Bytes language)
+        public Language(FixedString128Bytes language)
         {
             unsafe
             {
                 ptr = Harfbuzz.hb_language_from_string(language.GetUnsafePtr(), language.Length);
             }
         }
-        public FixedString32Bytes LanguageToFixedString()
+        public FixedString128Bytes LanguageToFixedString()
         {
-            FixedString32Bytes result;
+            FixedString128Bytes result;
             unsafe
             {
                 var tmp = Harfbuzz.hb_language_to_string(ptr);
-                result = Harfbuzz.GetFixedString32(tmp);
+                result  = Harfbuzz.GetFixedString128(tmp);
             }
             return result;
         }
@@ -34,27 +33,27 @@ namespace Latios.Calligraphics.HarfBuzz
         public static Language OpentypeTagToHBLanguage(uint tag)
         {
             return new Language { ptr = Harfbuzz.hb_ot_tag_to_language(tag) };
-        }        
-        public static  void OtTagsFromScriptAndLanguage(Script script, Language language, out NativeList<uint> script_tags,  out NativeList<uint> language_tags)
+        }
+        public static void OtTagsFromScriptAndLanguage(Script script, Language language, out NativeList<uint> script_tags,  out NativeList<uint> language_tags)
         {
-            uint scriptCount = 16;
-            uint languageCount = 16;
-            script_tags = new NativeList<uint>((int)scriptCount, Allocator.Temp);
-            script_tags.Length = (int)scriptCount;
-            language_tags = new NativeList<uint>((int)languageCount, Allocator.Temp);
+            uint scriptCount     = 16;
+            uint languageCount   = 16;
+            script_tags          = new NativeList<uint>((int)scriptCount, Allocator.Temp);
+            script_tags.Length   = (int)scriptCount;
+            language_tags        = new NativeList<uint>((int)languageCount, Allocator.Temp);
             language_tags.Length = (int)scriptCount;
             unsafe
             {
                 Harfbuzz.hb_ot_tags_from_script_and_language(script, language, ref scriptCount, script_tags.GetUnsafePtr(), ref languageCount, language_tags.GetUnsafePtr());
             }
-            script_tags.Length = (int)scriptCount;
+            script_tags.Length   = (int)scriptCount;
             language_tags.Length = (int)languageCount;
         }
 
         static public Language English => Language.OpentypeTagToHBLanguage(Harfbuzz.HB_TAG('E', 'N', 'G', ' '));
         static public Language Undefined => new Language("und");
-        public static Language Default => new Language { ptr = Harfbuzz.hb_language_get_default() };        
-        
+        public static Language Default => new Language { ptr = Harfbuzz.hb_language_get_default() };
+
         public override string ToString()
         {
             string result;
@@ -66,3 +65,4 @@ namespace Latios.Calligraphics.HarfBuzz
         }
     }
 }
+
