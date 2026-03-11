@@ -30,6 +30,11 @@
       "displayName": "Kinemation Decal Shaders",
       "description": "Contains starter/reference shaders for pure entity projected decals",
       "path": "Samples~/Kinemation Decal Shaders"
+    },
+    {
+      "displayName": "Calligraphics Shaders",
+      "description": "Contains starter/reference shaders for text entities",
+      "path": "Samples~/Calligraphics Shaders"
     }
   ]
 }
