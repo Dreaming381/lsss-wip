@@ -3087,46 +3087,48 @@ namespace Latios.Calci.Clipper2
                 if (InternalClipper.SegsIntersect(op2Prev.pt,
                                                   op2.pt, op2Next.pt, op2NextNext.pt))
                 {
-                    //if (op2ID == outrec.pts || op2.next == outrec.pts)
-                    //    outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
-                    //DoSplitOp(outrecID, op2ID);
-                    //if ((outrec = _outrecList[outrecID]).pts == -1)
-                    //    return;
-                    //op2ID   = outrec.pts;
-                    //op2     = ref _outPtList.ElementAt(op2ID);
-                    //op2Next = ref _outPtList.ElementAt(op2.next);
-                    //// triangles can't self-intersect
-                    //if (op2.prev == op2Next.next)
-                    //    break;
-                    //continue;
+                    // Post TMD bugfix version
+                    if (op2ID == outrec.pts || op2.next == outrec.pts)
+                        outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
+                    DoSplitOp(outrecID, op2ID);
+                    if ((outrec = _outrecList[outrecID]).pts == -1)
+                        return;
+                    op2ID   = outrec.pts;
+                    op2     = ref _outPtList.ElementAt(op2ID);
+                    op2Next = ref _outPtList.ElementAt(op2.next);
+                    // triangles can't self-intersect
+                    if (op2.prev == op2Next.next)
+                        break;
+                    continue;
 
-                    if (InternalClipper.SegsIntersect(op2Prev.pt,
-                                                      op2.pt, op2NextNext.pt, op2NextNextNext.pt))
-                    {
-                        // adjacent intersections (ie a micro self-intersection)
-                        op2ID           = DuplicateOp(op2ID, false);
-                        op2             = ref _outPtList.ElementAt(op2ID);
-                        op2Next         = ref _outPtList.ElementAt(op2.next);
-                        op2NextNext     = ref _outPtList.ElementAt(op2Next.next);
-                        op2NextNextNext = ref _outPtList.ElementAt(op2NextNext.next);
-                        op2.pt          = op2NextNextNext.pt;
-                        op2ID           = op2.next;
-                    }
-                    else
-                    {
-                        if (op2ID == outrec.pts || op2.next == outrec.pts)
-                            outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
-                        DoSplitOp(outrecID, op2ID);
-                        if ((outrec = _outrecList[outrecID]).pts == -1)
-                            return;
-                        op2ID   = outrec.pts;
-                        op2     = ref _outPtList.ElementAt(op2ID);
-                        op2Next = ref _outPtList.ElementAt(op2.next);
-                        // triangles can't self-intersect
-                        if (op2.prev == op2Next.next)
-                            break;
-                        continue;
-                    }
+                    // TMD version
+                    //if (InternalClipper.SegsIntersect(op2Prev.pt,
+                    //                                  op2.pt, op2NextNext.pt, op2NextNextNext.pt))
+                    //{
+                    //    // adjacent intersections (ie a micro self-intersection)
+                    //    op2ID           = DuplicateOp(op2ID, false);
+                    //    op2             = ref _outPtList.ElementAt(op2ID);
+                    //    op2Next         = ref _outPtList.ElementAt(op2.next);
+                    //    op2NextNext     = ref _outPtList.ElementAt(op2Next.next);
+                    //    op2NextNextNext = ref _outPtList.ElementAt(op2NextNext.next);
+                    //    op2.pt          = op2NextNextNext.pt;
+                    //    op2ID           = op2.next;
+                    //}
+                    //else
+                    //{
+                    //    if (op2ID == outrec.pts || op2.next == outrec.pts)
+                    //        outrec.pts = _outPtList.ElementAt(outrec.pts).prev;
+                    //    DoSplitOp(outrecID, op2ID);
+                    //    if ((outrec = _outrecList[outrecID]).pts == -1)
+                    //        return;
+                    //    op2ID   = outrec.pts;
+                    //    op2     = ref _outPtList.ElementAt(op2ID);
+                    //    op2Next = ref _outPtList.ElementAt(op2.next);
+                    //    // triangles can't self-intersect
+                    //    if (op2.prev == op2Next.next)
+                    //        break;
+                    //    continue;
+                    //}
                 }
 
                 op2ID = op2.next;

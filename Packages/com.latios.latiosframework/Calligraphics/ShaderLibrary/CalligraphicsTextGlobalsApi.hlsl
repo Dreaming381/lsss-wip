@@ -163,11 +163,29 @@ void GetGlyphCorner(uint glyphIndex, uint cornerIndex, uint glyphStartIndex, uin
     }
 }
 
-void ExtractGlyphFlagsFromEntryID(uint glyphEntryID, out bool isSdf16, out bool isBitmap)
+void ExtractGlyphFlagsFromEntryID(uint glyphEntryID, out bool isSdf16, out bool isBitmap, out float texelsInDilationDomain)
 {
     uint format = glyphEntryID >> 30u;
-    isSdf16 = format == 1;
-    isBitmap = format == 2;
+    isSdf16 = format == 1 || format == 2;
+    isBitmap = format == 3;
+    switch (format)
+    {
+    
+        case 0:
+            texelsInDilationDomain = 12.0;
+            break;
+        case 1:
+            texelsInDilationDomain = 32.0;
+            break;
+        case 2:
+            texelsInDilationDomain = 128.0;
+            break;
+        case 3:
+        default:
+            texelsInDilationDomain = 0.0;
+            break;
+    }
+    texelsInDilationDomain *= 2.0; // This is double the spread.
 }
 
 void GetGlyphIndexAndCornerFromQuadVertexID(uint vertexID, out uint glyphIndex, out uint cornerIndex)

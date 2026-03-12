@@ -36,8 +36,9 @@ namespace Latios.Calligraphics.Systems
                 foreach (var key in uniqueMissingGlyphSet)
                 {
                     missingGlyphsToAdd.AddNoResize(key);
-                    var nextId = nextIndex;
-                    Bits.SetBits(ref nextId, 30, 2, (uint)key.format);
+                    var  nextId  = nextIndex;
+                    uint topBits = key.format == RenderFormat.Bitmap8888 ? 3 : (uint)key.textureSize;
+                    Bits.SetBits(ref nextId, 30, 2, topBits);
                     glyphTable.glyphHashToIdMap.Add(key, nextId);
                     nextIndex++;
                 }
@@ -93,13 +94,7 @@ namespace Latios.Calligraphics.Systems
                 // from font acceleration structures populated with each hb_font_get_glyph_extents call
                 font.GetGlyphExtents(missingGlyph.glyphIndex, out var extents);
 
-                var padding = missingGlyph.format switch
-                {
-                    RenderFormat.SDF8 => 9,  //determined via RenderTest Mono: padding of 9 works for both SPREAD 8 (SDF8)
-                    RenderFormat.SDF16 => 9,  //and SPREAD 16 (SDF16), regardless if 64px or 128px
-                    RenderFormat.Bitmap8888 => 0,
-                    _ => 0,
-                };
+                var padding  = missingGlyph.GetSpread() + 1;
                 var newEntry = new GlyphTable.Entry
                 {
                     key      = missingGlyph,

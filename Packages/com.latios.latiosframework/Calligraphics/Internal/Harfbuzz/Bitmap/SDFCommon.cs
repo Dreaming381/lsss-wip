@@ -15,8 +15,7 @@ namespace Latios.Calligraphics.HarfBuzz.Bitmap
                 UnsafeUtility.MemClear(array.GetUnsafePtr(), (long)array.Length * sizeof(T));
             }
         }
-        public readonly static bool USE_SQUARED_DISTANCES = false;
-        // SPREAD represents the permitted distance of a given pixel to an edge in bits.
+        // SPREAD represents the number of texels away from the closest edge before the texel values saturate.
         // 8 bit: distance can be from -128 (outside) to +127 (inside) --> store in 8 bit alpha channel.
         // 16 bit: distance can be from -32,768 (outside) to +32,767 (inside) -->store in 16 bit alpha
         // When converting to 8 bit alpha, we add SPREAD to give distances from 0..2*SPREAD, and multiply
@@ -78,7 +77,8 @@ namespace Latios.Calligraphics.HarfBuzz.Bitmap
                 for (int i = 0; i < buffer.Length; i++)
                 {
                     var result = (distances[i] + spread) * scaleTo8Bit;
-                    buffer[i]  = (byte)result;
+                    //var result = math.clamp(distances[i] / spread, -1f, 1f) * 127f + 127f;
+                    buffer[i] = (byte)result;
                 }
             }
             else
@@ -91,7 +91,8 @@ namespace Latios.Calligraphics.HarfBuzz.Bitmap
                         var targetIndex = (atlasWidth * (row + atlasY)) + (column + atlasX);
 
                         // convert to byte range of alpha8 texture
-                        var result          = (distances[sourceIndex] + spread) * scaleTo8Bit;
+                        var result = (distances[sourceIndex] + spread) * scaleTo8Bit;
+                        //var result          = math.clamp(distances[sourceIndex] / spread, -1f, 1f) * 127f + 127f;
                         buffer[targetIndex] = (byte)result;
                     }
                 }
@@ -196,13 +197,13 @@ namespace Latios.Calligraphics.HarfBuzz.Bitmap
             ref float targetDistance,
             ref float targetCross,
             ref int targetSign,
-            float sp_sq,
+            float spread,
             out float validDistance,
             out float validCross,
             out int validSign
             )
         {
-            if (distance > sp_sq)
+            if (distance > spread)
             {
                 validDistance = targetDistance;
                 validCross    = targetCross;
@@ -278,7 +279,7 @@ namespace Latios.Calligraphics.HarfBuzz.Bitmap
             // different definitions of polygons in Postscript and TrueType should be done elsewhere
             cross    = BezierMath.cross2D(abxNorm, abyNorm, npxNorm, npyNorm);
             sign     = math.select(1, -1, cross < 0);
-            distance = math.select(npLength, npLengthSq, USE_SQUARED_DISTANCES);
+            distance = npLength;
 
             var isEndPoint = math.abs(frac) < BezierMath.epsilon1Float_abs | BezierMath.EqualsForSmallValues(frac, 1, BezierMath.epsilon1Float_abs);
             cross          = math.select(1, cross, isEndPoint);

@@ -18,6 +18,7 @@ namespace Latios.Calligraphics.Systems
         const int kTextureDimension = 4096;
         const int kShelfAlignment   = 16;
 
+        // Todo: Figure out if there are any platform differences to compensate for.
         static readonly bool kEnableComputePixelUpload = true;
         static readonly bool kComputePixelUploadFlipY  = false;
 

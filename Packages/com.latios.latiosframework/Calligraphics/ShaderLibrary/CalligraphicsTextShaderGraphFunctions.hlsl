@@ -20,13 +20,19 @@ void GetGlyphFromBuffer_float(float2 textShaderIndex, float vertexID, out float3
     GetGlyphCorner(glyphIndex, cornerIndex, glyphStartIndex, glyphCount, position2D, uvA, uvB, color, scale, glyphEntryID);
     bool isSdf16;
     bool isBitmap;
-    ExtractGlyphFlagsFromEntryID(glyphEntryID, isSdf16, isBitmap);
+    float texelsInDilationDomain;
+    ExtractGlyphFlagsFromEntryID(glyphEntryID, isSdf16, isBitmap, texelsInDilationDomain);
     position = float3(position2D, 0.0);
     normal = float3(0.0, 0.0, -1.0); //text face is pointing forward
     tangent = float3(1.0, 0.0, 0.0);
     vertexColor = color;
     uvAandB = float4(uvA.xy, uvB);
-    atlasIndexScaleIsSdf16IsBitmap = float4(uvA.z, scale, isSdf16, isBitmap);
+    float bits = 0.0;
+    if (isSdf16)
+        bits += 1.0;
+    if (isBitmap)
+        bits -= 1.0;
+    atlasIndexScaleIsSdf16IsBitmap = float4(uvA.z, scale, texelsInDilationDomain, bits);
 }
 
 //sample SDF 5+4 times: face, outline1, outline2, outline3, underlay, and 4x for light normal
@@ -59,10 +65,10 @@ void Sample5Texture2DArrayLIT_float(
     uvB = uvAandB.zw;
     float arrayIndex = atlasIndexScaleIsSdf16IsBitmap.x;
     scale = atlasIndexScaleIsSdf16IsBitmap.y;
-    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.z;
-    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w;
+    SDR = atlasIndexScaleIsSdf16IsBitmap.z;
+    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.w > 0.5;
+    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w < -0.5;
     SD = 0;
-    SDR = 0;
     if (isBitmap)
     {
         _tmdBitmap.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
@@ -79,7 +85,6 @@ void Sample5Texture2DArrayLIT_float(
         bitmapColor = float4(0, 0, 0, 0);
         if (isSdf16)
         {
-            SDR = 32; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf16.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -100,7 +105,6 @@ void Sample5Texture2DArrayLIT_float(
         }
         else
         {
-            SDR = 16; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf8.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -145,10 +149,10 @@ void Sample5Texture2DArrayUNLIT_float(
     uvB = uvAandB.zw;
     float arrayIndex = atlasIndexScaleIsSdf16IsBitmap.x;
     scale = atlasIndexScaleIsSdf16IsBitmap.y;
-    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.z;
-    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w;
+    SDR = atlasIndexScaleIsSdf16IsBitmap.z;
+    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.w > 0.5;
+    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w < -0.5;
     SD = 0;
-    SDR = 0;
     if (isBitmap)
     {
         _tmdBitmap.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
@@ -164,7 +168,6 @@ void Sample5Texture2DArrayUNLIT_float(
         bitmapColor = float4(0, 0, 0, 0);
         if (isSdf16)
         {
-            SDR = 32; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf16.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -183,7 +186,6 @@ void Sample5Texture2DArrayUNLIT_float(
         }
         else
         {
-            SDR = 16; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf8.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -231,10 +233,10 @@ void Sample3Texture2DArrayLIT_float(
     uvB = uvAandB.zw;
     float arrayIndex = atlasIndexScaleIsSdf16IsBitmap.x;
     scale = atlasIndexScaleIsSdf16IsBitmap.y;
-    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.z;
-    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w;
+    SDR = atlasIndexScaleIsSdf16IsBitmap.z;
+    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.w > 0.5;
+    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w < -0.5;
     SD = 0;
-    SDR = 0;
     if (isBitmap)
     {
         _tmdBitmap.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
@@ -251,7 +253,6 @@ void Sample3Texture2DArrayLIT_float(
         bitmapColor = float4(0, 0, 0, 0);
         if (isSdf16)
         {
-            SDR = 32; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf16.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -268,7 +269,6 @@ void Sample3Texture2DArrayLIT_float(
         }
         else
         {
-            SDR = 16; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf8.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -306,10 +306,10 @@ void Sample3Texture2DArrayUNLIT_float(
     uvB = uvAandB.zw;
     float arrayIndex = atlasIndexScaleIsSdf16IsBitmap.x;
     scale = atlasIndexScaleIsSdf16IsBitmap.y;
-    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.z;
-    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w;
+    SDR = atlasIndexScaleIsSdf16IsBitmap.z;
+    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.w > 0.5;
+    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w < -0.5;
     SD = 0;
-    SDR = 0;
     if (isBitmap)
     {
         _tmdBitmap.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
@@ -325,7 +325,6 @@ void Sample3Texture2DArrayUNLIT_float(
         bitmapColor = float4(0, 0, 0, 0);
         if (isSdf16)
         {
-            SDR = 32; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf16.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -340,7 +339,6 @@ void Sample3Texture2DArrayUNLIT_float(
         }
         else
         {
-            SDR = 16; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf8.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             float offSetScale = SDR * texelSize.x;
@@ -380,10 +378,10 @@ void Sample1Texture2DArrayLIT_float(
     uvB = uvAandB.zw;
     float arrayIndex = atlasIndexScaleIsSdf16IsBitmap.x;
     scale = atlasIndexScaleIsSdf16IsBitmap.y;
-    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.z;
-    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w;
+    SDR = atlasIndexScaleIsSdf16IsBitmap.z;
+    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.w > 0.5;
+    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w < -0.5;
     SD = 0;
-    SDR = 0;
     if (isBitmap)
     {
         _tmdBitmap.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
@@ -399,7 +397,6 @@ void Sample1Texture2DArrayLIT_float(
         bitmapColor = float4(0, 0, 0, 0);
         if (isSdf16)
         {
-            SDR = 32; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf16.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             
@@ -410,7 +407,6 @@ void Sample1Texture2DArrayLIT_float(
         }
         else
         {
-            SDR = 16; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf8.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             
@@ -440,10 +436,10 @@ void Sample1Texture2DArrayUNLIT_float(
     uvB = uvAandB.zw;
     float arrayIndex = atlasIndexScaleIsSdf16IsBitmap.x;
     scale = atlasIndexScaleIsSdf16IsBitmap.y;
-    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.z;
-    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w;
+    SDR = atlasIndexScaleIsSdf16IsBitmap.z;
+    bool isSdf16 = atlasIndexScaleIsSdf16IsBitmap.w > 0.5;
+    isBitmap = atlasIndexScaleIsSdf16IsBitmap.w < -0.5;
     SD = 0;
-    SDR = 0;
     if (isBitmap)
     {
         _tmdBitmap.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
@@ -458,7 +454,6 @@ void Sample1Texture2DArrayUNLIT_float(
         bitmapColor = float4(0, 0, 0, 0);
         if (isSdf16)
         {
-            SDR = 32; // = spread * 2 Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf16.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             
@@ -467,7 +462,6 @@ void Sample1Texture2DArrayUNLIT_float(
         }
         else
         {
-            SDR = 16.0; // spread * 2. Note: choice of spread is tied to sampling size...pure coincidental that we can derive it from bit depth
             _tmdSdf8.GetDimensions(0, width, height, elements, numberOfLevels); // Get dimensions of mip level 0
             texelSize = 1.0f / float2(width, height);
             

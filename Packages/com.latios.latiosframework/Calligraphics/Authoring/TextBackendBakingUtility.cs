@@ -1,13 +1,10 @@
-using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace Latios.Calligraphics.Authoring
 {
-    [BurstCompile]
     public static class TextBackendBakingUtility
     {
         public const string kTextBackendMeshPath     = "Packages/com.latios.latiosframework/Calligraphics/Resources/LatiosTextBackendMesh.mesh";

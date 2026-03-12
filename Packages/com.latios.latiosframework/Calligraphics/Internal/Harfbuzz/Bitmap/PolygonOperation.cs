@@ -11,8 +11,10 @@ namespace Latios.Calligraphics.HarfBuzz
         {
             var nodes      = subject.edges;
             var contourIDs = subject.contourIDs;
-            var scale      = 1000;
-            var invScale   = 1f / scale;
+            // We need as much precision as we can get to help out Clipper. With that said, clipper still creates artifacts sometimes. :(
+            double scale = 5120000.0 / math.max(subject.glyphRect.width, subject.glyphRect.height);
+            //var scale      = 1000.0;
+            var invScale = 1.0 / scale;
 
             var subjectNodes = new NativeList<int2>(nodes.Length, Allocator.Temp);
             for (int i = 0, length = contourIDs.Length - 1; i < length; i++)
@@ -38,8 +40,8 @@ namespace Latios.Calligraphics.HarfBuzz
                 int end   = solutionStarts[i + 1];
                 for (int k = start; k < end - 1; k++)
                 {
-                    var startPos                      = ((float2)subjectNodes[k]) * invScale;
-                    var endPos                        = ((float2)subjectNodes[k + 1]) * invScale;
+                    var startPos                      = (float2)((double2)(subjectNodes[k]) * invScale);
+                    var endPos                        = (float2)((double2)(subjectNodes[k + 1]) * invScale);
                     nodes.Add(new SDFEdge { start_pos = startPos, end_pos = endPos, edge_type = SDFEdgeType.LINE });
                 }
                 solutionStarts[i] -= i;

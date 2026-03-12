@@ -364,7 +364,7 @@ namespace Latios.Calligraphics.Systems
                                                              glyphEntry.padding,
                                                              kTextureDimension,
                                                              kTextureDimension,
-                                                             8);  // use SPREAD = 8 for SDF with 64px sampling size (and 8 bit alpha)
+                                                             glyphEntry.key.GetSpread());
                 }
                 else if (glyphEntry.key.format == RenderFormat.SDF16)
                 {
@@ -403,8 +403,7 @@ namespace Latios.Calligraphics.Systems
                                                              glyphEntry.padding,
                                                              kTextureDimension,
                                                              kTextureDimension,
-                                                             16);  // use SPREAD = 16 for SDF with 128px sampling size (and 8 bit alpha).
-                                                                   // To-Do: use SPREAD = 32 for SDF with 256px sampling size
+                                                             glyphEntry.key.GetSpread());
                 }
                 else if (glyphEntry.key.format == RenderFormat.Bitmap8888)
                 {
@@ -455,10 +454,6 @@ namespace Latios.Calligraphics.Systems
                     }
                     else
                         uploadMetaBuffer[glyphIndex] = default;
-                }
-                else
-                {
-                    UnityEngine.Debug.LogError("SDF16 is not supported yet.");
                 }
             }
 

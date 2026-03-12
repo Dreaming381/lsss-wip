@@ -22,9 +22,8 @@ namespace Latios.Calligraphics.Systems
             [ReadOnly] public NativeStream.Reader                            xmlTagStream;
             [ReadOnly] public NativeArray<int>                               firstEntityIndexInChunk;
 
-            [ReadOnly] internal FontTable fontTable;
-            //internal FontTable fontTable;
-            [ReadOnly] internal GlyphTable                               glyphTable;
+            [ReadOnly] public FontTable                                  fontTable;
+            [ReadOnly] public GlyphTable                                 glyphTable;
             [ReadOnly] public ComponentTypeHandle<TextBaseConfiguration> textBaseConfigurationHandle;
             [ReadOnly] public BufferTypeHandle<CalliByte>                calliByteHandle;
 
@@ -81,7 +80,6 @@ namespace Latios.Calligraphics.Systems
 
                     fontConfig.Reset(textBaseConfiguration, ref fontTable);
                     layoutConfig.Reset(textBaseConfiguration);
-                    //glyphOTFs.Clear();
                     var calliString        = new CalliString(calliBytesBuffer);
                     cleanedString.Capacity = calliString.Capacity;
 
@@ -193,7 +191,6 @@ namespace Latios.Calligraphics.Systems
                         currentRune = rawCharacters.Current;
                         tagsCounter++;
                         nextTagPosition = tagsCounter < xmlTags.Length ? xmlTags[tagsCounter].startID : calliString.Length;
-                        //continue;
                     }
                     if (!keepGoing)
                         continue;
@@ -266,7 +263,7 @@ namespace Latios.Calligraphics.Systems
                 if (face.HasVarData && font.currentVariableProfileIndex != namedVariationIndex)
                     font = fontTable.SetVariableProfile(faceIndex, threadIndex, namedVariationIndex);
 
-                var renderFormat = face.hasColor ? RenderFormat.Bitmap8888 : fontConfig.m_fontTextureSize != FontTextureSize.Normal ? RenderFormat.SDF16 : RenderFormat.SDF8;
+                var renderFormat = face.hasColor ? RenderFormat.Bitmap8888 : (fontConfig.m_fontTextureSize != FontTextureSize.Normal ? RenderFormat.SDF16 : RenderFormat.SDF8);
                 var samplingSize = FontEnumerationExtensions.GetSamplingSize(renderFormat, fontConfig.m_fontTextureSize);
                 font.SetScale(samplingSize, samplingSize);
 
@@ -291,8 +288,6 @@ namespace Latios.Calligraphics.Systems
 
                 var glyphInfos     = buffer.GetGlyphInfosSpan();
                 var glyphPositions = buffer.GetGlyphPositionsSpan();
-                //var capacity = glyphOTFs.Length + glyphInfos.Length;
-                //glyphOTFs.Capacity = capacity; //2x speedup compared to allocating for each element
 
                 for (int i = 0, ii = glyphInfos.Length; i < ii; i++)
                 {
@@ -325,7 +320,6 @@ namespace Latios.Calligraphics.Systems
                             missingGlyphsStream.Write(glyphOTF.glyphKey);
                     }
                     glyphOTFStream.Write(glyphOTF);
-                    //glyphOTFs.Add(glyphOTF);
                 }
                 buffer.ClearContent();
                 features.Clear();
