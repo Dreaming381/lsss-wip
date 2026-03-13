@@ -12,25 +12,27 @@ namespace Latios.Calligraphics.Systems
     [BurstCompile]
     public partial struct TextRendererInitializeSystem : ISystem
     {
-        EntityQuery m_newGlyphsQuery;
-        EntityQuery m_deadMmiQuery;
-        EntityQuery m_deadRenderBoundsQuery;
+        LatiosWorldUnmanaged latiosWorld;
+        EntityQuery          m_newGlyphsQuery;
+        EntityQuery          m_deadMmiQuery;
+        EntityQuery          m_deadRenderBoundsQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            latiosWorld      = state.GetLatiosWorldUnmanaged();
             m_newGlyphsQuery =
                 QueryBuilder().WithPresent<MaterialMeshInfo, RenderBounds>().WithAny<RenderGlyph, AnimatedRenderGlyph>().WithAbsent<PreviousRenderGlyph>().WithOptions(
                     EntityQueryOptions.IgnoreComponentEnabledState).Build();
             m_deadMmiQuery          = QueryBuilder().WithPresent<PreviousRenderGlyph>().WithAbsent<MaterialMeshInfo>().Build();
             m_deadRenderBoundsQuery = QueryBuilder().WithPresent<PreviousRenderGlyph>().WithAbsent<RenderBounds>().Build();
-            state.EntityManager.CreateSingleton<NewEntitiesArrays>();
+            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld<NewEntitiesArrays>(default);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            SetSingleton(new NewEntitiesArrays
+            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new NewEntitiesArrays
             {
                 newGlyphEntities               = m_newGlyphsQuery.ToEntityArray(state.WorldUpdateAllocator),
                 lastTouchedGlobalSystemVersion = state.GlobalSystemVersion

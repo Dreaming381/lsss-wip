@@ -13,7 +13,7 @@ namespace Latios.Calligraphics.Systems
     [DisableAutoCreation]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateAfter(typeof(UpdateGlyphsRenderersSystem))]
-    public unsafe partial class DispatchGlyphsSystem : SystemBase
+    public unsafe partial class DispatchGlyphsSystem : SubSystem
     {
         const int kTextureDimension = 4096;
         const int kShelfAlignment   = 16;
@@ -52,9 +52,6 @@ namespace Latios.Calligraphics.Systems
         int _tmdBitmap;
         int _tmdGlyphs;
 
-        AtlasTable    m_atlasToDestroy;
-        GlyphGpuTable m_glyphGpuTableToDestroy;
-
         protected override void OnCreate()
         {
             ref var state = ref CheckedStateRef;
@@ -92,17 +89,15 @@ namespace Latios.Calligraphics.Systems
             m_drawDelegates  = new DrawDelegates(true);
             m_paintDelegates = new PaintDelegates(true);
 
-            var atlas        = new AtlasTable(Allocator.Persistent, kTextureDimension, kShelfAlignment);
-            m_atlasToDestroy = atlas;
-            EntityManager.CreateSingleton(atlas);
+            var atlas = new AtlasTable(Allocator.Persistent, kTextureDimension, kShelfAlignment);
+            worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(atlas);
             var glyphGpuTable = new GlyphGpuTable
             {
                 bufferSize          = new NativeReference<uint>(Allocator.Persistent, NativeArrayOptions.ClearMemory),
                 dispatchDynamicGaps = new NativeList<uint2>(Allocator.Persistent),
                 residentGaps        = new NativeList<uint2>(Allocator.Persistent)
             };
-            m_glyphGpuTableToDestroy = glyphGpuTable;
-            EntityManager.CreateSingleton(glyphGpuTable);
+            worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(glyphGpuTable);
         }
 
         protected override void OnUpdate()
@@ -133,9 +128,6 @@ namespace Latios.Calligraphics.Systems
             m_drawDelegates.Dispose();
             m_paintDelegates.Dispose();
 
-            m_atlasToDestroy.TryDispose(default);
-            m_glyphGpuTableToDestroy.TryDispose(default);
-
             m_glyphsBuffer.Dispose();
             m_glyphUploadBuffers.Dispose();
             m_glyphMetaUploadBuffers.Dispose();
@@ -146,9 +138,9 @@ namespace Latios.Calligraphics.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            var glyphTable    = SystemAPI.GetSingletonRW<GlyphTable>().ValueRW;
-            var glyphGpuTable = SystemAPI.GetSingletonRW<GlyphGpuTable>().ValueRW;
-            var atlasTable    = SystemAPI.GetSingletonRW<AtlasTable>().ValueRW;
+            var glyphTable    = worldBlackboardEntity.GetCollectionComponent<GlyphTable>(false);
+            var glyphGpuTable = worldBlackboardEntity.GetCollectionComponent<GlyphGpuTable>(false);
+            var atlasTable    = worldBlackboardEntity.GetCollectionComponent<AtlasTable>(false);
 
             var glyphEntryIDsToRasterizeSet = new NativeParallelHashSet<uint>(1, state.WorldUpdateAllocator);
             var allocateJh                  = new AllocateJob
@@ -213,8 +205,8 @@ namespace Latios.Calligraphics.Systems
             if (collected.glyphsToUpload.IsEmpty && collected.glyphEntryIDsToRasterize.IsEmpty)
                 return writeState;
 
-            var glyphTable = SystemAPI.GetSingleton<GlyphTable>();
-            var fontTable  = SystemAPI.GetSingleton<FontTable>();
+            var glyphTable = worldBlackboardEntity.GetCollectionComponent<GlyphTable>(true);
+            var fontTable  = worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
 
             var rasterizeJh    = state.Dependency;
             var uploadGlyphsJh = rasterizeJh;
@@ -338,7 +330,7 @@ namespace Latios.Calligraphics.Systems
 
             if (written.glyphUploadBufferWriteCount > 0)
             {
-                var glyphGpuTable = SystemAPI.GetSingleton<GlyphGpuTable>();
+                var glyphGpuTable = worldBlackboardEntity.GetCollectionComponent<GlyphGpuTable>(true);
 
                 written.glyphUploadMetaBuffer.UnlockBufferAfterWrite<uint3>(written.glyphUploadMetaBufferWriteCount);
                 written.glyphUploadBuffer.UnlockBufferAfterWrite<RenderGlyph>(written.glyphUploadBufferWriteCount);

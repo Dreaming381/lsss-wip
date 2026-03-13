@@ -14,8 +14,8 @@ namespace Latios.Calligraphics.Systems
         [BurstCompile]
         partial struct ShapeJob : IJobChunk
         {
-            [ReadOnly] public ProfilerMarker marker;
-            [ReadOnly] public ProfilerMarker marker2;
+            [ReadOnly] public ProfilerMarker shapeMarker;
+            [ReadOnly] public ProfilerMarker bufferMarker;
 
             public NativeStream.Writer                                       missingGlyphsStream;
             [NativeDisableParallelForRestriction] public NativeStream.Writer glyphOTFStream;
@@ -278,13 +278,13 @@ namespace Latios.Calligraphics.Systems
                 //    shapePlan = new ShapePlan(nativeFontPointer.face, ref segmentProperties, features, shaperList);
                 //    shapePlanCache.Add(lookupKey, shapePlan);
                 //}
-                //marker.Begin();
+                //sShapeMarker.Begin();
                 //shapePlan.Execute(font, buffer, features);
-                //marker.End();
+                //sShapeMarker.End();
 
-                marker.Begin();
+                shapeMarker.Begin();
                 font.Shape(buffer, features);
-                marker.End();
+                shapeMarker.End();
 
                 var glyphInfos     = buffer.GetGlyphInfosSpan();
                 var glyphPositions = buffer.GetGlyphPositionsSpan();

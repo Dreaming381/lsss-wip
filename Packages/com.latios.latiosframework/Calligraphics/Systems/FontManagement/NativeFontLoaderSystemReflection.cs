@@ -21,18 +21,20 @@ namespace Latios.Calligraphics.Systems
     [BurstCompile]
     public partial struct NativeFontLoaderSystem : ISystem
     {
-        static MethodInfo  sMethodInfo;
-        static FieldInfo[] sFontReference;
-        static object      sFontRef;
+        LatiosWorldUnmanaged latiosWorld;
+        static MethodInfo    sMethodInfo;
+        static FieldInfo[]   sFontReference;
+        static object        sFontRef;
 
         public void OnCreate(ref SystemState state)
         {
+            latiosWorld             = state.GetLatiosWorldUnmanaged();
             var perThreadFontCaches = new NativeArray<UnsafeList<Font> >(JobsUtility.ThreadIndexCount, Allocator.Persistent);
             for (int i = 0; i < perThreadFontCaches.Length; i++)
             {
                 perThreadFontCaches[i] = new UnsafeList<Font>(64, Allocator.Persistent);
             }
-            state.EntityManager.CreateSingleton(new FontTable
+            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new FontTable
             {
                 faces                                = new NativeList<Face>(Allocator.Persistent),
                 perThreadFontCaches                  = perThreadFontCaches,
@@ -52,11 +54,6 @@ namespace Latios.Calligraphics.Systems
 
             foreach (var batch in batchedLoadDescriptions)
                 LoadFont(batch, ref state, ref fontTable);
-        }
-
-        public void OnDestroy(ref SystemState state)
-        {
-            SystemAPI.GetSingletonRW<FontTable>().ValueRW.TryDispose(state.Dependency).Complete();
         }
 
         void GetSystemFontsMethod()
@@ -213,7 +210,7 @@ namespace Latios.Calligraphics.Systems
             var pathMap    = new NativeHashMap<FixedString512Bytes, int>(32, state.WorldUpdateAllocator);
             var pathCounts = new NativeList<int>(32, state.WorldUpdateAllocator);
 
-            fontTable = SystemAPI.GetSingletonRW<FontTable>().ValueRW;
+            fontTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<FontTable>(false);
             state.CompleteDependency();
 
             foreach (var blobRef in SystemAPI.Query<FontLoadDescriptionsBlobReference>().WithOptions(EntityQueryOptions.IncludePrefab |

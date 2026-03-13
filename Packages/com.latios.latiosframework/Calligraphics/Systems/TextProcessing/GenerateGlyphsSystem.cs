@@ -12,19 +12,21 @@ namespace Latios.Calligraphics.Systems
     [DisableAutoCreation]
     public partial struct GenerateGlyphsSystem : ISystem
     {
-        EntityQuery                    textRendererQ;
-        static readonly ProfilerMarker marker  = new ProfilerMarker("hb_shape");
-        static readonly ProfilerMarker marker2 = new ProfilerMarker("buffer");
+        LatiosWorldUnmanaged           latiosWorld;
+        EntityQuery                    m_query;
+        static readonly ProfilerMarker sShapeMarker  = new ProfilerMarker("hb_shape");
+        static readonly ProfilerMarker sBufferMarker = new ProfilerMarker("buffer");
 
         bool m_skipChangeFilter;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            textRendererQ = SystemAPI.QueryBuilder()
-                            .WithAllRW<CalliByte>()
-                            .WithAll<TextBaseConfiguration>()
-                            .Build();
+            latiosWorld = state.GetLatiosWorldUnmanaged();
+            m_query     = SystemAPI.QueryBuilder()
+                          .WithAllRW<CalliByte>()
+                          .WithAll<TextBaseConfiguration>()
+                          .Build();
 
             m_skipChangeFilter = (state.WorldUnmanaged.Flags & WorldFlags.Editor) == WorldFlags.Editor;
 
@@ -33,29 +35,24 @@ namespace Latios.Calligraphics.Systems
                 entries          = new NativeList<GlyphTable.Entry>(1024, Allocator.Persistent),
                 glyphHashToIdMap = new NativeHashMap<GlyphTable.Key, uint>(1024, Allocator.Persistent)
             };
-            state.EntityManager.CreateSingleton(glyphTable);
+            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(glyphTable);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            //if (textRendererQ.IsEmpty)
-            //    return;
-            //Debug.Log($"Shape system {textRendererQ.CalculateEntityCount()}");
-
-            if (!SystemAPI.TryGetSingleton<FontTable>(out FontTable fontTable))
-                return;
-
+            var fontTable  = latiosWorld.worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
+            var glyphTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<GlyphTable>(false);
+            // Todo: Icky
             SystemAPI.TryGetSingletonEntity<TextColorGradient>(out Entity textColorGradientEntity);
-            var glyphTable = SystemAPI.GetSingletonRW<GlyphTable>().ValueRW;
 
-            int entityCount        = textRendererQ.CalculateEntityCountWithoutFiltering();
-            var chunkCount         = textRendererQ.CalculateChunkCountWithoutFiltering();
+            int entityCount        = m_query.CalculateEntityCountWithoutFiltering();
+            var chunkCount         = m_query.CalculateChunkCountWithoutFiltering();
             var missingGlyphStream = new NativeStream(chunkCount, state.WorldUpdateAllocator);
             var glyphOTFStream     = new NativeStream(entityCount, state.WorldUpdateAllocator);
             var xmlTagStream       = new NativeStream(entityCount, state.WorldUpdateAllocator);
 
-            var firstEntityIndexInChunk = textRendererQ.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, state.Dependency, out JobHandle firstEntityJH);
+            var firstEntityIndexInChunk = m_query.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, state.Dependency, out JobHandle firstEntityJH);
 
             //optional single threaded job to pre-allcoate RenderGlyphbuffer...pays off when spawning a lot of new TextRenderer
             var allocateJH = new AllocateRenderGlyphsJob
@@ -64,7 +61,7 @@ namespace Latios.Calligraphics.Systems
                 renderGlyphHandle = SystemAPI.GetBufferTypeHandle<RenderGlyph>(false),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.Schedule(textRendererQ, state.Dependency);
+            }.Schedule(m_query, state.Dependency);
 
             state.Dependency = new ExtractTagsJob
             {
@@ -73,12 +70,12 @@ namespace Latios.Calligraphics.Systems
                 calliByteHandle         = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.ScheduleParallel(textRendererQ, firstEntityJH);
+            }.ScheduleParallel(m_query, firstEntityJH);
 
             state.Dependency = new ShapeJob
             {
-                marker  = marker,
-                marker2 = marker2,
+                shapeMarker  = sShapeMarker,
+                bufferMarker = sBufferMarker,
 
                 firstEntityIndexInChunk = firstEntityIndexInChunk,
                 glyphOTFStream          = glyphOTFStream.AsWriter(),
@@ -91,8 +88,7 @@ namespace Latios.Calligraphics.Systems
                 calliByteHandle             = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-                //}.Schedule(textRendererQ, state.Dependency);
-            }.ScheduleParallel(textRendererQ, state.Dependency);
+            }.ScheduleParallel(m_query, state.Dependency);
 
             var missingGlyphsToAdd = new NativeList<GlyphTable.Key>(state.WorldUpdateAllocator);
             state.Dependency       = new AllocateNewGlyphsJob
@@ -130,7 +126,7 @@ namespace Latios.Calligraphics.Systems
                 previousRenderGlyphHandle = SystemAPI.GetBufferTypeHandle<PreviousRenderGlyph>(false),
 
                 fontTable  = fontTable,
-                glyphTable = SystemAPI.GetSingleton<GlyphTable>(),
+                glyphTable = glyphTable,
 
                 glyphOTFStream          = glyphOTFStream.AsReader(),
                 xmlTagStream            = xmlTagStream.AsReader(),
@@ -143,13 +139,7 @@ namespace Latios.Calligraphics.Systems
                 textColorGradientLookup = SystemAPI.GetBufferLookup<TextColorGradient>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.ScheduleParallel(textRendererQ, state.Dependency);
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-            state.CompleteDependency();
-            SystemAPI.GetSingletonRW<GlyphTable>().ValueRW.TryDispose(default).Complete();
+            }.ScheduleParallel(m_query, state.Dependency);
         }
     }
 }

@@ -19,13 +19,15 @@ namespace Latios.Calligraphics.Systems
     [BurstCompile]
     public unsafe partial struct UpdateGlyphsRenderersSystem : ISystem
     {
-        EntityQuery m_query;
-        EntityQuery m_deadQuery;
+        LatiosWorldUnmanaged latiosWorld;
+        EntityQuery          m_query;
+        EntityQuery          m_deadQuery;
 
         uint m_twoAgoSystemVersion;
 
         public void OnCreate(ref SystemState state)
         {
+            latiosWorld = state.GetLatiosWorldUnmanaged();
             m_query     = QueryBuilder().WithAny<RenderGlyph, AnimatedRenderGlyph>().WithPresentRW<GpuState, MaterialMeshInfo>().WithPresentRW<RenderBounds>().Build();
             m_deadQuery = QueryBuilder().WithPresent<PreviousRenderGlyph>().WithAbsent<RenderGlyph, AnimatedRenderGlyph>().Build();
 
@@ -45,7 +47,7 @@ namespace Latios.Calligraphics.Systems
             var refCountChangeBlocklistB       = new NativeStream(chunkCount, state.WorldUpdateAllocator);
             var residentDeallocationBlocklistB = new NativeStream(chunkCount, state.WorldUpdateAllocator);
 
-            var newEntitiesArrays = GetSingleton<NewEntitiesArrays>();
+            var newEntitiesArrays = latiosWorld.worldBlackboardEntity.GetCollectionComponent<NewEntitiesArrays>(true);
             if (newEntitiesArrays.newGlyphEntities.Length > 0 && ChangeVersionUtility.DidChange(newEntitiesArrays.lastTouchedGlobalSystemVersion, state.LastSystemVersion))
             {
                 state.Dependency = new DirtyNewJob
@@ -86,9 +88,9 @@ namespace Latios.Calligraphics.Systems
                 twoAgoSystemVersion           = m_twoAgoSystemVersion
             }.ScheduleParallel(m_query, state.Dependency);
 
-            var atlasTable = GetSingletonRW<AtlasTable>().ValueRW;
-            var glyphTable = GetSingletonRW<GlyphTable>().ValueRW;
-            var gpuTable   = GetSingletonRW<GlyphGpuTable>().ValueRW;
+            var atlasTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<AtlasTable>(false);
+            var glyphTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<GlyphTable>(false);
+            var gpuTable   = latiosWorld.worldBlackboardEntity.GetCollectionComponent<GlyphGpuTable>(false);
 
             var jhA = new ApplyRefCountDeltasToGlyphTableJob
             {
