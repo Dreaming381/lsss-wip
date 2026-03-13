@@ -1,4 +1,5 @@
 using Latios.Calligraphics.HarfBuzz;
+using Latios.Kinemation;
 using static Unity.Entities.SystemAPI;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -21,17 +22,19 @@ namespace Latios.Calligraphics.Systems
         // Todo: Figure out if there are any platform differences to compensate for.
         static readonly bool kComputePixelUploadFlipY = false;
 
+        static GraphicsBufferBroker.StaticID sGlyphBufferID = GraphicsBufferBroker.ReservePersistentBuffer();
+        static GraphicsBufferBroker.StaticID sGlyphUploadID = GraphicsBufferBroker.ReserveUploadPool();
+        static GraphicsBufferBroker.StaticID sPixelUploadID = GraphicsBufferBroker.ReserveUploadPool();
+
         EntityQuery m_query;
 
         UnityObjectRef<ComputeShader> m_uploadGlyphsShader;
         UnityObjectRef<ComputeShader> m_copyBytesShader;
         UnityObjectRef<ComputeShader> m_uploadPixelsShader;
 
-        PersistentBuffer         m_glyphsBuffer;
-        GraphicsBufferUploadPool m_glyphUploadBuffers;
-        GraphicsBufferUploadPool m_glyphMetaUploadBuffers;
-        GraphicsBufferUploadPool m_pixelUploadBuffers;
-        GraphicsBufferUploadPool m_pixelUploadMetaBuffers;
+        GraphicsBufferBroker.StaticID m_glyphBufferID;
+        GraphicsBufferBroker.StaticID m_glyphUploadID;
+        GraphicsBufferBroker.StaticID m_pixelUploadID;
 
         TextureAtlasArray<byte>    m_sdf8Array;
         TextureAtlasArray<ushort>  m_sdf16Array;
@@ -58,15 +61,18 @@ namespace Latios.Calligraphics.Systems
 
             m_query = QueryBuilder().WithAll<MaterialMeshInfo>().WithAllRW<GpuState>().WithPresent<PreviousRenderGlyph>().WithPresentRW<ResidentRange>().Build();
 
-            m_uploadGlyphsShader     = Resources.Load<ComputeShader>("UploadGlyphs");
-            m_copyBytesShader        = Resources.Load<ComputeShader>("CopyBytes");
-            m_uploadPixelsShader     = Resources.Load<ComputeShader>("UploadPixels");
-            m_pixelUploadBuffers     = new GraphicsBufferUploadPool(1024 * 4, GraphicsBuffer.Target.Raw, 4);
-            m_pixelUploadMetaBuffers = new GraphicsBufferUploadPool(1024, GraphicsBuffer.Target.Raw, 4);
+            var broker = worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
 
-            m_glyphsBuffer           = new PersistentBuffer(1024 * 16 * 128, 4, GraphicsBuffer.Target.Raw, m_copyBytesShader);
-            m_glyphUploadBuffers     = new GraphicsBufferUploadPool(1024 * 8 * 4, GraphicsBuffer.Target.Raw, 4);
-            m_glyphMetaUploadBuffers = new GraphicsBufferUploadPool(1024, GraphicsBuffer.Target.Raw, 4);
+            m_uploadGlyphsShader = Resources.Load<ComputeShader>("UploadGlyphs");
+            m_copyBytesShader    = Resources.Load<ComputeShader>("CopyBytes");
+            m_uploadPixelsShader = Resources.Load<ComputeShader>("UploadPixels");
+            m_pixelUploadID      = sPixelUploadID;
+            broker.InitializeUploadPool(m_pixelUploadID, 4, GraphicsBuffer.Target.Raw);
+
+            m_glyphBufferID = sGlyphBufferID;
+            broker.InitializePersistentBuffer(m_glyphBufferID, 1024 * 16 * 128, 4, GraphicsBuffer.Target.Raw, m_copyBytesShader);
+            m_glyphUploadID = sGlyphUploadID;
+            broker.InitializeUploadPool(m_glyphUploadID, 4, GraphicsBuffer.Target.Raw);
 
             _src         = Shader.PropertyToID("_src");
             _dst         = Shader.PropertyToID("_dst");
@@ -78,8 +84,8 @@ namespace Latios.Calligraphics.Systems
             _tmdSdf16       = Shader.PropertyToID("_tmdSdf16");
             _tmdBitmap      = Shader.PropertyToID("_tmdBitmap");
             _tmdGlyphs      = Shader.PropertyToID("_tmdGlyphs");
-            var dummyBuffer = m_glyphsBuffer.GetBuffer(0);
-            Shader.SetGlobalBuffer(_tmdGlyphs, dummyBuffer);  // fix unbound _tmdGlyphs buffer issue
+            var dummyBuffer = broker.GetPersistentBufferNoResize(m_glyphBufferID);
+            GraphicsUnmanaged.SetGlobalBuffer(_tmdGlyphs, dummyBuffer);  // fix unbound _tmdGlyphs buffer issue
 
             var initialAtlasArraySize = 1;  // RenderTexture supports array size 1
             m_sdf8Array               = new TextureAtlasArray<byte>(_tmdSdf8, kTextureDimension, initialAtlasArraySize, RenderTextureFormat.R8, false, true);
@@ -127,13 +133,6 @@ namespace Latios.Calligraphics.Systems
 
             m_drawDelegates.Dispose();
             m_paintDelegates.Dispose();
-
-            m_glyphsBuffer.Dispose();
-            m_glyphUploadBuffers.Dispose();
-            m_glyphMetaUploadBuffers.Dispose();
-
-            m_pixelUploadBuffers.Dispose();
-            m_pixelUploadMetaBuffers.Dispose();
         }
 
         public CollectState Collect(ref SystemState state)
@@ -205,8 +204,10 @@ namespace Latios.Calligraphics.Systems
             if (collected.glyphsToUpload.IsEmpty && collected.glyphEntryIDsToRasterize.IsEmpty)
                 return writeState;
 
-            var glyphTable = worldBlackboardEntity.GetCollectionComponent<GlyphTable>(true);
-            var fontTable  = worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
+            var glyphTable    = worldBlackboardEntity.GetCollectionComponent<GlyphTable>(true);
+            var fontTable     = worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
+            var broker        = worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            writeState.broker = broker;
 
             var rasterizeJh    = state.Dependency;
             var uploadGlyphsJh = rasterizeJh;
@@ -246,9 +247,9 @@ namespace Latios.Calligraphics.Systems
                     writeState.isBitmapDirty = true;
                 }
 
-                var uploadBuffer     = m_pixelUploadBuffers.Allocate(collected.pixelBytesCount.Value / 4);
+                var uploadBuffer     = broker.GetUploadBuffer(m_pixelUploadID, (uint)collected.pixelBytesCount.Value / 4);
                 var uploadArray      = uploadBuffer.LockBufferForWrite<byte>(0, collected.pixelBytesCount.Value);
-                var uploadMetaBuffer = m_pixelUploadMetaBuffers.Allocate(collected.glyphEntryIDsToRasterize.Length * 4);
+                var uploadMetaBuffer = broker.GetMetaUint4UploadBuffer((uint)collected.glyphEntryIDsToRasterize.Length);
                 var uploadMetaArray  = uploadMetaBuffer.LockBufferForWrite<uint4>(0, collected.glyphEntryIDsToRasterize.Length);
 
                 rasterizeJh = new RasterizeJob
@@ -273,10 +274,10 @@ namespace Latios.Calligraphics.Systems
             {
                 var lastCapture      = collected.glyphsToUpload[^ 1];
                 var glyphCount       = lastCapture.writeStart + lastCapture.glyphCount;
-                var uploadBuffer     = m_glyphUploadBuffers.Allocate(glyphCount * UnsafeUtility.SizeOf<RenderGlyph>() / 4);
+                var uploadBuffer     = broker.GetUploadBuffer(m_glyphUploadID, (uint)(glyphCount * UnsafeUtility.SizeOf<RenderGlyph>() / 4));
                 var uploadArray      = uploadBuffer.LockBufferForWrite<RenderGlyph>(0, glyphCount);
                 var captureCount     = collected.glyphsToUpload.Length;
-                var uploadMetaBuffer = m_glyphMetaUploadBuffers.Allocate(captureCount * 3);
+                var uploadMetaBuffer = broker.GetMetaUint3UploadBuffer((uint)captureCount);
                 var uploadMetaArray  = uploadMetaBuffer.LockBufferForWrite<uint3>(0, captureCount);
 
                 uploadGlyphsJh = new WriteRenderGlyphsToGpuJob
@@ -308,8 +309,8 @@ namespace Latios.Calligraphics.Systems
                 shader.SetTexture(0, _tmdSdf8,   m_sdf8Array.GetRenderTextureForUpload());
                 shader.SetTexture(0, _tmdSdf16,  m_sdf16Array.GetRenderTextureForUpload());
                 shader.SetTexture(0, _tmdBitmap, m_bitmapArray.GetRenderTextureForUpload());
-                shader.SetBuffer(0, _src,  written.pixelUploadBuffer);
-                shader.SetBuffer(0, _meta, written.pixelUploadMetaBuffer);
+                m_uploadPixelsShader.SetBuffer(0, _src,  written.pixelUploadBuffer);
+                m_uploadPixelsShader.SetBuffer(0, _meta, written.pixelUploadMetaBuffer);
                 shader.SetInt(_flipOffset, math.select(0, kTextureDimension - 1, kComputePixelUploadFlipY));
                 for (uint dispatchesRemaining = (uint)written.pixelUploadMetaBufferWriteCount, offset = 0; dispatchesRemaining > 0;)
                 {
@@ -335,22 +336,21 @@ namespace Latios.Calligraphics.Systems
                 written.glyphUploadMetaBuffer.UnlockBufferAfterWrite<uint3>(written.glyphUploadMetaBufferWriteCount);
                 written.glyphUploadBuffer.UnlockBufferAfterWrite<RenderGlyph>(written.glyphUploadBufferWriteCount);
 
-                var persistentBuffer = m_glyphsBuffer.GetBuffer(glyphGpuTable.bufferSize.Value);
-                var shader           = m_uploadGlyphsShader.Value;
-                shader.SetBuffer(0, _dst,  persistentBuffer);
-                shader.SetBuffer(0, _src,  written.glyphUploadBuffer);
-                shader.SetBuffer(0, _meta, written.glyphUploadMetaBuffer);
+                var persistentBuffer = written.broker.GetPersistentBuffer(m_glyphBufferID, glyphGpuTable.bufferSize.Value);
+                m_uploadGlyphsShader.SetBuffer(0, _dst,  persistentBuffer);
+                m_uploadGlyphsShader.SetBuffer(0, _src,  written.glyphUploadBuffer);
+                m_uploadGlyphsShader.SetBuffer(0, _meta, written.glyphUploadMetaBuffer);
 
                 for (uint dispatchesRemaining = (uint)written.glyphUploadMetaBufferWriteCount, offset = 0; dispatchesRemaining > 0;)
                 {
                     uint dispatchCount = math.min(dispatchesRemaining, 65535);
-                    shader.SetInt(_startOffset, (int)offset);
-                    shader.Dispatch(0, (int)dispatchCount, 1, 1);
+                    m_uploadGlyphsShader.SetInt(_startOffset, (int)offset);
+                    m_uploadGlyphsShader.Dispatch(0, (int)dispatchCount, 1, 1);
                     offset              += dispatchCount;
                     dispatchesRemaining -= dispatchCount;
                 }
 
-                Shader.SetGlobalBuffer(_tmdGlyphs, persistentBuffer);
+                GraphicsUnmanaged.SetGlobalBuffer(_tmdGlyphs, persistentBuffer);
             }
         }
 
@@ -365,19 +365,20 @@ namespace Latios.Calligraphics.Systems
 
         public struct WriteState
         {
-            internal bool isSdf8Dirty;
-            internal bool isSdf16Dirty;
-            internal bool isBitmapDirty;
+            internal GraphicsBufferBroker broker;
+            internal bool                 isSdf8Dirty;
+            internal bool                 isSdf16Dirty;
+            internal bool                 isBitmapDirty;
 
-            internal GraphicsBuffer glyphUploadBuffer;
-            internal GraphicsBuffer glyphUploadMetaBuffer;
-            internal int            glyphUploadBufferWriteCount;
-            internal int            glyphUploadMetaBufferWriteCount;
+            internal GraphicsBufferUnmanaged glyphUploadBuffer;
+            internal GraphicsBufferUnmanaged glyphUploadMetaBuffer;
+            internal int                     glyphUploadBufferWriteCount;
+            internal int                     glyphUploadMetaBufferWriteCount;
 
-            internal GraphicsBuffer pixelUploadBuffer;
-            internal GraphicsBuffer pixelUploadMetaBuffer;
-            internal int            pixelUploadBufferWriteCount;
-            internal int            pixelUploadMetaBufferWriteCount;
+            internal GraphicsBufferUnmanaged pixelUploadBuffer;
+            internal GraphicsBufferUnmanaged pixelUploadMetaBuffer;
+            internal int                     pixelUploadBufferWriteCount;
+            internal int                     pixelUploadMetaBufferWriteCount;
         }
 
         internal struct RenderGlyphCapture
