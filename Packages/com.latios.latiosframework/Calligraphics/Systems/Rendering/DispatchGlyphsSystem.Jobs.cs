@@ -278,20 +278,16 @@ namespace Latios.Calligraphics.Systems
         [BurstCompile]
         struct RasterizeJob : IJobFor
         {
-            [ReadOnly] public NativeArray<uint>                                                           glyphEntryIDsToRasterize;
-            [ReadOnly] public GlyphTable                                                                  glyphTable;
-            [ReadOnly] public FontTable                                                                   fontTable;
-            [ReadOnly] public NativeArray<int>                                                            pixelUploadOffsetsInBytes;
-            [NativeDisableParallelForRestriction] public NativeArray<TextureAtlasArray<byte>.AtlasPtr>    sdf8Ptrs;
-            [NativeDisableParallelForRestriction] public NativeArray<TextureAtlasArray<ushort>.AtlasPtr>  sdf16Ptrs;
-            [NativeDisableParallelForRestriction] public NativeArray<TextureAtlasArray<Color32>.AtlasPtr> bitmapPtrs;
-            [NativeDisableParallelForRestriction] public NativeArray<byte>                                uploadBuffer;
-            [NativeDisableParallelForRestriction] public NativeArray<uint4>                               uploadMetaBuffer;  // Disable parallel in case compute upload is disabled
-            [NativeDisableParallelForRestriction] public NativeReference<int>                             atomicPrioritizer;
+            [ReadOnly] public NativeArray<uint>                               glyphEntryIDsToRasterize;
+            [ReadOnly] public GlyphTable                                      glyphTable;
+            [ReadOnly] public FontTable                                       fontTable;
+            [ReadOnly] public NativeArray<int>                                pixelUploadOffsetsInBytes;
+            [NativeDisableParallelForRestriction] public NativeArray<byte>    uploadBuffer;
+            [NativeDisableParallelForRestriction] public NativeArray<uint4>   uploadMetaBuffer;  // Disable parallel in case compute upload is disabled
+            [NativeDisableParallelForRestriction] public NativeReference<int> atomicPrioritizer;
 
             [NativeDisableUnsafePtrRestriction] public DrawDelegates  drawDelegates;
             [NativeDisableUnsafePtrRestriction] public PaintDelegates paintDelegates;
-            public bool                                               useComputeUpload;
 
             [NativeDisableContainerSafetyRestriction] DrawData drawData;
             [NativeSetThreadIndex] int                         threadIndex;
@@ -321,6 +317,10 @@ namespace Latios.Calligraphics.Systems
 
                 var samplingSize = glyphEntry.key.GetSamplingSize();
                 font.SetScale(samplingSize, samplingSize);
+                // Todo: maxDeviation doesn't do anything right now, and instead the devsq < 0.333 metric is hardcoded.
+                // However, for SDF rendering, signed distance value accuracy increases as the permitted deviation approaches
+                // spread / (2^bitdepth). However, max accuracy is probably really slow (needs experimentation) to the point
+                // where trying to evaluate the quadratics directly may be faster.
                 var maxDeviation = BezierMath.GetMaxDeviation(font.GetScale().x);
                 if (!drawData.edges.IsCreated)
                     drawData = new DrawData(256, 16, maxDeviation, Allocator.Temp);
@@ -331,8 +331,7 @@ namespace Latios.Calligraphics.Systems
                 {
                     font.DrawGlyph(glyphEntry.key.glyphIndex, drawDelegates, ref drawData);
                     var paddedAtlasRect  = glyphEntry.PaddedAtlasRect;
-                    var sdf8TextureSlice = useComputeUpload ? GetSdf8Upload(glyphIndex, paddedAtlasRect.width, paddedAtlasRect.height) : GetSdf8TextureSlice(glyphEntry.z);
-                    if (useComputeUpload)
+                    var sdf8TextureSlice = GetSdf8Upload(glyphIndex, paddedAtlasRect.width, paddedAtlasRect.height);
                     {
                         uint x                        = (uint)glyphEntry.z;
                         x                            |= ((uint)glyphEntry.key.format) << 30;
@@ -357,21 +356,13 @@ namespace Latios.Calligraphics.Systems
                         face.sdfOrientation = SDFOrientation.POSTSCRIPT;
                         PaintUtils.removeOverlapsMarker.End();
                     }
-                    SDF_line.SDFGenerateSubDivisionLineEdges(face.sdfOrientation,
-                                                             ref drawData,
-                                                             ref sdf8TextureSlice,
-                                                             ref paddedAtlasRect,
-                                                             glyphEntry.padding,
-                                                             kTextureDimension,
-                                                             kTextureDimension,
-                                                             glyphEntry.key.GetSpread());
+                    SdfRasterizer.RasterizeSdf8(drawData, sdf8TextureSlice, paddedAtlasRect, glyphEntry.padding, glyphEntry.key.GetSpread());
                 }
                 else if (glyphEntry.key.format == RenderFormat.SDF16)
                 {
                     font.DrawGlyph(glyphEntry.key.glyphIndex, drawDelegates, ref drawData);
                     var paddedAtlasRect   = glyphEntry.PaddedAtlasRect;
-                    var sdf16TextureSlice = useComputeUpload ? GetSdf16Upload(glyphIndex, paddedAtlasRect.width, paddedAtlasRect.height) : GetSdf16TextureSlice(glyphEntry.z);
-                    if (useComputeUpload)
+                    var sdf16TextureSlice = GetSdf16Upload(glyphIndex, paddedAtlasRect.width, paddedAtlasRect.height);
                     {
                         uint x                        = (uint)glyphEntry.z;
                         x                            |= ((uint)glyphEntry.key.format) << 30;
@@ -396,14 +387,7 @@ namespace Latios.Calligraphics.Systems
                         face.sdfOrientation = SDFOrientation.POSTSCRIPT;
                         PaintUtils.removeOverlapsMarker.End();
                     }
-                    SDF_line.SDFGenerateSubDivisionLineEdges(face.sdfOrientation,
-                                                             ref drawData,
-                                                             ref sdf16TextureSlice,
-                                                             ref paddedAtlasRect,
-                                                             glyphEntry.padding,
-                                                             kTextureDimension,
-                                                             kTextureDimension,
-                                                             glyphEntry.key.GetSpread());
+                    SdfRasterizer.RasterizeSdf16(drawData, sdf16TextureSlice, paddedAtlasRect, glyphEntry.padding, glyphEntry.key.GetSpread());
                 }
                 else if (glyphEntry.key.format == RenderFormat.Bitmap8888)
                 {
@@ -425,8 +409,7 @@ namespace Latios.Calligraphics.Systems
                     kPaintMarker.End();
                     if (paintData.paintSurface.Length > 0)
                     {
-                        var bitmapTextureSlice = useComputeUpload ? GetBitmapUpload(glyphIndex, glyphEntry.width, glyphEntry.height) : GetBitmapTextureSlice(glyphEntry.z);
-                        if (useComputeUpload)
+                        var bitmapTextureSlice = GetBitmapUpload(glyphIndex, glyphEntry.width, glyphEntry.height);
                         {
                             uint x                        = (uint)glyphEntry.z;
                             x                            |= ((uint)glyphEntry.key.format) << 30;
@@ -437,60 +420,15 @@ namespace Latios.Calligraphics.Systems
                             w                            |= ((uint)glyphEntry.height) << 16;
                             uploadMetaBuffer[glyphIndex]  = new uint4(x, y, z, w);
                         }
-                        var offsetY  = useComputeUpload ? 0 : glyphEntry.y;
-                        var offsetX  = useComputeUpload ? 0 : glyphEntry.x;
-                        var dstWidth = useComputeUpload ? glyphEntry.width : kTextureDimension;
-                        for (int y = 0; y < glyphEntry.height; y++)
+                        for (int i = 0; i < bitmapTextureSlice.Length; i++)
                         {
-                            for (int x = 0; x < glyphEntry.width; x++)
-                            {
-                                var argb                     = paintData.paintSurface[y * glyphEntry.width + x];
-                                var dstY                     = y + offsetY;
-                                var dstX                     = x + offsetX;
-                                var dstIndex                 = dstY * dstWidth + dstX;
-                                bitmapTextureSlice[dstIndex] = new Color32(argb.r, argb.g, argb.b, argb.a);
-                            }
+                            var argb              = paintData.paintSurface[i];
+                            bitmapTextureSlice[i] = new Color32(argb.r, argb.g, argb.b, argb.a);
                         }
                     }
                     else
                         uploadMetaBuffer[glyphIndex] = default;
                 }
-            }
-
-            unsafe NativeArray<byte> GetSdf8TextureSlice(short z)
-            {
-                foreach (var ptr in sdf8Ptrs)
-                {
-                    if (ptr.atlasIndex == z)
-                    {
-                        return CollectionHelper.ConvertExistingDataToNativeArray<byte>(ptr.ptr, ptr.dimension * ptr.dimension, Allocator.None, true);
-                    }
-                }
-                return default;
-            }
-
-            unsafe NativeArray<ushort> GetSdf16TextureSlice(short z)
-            {
-                foreach (var ptr in sdf16Ptrs)
-                {
-                    if (ptr.atlasIndex == z)
-                    {
-                        return CollectionHelper.ConvertExistingDataToNativeArray<ushort>(ptr.ptr, ptr.dimension * ptr.dimension, Allocator.None, true);
-                    }
-                }
-                return default;
-            }
-
-            unsafe NativeArray<Color32> GetBitmapTextureSlice(short z)
-            {
-                foreach (var ptr in bitmapPtrs)
-                {
-                    if (ptr.atlasIndex == z)
-                    {
-                        return CollectionHelper.ConvertExistingDataToNativeArray<Color32>(ptr.ptr, ptr.dimension * ptr.dimension, Allocator.None, true);
-                    }
-                }
-                return default;
             }
 
             NativeArray<byte> GetSdf8Upload(int glyphIndex, int width, int height)

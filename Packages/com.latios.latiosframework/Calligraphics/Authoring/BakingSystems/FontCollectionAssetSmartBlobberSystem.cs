@@ -49,7 +49,6 @@ namespace Latios.Calligraphics.Authoring.Systems
             new SmartBlobberTools<FontLoadDescriptionsBlob>().Register(state.World);
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             var map = new NativeHashMap<UnityObjectRef<FontCollectionAsset>, UnsafeUntypedBlobAssetReference>(8, state.WorldUpdateAllocator);

@@ -19,8 +19,7 @@ namespace Latios.Calligraphics.Systems
         const int kShelfAlignment   = 16;
 
         // Todo: Figure out if there are any platform differences to compensate for.
-        static readonly bool kEnableComputePixelUpload = true;
-        static readonly bool kComputePixelUploadFlipY  = false;
+        static readonly bool kComputePixelUploadFlipY = false;
 
         EntityQuery m_query;
 
@@ -62,14 +61,11 @@ namespace Latios.Calligraphics.Systems
 
             m_query = QueryBuilder().WithAll<MaterialMeshInfo>().WithAllRW<GpuState>().WithPresent<PreviousRenderGlyph>().WithPresentRW<ResidentRange>().Build();
 
-            m_uploadGlyphsShader = Resources.Load<ComputeShader>("UploadGlyphs");
-            m_copyBytesShader    = Resources.Load<ComputeShader>("CopyBytes");
-            if (kEnableComputePixelUpload)
-            {
-                m_uploadPixelsShader     = Resources.Load<ComputeShader>("UploadPixels");
-                m_pixelUploadBuffers     = new GraphicsBufferUploadPool(1024 * 4, GraphicsBuffer.Target.Raw, 4);
-                m_pixelUploadMetaBuffers = new GraphicsBufferUploadPool(1024, GraphicsBuffer.Target.Raw, 4);
-            }
+            m_uploadGlyphsShader     = Resources.Load<ComputeShader>("UploadGlyphs");
+            m_copyBytesShader        = Resources.Load<ComputeShader>("CopyBytes");
+            m_uploadPixelsShader     = Resources.Load<ComputeShader>("UploadPixels");
+            m_pixelUploadBuffers     = new GraphicsBufferUploadPool(1024 * 4, GraphicsBuffer.Target.Raw, 4);
+            m_pixelUploadMetaBuffers = new GraphicsBufferUploadPool(1024, GraphicsBuffer.Target.Raw, 4);
 
             m_glyphsBuffer           = new PersistentBuffer(1024 * 16 * 128, 4, GraphicsBuffer.Target.Raw, m_copyBytesShader);
             m_glyphUploadBuffers     = new GraphicsBufferUploadPool(1024 * 8 * 4, GraphicsBuffer.Target.Raw, 4);
@@ -88,17 +84,10 @@ namespace Latios.Calligraphics.Systems
             var dummyBuffer = m_glyphsBuffer.GetBuffer(0);
             Shader.SetGlobalBuffer(_tmdGlyphs, dummyBuffer);  // fix unbound _tmdGlyphs buffer issue
 
-            var initialAtlasArraySize = kEnableComputePixelUpload ? 1 : 2;  // RenderTexture supports array size 1
-            m_sdf8Array               = new TextureAtlasArray<byte>(_tmdSdf8, kTextureDimension, initialAtlasArraySize, TextureFormat.R8, false, true, kEnableComputePixelUpload);
-            m_sdf16Array              =
-                new TextureAtlasArray<ushort>(_tmdSdf16, kTextureDimension, initialAtlasArraySize, TextureFormat.R16, false, true, kEnableComputePixelUpload);
-            m_bitmapArray = new TextureAtlasArray<Color32>(_tmdBitmap,
-                                                           kTextureDimension,
-                                                           initialAtlasArraySize,
-                                                           TextureFormat.RGBA32,
-                                                           true,
-                                                           false,
-                                                           kEnableComputePixelUpload);
+            var initialAtlasArraySize = 1;  // RenderTexture supports array size 1
+            m_sdf8Array               = new TextureAtlasArray<byte>(_tmdSdf8, kTextureDimension, initialAtlasArraySize, RenderTextureFormat.R8, false, true);
+            m_sdf16Array              = new TextureAtlasArray<ushort>(_tmdSdf16, kTextureDimension, initialAtlasArraySize, RenderTextureFormat.R16, false, true);
+            m_bitmapArray             = new TextureAtlasArray<Color32>(_tmdBitmap, kTextureDimension, initialAtlasArraySize, RenderTextureFormat.ARGB32, true, false);  // Shader APIs will swizzle ARGB for us
 
             m_drawDelegates  = new DrawDelegates(true);
             m_paintDelegates = new PaintDelegates(true);
@@ -151,11 +140,8 @@ namespace Latios.Calligraphics.Systems
             m_glyphUploadBuffers.Dispose();
             m_glyphMetaUploadBuffers.Dispose();
 
-            if (kEnableComputePixelUpload)
-            {
-                m_pixelUploadBuffers.Dispose();
-                m_pixelUploadMetaBuffers.Dispose();
-            }
+            m_pixelUploadBuffers.Dispose();
+            m_pixelUploadMetaBuffers.Dispose();
         }
 
         public CollectState Collect(ref SystemState state)
@@ -252,63 +238,37 @@ namespace Latios.Calligraphics.Systems
                 dirtySdf16Count      -= dirtySdf8Count;
                 var dirtyBitmapCount  = collected.atlasDirtyIDs.Length - dirtySdf8Count - dirtySdf16Count;
 
-                var sdf8Ptrs = CollectionHelper.CreateNativeArray<TextureAtlasArray<byte>.AtlasPtr>(dirtySdf8Count,
-                                                                                                    state.WorldUpdateAllocator,
-                                                                                                    NativeArrayOptions.UninitializedMemory);
-                var sdf16Ptrs = CollectionHelper.CreateNativeArray<TextureAtlasArray<ushort>.AtlasPtr>(dirtySdf16Count,
-                                                                                                       state.WorldUpdateAllocator,
-                                                                                                       NativeArrayOptions.UninitializedMemory);
-                var bitmapPtrs = CollectionHelper.CreateNativeArray<TextureAtlasArray<Color32>.AtlasPtr>(dirtyBitmapCount,
-                                                                                                         state.WorldUpdateAllocator,
-                                                                                                         NativeArrayOptions.UninitializedMemory);
-
                 if (dirtySdf8Count > 0)
                 {
-                    m_sdf8Array.GetAtlasPtrsForDirtyIndices(collected.atlasDirtyIDs.AsArray().GetSubArray(0, dirtySdf8Count).AsSpan(), sdf8Ptrs.AsSpan());
+                    m_sdf8Array.ReportDirtyIndices(collected.atlasDirtyIDs.AsArray().GetSubArray(0, dirtySdf8Count).AsSpan());
                     writeState.isSdf8Dirty = true;
                 }
                 if (dirtySdf16Count > 0)
                 {
-                    m_sdf16Array.GetAtlasPtrsForDirtyIndices(collected.atlasDirtyIDs.AsArray().GetSubArray(dirtySdf8Count, dirtySdf16Count).AsSpan(), sdf16Ptrs.AsSpan());
+                    m_sdf16Array.ReportDirtyIndices(collected.atlasDirtyIDs.AsArray().GetSubArray(dirtySdf8Count, dirtySdf16Count).AsSpan());
                     writeState.isSdf16Dirty = true;
                 }
                 if (dirtyBitmapCount > 0)
                 {
-                    m_bitmapArray.GetAtlasPtrsForDirtyIndices(collected.atlasDirtyIDs.AsArray().GetSubArray(dirtySdf8Count + dirtySdf16Count, dirtyBitmapCount).AsSpan(),
-                                                              bitmapPtrs.AsSpan());
+                    m_bitmapArray.ReportDirtyIndices(collected.atlasDirtyIDs.AsArray().GetSubArray(dirtySdf8Count + dirtySdf16Count, dirtyBitmapCount).AsSpan());
                     writeState.isBitmapDirty = true;
                 }
 
-                GraphicsBuffer     uploadBuffer     = default;
-                GraphicsBuffer     uploadMetaBuffer = default;
-                NativeArray<byte>  uploadArray;
-                NativeArray<uint4> uploadMetaArray;
-                if (kEnableComputePixelUpload)
-                {
-                    uploadBuffer     = m_pixelUploadBuffers.Allocate(collected.pixelBytesCount.Value / 4);
-                    uploadArray      = uploadBuffer.LockBufferForWrite<byte>(0, collected.pixelBytesCount.Value);
-                    uploadMetaBuffer = m_pixelUploadMetaBuffers.Allocate(collected.glyphEntryIDsToRasterize.Length * 4);
-                    uploadMetaArray  = uploadMetaBuffer.LockBufferForWrite<uint4>(0, collected.glyphEntryIDsToRasterize.Length);
-                }
-                else
-                {
-                    uploadArray     = CollectionHelper.CreateNativeArray<byte>(1, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
-                    uploadMetaArray = CollectionHelper.CreateNativeArray<uint4>(1, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
-                }
+                var uploadBuffer     = m_pixelUploadBuffers.Allocate(collected.pixelBytesCount.Value / 4);
+                var uploadArray      = uploadBuffer.LockBufferForWrite<byte>(0, collected.pixelBytesCount.Value);
+                var uploadMetaBuffer = m_pixelUploadMetaBuffers.Allocate(collected.glyphEntryIDsToRasterize.Length * 4);
+                var uploadMetaArray  = uploadMetaBuffer.LockBufferForWrite<uint4>(0, collected.glyphEntryIDsToRasterize.Length);
+
                 rasterizeJh = new RasterizeJob
                 {
-                    bitmapPtrs                = bitmapPtrs,
                     drawDelegates             = m_drawDelegates,
                     fontTable                 = fontTable,
                     glyphEntryIDsToRasterize  = collected.glyphEntryIDsToRasterize.AsArray(),
                     glyphTable                = glyphTable,
                     paintDelegates            = m_paintDelegates,
-                    sdf16Ptrs                 = sdf16Ptrs,
-                    sdf8Ptrs                  = sdf8Ptrs,
                     pixelUploadOffsetsInBytes = collected.pixelUploadOffsetsInBytes.AsArray(),
                     uploadBuffer              = uploadArray,
                     uploadMetaBuffer          = uploadMetaArray,
-                    useComputeUpload          = kEnableComputePixelUpload,
                     atomicPrioritizer         = new NativeReference<int>(0, state.WorldUpdateAllocator),
                 }.ScheduleParallel(collected.glyphEntryIDsToRasterize.Length, 1, rasterizeJh);
 
@@ -347,7 +307,7 @@ namespace Latios.Calligraphics.Systems
 
         public void Dispatch(ref SystemState state, ref WriteState written)
         {
-            if (kEnableComputePixelUpload && (written.isSdf8Dirty || written.isSdf16Dirty || written.isBitmapDirty))
+            if (written.isSdf8Dirty || written.isSdf16Dirty || written.isBitmapDirty)
             {
                 written.pixelUploadBuffer.UnlockBufferAfterWrite<byte>(written.pixelUploadBufferWriteCount);
                 written.pixelUploadMetaBuffer.UnlockBufferAfterWrite<uint4>(written.pixelUploadMetaBufferWriteCount);
