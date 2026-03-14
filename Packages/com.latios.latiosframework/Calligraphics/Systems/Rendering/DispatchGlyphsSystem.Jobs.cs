@@ -2,12 +2,14 @@ using System.Collections.Generic;
 using System.Threading;
 using Latios.Calligraphics.HarfBuzz;
 using Latios.Calligraphics.HarfBuzz.Bitmap;
+using Latios.Kinemation;
 using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
@@ -33,14 +35,21 @@ namespace Latios.Calligraphics.Systems
         [BurstCompile]
         struct CaptureRenderGlyphsJob : IJobChunk
         {
-            [ReadOnly] public GlyphTable                            glyphTable;
-            [ReadOnly] public BufferTypeHandle<PreviousRenderGlyph> renderGlyphHandle;
-            public ComponentTypeHandle<TextShaderIndex>             textShaderIndexHandle;
-            public ComponentTypeHandle<ResidentRange>               residentRangeHandle;
-            public ComponentTypeHandle<GpuState>                    gpuStateHandle;
+            [ReadOnly] public GlyphTable                                  glyphTable;
+            [ReadOnly] public BufferTypeHandle<PreviousRenderGlyph>       renderGlyphHandle;
+            [ReadOnly] public BufferLookup<MaterialPropertyComponentType> materialLookup;
+            public ComponentTypeHandle<TextShaderIndex>                   textShaderIndexHandle;
+            public ComponentTypeHandle<ResidentRange>                     residentRangeHandle;
+            public ComponentTypeHandle<GpuState>                          gpuStateHandle;
+            public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>    chunkMaterialMaskHandle;
 
             [NativeDisableParallelForRestriction] public NativeStream.Writer renderGlyphCapturesStream;
             public NativeParallelHashSet<uint>.ParallelWriter                glyphEntryIDsToRasterizeSet;
+
+            public Entity worldBlackboardEntity;
+
+            ulong materialPropertyMaskLower;
+            ulong materialPropertyMaskUpper;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -51,6 +60,22 @@ namespace Latios.Calligraphics.Systems
                 var gpuStates    = (GpuState*)chunk.GetRequiredComponentDataPtrRW(ref gpuStateHandle);
                 var glyphBuffers = chunk.GetBufferAccessor(ref renderGlyphHandle);
                 var gpuStateMask = chunk.GetEnabledMask(ref gpuStateHandle);
+
+                if (shaderPtr != null)
+                {
+                    if (materialPropertyMaskLower == 0 && materialPropertyMaskUpper == 0)
+                    {
+                        var materials     = materialLookup[worldBlackboardEntity].AsNativeArray().Reinterpret<ComponentType>();
+                        var materialIndex = materials.IndexOf(ComponentType.ReadOnly<TextShaderIndex>());
+                        if (materialIndex < 64)
+                            materialPropertyMaskLower = 1u << materialIndex;
+                        else
+                            materialPropertyMaskUpper = 1u << (materialIndex - 64);
+                    }
+                    var materialMask          = chunk.GetChunkComponentRefRW(ref chunkMaterialMaskHandle);
+                    materialMask.lower.Value |= materialPropertyMaskLower;
+                    materialMask.upper.Value |= materialPropertyMaskUpper;
+                }
 
                 var enumerator = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
                 while (enumerator.NextEntityIndex(out var entityIndex))

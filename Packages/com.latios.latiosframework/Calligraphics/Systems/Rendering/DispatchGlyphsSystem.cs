@@ -11,10 +11,12 @@ using UnityEngine;
 
 namespace Latios.Calligraphics.Systems
 {
+    // Todo: Unity is really unstable with RenderTextures, and using UnityObjectRef with them seems to be especially flaky.
+    // So this system remains managed for now.
     [DisableAutoCreation]
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
-    [UpdateAfter(typeof(UpdateGlyphsRenderersSystem))]
-    public unsafe partial class DispatchGlyphsSystem : SubSystem
+    [UpdateInGroup(typeof(Kinemation.Systems.DispatchRoundRobinEarlyExtensionsSuperSystem))]
+    public unsafe partial class DispatchGlyphsSystem : SubSystem, ICullingComputeDispatchSystem<DispatchGlyphsSystem.CollectState, DispatchGlyphsSystem.WriteState>
     {
         const int kTextureDimension = 4096;
         const int kShelfAlignment   = 16;
@@ -26,7 +28,8 @@ namespace Latios.Calligraphics.Systems
         static GraphicsBufferBroker.StaticID sGlyphUploadID = GraphicsBufferBroker.ReserveUploadPool();
         static GraphicsBufferBroker.StaticID sPixelUploadID = GraphicsBufferBroker.ReserveUploadPool();
 
-        EntityQuery m_query;
+        EntityQuery                                          m_query;
+        CullingComputeDispatchData<CollectState, WriteState> m_data;
 
         UnityObjectRef<ComputeShader> m_uploadGlyphsShader;
         UnityObjectRef<ComputeShader> m_copyBytesShader;
@@ -62,6 +65,7 @@ namespace Latios.Calligraphics.Systems
             m_query = QueryBuilder().WithAll<MaterialMeshInfo>().WithAllRW<GpuState>().WithPresent<PreviousRenderGlyph>().WithPresentRW<ResidentRange>().Build();
 
             var broker = worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            m_data     = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorldUnmanaged);
 
             m_uploadGlyphsShader = Resources.Load<ComputeShader>("UploadGlyphs");
             m_copyBytesShader    = Resources.Load<ComputeShader>("CopyBytes");
@@ -108,12 +112,15 @@ namespace Latios.Calligraphics.Systems
 
         protected override void OnUpdate()
         {
-            ref var state     = ref CheckedStateRef;
-            var     collected = Collect(ref state);
-            state.CompleteDependency();
-            var written = Write(ref state, ref collected);
-            state.CompleteDependency();
-            Dispatch(ref state, ref written);
+            var dispatchData = worldBlackboardEntity.GetComponentData<DispatchContext>();
+            if (dispatchData.isCustomGraphicsDispatch)
+            {
+                var features = worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                if (!features.dynamicMeshes)
+                    return;
+            }
+            ref var state = ref CheckedStateRef;
+            m_data.DoUpdateManaged(ref state, this);
         }
 
         protected override void OnDestroy()
@@ -152,13 +159,16 @@ namespace Latios.Calligraphics.Systems
             var renderGlyphCapturesStream = new NativeStream(chunkCount, state.WorldUpdateAllocator);
             var captureJh                 = new CaptureRenderGlyphsJob
             {
+                chunkMaterialMaskHandle     = SystemAPI.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
                 glyphEntryIDsToRasterizeSet = glyphEntryIDsToRasterizeSet.AsParallelWriter(),
                 glyphTable                  = glyphTable,
-                gpuStateHandle              = GetComponentTypeHandle<GpuState>(false),
+                gpuStateHandle              = SystemAPI.GetComponentTypeHandle<GpuState>(false),
+                materialLookup              = SystemAPI.GetBufferLookup<MaterialPropertyComponentType>(true),
                 renderGlyphCapturesStream   = renderGlyphCapturesStream.AsWriter(),
-                renderGlyphHandle           = GetBufferTypeHandle<PreviousRenderGlyph>(true),
-                residentRangeHandle         = GetComponentTypeHandle<ResidentRange>(false),
-                textShaderIndexHandle       = GetComponentTypeHandle<TextShaderIndex>(false),
+                renderGlyphHandle           = SystemAPI.GetBufferTypeHandle<PreviousRenderGlyph>(true),
+                residentRangeHandle         = SystemAPI.GetComponentTypeHandle<ResidentRange>(false),
+                textShaderIndexHandle       = SystemAPI.GetComponentTypeHandle<TextShaderIndex>(false),
+                worldBlackboardEntity       = worldBlackboardEntity,
             }.ScheduleParallel(m_query, allocateJh);
 
             var captures = new NativeList<RenderGlyphCapture>(state.WorldUpdateAllocator);

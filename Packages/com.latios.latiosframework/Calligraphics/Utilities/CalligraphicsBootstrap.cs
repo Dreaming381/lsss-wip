@@ -22,7 +22,8 @@ namespace Latios.Calligraphics
 
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.CalligraphicsFrameSyncPointSuperSystem>(),  world);
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.CalligraphicsRenderSyncPointSuperSystem>(), world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.CalligraphicsTempSuperSystem>(),            world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.CalligraphicsPresentationSuperSystem>(),    world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.DispatchGlyphsSystem>(),                    world);
         }
     }
 }

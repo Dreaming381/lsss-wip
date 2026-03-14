@@ -29,13 +29,22 @@ namespace Latios.Calligraphics.Systems
 
     [UpdateInGroup(typeof(Unity.Rendering.UpdatePresentationSystemGroup))]
     [DisableAutoCreation]
-    public partial class CalligraphicsTempSuperSystem : SuperSystem
+    public partial class CalligraphicsPresentationSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
             GetOrCreateAndAddUnmanagedSystem<GenerateGlyphsSystem>();
+            GetOrCreateAndAddManagedSystem<CalligraphicsAnimationSuperSystem>();
             GetOrCreateAndAddUnmanagedSystem<UpdateGlyphsRenderersSystem>();
-            GetOrCreateAndAddManagedSystem<DispatchGlyphsSystem>();
+        }
+    }
+
+    [DisableAutoCreation]
+    public partial class CalligraphicsAnimationSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = true;
         }
     }
 }
