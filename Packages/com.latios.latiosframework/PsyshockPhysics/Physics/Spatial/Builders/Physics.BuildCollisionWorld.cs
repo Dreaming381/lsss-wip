@@ -115,7 +115,7 @@ namespace Latios.Psyshock
 
         #region FluentChain
         /// <summary>
-        /// Specifies a custom context32 to use when building the CollisionWorld. The context32 is stored in the CollisionWorldIndex
+        /// Specifies a custom worldIndex to use when building the CollisionWorld. The worldIndex is stored in the CollisionWorldIndex
         /// component of entities added to the world with the component.
         /// </summary>
         /// <param name="worldIndex">An index which should be greater than zero</param>

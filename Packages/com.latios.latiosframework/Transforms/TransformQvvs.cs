@@ -72,14 +72,14 @@ namespace Latios.Transforms
         /// <param name="rotation">The rotation for the new transform</param>
         /// <param name="scale">The uniform scale for the new transform</param>
         /// <param name="stretch">The non-uniform stretch for the new transform</param>
-        /// <param name="worldIndex">The context data for the new transform (default is 0)</param>
-        public TransformQvvs(float3 position, quaternion rotation, float scale, float3 stretch, int worldIndex = 0)
+        /// <param name="context32">The context data for the new transform (default is 0)</param>
+        public TransformQvvs(float3 position, quaternion rotation, float scale, float3 stretch, int context32 = 0)
         {
             this.position  = position;
             this.rotation  = rotation;
             this.scale     = scale;
             this.stretch   = stretch;
-            this.context32 = worldIndex;
+            this.context32 = context32;
         }
 
         /// <summary>
@@ -538,10 +538,10 @@ namespace Latios.Transforms
             };
         }
 
-        public static TransformQvvs IdentityWithWorldIndex(int worldIndex)
+        public static TransformQvvs IdentityWithContext32(int context32)
         {
             var result       = TransformQvvs.identity;
-            result.context32 = worldIndex;
+            result.context32 = context32;
             return result;
         }
     }
