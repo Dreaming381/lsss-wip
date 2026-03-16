@@ -7,7 +7,7 @@ using UnityEngine.TextCore.Text;
 namespace Latios.Calligraphics.Authoring
 {
     [DisallowMultipleComponent]
-    [AddComponentMenu("Calligraphics/Text Color Gradient")]
+    [AddComponentMenu("Latios/Calligraphics/Text Color Gradient")]
     public class TextGradientAuthoring : MonoBehaviour
     {
         [Tooltip("For horizontal gradients, specify at least top-(left & right). For vertical gradients (top & bottom)-left. Otherwise specify all corner")]
@@ -21,11 +21,6 @@ namespace Latios.Calligraphics.Authoring
             if (authoring.gradients == null)
                 return;
 
-            if (authoring.gradients.Count > 24)  //160byte per gradient, stored in FixedList4096Bytes in shapeJob
-            {
-                Debug.Log("Calligraphics supports currently only 24 gradients");
-                return;
-            }
             var entity             = GetEntity(TransformUsageFlags.None);
             var textColorGradients = AddBuffer<TextColorGradient>(entity);
             for (int i = 0, ii = authoring.gradients.Count; i < ii; i++)

@@ -58,6 +58,9 @@ namespace Latios.Calligraphics.Systems
         int _tmdBitmap;
         int _tmdGlyphs;
 
+        // Prevent multiple updates per frame
+        uint lastLatiosEntitiesGraphicsVersion;
+
         protected override void OnCreate()
         {
             ref var state = ref CheckedStateRef;
@@ -116,10 +119,13 @@ namespace Latios.Calligraphics.Systems
             if (dispatchData.isCustomGraphicsDispatch)
             {
                 var features = worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
-                if (!features.dynamicMeshes)
+                if (!features.text)
                     return;
             }
-            ref var state = ref CheckedStateRef;
+            if (dispatchData.globalSystemVersionOfLatiosEntitiesGraphics == lastLatiosEntitiesGraphicsVersion)
+                return;
+            lastLatiosEntitiesGraphicsVersion = dispatchData.globalSystemVersionOfLatiosEntitiesGraphics;
+            ref var state                     = ref CheckedStateRef;
             m_data.DoUpdateManaged(ref state, this);
         }
 

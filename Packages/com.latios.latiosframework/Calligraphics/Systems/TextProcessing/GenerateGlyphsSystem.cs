@@ -43,8 +43,6 @@ namespace Latios.Calligraphics.Systems
         {
             var fontTable  = latiosWorld.worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
             var glyphTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<GlyphTable>(false);
-            // Todo: Icky
-            SystemAPI.TryGetSingletonEntity<TextColorGradient>(out Entity textColorGradientEntity);
 
             int entityCount        = m_query.CalculateEntityCountWithoutFiltering();
             var chunkCount         = m_query.CalculateChunkCountWithoutFiltering();
@@ -135,7 +133,7 @@ namespace Latios.Calligraphics.Systems
                 calliByteHandle             = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
                 textBaseConfigurationHandle = SystemAPI.GetComponentTypeHandle<TextBaseConfiguration>(true),
 
-                textColorGradientEntity = textColorGradientEntity,
+                textColorGradientEntity = latiosWorld.worldBlackboardEntity,
                 textColorGradientLookup = SystemAPI.GetBufferLookup<TextColorGradient>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,

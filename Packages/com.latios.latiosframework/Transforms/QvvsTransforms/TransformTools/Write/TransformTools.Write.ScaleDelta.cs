@@ -1,10 +1,11 @@
-﻿using System;
+﻿#if !LATIOS_TRANSFORMS_UNITY
+using System;
 using Unity.Entities;
 
 namespace Latios.Transforms
 {
-	public static unsafe partial class TransformTools
-	{
+    public static unsafe partial class TransformTools
+    {
         #region Apply Local Scale Delta
         /// <summary>
         /// Scales the entity by the specified factor
@@ -36,10 +37,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = componentBroker.GetRW<WorldTransform>(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                *= scaleFactor;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = componentBroker.GetRW<WorldTransform>(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                 *= scaleFactor;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             Scale(handle, scaleFactor, ref componentBroker);
@@ -57,10 +58,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = componentBroker.GetRW<WorldTransform>(entity, key);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                *= scaleFactor;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = componentBroker.GetRW<WorldTransform>(entity, key);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                 *= scaleFactor;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             Scale(handle, scaleFactor, ref componentBroker);
@@ -152,10 +153,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                *= scaleFactor;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = transformLookupRW.GetRefRW(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                 *= scaleFactor;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             Scale(handle, scaleFactor, ref transformLookupRW, ref entityStorageInfoLookup);
@@ -184,10 +185,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                *= scaleFactor;
-                refRW.ValueRW.worldTransform           = currentTransform;
+                RefRW<WorldTransform> refRW             = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                 *= scaleFactor;
+                refRW.ValueRW.worldTransform            = currentTransform;
                 return;
             }
             Scale(handle, scaleFactor, ref transformLookupRW.GetCheckedLookup(entity, key), ref entityStorageInfoLookup);
@@ -242,7 +243,8 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.ScaleDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
@@ -278,10 +280,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = componentBroker.GetRW<TickedWorldTransform>(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                      *= scaleFactor;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = componentBroker.GetRW<TickedWorldTransform>(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                       *= scaleFactor;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             ScaleTicked(handle, scaleFactor, ref componentBroker);
@@ -299,10 +301,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = componentBroker.GetRW<TickedWorldTransform>(entity, key);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                      *= scaleFactor;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = componentBroker.GetRW<TickedWorldTransform>(entity, key);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                       *= scaleFactor;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             ScaleTicked(handle, scaleFactor, ref componentBroker);
@@ -394,10 +396,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                      *= scaleFactor;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = transformLookupRW.GetRefRW(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                       *= scaleFactor;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             ScaleTicked(handle, scaleFactor, ref transformLookupRW, ref entityStorageInfoLookup);
@@ -426,10 +428,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.scale                      *= scaleFactor;
-                refRW.ValueRW.worldTransform                 = currentTransform;
+                RefRW<TickedWorldTransform> refRW             = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
+                currentTransform.scale                       *= scaleFactor;
+                refRW.ValueRW.worldTransform                  = currentTransform;
                 return;
             }
             ScaleTicked(handle, scaleFactor, ref transformLookupRW.GetCheckedLookup(entity, key), ref entityStorageInfoLookup);
@@ -484,9 +486,12 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.ScaleDelta
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
-	}
+    }
 }
+#endif
+

@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System;
 using Latios.Systems;
 using Unity.Burst;
@@ -244,4 +245,5 @@ namespace Latios.Transforms.Systems
         }
     }
 }
+#endif
 

@@ -1,10 +1,11 @@
-﻿using System;
+﻿#if !LATIOS_TRANSFORMS_UNITY
+using System;
 using Unity.Entities;
 
 namespace Latios.Transforms
 {
-	public static unsafe partial class TransformTools
-	{
+    public static unsafe partial class TransformTools
+    {
         #region Set World Transform
         /// <summary>
         /// Sets the WorldTransform of an entity.
@@ -224,11 +225,12 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.WorldTransformSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
-        
+
         #region Set Ticked World Transform
         /// <summary>
         /// Sets the TickedWorldTransform of an entity.
@@ -454,5 +456,7 @@ namespace Latios.Transforms
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
-	}
+    }
 }
+#endif
+

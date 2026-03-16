@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Latios.Calligraphics.Authoring
 {
     [CreateAssetMenu(fileName = "FontCollectionAsset",
-                     menuName = "Calligraphics/Font Collection Asset")]
+                     menuName = "Latios/Calligraphics/Font Collection Asset")]
     public class FontCollectionAsset : ScriptableObject
     {
         [Tooltip(

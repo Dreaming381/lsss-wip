@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -58,4 +59,5 @@ namespace Latios.Transforms.Authoring.Systems
         }
     }
 }
+#endif
 

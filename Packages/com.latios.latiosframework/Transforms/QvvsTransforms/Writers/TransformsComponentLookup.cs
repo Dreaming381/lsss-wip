@@ -1,4 +1,4 @@
-using System;
+#if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Unity.Collections;
@@ -573,4 +573,5 @@ namespace Latios.Transforms
         }
     }
 }
+#endif
 

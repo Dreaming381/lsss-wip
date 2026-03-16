@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if !LATIOS_TRANSFORMS_UNITY
+using System;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -493,4 +494,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 

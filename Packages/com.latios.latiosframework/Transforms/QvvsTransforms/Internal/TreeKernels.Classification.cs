@@ -1,6 +1,6 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Entities.UniversalDelegates;
 using Unity.Mathematics;
 
 namespace Latios.Transforms
@@ -125,4 +125,5 @@ namespace Latios.Transforms
         }
     }
 }
+#endif
 

@@ -1,11 +1,12 @@
-﻿using System;
+﻿#if !LATIOS_TRANSFORMS_UNITY
+using System;
 using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
-	public static unsafe partial class TransformTools
-	{
+    public static unsafe partial class TransformTools
+    {
         #region Set World Position
         /// <summary>
         /// Sets the world position of an entity
@@ -153,10 +154,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW = transformLookupRW.GetRefRW(entity);
-                TransformQvvs currentTransform = refRW.ValueRO.worldTransform;
-                currentTransform.position = newWorldPosition;
-                refRW.ValueRW.worldTransform = currentTransform;
+                RefRW<WorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
+                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
+                currentTransform.position              = newWorldPosition;
+                refRW.ValueRW.worldTransform           = currentTransform;
                 return;
             }
             SetWorldPosition(handle, newWorldPosition, ref transformLookupRW, ref entityStorageInfoLookup);
@@ -243,7 +244,8 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.WorldPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
@@ -485,9 +487,12 @@ namespace Latios.Transforms
                                                           indexInHierarchy = handle.indexInHierarchy,
                                                           writeType        = Propagate.WriteCommand.WriteType.WorldPositionSet
                                                       } };
-            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands, ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
+            Propagate.WriteAndPropagate(handle.m_hierarchy, handle.m_extraHierarchy, transforms, commands,
+                                        ref LookupTickedWorldTransform.From(ref transformLookupRW.GetCheckedLookup(handle.root.entity, key)),
                                         ref EsilAlive.From(ref entityStorageInfoLookup));
         }
         #endregion
-	}
+    }
 }
+#endif
+

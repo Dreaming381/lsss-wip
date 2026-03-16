@@ -1,6 +1,5 @@
-using Latios;
+#if !LATIOS_TRANSFORMS_UNITY
 using Latios.Systems;
-using Latios.Transforms;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -81,4 +80,5 @@ namespace Latios.Transforms.Systems
         }
     }
 }
+#endif
 

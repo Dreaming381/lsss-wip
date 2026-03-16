@@ -1,5 +1,5 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
-using System.Linq;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -25,6 +25,20 @@ namespace Latios.Transforms
         IJobChunkParallelTransform
         {
             return new TransformAspectParallelChunkHandle.TransformsSchedulerJob<T> { chunkJob = chunkJob };
+        }
+
+        /// <summary>
+        /// Schedules an IJobParallelForDefer job using the specified TransformAspectParallelChunkHandle to determine the number of iterations.
+        /// Each iteration has access to a group of chunks which must be processed together.
+        /// </summary>
+        /// <param name="job">A job of type IJobParallelForDefer typically used to process entity transforms.</param>
+        /// <param name="transformAspectParallelChunkHandle">The handle which should have already had ScheduleChunkGrouping() called</param>
+        /// <param name="dependsOn">The JobHandle the new job should depend on (which should include ScheduleChunkGrouping()'s returned JobHandle</param>
+        /// <returns>The JobHandle of the scheduled job</returns>
+        public static JobHandle ScheduleParallel<T>(this T job, TransformAspectParallelChunkHandle transformAspectParallelChunkHandle, JobHandle dependsOn) where T : unmanaged,
+        IJobParallelForDefer
+        {
+            return job.Schedule(transformAspectParallelChunkHandle.chunkRanges, 1, dependsOn);
         }
     }
 
@@ -286,6 +300,30 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Gets the TransformsKey associated with hierarchy the entity at the specified index in the chunk belongs to
+        /// </summary>
+        public TransformsKey GetTransformsKey(int indexInChunk)
+        {
+            CheckInit();
+            CheckIndexInChunkValid(indexInChunk);
+            switch (cache->role)
+            {
+                case Role.Solo:
+                    return TransformsKey.CreateFromExclusivelyAccessedRoot(cache->chunk.GetEntityDataPtrRO(esil.AsEntityTypeHandle())[indexInChunk], esil);
+                case Role.Root:
+                    return TransformsKey.CreateFromExclusivelyAccessedRoot(cache->entityInHierarchyAccessor[indexInChunk][0].entity, esil);
+                case Role.Child:
+                {
+                    var rr     = cache->rootReferences[indexInChunk];
+                    var handle = rr.ToHandle(ref hierarchyLookup, ref cleanupLookup);
+                    return TransformsKey.CreateFromExclusivelyAccessedRoot(handle.root.entity, esil);
+                }
+                default:
+                    return default;
+            }
+        }
+
+        /// <summary>
         /// Gets the number of chunks in the group for the current IJobParallelForDefer index.
         /// </summary>
         public int GetChunkCountForIJobParallelForDeferIndex(int parallelForIndex) => chunkRanges[parallelForIndex].y;
@@ -355,11 +393,12 @@ namespace Latios.Transforms
             public BufferTypeHandle<EntityInHierarchyCleanup> entityInHierarchyCleanupHandle;
             public BufferAccessor<EntityInHierarchyCleanup>   entityInHierarchyCleanupAccessor;
             public NativeArray<RootReference>                 rootReferences;
+            public ArchetypeChunk                             chunk;
             public Role                                       role;
         }
 
         [NativeDisableParallelForRestriction] NativeList<CapturedChunk> chunks;
-        [NativeDisableParallelForRestriction] NativeList<int2>          chunkRanges;
+        [NativeDisableParallelForRestriction] internal NativeList<int2> chunkRanges;
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         ParallelDetector parallelDetector;
 #endif
@@ -410,7 +449,8 @@ namespace Latios.Transforms
                 cache->entityInHierarchyCleanupAccessor = default;
                 cache->rootReferences                   = chunk.chunk.GetNativeArray(ref rootReferenceHandle);
             }
-            cache->role = chunk.role;
+            cache->chunk = chunk.chunk;
+            cache->role  = chunk.role;
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -672,4 +712,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 

@@ -16,8 +16,6 @@ namespace Latios.Calligraphics
         ///// <summary>The hash code of the font's family name, which can be computed using TypeHash.FNV1A64<T>()
         ///// Do NOT use the managed string version to compute the hash!
         ///// </summary>
-        //not used right now
-        //public ulong defaultFontFamilyHash;
         public int defaultFontFamilyHash;
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System.Linq;
+#if !LATIOS_TRANSFORMS_UNITY
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -389,4 +389,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 

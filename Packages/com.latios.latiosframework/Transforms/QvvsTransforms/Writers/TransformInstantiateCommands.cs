@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using AOT;
 using Unity.Burst;
 using Unity.Collections;
@@ -151,4 +152,5 @@ namespace Latios.Transforms
         }
     }
 }
+#endif
 

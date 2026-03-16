@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System;
 using Latios.Unsafe;
 using Unity.Collections;
@@ -260,4 +261,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 

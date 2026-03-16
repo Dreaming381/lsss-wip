@@ -1,13 +1,13 @@
 #if UNITY_EDITOR
-using UnityEngine;
-using UnityEditor;
 using System.IO;
-using Latios.Calligraphics.HarfBuzz;
 using Font = Latios.Calligraphics.HarfBuzz.Font;
+using Latios.Calligraphics.HarfBuzz;
+using UnityEditor;
+using UnityEngine;
 
 namespace Latios.Calligraphics.Authoring
 {
-    [CreateAssetMenu(fileName = "FontUtility", menuName = "Calligraphics/FontUtility")]
+    [CreateAssetMenu(fileName = "FontUtility", menuName = "Latios/Calligraphics/FontUtility")]
 
     // Use this utility to get the information requiered for spawning TextRenderer at runtime vai FontRequest. See
     // RuntimeSpawner/RuntimeSingleFontTextRendererSpawner and
@@ -25,7 +25,7 @@ namespace Latios.Calligraphics.Authoring
         public int width;
         public string isItalic;
         public int slant;
-        
+
         public void OnValidate()
         {
             if ((font == null))
@@ -52,16 +52,16 @@ namespace Latios.Calligraphics.Authoring
                 //fetch name of fontFamily and subFamily, generate hash code from that used to lookup this font
                 var language = Language.English;
 
-                fontFamily = face.GetName(NameID.FONT_FAMILY, language).ToString();
-                fontSubFamily = face.GetName(NameID.FONT_SUBFAMILY, language).ToString();
-                typographicFamily = face.GetName(NameID.TYPOGRAPHIC_FAMILY, language).ToString();
+                fontFamily           = face.GetName(NameID.FONT_FAMILY, language).ToString();
+                fontSubFamily        = face.GetName(NameID.FONT_SUBFAMILY, language).ToString();
+                typographicFamily    = face.GetName(NameID.TYPOGRAPHIC_FAMILY, language).ToString();
                 typographicSubfamily = face.GetName(NameID.TYPOGRAPHIC_SUBFAMILY, language).ToString();
 
                 weight = (int)font.GetStyleTag(StyleTag.WEIGHT);
-                width = (int)font.GetStyleTag(StyleTag.WIDTH);
+                width  = (int)font.GetStyleTag(StyleTag.WIDTH);
                 var italic = (byte)font.GetStyleTag(StyleTag.ITALIC);
                 isItalic = italic == 1 ? "true" : "false";
-                slant = (int)font.GetStyleTag(StyleTag.SLANT_ANGLE);
+                slant    = (int)font.GetStyleTag(StyleTag.SLANT_ANGLE);
                 font.Dispose();
                 face.Dispose();
                 blob.Dispose();
@@ -75,3 +75,4 @@ namespace Latios.Calligraphics.Authoring
     }
 }
 #endif
+

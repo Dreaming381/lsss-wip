@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -97,4 +98,5 @@ namespace Latios.Transforms
         }
     }
 }
+#endif
 

@@ -1,6 +1,6 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System;
 using Latios.Unsafe;
-using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -543,4 +543,5 @@ namespace Latios.Transforms
         }
     }
 }
+#endif
 

@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -144,7 +145,7 @@ namespace Latios.Transforms
             public Entity                         parent;
             public Entity                         child;
             public InheritanceFlags               flags;
-            public SetParentOptions                options;
+            public SetParentOptions               options;
             public bool                           parentIsDead;
             public bool                           addedLeg;
             public TransformQvvs                  localTransform;
@@ -847,4 +848,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 

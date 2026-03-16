@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 //#define VALIDATE
 
 using System;
@@ -1429,4 +1430,5 @@ namespace Latios.Transforms
         }
     }
 }
+#endif
 

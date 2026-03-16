@@ -1,4 +1,4 @@
-using static Latios.Transforms.TransformTools;
+#if !LATIOS_TRANSFORMS_UNITY
 using Unity.Entities;
 
 namespace Latios.Transforms
@@ -197,4 +197,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 
