@@ -170,6 +170,104 @@ namespace Latios.AuxEcs
             return false;
         }
 
+        public AuxComponentEnumerator<T> AllOf<T>() where T : unmanaged
+        {
+            var componentStore = allComponentsStore.TryGetStore<T>(out _);
+            return new AuxComponentEnumerator<T>(componentStore);
+        }
+
+        public AuxQueryEnumerator<T0> AllWith<T0>()
+            where T0 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1> AllWith<T0, T1>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1, T2> AllWith<T0, T1, T2>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+            where T2 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1, T2>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1, T2, T3> AllWith<T0, T1, T2, T3>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+            where T2 : unmanaged
+            where T3 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1, T2, T3>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1, T2, T3, T4> AllWith<T0, T1, T2, T3, T4>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+            where T2 : unmanaged
+            where T3 : unmanaged
+            where T4 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1, T2, T3, T4>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1, T2, T3, T4, T5> AllWith<T0, T1, T2, T3, T4, T5>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+            where T2 : unmanaged
+            where T3 : unmanaged
+            where T4 : unmanaged
+            where T5 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1, T2, T3, T4, T5>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1, T2, T3, T4, T5, T6> AllWith<T0, T1, T2, T3, T4, T5, T6>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+            where T2 : unmanaged
+            where T3 : unmanaged
+            where T4 : unmanaged
+            where T5 : unmanaged
+            where T6 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1, T2, T3, T4, T5, T6>(archs, comps);
+        }
+
+        public AuxQueryEnumerator<T0, T1, T2, T3, T4, T5, T6, T7> AllWith<T0, T1, T2, T3, T4, T5, T6, T7>()
+            where T0 : unmanaged
+            where T1 : unmanaged
+            where T2 : unmanaged
+            where T3 : unmanaged
+            where T4 : unmanaged
+            where T5 : unmanaged
+            where T6 : unmanaged
+            where T7 : unmanaged
+        {
+            fixed (AllArchetypesStore*  archs = &allArchetypesStore)
+            fixed (AllComponentsStore * comps = &allComponentsStore)
+            return new AuxQueryEnumerator<T0, T1, T2, T3, T4, T5, T6, T7>(archs, comps);
+        }
+
         void ChangeArchetype(ref ArchetypeStore archetype, Entity entity, in EntityStore.Location location, in ReadOnlySpan<int> newTypes, in ReadOnlySpan<int> newIndices)
         {
             var removeOp = archetype.Remove(location.indexInArchetype);

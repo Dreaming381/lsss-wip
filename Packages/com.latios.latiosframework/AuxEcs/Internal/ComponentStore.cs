@@ -42,6 +42,9 @@ namespace Latios.AuxEcs
             chunkVersionPtrs.Dispose();
         }
 
+        public int instanceCount => elementCount;
+        public int maxIndex => elementsPerChunk * chunkPtrs.Length;
+
         public int Add()
         {
             if (freelist.IsEmpty)

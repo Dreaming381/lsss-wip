@@ -25,6 +25,8 @@ namespace Latios.AuxEcs
             m_entryData.Dispose();
         }
 
+        public int instanceCount => m_entryData.Length / (m_typeIds.Length + 2);
+
         public int Add(Entity entity, ReadOnlySpan<int> componentIndices)
         {
             int payloadInts = m_typeIds.Length + 2;
@@ -77,6 +79,36 @@ namespace Latios.AuxEcs
             var start       = payloadInts * entityIndexInArchetype + 2;
             var span        = new ReadOnlySpan<int>(m_entryData.Ptr, m_entryData.Length);
             return span.Slice(start, m_typeIds.Length);
+        }
+
+        public Entity GetEntity(int entityIndexInArchetype)
+        {
+            int payloadInts           = m_typeIds.Length + 2;
+            var start                 = payloadInts * entityIndexInArchetype;
+            return new Entity { Index = m_entryData[start], Version = m_entryData[start + 1] };
+        }
+
+        public bool TryMatch(ReadOnlySpan<int> typeIdsToMatch, Span<int> typeIndicesInArchetypeResult)
+        {
+            for (int i = 0; i < m_typeIds.Length; i++)
+            {
+                var index = GetTypeIndexInArchetype(typeIdsToMatch[i]);
+                if (index < 0)
+                    return false;
+                typeIndicesInArchetypeResult[i] = index;
+            }
+            return true;
+        }
+
+        public bool Matches(ReadOnlySpan<int> typeIdsToMatch)
+        {
+            for (int i = 0; i < m_typeIds.Length; i++)
+            {
+                var index = GetTypeIndexInArchetype(typeIdsToMatch[i]);
+                if (index < 0)
+                    return false;
+            }
+            return true;
         }
     }
 }

@@ -23,6 +23,7 @@ namespace Latios.AuxEcs
         }
 
         public AllocatorManager.AllocatorHandle allocator => archetypes.Allocator;
+        public int archetypesCount => archetypes.Length;
 
         public ref ArchetypeStore this[int index] => ref archetypes.ElementAt(index);
 

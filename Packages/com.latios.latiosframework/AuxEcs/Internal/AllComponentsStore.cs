@@ -48,6 +48,8 @@ namespace Latios.AuxEcs
         }
 
         public ref ComponentStore this[int typeId] => ref componentStores.ElementAt(typeId);
+
+        public ComponentStore* GetStorePtr(int typeId) => componentStores.Ptr + typeId;
     }
 }
 
