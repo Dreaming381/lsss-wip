@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 using System.Reflection;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Entities;
 using Unity.Mathematics;
 
-namespace Latios.Unsafe.Internal
+namespace Latios.Unsafe.InternalSourceGen
 {
     public static unsafe partial class StaticAPI
     {
@@ -31,6 +29,10 @@ namespace Latios.Unsafe.Internal
             internal void* ptr;
 
             public ref T AsRef<T>() where T : unmanaged => ref *(T*)ptr;
+
+            public UnsafeApiPointer AsPtr() => new UnsafeApiPointer {
+                ptr = ptr
+            };
 
             public static VPtr Create(UnsafeApiPointer ptr) => new VPtr
             {

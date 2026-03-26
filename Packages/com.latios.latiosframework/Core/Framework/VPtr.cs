@@ -16,6 +16,14 @@ namespace Latios.Unsafe
     }
 
     /// <summary>
+    /// An interface generated on an IVInterface.VPtr, which can be used as a generic constraint to ensure
+    /// a VPtr is a VPtr and for the correct generic interface.
+    /// </summary>
+    public interface IVPtrFor<T> where T : IVInterface
+    {
+    }
+
+    /// <summary>
     /// A struct which contains a void*, and is implicitly castable from one. This allows for source generators
     /// to create an API method that accepts a void*, even if the assembly does not allow unsafe code.
     /// </summary>
@@ -28,7 +36,8 @@ namespace Latios.Unsafe
             set => m_ptr = value;
         }
 
-        public static implicit operator UnsafeApiPointer(void* ptr) => new UnsafeApiPointer {
+        public static implicit operator UnsafeApiPointer(void* ptr) => new UnsafeApiPointer
+        {
             m_ptr = ptr
         };
     }
