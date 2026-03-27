@@ -1,4 +1,5 @@
 using System;
+using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -38,8 +39,9 @@ namespace Latios.AuxEcs
                 if (typeIndexInArchetype >= 0)
                 {
                     // Type already exists. Replace it.
-                    var indexInStore     = archetype.GetComponentIndicesForEntityIndex(location.indexInArchetype)[typeIndexInArchetype];
-                    var auxRef           = componentStore.GetRef<T>(indexInStore);
+                    var indexInStore = archetype.GetComponentIndicesForEntityIndex(location.indexInArchetype)[typeIndexInArchetype];
+                    var auxRef       = componentStore.GetRef<T>(indexInStore);
+                    componentStore.Replace(indexInStore);
                     *auxRef.componentPtr = component;
                     return;
                 }

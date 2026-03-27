@@ -34,7 +34,7 @@ namespace Latios.AuxEcs
                 return ref componentStores.ElementAt(typeId);
 
             typeId = componentStores.Length;
-            componentStores.Add(new ComponentStore(UnsafeUtility.SizeOf<T>(), UnsafeUtility.AlignOf<T>(), componentStores.Allocator));
+            componentStores.Add(new ComponentStore(UnsafeUtility.SizeOf<T>(), UnsafeUtility.AlignOf<T>(), hash, componentStores.Allocator));
             typeHashToComponentIndexMap.Add(hash, typeId);
             return ref componentStores.ElementAt(typeId);
         }

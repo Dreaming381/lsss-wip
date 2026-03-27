@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -94,7 +95,7 @@ namespace Latios.AuxEcs
         public bool TryGetComponent<T>(Entity entity, out AuxRef<T> componentRef) where T : unmanaged
         {
             CheckIsValid();
-            return impl->TryGetComponent<T>(entity, out componentRef);
+            return impl->TryGetComponent(entity, out componentRef);
         }
         #endregion
 

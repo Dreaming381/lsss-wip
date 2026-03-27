@@ -1,4 +1,5 @@
 using System;
+using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
@@ -7,28 +8,48 @@ namespace Latios.AuxEcs
 {
     internal unsafe struct ComponentStore : IDisposable
     {
-        UnsafePtrList<byte> chunkPtrs;
-        UnsafePtrList<int>  chunkVersionPtrs;
-        UnsafeList<int>     freelist;
-        int                 elementsPerChunk;
-        int                 elementSize;
-        int                 elementAlignment;
-        int                 elementCount;
-        // VPtr disposePtr;
+        UnsafePtrList<byte>         chunkPtrs;
+        UnsafePtrList<int>          chunkVersionPtrs;
+        UnsafeList<int>             freelist;
+        long                        hash;
+        int                         elementsPerChunk;
+        int                         elementSize;
+        int                         elementAlignment;
+        int                         elementCount;
+        IAuxDisposable.VPtrFunction disposePtr;
 
-        public ComponentStore(int elementSize, int elementAlignment, AllocatorManager.AllocatorHandle allocator)
+        public ComponentStore(int elementSize, int elementAlignment, long hash, AllocatorManager.AllocatorHandle allocator)
         {
             chunkPtrs             = new UnsafePtrList<byte>(8, allocator);
             chunkVersionPtrs      = new UnsafePtrList<int>(8, allocator);
             freelist              = new UnsafeList<int>(16, allocator);
+            this.hash             = hash;
             elementsPerChunk      = CollectionHelper.Align(math.max(1, 1024 / elementSize), 16);
             this.elementSize      = elementSize;
             this.elementAlignment = elementAlignment;
             elementCount          = 0;
+            IAuxDisposable.TryGetVptrFunctionFrom(hash, out disposePtr);
         }
 
         public void Dispose()
         {
+            if (!disposePtr.Equals(null))
+            {
+                for (int chunkIndex = 0; chunkIndex < chunkPtrs.Length; chunkIndex++)
+                {
+                    var chunk    = chunkPtrs[chunkIndex];
+                    var versions = chunkVersionPtrs[chunkIndex];
+                    for (int i = 0; i < elementsPerChunk; i++)
+                    {
+                        if ((versions[i] & 1) == 1)
+                        {
+                            var ptr = new IAuxDisposable.VPtr(chunk + i * elementSize, disposePtr);
+                            ptr.Dispose();
+                        }
+                    }
+                }
+            }
+
             var allocator = chunkPtrs.Allocator;
             foreach (var chunk in chunkPtrs)
             {
@@ -89,7 +110,12 @@ namespace Latios.AuxEcs
         {
             int chunkIndex   = index / elementsPerChunk;
             int indexInChunk = index % elementsPerChunk;
-            var versionPtr   = chunkVersionPtrs[chunkIndex];
+            if (!disposePtr.Equals(default))
+            {
+                var componentPtr = chunkPtrs[chunkIndex] + indexInChunk * elementSize;
+                new IAuxDisposable.VPtr(componentPtr, disposePtr).Dispose();
+            }
+            var versionPtr = chunkVersionPtrs[chunkIndex];
             versionPtr[indexInChunk]++;
             elementCount--;
             freelist.Add(index);
@@ -97,9 +123,13 @@ namespace Latios.AuxEcs
 
         public void Replace(int index)
         {
-            // Todo: Dispose existing if required.
-            //int chunkIndex            = index / elementsPerChunk;
-            //int indexInChunk          = index % elementsPerChunk;
+            if (!disposePtr.Equals(default))
+            {
+                int chunkIndex   = index / elementsPerChunk;
+                int indexInChunk = index % elementsPerChunk;
+                var componentPtr = chunkPtrs[chunkIndex] + indexInChunk * elementSize;
+                new IAuxDisposable.VPtr(componentPtr, disposePtr).Dispose();
+            }
         }
 
         public AuxRef<T> GetRef<T>(int index) where T : unmanaged
