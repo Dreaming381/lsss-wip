@@ -13,7 +13,8 @@
         <editor:PropertyField binding-path="wordWrap" name="wordWrap"/>
         <editor:PropertyField binding-path="isOrthographic" name="isOrthographic"/>
         <editor:PropertyField name="language" binding-path="language"/>
-        <editor:PropertyField name="script" binding-path="script"/>
+        <editor:PropertyField name="horizontalAlignment" binding-path="horizontalAlignment"/>
+        <editor:PropertyField name="verticalAlignment" binding-path="verticalAlignment"/>
         <editor:PropertyField name="fontTextureSize" binding-path="fontTextureSize"/>
         <editor:PropertyField name="material" binding-path="material"/>
     </engine:VisualElement>
