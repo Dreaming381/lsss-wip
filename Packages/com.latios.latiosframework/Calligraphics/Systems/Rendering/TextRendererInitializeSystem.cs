@@ -1,5 +1,6 @@
 using static Unity.Entities.SystemAPI;
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Rendering;
 
@@ -25,7 +26,10 @@ namespace Latios.Calligraphics.Systems
                     EntityQueryOptions.IgnoreComponentEnabledState).Build();
             m_deadMmiQuery          = QueryBuilder().WithPresent<PreviousRenderGlyph>().WithAbsent<MaterialMeshInfo>().Build();
             m_deadRenderBoundsQuery = QueryBuilder().WithPresent<PreviousRenderGlyph>().WithAbsent<RenderBounds>().Build();
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld<NewEntitiesList>(default);
+            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new NewEntitiesList
+            {
+                newGlyphEntities = new NativeList<Entity>(Allocator.Persistent)
+            });
         }
 
         [BurstCompile]

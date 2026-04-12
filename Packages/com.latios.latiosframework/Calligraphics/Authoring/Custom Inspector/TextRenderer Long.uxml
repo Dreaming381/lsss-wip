@@ -1,5 +1,5 @@
 <engine:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:engine="UnityEngine.UIElements" xmlns:editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
-    <engine:VisualElement data-source-type="Calligraphics.Authoring.TextRendererAuthoring, Latios.Calligraphics">
+    <engine:VisualElement data-source-type="Latios.Calligraphics.Authoring.TextRendererAuthoring, Latios.Calligraphics">
         <editor:PropertyField binding-path="text" name="Text"/>
         <editor:PropertyField binding-path="fontCollectionAsset" name="fontCollectionAsset"/>
         <engine:DropdownField label="Default Font" binding-path="defaultFont"/>
