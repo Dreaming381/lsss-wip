@@ -8,6 +8,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 namespace Latios.Kinemation
 {
@@ -221,7 +222,7 @@ namespace Latios.Kinemation
             {
                 if (rootTransforms[i].context32 >= 0)
                 {
-                    var rootTransform = rootTransforms[i];
+                    var rootTransform         = rootTransforms[i];
                     var socketHandle          = m_worldTransform.transformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(rootTransform.context32);
                     var socketTransform       = m_worldTransform.transformAspect[socketHandle];
                     rootTransform.context32   = socketTransform.worldTransform.context32;

@@ -234,21 +234,15 @@ namespace Latios.Myri
             return result;
         }
 
-        public void Reset()
+        public void Dispose()
         {
             foreach (var block in m_headerBlocks)
                 AllocatorManager.Free(m_allocator, block.ptr, block.headerCount);
             foreach (var block in m_blocks)
                 AllocatorManager.Free(m_allocator, block.ptr, block.byteCount);
-            m_headerBlocks.Clear();
-            m_blocks.Clear();
-        }
-
-        public void Dispose()
-        {
-            Reset();
             m_headerBlocks.Dispose();
             m_blocks.Dispose();
+            m_typeHashToLinkedMessageListMap.Dispose();
         }
 
         public Enumerator GetEnumerator(long typeHash) => new Enumerator(typeHash, ref this);

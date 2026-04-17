@@ -48,7 +48,7 @@ namespace Latios.Myri
 
     public unsafe struct CommandPipeReader
     {
-        [ReadOnly] internal NativeReference<UnsafeList<MegaPipe> > m_perThreadPipes;
+        internal UnsafeList<MegaPipe> m_perThreadPipes;
 
         public Enumerator<T> Each<T>() where T : unmanaged
         {
@@ -71,9 +71,9 @@ namespace Latios.Myri
 
         public struct Enumerator<T> where T : unmanaged
         {
-            [ReadOnly] internal NativeReference<UnsafeList<MegaPipe> > m_perThreadPipes;
-            internal int                                               m_currentThreadIndex;
-            MegaPipe.Enumerator                                        m_pipeEnumerator;
+            internal UnsafeList<MegaPipe> m_perThreadPipes;
+            internal int                  m_currentThreadIndex;
+            MegaPipe.Enumerator           m_pipeEnumerator;
 
             public Enumerator<T> GetEnumerator() => this;
             public ref T Current => ref *(T*)m_pipeEnumerator.Current;
@@ -81,7 +81,7 @@ namespace Latios.Myri
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 // This forces a safety check.
-                if (m_currentThreadIndex >= m_perThreadPipes.Value.Length)
+                if (m_currentThreadIndex >= m_perThreadPipes.Length)
                     return false;
 #endif
 
@@ -89,9 +89,9 @@ namespace Latios.Myri
                     return true;
 
                 m_currentThreadIndex++;
-                for (; m_currentThreadIndex < m_perThreadPipes.Value.Length; m_currentThreadIndex++)
+                for (; m_currentThreadIndex < m_perThreadPipes.Length; m_currentThreadIndex++)
                 {
-                    ref var pipe = ref m_perThreadPipes.Value.ElementAt(m_currentThreadIndex);
+                    ref var pipe = ref m_perThreadPipes.ElementAt(m_currentThreadIndex);
                     if (!pipe.isCreated)
                         continue;
                     var candidateEnumerator = pipe.GetEnumerator(BurstRuntime.GetHashCode64<T>());
@@ -108,10 +108,10 @@ namespace Latios.Myri
 
         public struct EnumeratorUntyped
         {
-            [ReadOnly] internal NativeReference<UnsafeList<MegaPipe> > m_perThreadPipes;
-            internal long                                              m_typeHash;
-            internal int                                               m_currentThreadIndex;
-            MegaPipe.Enumerator                                        m_pipeEnumerator;
+            internal UnsafeList<MegaPipe> m_perThreadPipes;
+            internal long                 m_typeHash;
+            internal int                  m_currentThreadIndex;
+            MegaPipe.Enumerator           m_pipeEnumerator;
 
             public EnumeratorUntyped GetEnumerator() => this;
             public void* Current => m_pipeEnumerator.Current;
@@ -119,7 +119,7 @@ namespace Latios.Myri
             {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
                 // This forces a safety check.
-                if (m_currentThreadIndex >= m_perThreadPipes.Value.Length)
+                if (m_currentThreadIndex >= m_perThreadPipes.Length)
                     return false;
 #endif
 
@@ -127,9 +127,9 @@ namespace Latios.Myri
                     return true;
 
                 m_currentThreadIndex++;
-                for (; m_currentThreadIndex < m_perThreadPipes.Value.Length; m_currentThreadIndex++)
+                for (; m_currentThreadIndex < m_perThreadPipes.Length; m_currentThreadIndex++)
                 {
-                    ref var pipe = ref m_perThreadPipes.Value.ElementAt(m_currentThreadIndex);
+                    ref var pipe = ref m_perThreadPipes.ElementAt(m_currentThreadIndex);
                     if (!pipe.isCreated)
                         continue;
                     var candidateEnumerator = pipe.GetEnumerator(m_typeHash);

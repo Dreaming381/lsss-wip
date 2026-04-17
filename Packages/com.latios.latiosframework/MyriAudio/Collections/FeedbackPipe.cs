@@ -7,7 +7,7 @@ namespace Latios.Myri
 {
     public unsafe struct FeedbackPipeWriter
     {
-        internal NativeReference<MegaPipe> m_megaPipe;
+        internal MegaPipe* m_megaPipe;
 
         public void WriteMessage<T>(in T message) where T : unmanaged
         {
@@ -16,19 +16,19 @@ namespace Latios.Myri
 
         public ref T CreateMessage<T>() where T : unmanaged
         {
-            return ref *m_megaPipe.Value.AllocateMessage<T>();
+            return ref *m_megaPipe->AllocateMessage<T>();
         }
 
         public void* CreateMessageDynamic(long typeHash, int sizeInBytes, int alignInBytes)
         {
-            return m_megaPipe.Value.AllocateMessage(typeHash, sizeInBytes, alignInBytes);
+            return m_megaPipe->AllocateMessage(typeHash, sizeInBytes, alignInBytes);
         }
 
         public PipeSpan<T> CreatePipeSpan<T>(int elementCount) where T : unmanaged
         {
             return new PipeSpan<T>
             {
-                m_ptr    = (T*)m_megaPipe.Value.AllocateData(UnsafeUtility.SizeOf<T>() * elementCount, UnsafeUtility.AlignOf<T>()),
+                m_ptr    = (T*)m_megaPipe->AllocateData(UnsafeUtility.SizeOf<T>() * elementCount, UnsafeUtility.AlignOf<T>()),
                 m_length = elementCount
             };
         }
