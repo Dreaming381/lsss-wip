@@ -1,4 +1,3 @@
-using System.Threading;
 using Latios.AuxEcs;
 using Latios.Unsafe;
 using Unity.Burst;
@@ -19,6 +18,7 @@ namespace Latios.Myri
         AuxWorld                   m_auxWorld;
         IAudioEcsSystemRunner.VPtr m_runner;
         bool                       m_initialized;
+        bool                       m_needsRunnerInitialization;
 
         bool              m_hasAudioFormatUpdate;
         AudioFormat       m_audioFormat;
@@ -27,13 +27,15 @@ namespace Latios.Myri
 
         UnsafeList<VisualFrameUpdate> m_visualFrameUpdatesCache;
         FeedbackPipeManager           m_feedbackPipeManager;
-        int*                          m_currentFrameId;
+        AudioEcsAtomicFeedbackIds     m_atomicIds;
+        int                           m_maxReadCommandId;  // Read in Update(), used in Process().
 
-        public AudioEcsRootOutput(TlsfAllocator* tlsfAllocator, IAudioEcsSystemRunner.VPtr runner)
+        public AudioEcsRootOutput(TlsfAllocator* tlsfAllocator, IAudioEcsSystemRunner.VPtr runner, AudioEcsAtomicFeedbackIds atomicIds)
         {
-            this     = default;
-            m_tlsf   = tlsfAllocator;
-            m_runner = runner;
+            this        = default;
+            m_tlsf      = tlsfAllocator;
+            m_runner    = runner;
+            m_atomicIds = atomicIds;
         }
 
         public void Configure(AudioFormat audioFormat)
@@ -42,7 +44,8 @@ namespace Latios.Myri
             m_hasAudioFormatUpdate = true;
         }
 
-        public JobHandle EarlyProcessing(in RealtimeContext context, ProcessorInstance.Pipe pipe)
+        // Note: Update runs before EarlyProcessing, and is the only method that can actually read from Pipe.
+        public void Update(ProcessorInstance.UpdatedDataContext context, ProcessorInstance.Pipe pipe)
         {
             if (!m_initialized && m_hasAudioFormatUpdate)
             {
@@ -51,8 +54,56 @@ namespace Latios.Myri
                 m_visualFrameUpdatesCache = new UnsafeList<VisualFrameUpdate>(128, m_tlsf->Handle);
                 m_tlsfSecretary.Init(ref *m_tlsf);
                 m_feedbackPipeManager.Init(m_tlsf->Handle);
-                m_initialized = true;
+                m_initialized               = true;
+                m_needsRunnerInitialization = true;
+                m_maxReadCommandId          = -1;
+            }
+            if (m_initialized)
+            {
+                // Read messages from visual (one message per visual frame)
+                int maxRetiredFeedbackId = -1;
+                m_visualFrameUpdatesCache.Clear();
+                foreach (var wrapped in pipe.GetAvailableData(context))
+                {
+                    if (wrapped.TryGetData(out ControlToRealtimeMessage message))
+                    {
+                        m_maxReadCommandId   = math.max(m_maxReadCommandId, message.commandBufferId);
+                        maxRetiredFeedbackId = math.max(maxRetiredFeedbackId, message.retiredFeedbackId);
+                        m_visualFrameUpdatesCache.Add(new VisualFrameUpdate
+                        {
+                            commandId  = message.commandBufferId,
+                            pipeReader = new CommandPipeReader
+                            {
+                                m_perThreadPipes = message.commandPipeList
+                            }
+                        });
+                    }
+                }
+                // Update atomics for faster feedback
+                m_atomicIds.Write(new AudioEcsAtomicFeedbackIds.Ids
+                {
+                    feedbackIdStarted    = m_feedbackPipeManager.feedbackID,
+                    maxCommandIdConsumed = m_maxReadCommandId
+                });
 
+                // Retire feedback pipes now to free up memory before heavy processing
+                m_feedbackPipeManager.OnRetiredFeedbackPipe(maxRetiredFeedbackId);
+            }
+        }
+
+        public JobHandle EarlyProcessing(in RealtimeContext context, ProcessorInstance.Pipe pipe)
+        {
+            return default;
+        }
+
+        public void Process(in RealtimeContext context, ProcessorInstance.Pipe pipe, JobHandle inputJh)
+        {
+            if (!m_initialized)
+                return;
+
+            // Handle delayed initialization, since Update() doesn't provide the RealtimeContext
+            if (m_needsRunnerInitialization)
+            {
                 var initContext = new IAudioEcsSystemRunner.AudioFormatChangedContext
                 {
                     auxWorld                  = m_auxWorld,
@@ -62,19 +113,12 @@ namespace Latios.Myri
                     feedbackID                = m_feedbackPipeManager.feedbackID
                 };
                 m_runner.OnInitialize(ref initContext);
-                m_hasAudioFormatUpdate = false;
+                m_hasAudioFormatUpdate      = false;
+                m_needsRunnerInitialization = false;
             }
-            if (m_initialized)
-            {
-                Interlocked.Exchange(ref *m_currentFrameId, m_feedbackPipeManager.feedbackID);
-            }
-            return default;
-        }
 
-        public void Process(in RealtimeContext context, ProcessorInstance.Pipe pipe, JobHandle inputJh)
-        {
-            if (!m_initialized)
-                return;
+            // Schedule the begin-frame TLSf update after initialization since there won't be anything to do before that point
+            m_tlsfSecretary.Update(ref *m_tlsf);
 
             // Handle reconfiguration (rare)
             if (m_hasAudioFormatUpdate)
@@ -92,37 +136,13 @@ namespace Latios.Myri
                 m_hasAudioFormatUpdate = false;
             }
 
-            // Read messages from visual (one message per visual frame)
-            int maxCommandId         = -1;
-            int maxRetiredFeedbackId = -1;
-            m_visualFrameUpdatesCache.Clear();
-            foreach (var wrapped in pipe.GetAvailableData(context))
-            {
-                if (wrapped.TryGetData(out ControlToRealtimeMessage message))
-                {
-                    maxCommandId         = math.max(maxCommandId, message.commandBufferId);
-                    maxRetiredFeedbackId = math.max(maxRetiredFeedbackId, message.retiredFeedbackId);
-                    m_visualFrameUpdatesCache.Add(new VisualFrameUpdate
-                    {
-                        bufferId   = message.commandBufferId,
-                        pipeReader = new CommandPipeReader
-                        {
-                            m_perThreadPipes = message.commandPipeList
-                        }
-                    });
-                }
-            }
-
-            // Retire feedback pipes now to free up memory before heavy processing
-            m_feedbackPipeManager.OnRetiredFeedbackPipe(maxRetiredFeedbackId);
-
             // Execute the runner for this mix cycle
             var updateContext = new IAudioEcsSystemRunner.UpdateContext
             {
-                allRootContextsEarlyProcessingJobHandle = inputJh,
-                auxWorld                                = m_auxWorld,
-                feedbackID                              = m_feedbackPipeManager.feedbackID,
-                finalOutputBuffer                       = new FinalOutputBuffer
+                allRootOutputsEarlyProcessingJobHandle = inputJh,
+                auxWorld                               = m_auxWorld,
+                feedbackID                             = m_feedbackPipeManager.feedbackID,
+                finalOutputBuffer                      = new FinalOutputBuffer
                 {
                     m_buffer             = m_outputBuffer,
                     m_channelCount       = m_audioFormat.channelCount,
@@ -140,17 +160,20 @@ namespace Latios.Myri
                     updates = m_visualFrameUpdatesCache,
                 }
             };
-            m_runner.Update(ref updateContext);
+            m_runner.OnUpdate(ref updateContext);
             m_outputChannelsUsed = updateContext.finalOutputBuffer.m_channelInitialized;
 
             // Send feedback to simulation
             pipe.SendData(context, new RealtimeToControlMessage
             {
                 feedbackBufferId = m_feedbackPipeManager.feedbackID,
-                retiredCommandId = maxCommandId,
+                retiredCommandId = m_maxReadCommandId,
                 feedbackPipe     = *m_feedbackPipeManager.activePipe
             });
             m_feedbackPipeManager.OnSentActivePipe();
+
+            // Perform the end-frame TLSF update
+            m_tlsfSecretary.Update(ref *m_tlsf);
         }
 
         public void EndProcessing(in RealtimeContext context, ProcessorInstance.Pipe pipe, ChannelBuffer output)
@@ -198,10 +221,6 @@ namespace Latios.Myri
             m_visualFrameUpdatesCache.Dispose();
             m_tlsfSecretary.Shutdown(ref *m_tlsf);
             m_feedbackPipeManager.Shutdown();
-        }
-
-        public void Update(ProcessorInstance.UpdatedDataContext context, ProcessorInstance.Pipe pipe)
-        {
         }
 
         struct TlsfSecretary
@@ -302,7 +321,7 @@ namespace Latios.Myri
                 activePipe     = AllocatorManager.Allocate<MegaPipe>(allocator);
                 *activePipe    = new MegaPipe(allocator);
                 sentPipes      = new UnsafeList<SentPipe>(32, allocator);
-                feedbackID     = 1;
+                feedbackID     = 0;
             }
 
             public void OnSentActivePipe()

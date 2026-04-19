@@ -78,7 +78,6 @@ namespace Latios.Unsafe
 
         public void Dispose()
         {
-            m_thisAllocator.RemoveSafetyHandles();
             foreach (var pool in m_pools)
             {
                 AllocatorManager.Free(m_backingAllocator, pool.ptr, pool.elementSize, pool.alignment, pool.numElements);

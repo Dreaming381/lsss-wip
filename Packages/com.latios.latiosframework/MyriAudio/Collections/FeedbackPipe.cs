@@ -9,21 +9,42 @@ namespace Latios.Myri
     {
         internal MegaPipe* m_megaPipe;
 
+        /// <summary>
+        /// Writes a message to the pipe. Shorthand for creating a message and assigning to it.
+        /// </summary>
         public void WriteMessage<T>(in T message) where T : unmanaged
         {
             CreateMessage<T>() = message;
         }
 
+        /// <summary>
+        /// Allocates a message in the pipe, and then returns a reference for further configuration.
+        /// </summary>
         public ref T CreateMessage<T>() where T : unmanaged
         {
-            return ref *m_megaPipe->AllocateMessage<T>();
+            var m = m_megaPipe->AllocateMessage<T>();
+            *   m = default;
+            return ref *m;
         }
 
+        /// <summary>
+        /// Allocates a message without explicitly calling out the type generically, and then returns a pointer
+        /// to the allocation. The allocation will not be zero-initialized.
+        /// </summary>
+        /// <param name="typeHash">The BurstRuntime.GetHashCode64() of the type</param>
+        /// <param name="sizeInBytes">The size of the type in bytes</param>
+        /// <param name="alignInBytes">The alignment of the allocation</param>
+        /// <returns>A pointer to the allocation</returns>
         public void* CreateMessageDynamic(long typeHash, int sizeInBytes, int alignInBytes)
         {
             return m_megaPipe->AllocateMessage(typeHash, sizeInBytes, alignInBytes);
         }
 
+        /// <summary>
+        /// Allocates an array in the pipe which can be assigned to any message (or another PipeSpan) in the pipe.
+        /// </summary>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the pipe</returns>
         public PipeSpan<T> CreatePipeSpan<T>(int elementCount) where T : unmanaged
         {
             return new PipeSpan<T>
@@ -38,7 +59,17 @@ namespace Latios.Myri
     {
         // Length of 1, comes from a SubArray of all feedbacks to be processed.
         [ReadOnly] internal NativeArray<MegaPipe> m_megaPipe;
+        internal int                              m_feedbackId;
 
+        /// <summary>
+        /// The audio frame ID that generated the messages in this pipe
+        /// </summary>
+        public int feedbackId => m_feedbackId;
+
+        /// <summary>
+        /// Use in a foreach expression to iterate all messages of the specified type.
+        /// Messages are in the order they were written for the specific type.
+        /// </summary>
         public Enumerator<T> Each<T>() where T : unmanaged
         {
             return new Enumerator<T>
@@ -48,6 +79,11 @@ namespace Latios.Myri
             };
         }
 
+        /// <summary>
+        /// Use in a foreach expression to iterate all messages of the specified type,
+        /// without concretely specifying the type (provides void* elements).
+        /// Messages are in the order they were written for the specific type.
+        /// </summary>
         public EnumeratorUntyped Each(long typeHash)
         {
             return new EnumeratorUntyped

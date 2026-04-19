@@ -41,6 +41,7 @@ namespace Latios.Myri
                 runnerSizeInBytes      = UnsafeUtility.SizeOf<T>();
                 runnerAlignmentInBytes = UnsafeUtility.AlignOf<T>();
                 T* ptr                 = (T*)AllocatorManager.Allocate(Allocator.Persistent, runnerSizeInBytes, runnerAlignmentInBytes);
+                *  ptr                 = runner;
                 runnerPtr              = IAudioEcsSystemRunner.VPtr.Create<T>(ptr);
                 tlsfPoolSize           = math.max(initialMemorySize, 128 * 1024);  // Work around user specifying a stupidly small value.
                 configured             = true;
@@ -64,13 +65,31 @@ namespace Latios.Myri
     /// </summary>
     public partial interface IAudioEcsSystemRunner : IVInterface
     {
+        /// <summary>
+        /// A context used at initialization and when the audio format changes.
+        /// </summary>
         public struct AudioFormatChangedContext
         {
-            public AuxWorld           auxWorld;
-            public RealtimeContext    unityAudioRealtimeContext;
+            /// <summary>
+            /// The auxWorld to use for managing audio. It contains the realtime-safe allocator.
+            /// </summary>
+            public AuxWorld auxWorld;
+            /// <summary>
+            /// The UnityEngine.Audio RealtimeContext which can be used to process generators.
+            /// </summary>
+            public RealtimeContext unityAudioRealtimeContext;
+            /// <summary>
+            /// An API surface for sending messages back to the main thread.
+            /// </summary>
             public FeedbackPipeWriter pipeWriter;
-            public int                feedbackID;
-            public AudioFormat        newAudioFormat;
+            /// <summary>
+            /// The current audio frame / mix-cycle identifier.
+            /// </summary>
+            public int feedbackID;
+            /// <summary>
+            /// The audio format of the output sound device.
+            /// </summary>
+            public AudioFormat newAudioFormat;
         }
 
         /// <summary>
@@ -81,40 +100,70 @@ namespace Latios.Myri
 
         /// <summary>
         /// Called if the format changes during runtime after the first call to OnInitialize().
+        /// This may be called either upon request, or if the user changes their sound device through the OS.
         /// </summary>
         public void OnAudioFormatChanged(ref AudioFormatChangedContext context);
 
+        /// <summary>
+        /// A context used for processing each audio frame.
+        /// </summary>
         public struct UpdateContext
         {
-            public AuxWorld              auxWorld;
-            public RealtimeContext       unityAudioRealtimeContext;
-            public FeedbackPipeWriter    pipeWriter;
-            public int                   feedbackID;
-            public JobHandle             allRootContextsEarlyProcessingJobHandle;
+            /// <summary>
+            /// The auxWorld to use for managing audio. It contains the realtime-safe allocator.
+            /// </summary>
+            public AuxWorld auxWorld;
+            /// <summary>
+            /// The UnityEngine.Audio RealtimeContext which can be used to read the DSP clock and process generators.
+            /// </summary>
+            public RealtimeContext unityAudioRealtimeContext;
+            /// <summary>
+            /// An API surface for sending messages back to the main thread.
+            /// </summary>
+            public FeedbackPipeWriter pipeWriter;
+            /// <summary>
+            /// The current audio frame / mix-cycle identifier.
+            /// </summary>
+            public int feedbackID;
+            /// <summary>
+            /// A JobHandle representing all the jobs from all RootOutput EarlyProcessing() calls.
+            /// This is only useful if you have other RootOutput instances that are sharing resources with Audio ECS.
+            /// Otherwise, it should be ignored.
+            /// </summary>
+            public JobHandle allRootOutputsEarlyProcessingJobHandle;
+            /// <summary>
+            /// An API surface for receiving messages from the main thread (and scheduled jobs).
+            /// </summary>
             public AllVisualFrameUpdates visualFrameUpdates;
-            public FinalOutputBuffer     finalOutputBuffer;
+            /// <summary>
+            /// A deinterleaved buffer of audio samples that OnUpdate() should write to.
+            /// </summary>
+            public FinalOutputBuffer finalOutputBuffer;
         }
 
         /// <summary>
         /// Called once each DSP mix cycle.
         /// </summary>
         /// <param name="context"></param>
-        public void Update(ref UpdateContext context);
+        public void OnUpdate(ref UpdateContext context);
 
+        /// <summary>
+        /// A context used when this Audio ECS instance is shutting down on the audio thread.
+        /// </summary>
         public struct ShutdownContext
         {
             public AuxWorld auxWorld;
         }
 
         /// <summary>
-        /// Called once before the AuxWorld is disposed.
+        /// Called once on the audio thread before the AuxWorld is disposed.
         /// </summary>
         public void OnShutdown(ref ShutdownContext context);
     }
 
     public struct VisualFrameUpdate
     {
-        public int               bufferId;
+        public int               commandId;
         public CommandPipeReader pipeReader;
     }
 
@@ -122,6 +171,8 @@ namespace Latios.Myri
     {
         internal UnsafeList<VisualFrameUpdate> updates;
 
+        public int length => updates.Length;
+        public VisualFrameUpdate this[int index] => updates[index];
         public UnsafeList<VisualFrameUpdate>.Enumerator GetEnumerator() => updates.GetEnumerator();
     }
 
