@@ -1,5 +1,6 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System;
+using System.Collections.Generic;
 using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Entities;
@@ -167,6 +168,7 @@ namespace Latios.Transforms
                 return;
 
             bool fastPath    = true;
+            bool sortPath    = true;
             var  firstAspect = commands[0].aspect;
             if (!firstAspect.entityInHierarchyHandle.isNull)
             {
@@ -176,10 +178,15 @@ namespace Latios.Transforms
                 foreach (var command in commands)
                 {
                     var handle = command.aspect.entityInHierarchyHandle;
-                    if (handle.isNull || handle.m_hierarchy != hierarchy || handle.indexInHierarchy <= previousIndex)
+                    if (handle.isNull || handle.m_hierarchy != hierarchy)
                     {
                         fastPath = false;
+                        sortPath = false;
                         break;
+                    }
+                    if (handle.indexInHierarchy <= previousIndex)
+                    {
+                        fastPath = false;
                     }
                     previousIndex = handle.indexInHierarchy;
                 }
@@ -190,7 +197,26 @@ namespace Latios.Transforms
             {
                 ApplyBatchTransformsWithoutChecks(commands, ref tsa);
             }
-            else
+            else if (sortPath)
+            {
+                var sortedCommands = tsa.AllocateAsSpan<TransformBatchWriteCommand>(commands.Length);
+                commands.CopyTo(sortedCommands);
+                sortedCommands.Sort(new CommandSorter());
+                int previousIndex = -1;
+                foreach (var command in sortedCommands)
+                {
+                    if (previousIndex == command.aspect.entityInHierarchyHandle.indexInHierarchy)
+                    {
+                        sortPath = false;
+                        break;
+                    }
+                }
+                if (sortPath)
+                {
+                    ApplyBatchTransformsWithoutChecks(sortedCommands, ref tsa);
+                }
+            }
+            if (!fastPath && !sortPath)
             {
                 // Todo: We need to sort the commands by root entity by first appearance. Not sure how to do that deterministically and efficiently yet with TSA.
                 // Then we need to merge commands when multiple writes are applied to the same target. We'll need to split writes if the commands conflict.
@@ -261,6 +287,14 @@ namespace Latios.Transforms
                                                                ref alive);
                     break;
                 }
+            }
+        }
+
+        struct CommandSorter : IComparer<TransformBatchWriteCommand>
+        {
+            public int Compare(TransformBatchWriteCommand x, TransformBatchWriteCommand y)
+            {
+                return x.aspect.entityInHierarchyHandle.indexInHierarchy.CompareTo(y.aspect.entityInHierarchyHandle.indexInHierarchy);
             }
         }
     }
