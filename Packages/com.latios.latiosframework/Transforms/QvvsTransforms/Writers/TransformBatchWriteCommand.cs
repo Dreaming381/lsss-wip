@@ -210,6 +210,7 @@ namespace Latios.Transforms
                         sortPath = false;
                         break;
                     }
+                    previousIndex = command.aspect.entityInHierarchyHandle.indexInHierarchy;
                 }
                 if (sortPath)
                 {
