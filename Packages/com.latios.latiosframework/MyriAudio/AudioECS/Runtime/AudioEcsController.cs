@@ -89,6 +89,11 @@ namespace Latios.Myri
             {
                 m_audioFormat = format;
                 realtime.Configure(format);
+                // Prevent sync on later configurations.
+                if (m_latiosWorld.worldBlackboardEntity.HasComponent<AudioEcsFormat>())
+                    m_latiosWorld.worldBlackboardEntity.SetComponentData(new AudioEcsFormat { audioFormat = format });
+                else
+                    m_latiosWorld.worldBlackboardEntity.AddComponentData(new AudioEcsFormat { audioFormat = format });
             }
             return default;
         }

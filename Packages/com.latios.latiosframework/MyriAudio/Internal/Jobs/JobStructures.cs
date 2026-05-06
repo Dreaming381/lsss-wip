@@ -1,4 +1,6 @@
-﻿using Unity.Mathematics;
+﻿using Unity.Entities;
+using Unity.Mathematics;
+using UnityEngine.Audio;
 
 namespace Latios.Myri
 {
@@ -60,11 +62,26 @@ namespace Latios.Myri
         public int2           channelIDsRange;
     }
 
+    internal struct ListenerWithPresampling
+    {
+        public Entity                                  listener;
+        public BlobAssetReference<ListenerProfileBlob> profile;
+    }
+
     internal struct AudioFrameBufferHistoryElement
     {
         public int bufferId;
         public int audioFrame;
         public int expectedNextUpdateFrame;
+    }
+
+    internal struct CapturedFrameState
+    {
+        public int           audioFrame;
+        public int           lastPlayedAudioFrame;
+        public int           lastConsumedBufferId;
+        public AudioFormat   format;
+        public AudioSettings audioSettings;
     }
 }
 

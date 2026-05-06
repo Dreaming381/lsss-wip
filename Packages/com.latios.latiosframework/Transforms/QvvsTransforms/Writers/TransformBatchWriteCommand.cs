@@ -145,7 +145,8 @@ namespace Latios.Transforms
         /// Applies a batch of commands.
         /// WARNING: This method is incomplete, and currently only supports the fast path. For the fast-path to work
         /// all commands must apply to the same hierarchy. In addition, only one command exists per entity, and the
-        /// commands are ordered by the order of entities in the hierarchy.
+        /// commands are ordered by the order of entities in the hierarchy. Update: This method will now sort
+        /// unordered commands.
         /// </summary>
         /// <param name="commands">An array of commands to apply</param>
         /// <exception cref="System.NotSupportedException">Thrown if the commands do not satisfy the fast-path criteria</exception>
@@ -158,7 +159,8 @@ namespace Latios.Transforms
         /// Applies a batch of commands.
         /// WARNING: This method is incomplete, and currently only supports the fast path. For the fast-path to work
         /// all commands must apply to the same hierarchy. In addition, only one command exists per entity, and the
-        /// commands are ordered by the order of entities in the hierarchy.
+        /// commands are ordered by the order of entities in the hierarchy. Update: This method will now sort
+        /// unordered commands.
         /// </summary>
         /// <param name="commands">An array of commands to apply</param>
         /// <exception cref="System.NotSupportedException">Thrown if the commands do not satisfy the fast-path criteria</exception>
