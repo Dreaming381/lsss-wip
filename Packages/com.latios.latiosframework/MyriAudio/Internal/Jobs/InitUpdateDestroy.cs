@@ -297,13 +297,17 @@ namespace Latios.Myri
                 {
                     targetFrame = math.max(audioFrameHistory.Peek().expectedNextUpdateFrame, targetFrame);
                 }
+                var oldState             = capturedFrameState.Value;
+                var format               = formatLookup[worldBlackboardEntity].audioFormat;
+                var resetSources         = oldState.format.sampleRate != format.sampleRate || oldState.format.bufferFrameCount != format.bufferFrameCount;
                 capturedFrameState.Value = new CapturedFrameState
                 {
                     audioFrame           = targetFrame,
                     lastConsumedBufferId = bufferId,
                     lastPlayedAudioFrame = frame,
-                    format               = formatLookup[worldBlackboardEntity].audioFormat,
+                    format               = format,
                     audioSettings        = settings,
+                    requiresSourceReset  = resetSources,
                 };
             }
         }
@@ -406,6 +410,7 @@ namespace Latios.Myri
                             {
                                 audioListener = listeners[i],
                                 entity        = entities[i],
+                                hasChannels   = channelIDBuffers.Length > 0,
                             };
                             if (channelIDBuffers.Length > 0)
                             {
@@ -467,6 +472,7 @@ namespace Latios.Myri
                 var format                = capturedFrameState.Value.format;
                 var sampleRate            = format.sampleRate;
                 var samplesPerFrame       = format.bufferFrameCount;
+                var reset                 = capturedFrameState.Value.requiresSourceReset;
 
                 stream.BeginForEachIndex(unfilteredChunkIndex);
                 for (int i = 0; i < chunk.Count; i++)
@@ -476,6 +482,9 @@ namespace Latios.Myri
 
                     if (!clip.m_clip.IsCreated)
                         continue;
+
+                    if (reset)
+                        clip.ResetPlaybackState();
 
                     double sampleRateMultiplier = sampleRateMultipliers != null ? sampleRateMultipliers[i].multiplier : 1.0;
                     if (clip.looping)

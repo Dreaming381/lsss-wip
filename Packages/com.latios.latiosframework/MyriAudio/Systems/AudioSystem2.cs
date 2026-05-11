@@ -33,6 +33,9 @@ namespace Latios.Myri
 
         WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
 
+        int m_previousConsumedCommandId;
+        int m_twoAgoConsumedCommandId;
+
         public void OnCreate(ref SystemState state)
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
@@ -48,6 +51,9 @@ namespace Latios.Myri
             {
                 Initialize(ref state, carrier.bootstrap);
             }
+
+            m_previousConsumedCommandId = -1;
+            m_twoAgoConsumedCommandId   = -1;
         }
 
         public bool ShouldUpdateSystem(ref SystemState state)
@@ -174,6 +180,11 @@ namespace Latios.Myri
             {
                 var ids              = atomicIds.Read();
                 var lastStartedFrame = ids.feedbackIdStarted;
+                if (ids.maxCommandIdConsumed != m_previousConsumedCommandId)
+                {
+                    m_twoAgoConsumedCommandId   = m_previousConsumedCommandId;
+                    m_previousConsumedCommandId = ids.maxCommandIdConsumed;
+                }
 
                 var dst = 0;
                 for (int src = 0; src < m_ownedMegaBuffers.Length; src++)
@@ -191,7 +202,7 @@ namespace Latios.Myri
                 }
                 m_ownedMegaBuffers.Length = dst;
 
-                m_blobRetainer.Update(state.EntityManager, commandPipe.commandId, ids.maxCommandIdConsumed);
+                m_blobRetainer.Update(state.EntityManager, commandPipe.commandId, m_twoAgoConsumedCommandId);
             }
 
             // End ECS processing

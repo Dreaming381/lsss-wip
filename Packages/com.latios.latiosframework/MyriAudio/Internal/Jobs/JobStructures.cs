@@ -82,6 +82,7 @@ namespace Latios.Myri
         public int           lastConsumedBufferId;
         public AudioFormat   format;
         public AudioSettings audioSettings;
+        public bool          requiresSourceReset;
     }
 }
 

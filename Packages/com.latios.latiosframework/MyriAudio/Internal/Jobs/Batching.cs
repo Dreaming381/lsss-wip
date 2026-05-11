@@ -187,6 +187,7 @@ namespace Latios.Myri
             {
                 // Compute buffer metadata
                 var state             = capturedFrameState.Value;
+                var targetFrame       = state.audioFrame;
                 var frameCount        = state.audioSettings.audioFramesPerUpdate + state.audioSettings.safetyAudioFrames;
                 var samplesPerChannel = state.format.bufferFrameCount * frameCount + 8;  // 8 extra samples for anti-stepping
                 var nextUpdateFrame   = state.audioFrame + state.audioSettings.audioFramesPerUpdate;
@@ -244,7 +245,10 @@ namespace Latios.Myri
                         listenerEntity               = listener.listener,
                         nextUpdateFrame              = nextUpdateFrame,
                         profile                      = listener.profile,
-                        startOffsetInBufferByChannel = span
+                        samplesPerAudioFrame         = state.format.bufferFrameCount,
+                        sampleRate                   = state.format.sampleRate,
+                        startOffsetInBufferByChannel = span,
+                        targetFrame                  = targetFrame,
                     };
                 }
 
@@ -263,7 +267,10 @@ namespace Latios.Myri
                         listenerEntity               = listener.listener,
                         nextUpdateFrame              = nextUpdateFrame,
                         profile                      = listener.profile,
-                        startOffsetInBufferByChannel = span
+                        samplesPerAudioFrame         = state.format.bufferFrameCount,
+                        sampleRate                   = state.format.sampleRate,
+                        startOffsetInBufferByChannel = span,
+                        targetFrame                  = targetFrame,
                     };
                 }
             }

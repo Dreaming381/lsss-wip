@@ -11,7 +11,10 @@ namespace Latios.Myri.AudioEcsBuiltin
         public float*                                  buffer;
         public PipeSpan<int>                           startOffsetInBufferByChannel;  // -1 means no samples
         public int                                     audioFramesInUpdate;
+        public int                                     targetFrame;
         public int                                     nextUpdateFrame;
+        public int                                     sampleRate;
+        public int                                     samplesPerAudioFrame;
     }
 }
 

@@ -25,6 +25,7 @@ namespace Latios.Myri.AudioEcsBuiltin
             UpdateAudioSettingsSystem.OnUpdate(ref context);
             UpdateListenersSystem.OnUpdate(ref context);
 
+            PresamplingSystem.OnUpdate(ref context);
             ListenerBrickWallLimitersSystem.OnUpdate(ref context);
             MixListenersToStereoOutputSystem.OnUpdate(ref context);
             StereoOutputBrickwallLimiterSystem.OnUpdate(ref context);
