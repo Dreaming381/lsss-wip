@@ -93,11 +93,11 @@ namespace Latios.Unsafe
             var poolSize    = math.max(minimumSize, m_standardPoolSize);
             var elementSize = (int)poolSize;
             var numElements = 1;
-            if (poolSize > (1 << 31))
+            if (poolSize > (1 << 30))
             {
-                poolSize    = CollectionHelper.Align(poolSize, 1 << 31);
+                poolSize    = CollectionHelper.Align(poolSize, 1 << 30);
                 elementSize = (1 << 31);
-                numElements = (int)(poolSize / (1 << 31));
+                numElements = (int)(poolSize / (1 << 30));
             }
             var pool = new Pool
             {
@@ -169,11 +169,11 @@ namespace Latios.Unsafe
             CheckMultipleOf64((ulong)size);
             elementSize = (int)size;
             numElements = 1;
-            if (size > (1 << 31))
+            if (size > (1 << 30))
             {
-                size        = CollectionHelper.Align(size, 1 << 31);
-                elementSize = (1 << 31);
-                numElements = (int)(size / (1 << 31));
+                size        = CollectionHelper.Align(size, 1 << 30);
+                elementSize = (1 << 30);
+                numElements = (int)(size / (1 << 30));
             }
             alignment = 64;
         }
@@ -226,11 +226,10 @@ namespace Latios.Unsafe
             header->nextFreeHeader     = null;
             header->previousFreeHeader = null;
 
-            var cacheLineCount      = header->byteCount / 64;
-            var firstLevelIndex     = Log2Ceil(cacheLineCount / 64);
-            var firstLevelInterval  = 1 << math.max(firstLevelIndex - 1, 0) + 6;
-            var secondLevelInterval = firstLevelIndex / 64;
-            var secondLevelIndex    = (int)(((long)cacheLineCount - firstLevelInterval) / secondLevelInterval);
+            var cacheLineCount  = header->byteCount / 64;
+            var firstLevelIndex = GetFirstLevelIndex(cacheLineCount);
+            GetFirstLevelInfo(firstLevelIndex, out var secondLevelInterval, out var firstLevelStart);
+            var secondLevelIndex = GetSecondLevelIndexRoundDown(cacheLineCount, secondLevelInterval, firstLevelStart);
 
             var freeBlockPointersIndex = firstLevelIndex * 64 + secondLevelIndex;
             var previousPtr            = m_freeBlocks[freeBlockPointersIndex];
@@ -247,11 +246,10 @@ namespace Latios.Unsafe
 
         void ClearFreeBlocksForByteCount(ulong byteCount)
         {
-            var cacheLineCount      = byteCount / 64;
-            var firstLevelIndex     = Log2Ceil(cacheLineCount / 64);
-            var firstLevelInterval  = 1 << math.max(firstLevelIndex - 1, 0) + 6;
-            var secondLevelInterval = firstLevelIndex / 64;
-            var secondLevelIndex    = (int)(((long)cacheLineCount - firstLevelInterval) / secondLevelInterval);
+            var cacheLineCount  = byteCount / 64;
+            var firstLevelIndex = GetFirstLevelIndex(cacheLineCount);
+            GetFirstLevelInfo(firstLevelIndex, out var secondLevelInterval, out var firstLevelStart);
+            var secondLevelIndex = GetSecondLevelIndexRoundDown(cacheLineCount, secondLevelInterval, firstLevelStart);
             m_secondLevelFreeBits[firstLevelIndex].SetBits(secondLevelIndex, false);
             if (m_secondLevelFreeBits[firstLevelIndex].Value == 0)
                 m_firstLevelFreeBits.SetBits(firstLevelIndex, false);
@@ -261,7 +259,7 @@ namespace Latios.Unsafe
         {
             var requiredSize       = (ulong)CollectionHelper.Align(size, 64);
             var requiredCacheLines = requiredSize / 64;
-            var firstLevelIndex    = Log2Ceil(requiredCacheLines / 64);
+            var firstLevelIndex    = GetFirstLevelIndex(requiredCacheLines);
             var firstLevelBits     = m_firstLevelFreeBits;
             if (firstLevelIndex > 0)
                 firstLevelBits.SetBits(0, false, firstLevelIndex);
@@ -276,11 +274,10 @@ namespace Latios.Unsafe
                 return Allocate(size);
             }
 
-            firstLevelIndex         = firstLevelBits.CountTrailingZeros();
-            var firstLevelInterval  = 1 << math.max(firstLevelIndex - 1, 0) + 6;
-            var secondLevelInterval = firstLevelIndex / 64;
-            var secondLevelIndex    = math.max(0, (int)(((long)requiredCacheLines - firstLevelInterval) / secondLevelInterval));
-            var secondLevelBits     = m_secondLevelFreeBits[firstLevelIndex];
+            firstLevelIndex = firstLevelBits.CountTrailingZeros();
+            GetFirstLevelInfo(firstLevelIndex, out var secondLevelInterval, out var firstLevelStart);
+            var secondLevelIndex = GetSecondLevelIndexRoundUp(requiredCacheLines, secondLevelInterval, firstLevelStart);
+            var secondLevelBits  = m_secondLevelFreeBits[firstLevelIndex];
             if (secondLevelIndex > 0)
                 secondLevelBits.SetBits(0, false, secondLevelIndex);
             if (secondLevelBits.Value == 0)
@@ -298,11 +295,13 @@ namespace Latios.Unsafe
                     AllocatePool((long)requiredSize);
                     return Allocate(size);
                 }
+                firstLevelIndex = firstLevelBits.CountTrailingZeros();
                 secondLevelBits = m_secondLevelFreeBits[firstLevelIndex];
             }
 
             secondLevelIndex           = secondLevelBits.CountTrailingZeros();
             var freeBlockPointersIndex = firstLevelIndex * 64 + secondLevelIndex;
+            var freeBlocksDebugSpan    = new Span<IntPtr>(m_freeBlocks, 2048);
             var headerTaken            = m_freeBlocks[freeBlockPointersIndex];
             if (headerTaken->nextFreeHeader != null)
             {
@@ -311,6 +310,7 @@ namespace Latios.Unsafe
             }
             else
             {
+                m_freeBlocks[freeBlockPointersIndex] = null;
                 m_secondLevelFreeBits[firstLevelIndex].SetBits(secondLevelIndex, false);
                 if (m_secondLevelFreeBits[firstLevelIndex].Value == 0)
                     m_firstLevelFreeBits.SetBits(firstLevelIndex, false);
@@ -342,6 +342,7 @@ namespace Latios.Unsafe
             };
             if (headerTaken->headerAfterInPool != null)
                 headerTaken->headerAfterInPool->headerBeforeInPool = headerLeftover;
+            headerTaken->headerAfterInPool                         = headerLeftover;
 
             AddBlockToFreeStore(headerLeftover);
             headerTaken->byteCount  = requiredCacheLines * 64;
@@ -405,14 +406,46 @@ namespace Latios.Unsafe
             m_bytesUsed -= byteCount;
         }
 
+        // The cache line distribution is a little weird. The first interval has 64 lines, the second has 128, and so-on.
+        // Here we represent the range of cache lines for each index, as well as the ranges divided by 64.
+        // index 0 = [0, 63] [0, 0]
+        // index 1 = [64, 191][1, 2]
+        // index 2 = [192, 447][3, 6]
+        // index 3 = [448, 959][7, 14]
+        // index 4 = [960, 1983][15, 30]
+        // ..
+        //
+        // A pattern emerges here when we look at the ranges divided by 64 (referred to as divided ranges).
+        // Add 1 to this divided range, and we see these divided ranges represent floorlog2 intervals.
+        // The lower bound of each divided range is our second-level interval stride. And the most-significant bit of that lower bound is at the position of the index we care about.
+        static int GetFirstLevelIndex(ulong cacheLineCount)
+        {
+            var divided = cacheLineCount / 64;
+            var addOne  = divided + 1;
+            return Log2Floor(addOne);
+        }
+
+        static void GetFirstLevelInfo(int firstLevelIndex, out int cacheLinesPerSecondLevelInterval, out long firstLevelStart)
+        {
+            var minDividedPlus1              = 1 << firstLevelIndex;
+            cacheLinesPerSecondLevelInterval = minDividedPlus1;
+            firstLevelStart                  = (minDividedPlus1 - 1) * (long)64;
+        }
+
+        static int GetSecondLevelIndexRoundDown(ulong cacheLineCount, int cacheLinesPerSecondLevelInterval, long firstLevelStart)
+        {
+            return (int)(((long)cacheLineCount - firstLevelStart) / cacheLinesPerSecondLevelInterval);
+        }
+
+        static int GetSecondLevelIndexRoundUp(ulong cacheLineCount, int cacheLinesPerSecondLevelInterval, long firstLevelStart)
+        {
+            var roundUpOffset = cacheLinesPerSecondLevelInterval - 1;
+            return (int)(((long)cacheLineCount - firstLevelStart + roundUpOffset) / cacheLinesPerSecondLevelInterval);
+        }
+
         static int Log2Floor(ulong a)
         {
             return 63 - math.lzcnt(a);
-        }
-
-        static int Log2Ceil(ulong a)
-        {
-            return 64 - math.lzcnt(a);
         }
         #endregion
 

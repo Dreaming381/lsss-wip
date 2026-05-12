@@ -36,5 +36,16 @@ namespace Latios.Myri.AudioEcsBuiltin
         {
         }
     }
+
+    public struct BuiltInRunnerBootstrap : IAudioEcsBootstrap
+    {
+        public void OnStart(ref IAudioEcsBootstrap.Configurator configurator)
+        {
+            BuiltInRunner runner = default;
+            configurator.Configure(in runner, 8 * 1024 * 1024);
+        }
+
+        public bool ShouldWaitForMyriSourceOrListenerBeforeStarting() => true;
+    }
 }
 

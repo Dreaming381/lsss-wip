@@ -21,6 +21,7 @@ namespace Latios.Myri
         LatiosWorldUnmanaged                 m_latiosWorld;
         UnsafeList<ControlToRealtimeMessage> m_sentPipes;
         int                                  m_maxReadFeedbackId;
+        bool                                 m_receivedShutdown;
 
         public AudioEcsController(IAudioEcsBootstrap bootstrap, LatiosWorldUnmanaged latiosWorld)
         {
@@ -76,6 +77,8 @@ namespace Latios.Myri
                 m_feedbackIds = new NativeList<int>(Allocator.Persistent),
             });
             m_latiosWorld.worldBlackboardEntity.AddComponentData(m_atomicIds);
+
+            m_receivedShutdown = false;
         }
 
         public AudioEcsRootOutput CreateRealtime()
@@ -132,6 +135,7 @@ namespace Latios.Myri
                 jh.Complete();
                 m_latiosWorld.worldBlackboardEntity.RemoveCollectionComponentAndDispose<AudioEcsFeedbackPipe>();
                 m_latiosWorld.worldBlackboardEntity.RemoveCollectionComponentAndDispose<AudioEcsCommandPipe>();
+                m_receivedShutdown = true;
                 return ProcessorInstance.Response.Handled;
             }
             return ProcessorInstance.Response.Unhandled;
@@ -139,6 +143,10 @@ namespace Latios.Myri
 
         public void Update(ControlContext context, ProcessorInstance.Pipe pipe)
         {
+            // For some dumb reason, we still get an update even after requesting shutdown.
+            if (m_receivedShutdown)
+                return;
+
             // Gather old feedback pipes and compute last read feedbackID
             var feedbackPipe = m_latiosWorld.GetCollectionComponent<AudioEcsFeedbackPipe>(m_latiosWorld.worldBlackboardEntity, out var jh, false);
             jh.Complete();
@@ -196,8 +204,9 @@ namespace Latios.Myri
             m_sentPipes.Add(messageToSend);
 
             // Allocate new command pipe
-            commandPipe.m_pipe.m_perThreadPipes.Value = new UnsafeList<MegaPipe>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
-            commandPipe.m_pipe.m_perThreadPipes.Value.AddReplicate(default, JobsUtility.ThreadIndexCount);
+            var writePipes = new UnsafeList<MegaPipe>(JobsUtility.ThreadIndexCount, Allocator.Persistent);
+            writePipes.AddReplicate(default, JobsUtility.ThreadIndexCount);
+            commandPipe.m_pipe.m_perThreadPipes.Value = writePipes;
             commandPipe.m_commandBufferId.Value++;
 
             // Release the collection components

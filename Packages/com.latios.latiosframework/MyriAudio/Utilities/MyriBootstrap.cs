@@ -1,3 +1,4 @@
+using Latios.Myri.AudioEcsBuiltin;
 using Unity.Entities;
 using UnityEngine.Audio;
 
@@ -18,6 +19,19 @@ namespace Latios.Myri
                 throw new System.InvalidOperationException("Cannot install Myri runtime in a conversion world.");
 
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.AudioSystem>(), world);
+        }
+
+        /// <summary>
+        /// Installs Myri into the World at its default location
+        /// </summary>
+        /// <param name="world">The runtime world in which Myri should be installed</param>
+        public static void InstallMyri2(LatiosWorld world)
+        {
+            if (world.Flags.HasFlag(WorldFlags.Conversion))
+                throw new System.InvalidOperationException("Cannot install Myri runtime in a conversion world.");
+
+            world.worldBlackboardEntity.AddManagedStructComponent(new AudioEcsBootstrapCarrier { bootstrap = new BuiltInRunnerBootstrap() });
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.AudioSystem2>(), world);
         }
 
         /// <summary>

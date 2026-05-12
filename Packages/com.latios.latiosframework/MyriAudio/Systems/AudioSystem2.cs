@@ -1,6 +1,5 @@
 using Latios.Transforms;
 using Latios.Transforms.Abstract;
-using static Latios.Myri.GraphHandling;
 using static Unity.Entities.SystemAPI;
 using Unity.Burst;
 using Unity.Collections;
@@ -10,7 +9,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Audio;
 
-namespace Latios.Myri
+namespace Latios.Myri.Systems
 {
     [DisableAutoCreation]
     [UpdateInGroup(typeof(Latios.Systems.PreSyncPointGroup))]
@@ -45,6 +44,8 @@ namespace Latios.Myri
             m_aliveListenersQuery   = state.Fluent().With<AudioListener>(true).WithWorldTransformReadOnly().Build();
 
             m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
+
+            latiosWorld.worldBlackboardEntity.AddComponentDataIfMissing(AudioSettings.kDefault);
 
             var carrier = latiosWorld.worldBlackboardEntity.GetManagedStructComponent<AudioEcsBootstrapCarrier>();
             if (!carrier.bootstrap.ShouldWaitForMyriSourceOrListenerBeforeStarting())
