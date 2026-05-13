@@ -58,6 +58,12 @@ namespace Latios.Myri.AudioEcsBuiltin
                     channel.Dispose();
                 channels.Dispose();
             }
+            if (updates.IsCreated)
+            {
+                foreach (var update in updates)
+                    update.Dispose();
+                updates.Dispose();
+            }
             this = default;
         }
     }

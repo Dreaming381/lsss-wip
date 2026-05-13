@@ -227,6 +227,7 @@ namespace Latios.Myri
             m_visualFrameUpdatesCache.Dispose();
             m_tlsfSecretary.Shutdown(ref *m_tlsf);
             m_feedbackPipeManager.Shutdown();
+            m_auxWorld.Dispose();
         }
 
         struct TlsfSecretary

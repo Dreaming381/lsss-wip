@@ -76,6 +76,9 @@ namespace Latios.Myri.AudioEcsBuiltin
 
                     if (add)
                     {
+                        var startOffsets = new UnsafeList<int>(message.startOffsetInBufferByChannel.length, context.auxWorld.allocator);
+                        foreach (var offset in message.startOffsetInBufferByChannel)
+                            startOffsets.Add(offset);
                         state.aux.updates.Add(new PresampledUpdate
                         {
                             audioFramesInUpdate          = message.audioFramesInUpdate,
@@ -84,7 +87,7 @@ namespace Latios.Myri.AudioEcsBuiltin
                             profile                      = message.profile,
                             sampleRate                   = message.sampleRate,
                             samplesPerAudioFrame         = message.samplesPerAudioFrame,
-                            startOffsetInBufferByChannel = new UnsafeList<int>(message.startOffsetInBufferByChannel.length, context.auxWorld.allocator),
+                            startOffsetInBufferByChannel = startOffsets,
                             targetFrame                  = message.targetFrame,
                         });
                     }
@@ -112,6 +115,8 @@ namespace Latios.Myri.AudioEcsBuiltin
                     {
                         updates[0].Dispose();
                         updates.RemoveAt(0);
+                        if (updates.IsEmpty)
+                            break;
                     }
                 }
                 if (updates.IsEmpty || updates[0].targetFrame > context.feedbackID)
@@ -281,8 +286,8 @@ namespace Latios.Myri.AudioEcsBuiltin
                         ref var lr             = ref (i < update.profile.Value.channelDspsLeft.Length ? ref left : ref right);
                         float   smoothFactor   = 0f;
                         var     startOffset    = update.startOffsetInBufferByChannel[i];
-                        bool    hasValidBuffer = startOffset < 0;
-                        var     delta          = c.destepSample - (hasValidBuffer ? 0f : update.buffer[startOffset]);
+                        bool    hasValidBuffer = startOffset >= 0;
+                        var     delta          = c.destepSample - (hasValidBuffer ? update.buffer[startOffset + frameOffset] : 0f);
                         for (int j = 0; j < lr.Length; j++)
                         {
                             var sample   = hasValidBuffer ? update.buffer[startOffset + frameOffset + j] : 0f;
@@ -296,9 +301,9 @@ namespace Latios.Myri.AudioEcsBuiltin
                                 ref var filter = ref c.filters.ElementAt(k);
                                 sample         = StateVariableFilter.ProcessSample(ref filter.channel, in filter.coefficients, sample);
                             }
-                            lr[j] = sample;
+                            lr[j] += sample;
                         }
-                        c.destepSample = hasValidBuffer ? update.buffer[lr.Length] : 0f;
+                        c.destepSample = hasValidBuffer ? update.buffer[startOffset + frameOffset + lr.Length] : 0f;
                     }
 
                     // Apply blob configuration correction.
@@ -336,11 +341,13 @@ namespace Latios.Myri.AudioEcsBuiltin
             var     channelCount = blob.channelDspsLeft.Length + blob.channelDspsRight.Length;
             context.auxWorld.AddComponent(entity, new ListenerPresamplingState
             {
-                channels     = new UnsafeList<PresampledChannel>(channelCount, context.auxWorld.allocator),
-                previousBlob = default
+                channels           = new UnsafeList<PresampledChannel>(channelCount, context.auxWorld.allocator),
+                previousBlob       = default,
+                updates            = new UnsafeList<PresampledUpdate>(16, context.auxWorld.allocator),
+                nextUpdateFrame    = -1,
+                previousSampleRate = 0,
             });
             context.auxWorld.TryGetComponent(entity, out state);
-            state.aux.channels.AddReplicate(default, channelCount);
             return true;
         }
 

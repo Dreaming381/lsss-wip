@@ -54,6 +54,8 @@ namespace Latios.Unsafe
         bool                             m_warnIfPoolIsAllocatedDuringAllocationRequest;
 
         static readonly uint4 kFootprint = new uint4('L', 'a', 't', 'i');
+
+        //UnsafeHashSet<IntPtr> m_debugPointerSet;
         #endregion
 
         #region Lifecycle
@@ -74,6 +76,8 @@ namespace Latios.Unsafe
 
             UnsafeUtility.MemClear(m_freeBlocks,          UnsafeUtility.SizeOf<IntPtr>() * 2048);
             UnsafeUtility.MemClear(m_secondLevelFreeBits, UnsafeUtility.SizeOf<BitField64>() * 32);
+
+            //m_debugPointerSet = new UnsafeHashSet<IntPtr>(1024, parentAllocator);
         }
 
         public void Dispose()
@@ -85,6 +89,8 @@ namespace Latios.Unsafe
             m_pools.Dispose();
             AllocatorManager.Free(m_backingAllocator, (IntPtr*)m_freeBlocks, 2048);
             AllocatorManager.Free(m_backingAllocator, m_secondLevelFreeBits, 32);
+
+            //m_debugPointerSet.Dispose();
         }
 
         public void AllocatePool(long minimumSize)
@@ -198,12 +204,18 @@ namespace Latios.Unsafe
             {
                 CheckAlignmentIs64(block.Alignment);
                 block.Range.Pointer = (IntPtr)Allocate(block.Bytes);
+                //if (m_debugPointerSet.Contains(block.Range.Pointer))
+                //    throw new System.InvalidOperationException("Double allocated");
+                //m_debugPointerSet.Add(block.Range.Pointer);
+                //UnityEngine.Debug.Log($"Allocated {block.Range.Pointer.ToInt64()}:x");
                 return 0;
             }
 
             if (block.Range.Items == 0)
             {
+                //UnityEngine.Debug.Log($"Freed {block.Range.Pointer.ToInt64()}:x");
                 Free((void*)block.Range.Pointer);
+                //m_debugPointerSet.Remove(block.Range.Pointer);
                 m_thisAllocator.RemoveSafetyHandles();  // Bug workaround to prevent AtomicSafetyHandle memory leak.
                 return 0;
             }
@@ -249,10 +261,20 @@ namespace Latios.Unsafe
             var cacheLineCount  = byteCount / 64;
             var firstLevelIndex = GetFirstLevelIndex(cacheLineCount);
             GetFirstLevelInfo(firstLevelIndex, out var secondLevelInterval, out var firstLevelStart);
-            var secondLevelIndex = GetSecondLevelIndexRoundDown(cacheLineCount, secondLevelInterval, firstLevelStart);
+            var secondLevelIndex                                  = GetSecondLevelIndexRoundDown(cacheLineCount, secondLevelInterval, firstLevelStart);
+            m_freeBlocks[firstLevelIndex * 64 + secondLevelIndex] = null;
             m_secondLevelFreeBits[firstLevelIndex].SetBits(secondLevelIndex, false);
             if (m_secondLevelFreeBits[firstLevelIndex].Value == 0)
                 m_firstLevelFreeBits.SetBits(firstLevelIndex, false);
+        }
+
+        void SetHeaderForByteCount(ulong byteCount, AllocationHeader* header)
+        {
+            var cacheLineCount  = byteCount / 64;
+            var firstLevelIndex = GetFirstLevelIndex(cacheLineCount);
+            GetFirstLevelInfo(firstLevelIndex, out var secondLevelInterval, out var firstLevelStart);
+            var secondLevelIndex                                  = GetSecondLevelIndexRoundDown(cacheLineCount, secondLevelInterval, firstLevelStart);
+            m_freeBlocks[firstLevelIndex * 64 + secondLevelIndex] = header;
         }
 
         void* Allocate(long size)
@@ -303,6 +325,11 @@ namespace Latios.Unsafe
             var freeBlockPointersIndex = firstLevelIndex * 64 + secondLevelIndex;
             var freeBlocksDebugSpan    = new Span<IntPtr>(m_freeBlocks, 2048);
             var headerTaken            = m_freeBlocks[freeBlockPointersIndex];
+            //if ((ulong)size > headerTaken->byteCount)
+            //{
+            //    throw new InvalidOperationException("Took a corrupted header.");
+            //}
+
             if (headerTaken->nextFreeHeader != null)
             {
                 headerTaken->nextFreeHeader->previousFreeHeader = null;
@@ -365,15 +392,16 @@ namespace Latios.Unsafe
                     headerAfter->nextFreeHeader->previousFreeHeader = headerAfter->previousFreeHeader;
                 if (headerAfter->previousFreeHeader != null)
                     headerAfter->previousFreeHeader->nextFreeHeader = headerAfter->nextFreeHeader;
+                else if (headerAfter->nextFreeHeader != null)
+                    SetHeaderForByteCount(headerAfter->byteCount, headerAfter->nextFreeHeader);
                 else
                     ClearFreeBlocksForByteCount(headerAfter->byteCount);
 
                 // Point the next header in this block to the current header
+                header->headerAfterInPool = headerAfter->headerAfterInPool;
                 if (headerAfter->headerAfterInPool != null)
-                {
                     headerAfter->headerAfterInPool->headerBeforeInPool = header;
-                    header->headerAfterInPool                          = headerAfter->headerAfterInPool;
-                }
+
                 // Collapse the header after
                 header->byteCount      += headerAfter->byteCount + 64;
                 headerAfter->footprint  = default;
@@ -388,13 +416,15 @@ namespace Latios.Unsafe
                     headerBefore->nextFreeHeader->previousFreeHeader = headerBefore->previousFreeHeader;
                 if (headerBefore->previousFreeHeader != null)
                     headerBefore->previousFreeHeader->nextFreeHeader = headerBefore->nextFreeHeader;
+                else if (headerBefore->nextFreeHeader != null)
+                    SetHeaderForByteCount(headerBefore->byteCount, headerBefore->nextFreeHeader);
                 else
                     ClearFreeBlocksForByteCount(headerBefore->byteCount);
 
                 // Patch the header after
                 headerBefore->headerAfterInPool = header->headerAfterInPool;
                 if (headerBefore->headerAfterInPool != null)
-                    headerBefore->headerAfterInPool->headerAfterInPool = headerBefore;
+                    headerBefore->headerAfterInPool->headerBeforeInPool = headerBefore;
 
                 // Collapse the current header into the header before
                 headerBefore->byteCount += header->byteCount + 64;
@@ -483,12 +513,24 @@ namespace Latios.Unsafe
             var header = (AllocationHeader*)ptr;
             header--;
             if (!header->footprint.Equals(kFootprint))
+            {
+                //if (m_debugPointerSet.Contains(new IntPtr(ptr)))
+                //{
+                //    throw new InvalidOperationException("A pointer is contained in the TLSF debug set but does not match the footprint. Something bad happened.");
+                //}
+
                 throw new InvalidOperationException(
                     $"The pointer does not appear to be allocated by a TLSF allocator. It may not point to the start of the allocation, or adjacent memory may have been stomped on.");
+            }
             if (header->allocator != m_thisAllocator)
                 throw new InvalidOperationException($"The pointer was allocated with a different TLSF allocator then the one it is attempting to free with.");
             if (header->free)
+            {
+                //if (m_debugPointerSet.Contains(new IntPtr(ptr)))
+                //    throw new InvalidOperationException("A pointer has a header marked free even though it is still in the TLSF debug set.");
+
                 throw new InvalidOperationException($"The pointer has already been freed.");
+            }
         }
         #endregion
     }
