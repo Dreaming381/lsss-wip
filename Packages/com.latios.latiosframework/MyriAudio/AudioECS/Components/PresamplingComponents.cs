@@ -32,6 +32,7 @@ namespace Latios.Myri.AudioEcsBuiltin
         }
 
         public UnsafeList<Svf> filters;
+        public float           volume;
         public float           destepSample;
 
         public void Dispose()

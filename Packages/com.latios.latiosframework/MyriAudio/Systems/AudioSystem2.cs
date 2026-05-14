@@ -255,6 +255,7 @@ namespace Latios.Myri.Systems
                     capturedSources         = capturedSourcesStream.AsReader(),
                     channelStreams          = channelStreams.AsReader(),
                     frameState              = m_capturedFrameState,
+                    outputRangesByChannel   = outputRangesByChannel.AsDeferredJobArray(),
                     outputSamplesMegaBuffer = samplesBuffer.AsDeferredJobArray(),
                 }.Schedule(channelCountPtr, 1, JobHandle.CombineDependencies(allocateJh, batchingJh));
 

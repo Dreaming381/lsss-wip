@@ -308,7 +308,10 @@ namespace Latios.Myri
                         listenerEntity               = listener.listener,
                         nextUpdateFrame              = nextUpdateFrame,
                         profile                      = listener.profile,
-                        startOffsetInBufferByChannel = span
+                        sampleRate                   = state.format.sampleRate,
+                        samplesPerAudioFrame         = state.format.bufferFrameCount,
+                        startOffsetInBufferByChannel = span,
+                        targetFrame                  = state.audioFrame
                     };
                 }
             }

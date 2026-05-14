@@ -264,18 +264,23 @@ namespace Latios.Myri
             [ReadOnly] public NativeStream.Reader                 capturedSources;
             [ReadOnly] public NativeStream.Reader                 channelStreams;
             [ReadOnly] public NativeReference<CapturedFrameState> frameState;
+            [ReadOnly] public NativeArray<int2>                   outputRangesByChannel;
 
             [NativeDisableParallelForRestriction] public NativeArray<float> outputSamplesMegaBuffer;
 
             public unsafe void Execute(int channelIndex)
             {
-                var   state             = frameState.Value;
-                var   audioFrame        = state.audioFrame;
-                var   sampleRate        = state.format.sampleRate;
-                var   samplesPerFrame   = state.format.bufferFrameCount;
-                ulong samplesPlayed     = (ulong)samplesPerFrame * (ulong)state.audioFrame;
-                var   samplesPerChannel = outputSamplesMegaBuffer.Length / channelStreams.ForEachCount;
-                var   outputSamples     = outputSamplesMegaBuffer.GetSubArray(channelIndex * samplesPerChannel, samplesPerChannel);
+                var range = outputRangesByChannel[channelIndex];
+                // range.x will be -1 if there are no sources for this channel.
+                if (range.x < 0)
+                    return;
+
+                var   state           = frameState.Value;
+                var   audioFrame      = state.audioFrame;
+                var   sampleRate      = state.format.sampleRate;
+                var   samplesPerFrame = state.format.bufferFrameCount;
+                ulong samplesPlayed   = (ulong)samplesPerFrame * (ulong)state.audioFrame;
+                var   outputSamples   = outputSamplesMegaBuffer.GetSubArray(range.x, range.y);
 
                 using var tsa = ThreadStackAllocator.GetAllocator();
 

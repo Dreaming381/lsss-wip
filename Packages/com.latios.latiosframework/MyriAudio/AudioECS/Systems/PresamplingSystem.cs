@@ -149,6 +149,7 @@ namespace Latios.Myri.AudioEcsBuiltin
                                 var c  = filter.channel;
                                 sample = StateVariableFilter.ProcessSample(ref c, in filter.coefficients, sample);
                             }
+                            sample *= channel.volume;
                             if (channelIndex < state.aux.previousBlob.Value.channelDspsLeft.Length)
                                 channelChangeDestepSampleLeft += sample;
                             else
@@ -181,7 +182,8 @@ namespace Latios.Myri.AudioEcsBuiltin
                             channels.Add(new PresampledChannel
                             {
                                 destepSample = 0f,
-                                filters      = svfs
+                                filters      = svfs,
+                                volume       = dsp.volume,
                             });
                         }
                         for (int i = 0; i < newBlob.channelDspsRight.Length; i++)
@@ -206,13 +208,14 @@ namespace Latios.Myri.AudioEcsBuiltin
                             channels.Add(new PresampledChannel
                             {
                                 destepSample = 0f,
-                                filters      = svfs
+                                filters      = svfs,
+                                volume       = dsp.volume,
                             });
                         }
                     }
                     else
                     {
-                        // Either the sample rate changed, or the filters changed. Recreate the coefficients without changing anything else.
+                        // Either the sample rate changed, the volume changed, or the filters changed. Recreate the coefficients without changing anything else.
                         int channelIndex = 0;
                         for (int i = 0; i < newBlob.channelDspsLeft.Length; i++, channelIndex++)
                         {
@@ -229,6 +232,7 @@ namespace Latios.Myri.AudioEcsBuiltin
                                                                                                           filter.gainInDecibels,
                                                                                                           context.finalOutputBuffer.sampleRate);
                             }
+                            channel.volume = dsp.volume;
                         }
                         for (int i = 0; i < newBlob.channelDspsRight.Length; i++, channelIndex++)
                         {
@@ -245,6 +249,7 @@ namespace Latios.Myri.AudioEcsBuiltin
                                                                                                           filter.gainInDecibels,
                                                                                                           context.finalOutputBuffer.sampleRate);
                             }
+                            channel.volume = dsp.volume;
                         }
                     }
                     state.aux.previousBlob       = update.profile;
@@ -258,16 +263,19 @@ namespace Latios.Myri.AudioEcsBuiltin
                     {
                         bool negative = true;
                         foreach (var offset in update.startOffsetInBufferByChannel)
-                            negative &= offset < 0;
+                            negative     &= offset < 0;
+                        allChannelsEmpty  = negative;
                     }
                     if (allChannelsEmpty && channelChangeDestepSampleLeft == 0f && channelChangeDestepSampleRight == 0f)
                     {
-                        ref var channels = ref state.aux.channels;
+                        ref var channels   = ref state.aux.channels;
+                        bool    zeroDestep = true;
                         for (int i = 0; i < channels.Length; i++)
                         {
-                            channels.ElementAt(i).destepSample = 0f;
+                            zeroDestep &= channels.ElementAt(i).destepSample == 0f;
                         }
-                        continue;
+                        if (zeroDestep)
+                            continue;
                     }
                 }
 
@@ -301,7 +309,7 @@ namespace Latios.Myri.AudioEcsBuiltin
                                 ref var filter = ref c.filters.ElementAt(k);
                                 sample         = StateVariableFilter.ProcessSample(ref filter.channel, in filter.coefficients, sample);
                             }
-                            lr[j] += sample;
+                            lr[j] += sample * c.volume;
                         }
                         c.destepSample = hasValidBuffer ? update.buffer[startOffset + frameOffset + lr.Length] : 0f;
                     }
