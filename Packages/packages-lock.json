@@ -6,7 +6,6 @@
       "source": "embedded",
       "dependencies": {
         "com.unity.entities": "1.4.6",
-        "com.unity.audio.dspgraph": "0.1.0-preview.22",
         "com.unity.entities.graphics": "1.4.19",
         "com.unity.burst": "1.8.29"
       }
@@ -17,19 +16,6 @@
       "source": "registry",
       "dependencies": {
         "com.unity.modules.ai": "1.0.0"
-      },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.audio.dspgraph": {
-      "version": "0.1.0-preview.22",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.burst": "1.6.4",
-        "com.unity.modules.audio": "1.0.0",
-        "com.unity.modules.video": "1.0.0",
-        "com.unity.test-framework": "1.1.27",
-        "com.unity.media.utilities": "0.1.0-preview.13"
       },
       "url": "https://packages.unity.com"
     },
@@ -125,17 +111,6 @@
       "depth": 0,
       "source": "registry",
       "dependencies": {},
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.media.utilities": {
-      "version": "0.1.0-preview.13",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.burst": "1.5.3",
-        "com.unity.mathematics": "1.2.1",
-        "com.unity.test-framework": "1.1.23"
-      },
       "url": "https://packages.unity.com"
     },
     "com.unity.multiplayer.center": {
@@ -288,13 +263,6 @@
         "com.unity.shadergraph": "17.3.0",
         "com.unity.render-pipelines.core": "17.3.0"
       }
-    },
-    "com.whinarn.unitymeshsimplifier": {
-      "version": "https://github.com/Whinarn/UnityMeshSimplifier.git",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "d741912bfeaad8da4fe0f258f4f3eefe1fe7b3f3"
     },
     "usfxr": {
       "version": "https://github.com/grapefrukt/usfxr.git",

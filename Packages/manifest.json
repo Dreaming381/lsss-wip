@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "com.unity.ai.navigation": "2.0.10",
-    "com.unity.audio.dspgraph": "0.1.0-preview.22",
     "com.unity.burst": "1.8.27",
     "com.unity.collab-proxy": "2.11.3",
     "com.unity.collections": "2.6.2",
@@ -16,7 +15,6 @@
     "com.unity.test-framework": "1.6.0",
     "com.unity.timeline": "1.8.10",
     "com.unity.ugui": "2.0.0",
-    "com.whinarn.unitymeshsimplifier": "https://github.com/Whinarn/UnityMeshSimplifier.git",
     "usfxr": "https://github.com/grapefrukt/usfxr.git",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",

@@ -48,13 +48,6 @@ namespace Latios.Myri
         }
     }
 
-    internal struct ListenerBufferParameters
-    {
-        public int bufferStart;
-        public int leftChannelsCount;
-        public int samplesPerChannel;
-    }
-
     internal struct ListenerWithTransform
     {
         public AudioListener  listener;

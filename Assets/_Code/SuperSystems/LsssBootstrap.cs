@@ -65,7 +65,7 @@ public class LatiosBootstrap : ICustomBootstrap
 
         CoreBootstrap.InstallSceneManager(world);
         Latios.Transforms.TransformsBootstrap.InstallTransforms(world);
-        Latios.Myri.MyriBootstrap.InstallMyri2(world);
+        Latios.Myri.MyriBootstrap.InstallMyri(world);
         Latios.Kinemation.KinemationBootstrap.InstallKinemation(world);
 
         BootstrapTools.InjectRootSuperSystems(systems, world, world.simulationSystemGroup);
