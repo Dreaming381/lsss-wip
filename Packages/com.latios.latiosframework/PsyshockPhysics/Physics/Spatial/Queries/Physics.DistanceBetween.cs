@@ -8,6 +8,33 @@ namespace Latios.Psyshock
     {
         #region Point vs Collider
         /// <summary>
+        /// Returns true if the point is inside or on the surface of the collider with the specified transform.
+        /// </summary>
+        /// <param name="point">The point to test</param>
+        /// <param name="collider">The collider to test against</param>
+        /// <param name="transform">The transform of the collider</param>
+        /// <returns>True if the query point is inside or on the surface of the collider, false otherwise</returns>
+        public static bool IsOverlapping(float3 point, in Collider collider, in TransformQvvs transform)
+        {
+            return PointRayDispatch.IsOverlapping(point, in collider, in transform);
+        }
+
+        /// <summary>
+        /// Checks if the closest surface point on the collider to the query point is within the signed maxDistance, where the sign is positive if the
+        /// query point is outside the collider, and negative if the point is inside the collider.
+        /// </summary>
+        /// <param name="point">The query point</param>
+        /// <param name="collider">The collider on which a surface point should be found</param>
+        /// <param name="transform">The transform of the collider</param>
+        /// <param name="maxDistance">A signed distance the distance between the surface point and the query point must be less or equal to for a "hit"
+        /// to be registered. A value less than 0 requires that the point be inside the collider.</param>
+        /// <returns>Returns true if the closest surface point is within maxDistance of the query point</returns>
+        public static bool WithinDistance(float3 point, in Collider collider, in TransformQvvs transform, float maxDistance)
+        {
+            return PointRayDispatch.WithinDistance(point, in collider, in transform, maxDistance);
+        }
+
+        /// <summary>
         /// Checks if the closest surface point on the collider to the query point is within the signed maxDistance, where the sign is positive if the
         /// query point is outside the collider, and negative if the point is inside the collider. If closest surface point is within maxDistance,
         /// info about the surface point is generated.
