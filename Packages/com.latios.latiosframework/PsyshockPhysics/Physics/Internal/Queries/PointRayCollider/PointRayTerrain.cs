@@ -4,7 +4,7 @@ namespace Latios.Psyshock
 {
     internal static class PointRayTerrain
     {
-        public static bool IsOverlapping(float3 point, in TerrainCollider terrain, in RigidTransform terrainTransform)
+        public static bool AreOverlapping(float3 point, in TerrainCollider terrain, in RigidTransform terrainTransform)
         {
             return WithinDistance(point, in terrain, in terrainTransform, 0f);
         }

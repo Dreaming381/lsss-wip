@@ -7,7 +7,7 @@ namespace Latios.Psyshock
 {
     internal static class PointRayConvex
     {
-        public static bool IsOverlapping(float3 point, in ConvexCollider convex, in RigidTransform convexTransform)
+        public static bool AreOverlapping(float3 point, in ConvexCollider convex, in RigidTransform convexTransform)
         {
             return WithinDistance(point, in convex, in convexTransform, 0f);
         }

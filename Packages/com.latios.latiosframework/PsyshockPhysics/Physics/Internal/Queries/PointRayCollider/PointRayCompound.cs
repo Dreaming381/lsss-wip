@@ -5,7 +5,7 @@ namespace Latios.Psyshock
 {
     internal static class PointRayCompound
     {
-        public static bool IsOverlapping(float3 point, in CompoundCollider compound, in RigidTransform compoundTransform)
+        public static bool AreOverlapping(float3 point, in CompoundCollider compound, in RigidTransform compoundTransform)
         {
             return WithinDistance(point, in compound, in compoundTransform, 0f);
         }

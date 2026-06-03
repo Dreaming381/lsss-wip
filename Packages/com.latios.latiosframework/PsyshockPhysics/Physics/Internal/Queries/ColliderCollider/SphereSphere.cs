@@ -5,7 +5,7 @@ namespace Latios.Psyshock
 {
     internal static class SphereSphere
     {
-        public static bool IsOverlapping(in SphereCollider sphereA,
+        public static bool AreOverlapping(in SphereCollider sphereA,
                                          in RigidTransform aTransform,
                                          in SphereCollider sphereB,
                                          in RigidTransform bTransform)

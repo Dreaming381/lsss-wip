@@ -6,7 +6,7 @@ namespace Latios.Psyshock
 {
     internal static class PointRayTriMesh
     {
-        public static bool IsOverlapping(float3 point, in TriMeshCollider triMesh, in RigidTransform triMeshTransform)
+        public static bool AreOverlapping(float3 point, in TriMeshCollider triMesh, in RigidTransform triMeshTransform)
         {
             return WithinDistance(point, in triMesh, in triMeshTransform, 0f);
         }

@@ -6,7 +6,7 @@ namespace Latios.Psyshock
 {
     internal static class PointRaySphere
     {
-        public static bool IsOverlapping(float3 point, in SphereCollider sphere, in RigidTransform sphereTransform)
+        public static bool AreOverlapping(float3 point, in SphereCollider sphere, in RigidTransform sphereTransform)
         {
             return WithinDistance(point, in sphere, in sphereTransform, 0f);
         }
