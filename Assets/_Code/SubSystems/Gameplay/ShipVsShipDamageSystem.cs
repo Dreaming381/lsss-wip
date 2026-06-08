@@ -42,7 +42,7 @@ namespace Lsss
 
             public void Execute(in FindPairsResult result)
             {
-                if (Physics.DistanceBetween(result.colliderA, result.transformA, result.colliderA, result.transformA, 0f, out _))
+                if (Physics.AreOverlapping(result.colliderA, result.transformA, result.colliderB, result.transformB))
                 {
                     ref var healthA = ref shipHealthLookup.GetRW(result.entityA).ValueRW;
                     ref var healthB = ref shipHealthLookup.GetRW(result.entityB).ValueRW;

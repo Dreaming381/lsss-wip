@@ -44,7 +44,7 @@ namespace Lsss
 
             public void Execute(in FindPairsResult result)
             {
-                if (Physics.DistanceBetween(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform, 0f, out _))
+                if (Physics.AreOverlapping(result.bodyA.collider, result.bodyA.transform, result.bodyB.collider, result.bodyB.transform))
                 {
                     var damage = wallDamageLookup[result.entityA];
                     var health = shipHealthLookup[result.entityB];

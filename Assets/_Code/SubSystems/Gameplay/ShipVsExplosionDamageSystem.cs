@@ -49,7 +49,7 @@ namespace Lsss
 
             public void Execute(in FindPairsResult result)
             {
-                if (Physics.DistanceBetween(result.colliderA, result.transformA, result.colliderB, result.transformB, 0f, out _))
+                if (Physics.AreOverlapping(result.colliderA, result.transformA, result.colliderB, result.transformB))
                 {
                     var     damage = explosionDamageLookup[result.entityA];
                     ref var health = ref shipHealthLookup.GetRW(result.entityB).ValueRW;
