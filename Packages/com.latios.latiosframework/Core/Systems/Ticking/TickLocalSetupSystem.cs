@@ -1,4 +1,3 @@
-#if false
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,11 +12,11 @@ namespace Latios.Systems
     [BurstCompile]
     public partial struct TickLocalSetupSystem : ISystem
     {
-        public float tickDeltaTime;
+        internal float tickDeltaTime;
+        internal bool  snapInputToTick;  // When true, we typically only simulate one tick per frame (assuming faster framerate than tickrate), but inputs may not be applied as quickly.
 
         LatiosWorldUnmanaged latiosWorld;
 
-        double finishedTicksElapsedTime;
         float timeInTick;
 
         [BurstCompile]
@@ -25,20 +24,20 @@ namespace Latios.Systems
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
 
-            tickDeltaTime            = 1f;
-            finishedTicksElapsedTime = 0.0;
-            timeInTick               = 0f;
+            tickDeltaTime = 1f;
+            timeInTick    = 0f;
 
-            latiosWorld.worldBlackboardEntity.AddComponent(new TypePack<TickLocalTiming, AdvanceTick>());
+            latiosWorld.worldBlackboardEntity.AddComponentData(new TickingState { previousEvaluatedTick = -1 });
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dt        = Time.DeltaTime;
-            int rollovers = 0;
-            timeInTick += dt;
-            while (timeInTick >= tickDeltaTime)
+            var oldState   = latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>();
+            var dt         = Time.DeltaTime;
+            int rollovers  = 0;
+            timeInTick    += dt;
+            while (timeInTick > tickDeltaTime)
             {
                 rollovers++;
                 timeInTick -= tickDeltaTime;
@@ -47,28 +46,48 @@ namespace Latios.Systems
             if (rollovers == 0)
             {
                 // We did not advance the tick. Roll back.
-                latiosWorld.worldBlackboardEntity.SetComponentData(new TickLocalTiming
-                {
-                    ticksThisFrame = 1,
-                    deltaTime      = tickDeltaTime,
-                    elapsedTime    = finishedTicksElapsedTime + tickDeltaTime
-                });
-                latiosWorld.worldBlackboardEntity.SetEnabled<AdvanceTick>(false);
+                var newState                = oldState;
+                newState.deltaTime          = tickDeltaTime;
+                newState.ticksThisFrame     = 1;
+                newState.firstTickThisFrame = newState.tick;
+                newState.inputTick          = newState.tick;
+                newState.inputTickFraction  = oldState.finalTickFraction;
+                newState.finalTickFraction  = timeInTick / tickDeltaTime;
+                newState.frameCounter++;
+                newState.previousEvaluatedTick = oldState.tick;
+                latiosWorld.worldBlackboardEntity.SetComponentData(newState);
+            }
+            else if (snapInputToTick || oldState.finalTickFraction > 0.9999f)
+            {
+                var newState                 = oldState;
+                newState.elapsedTime        += tickDeltaTime;
+                newState.deltaTime           = tickDeltaTime;
+                newState.ticksThisFrame      = rollovers;
+                newState.firstTickThisFrame  = oldState.tick + 1;
+                newState.newTick             = newState.firstTickThisFrame;
+                newState.inputTick           = newState.firstTickThisFrame;
+                newState.inputTickFraction   = 0f;
+                newState.finalTickFraction   = timeInTick / tickDeltaTime;
+                newState.frameCounter++;
+                newState.previousEvaluatedTick = oldState.tick;
+                latiosWorld.worldBlackboardEntity.SetComponentData(newState);
             }
             else
             {
-                var ticksToRun = rollovers + 1;
-                latiosWorld.worldBlackboardEntity.SetComponentData(new TickLocalTiming
-                {
-                    ticksThisFrame = ticksToRun,
-                    deltaTime      = tickDeltaTime,
-                    elapsedTime    = finishedTicksElapsedTime + ticksToRun * tickDeltaTime
-                });
-                latiosWorld.worldBlackboardEntity.SetEnabled<AdvanceTick>(true);
-                finishedTicksElapsedTime += rollovers + tickDeltaTime;
+                var newState                 = oldState;
+                newState.elapsedTime        += tickDeltaTime;
+                newState.deltaTime           = tickDeltaTime;
+                newState.ticksThisFrame      = rollovers + 1;
+                newState.firstTickThisFrame  = oldState.tick;
+                newState.newTick             = newState.firstTickThisFrame + 1;
+                newState.inputTick           = newState.firstTickThisFrame;
+                newState.inputTickFraction   = oldState.finalTickFraction;
+                newState.finalTickFraction   = timeInTick / tickDeltaTime;
+                newState.frameCounter++;
+                newState.previousEvaluatedTick = oldState.tick;
+                latiosWorld.worldBlackboardEntity.SetComponentData(newState);
             }
         }
     }
 }
-#endif
 

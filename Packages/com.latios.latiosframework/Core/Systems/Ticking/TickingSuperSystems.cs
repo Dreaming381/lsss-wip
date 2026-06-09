@@ -1,29 +1,16 @@
-#if false
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Systems
 {
-    [DisableAutoCreation]
-    public partial class TickReadInputSuperSystem : SuperSystem
-    {
-        protected override void CreateSystems()
-        {
-            EnableSystemSorting = true;
-        }
-    }
-
-    // Only updated on lag frames
-    [DisableAutoCreation]
-    public partial class TickSustainInputSuperSystem : SuperSystem
-    {
-        protected override void CreateSystems()
-        {
-            EnableSystemSorting = true;
-        }
-    }
-
+    #region Injectable
+    /// <summary>
+    /// SuperSystem where history is either updated or reverted.
+    /// isReplayTick - load snapshot for whatever needs it (Todo: How to cull this?)
+    /// discardPreviousTick - Set current equal to previous
+    /// !discardPreviousTick - Set previous equal to current for all predicted (replay) or all (!replay)
+    /// </summary>
     [DisableAutoCreation]
     public partial class TickUpdateHistorySuperSystem : SuperSystem
     {
@@ -33,6 +20,25 @@ namespace Latios.Systems
         }
     }
 
+    /// <summary>
+    /// SuperSystem where inputs can be processed based on the TickingState.
+    /// isFirstInputTick - read and apply input from scratch
+    /// isAdditiveInputTick - add states and merge events
+    /// isCatchupTick - sustain states and ignore events
+    /// isRollbackTick - provide input recorded from a history buffer (for networking use cases)
+    /// </summary>
+    [DisableAutoCreation]
+    public partial class TickInputSuperSystem : SuperSystem
+    {
+        protected override void CreateSystems()
+        {
+            EnableSystemSorting = true;
+        }
+    }
+
+    /// <summary>
+    /// SuperSystem where tick-based simulation occurs
+    /// </summary>
     [DisableAutoCreation]
     public partial class TickSimulationSuperSystem : SuperSystem
     {
@@ -42,93 +48,61 @@ namespace Latios.Systems
         }
     }
 
+    /// <summary>
+    /// SuperSystem where interpolation may occur based on the TickingState.
+    /// finalTickFraction - interpolation factor between previous and current
+    /// </summary>
+    [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
+    [UpdateAfter(typeof(TickLocalSuperSystem))]
     [DisableAutoCreation]
-    public partial class TickInterpolateSuperSystem : SuperSystem
+    public partial class TickInterpolateSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
             EnableSystemSorting = true;
         }
     }
+    #endregion
 
+    #region Loop Management
+    /// <summary>
+    /// Internal SuperSystem used for ticking loop management
+    /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     [UpdateAfter(typeof(FixedStepSimulationSystemGroup))]
     [DisableAutoCreation]
     public partial class TickLocalSuperSystem : RootSuperSystem
     {
-        SystemHandle localSetupSystem;
-        SystemHandle readInputSuperSystem;
-        SystemHandle updateHistorySuperSystem;
-        SystemHandle simulationSuperSystem;
-        SystemHandle interpolateSuperSystem;
-        SystemHandle expirablesSystem;
-        SystemHandle syncPlaybackSystem;
-        SystemHandle syncPointSuperSystem;
-        SystemHandle sustainInputSuperSystem;
-
         protected override void CreateSystems()
         {
             EnableSystemSorting = false;
 
-            GetOrCreateAndAddUnmanagedSystem<TickLocalSetupSystem>();
-            localSetupSystem         = World.GetExistingSystem<TickLocalSetupSystem>();
-            readInputSuperSystem     = GetOrCreateAndAddManagedSystem<TickReadInputSuperSystem>().SystemHandle;
-            updateHistorySuperSystem = GetOrCreateAndAddManagedSystem<TickUpdateHistorySuperSystem>().SystemHandle;
-            simulationSuperSystem    = GetOrCreateAndAddManagedSystem<TickSimulationSuperSystem>().SystemHandle;
-            interpolateSuperSystem   = GetOrCreateAndAddManagedSystem<TickInterpolateSuperSystem>().SystemHandle;
-            GetOrCreateAndAddUnmanagedSystem<AutoDestroyExpirablesSystem>();
-            expirablesSystem        = World.GetExistingSystem<AutoDestroyExpirablesSystem>();
-            syncPlaybackSystem      = GetOrCreateAndAddManagedSystem<SyncPointPlaybackSystemDispatch>().SystemHandle;
-            syncPointSuperSystem    = GetOrCreateAndAddManagedSystem<LatiosWorldSyncGroup>().SystemHandle;
-            sustainInputSuperSystem = GetOrCreateAndAddManagedSystem<TickSustainInputSuperSystem>().SystemHandle;
+            // Todo: Add ticked sync point system, which only updates when !TickingState.discardPreviousTick
+            GetOrCreateAndAddManagedSystem<TickInputSuperSystem>();
+            GetOrCreateAndAddManagedSystem<TickUpdateHistorySuperSystem>();
+            GetOrCreateAndAddManagedSystem<TickSimulationSuperSystem>();
         }
 
         protected override void OnUpdate()
         {
-            SuperSystem.UpdateSystem(latiosWorldUnmanaged, localSetupSystem);
-            SuperSystem.UpdateSystem(latiosWorldUnmanaged, readInputSuperSystem);
+            var tickingState = worldBlackboardEntity.GetComponentData<TickingState>();
 
-            // Todo: Replace this with the actual values computed, and push and pop time.
-            var timing = worldBlackboardEntity.GetComponentData<TickLocalTiming>();
-            World.PushTime(new Unity.Core.TimeData(timing.elapsedTime, timing.deltaTime));
-            for (int i = 0; i < timing.ticksThisFrame; i++)
+            for (int i = 0; i < tickingState.ticksThisFrame; i++)
             {
-                SuperSystem.UpdateSystem(latiosWorldUnmanaged, updateHistorySuperSystem);
-                SuperSystem.UpdateSystem(latiosWorldUnmanaged, simulationSuperSystem);
-
-                if (i + 1 < timing.ticksThisFrame)
-                {
-                    timing.elapsedTime += timing.deltaTime;
-                    World.SetTime(new Unity.Core.TimeData(timing.elapsedTime, timing.deltaTime));
-                    // This sync point block here is a backup only for when the framerate falls below the tick rate.
-                    // This ideally shouldn't happen very often, as the target framerate is supposed to be higher than
-                    // the tick rate. However, when it does happen, we want to initialize things again as if this is a
-                    // new frame, though we skip all the variable update stuff.
-                    SuperSystem.UpdateSystem(latiosWorldUnmanaged, expirablesSystem);
-                    SuperSystem.UpdateSystem(latiosWorldUnmanaged, syncPlaybackSystem);
-                    SuperSystem.UpdateSystem(latiosWorldUnmanaged, syncPointSuperSystem);
-                    SuperSystem.UpdateSystem(latiosWorldUnmanaged, sustainInputSuperSystem);
-                }
+                World.PushTime(new Unity.Core.TimeData(tickingState.elapsedTime, tickingState.deltaTime));
+                base.OnUpdate();
+                tickingState.elapsedTime           += tickingState.deltaTime;
+                tickingState.previousEvaluatedTick  = tickingState.tick;
+                tickingState.tick++;
+                worldBlackboardEntity.SetComponentData(tickingState);
+                World.PopTime();
             }
-            World.PopTime();
-
-            SuperSystem.UpdateSystem(latiosWorldUnmanaged, interpolateSuperSystem);
         }
     }
+    #endregion
 }
 
 /*
-   No Network
-   - TickLocalSetupSystem
-   - TickReadInputSuperSystem
-    - Advance Frame - Reset Input
-    - Rollback Frame - Accumulate Input
-   - TickUpdateHistorySuperSystem
-    - Advance Frame - Copy Previous to TwoAgo, and then Current to Previous
-    - Rollback Frame - Copy Previous to Current
-   - TickSimulationSuperSystem
-   - TickInterpolateSuperSystem
-
    Networking uses a "predict-the-past" for game environment and other players.
    The systems predicting the past have the ability to "read the future" as a means to implement simple interpolation.
    Every networked entity can exist with its own delay target, although usually these are grouped by player.
@@ -136,37 +110,12 @@ namespace Latios.Systems
    It also allows for dead-reckoning approaches to be inserted into the pipeline.
    Everything keeps a tick-level history on the client so it can easily be retrieved and when predicting other entities with older data.
 
-   Network Client
-   - ClientSetupSystem
-   - TickReadInputSuperSystem
-    - Advance Frame - Reset Input
-    - Rollback Frame - Accumulate Input
-   - SendInputSystem
-   - BuildSnapshotApplicationQueuesSystem
-   - ClearSimulateTagsSystem
-   - PredictionSuperSystem
-    - PredictionSyncPointSuperSystem
-        - SyncPointPlaybackSystem
-    - ApplySnapshotsForTickSystem
-        - Responsible for structural changes and matching predictive spawns
-        - Automatically enables Simulate tags for direct updates
-    - PropagateSimulateTagsSuperSystem - For interactions known in advance, such as dead-reckoned entities
-    - TickUpdateHistorySuperSystem - Only for Simulate enabled
-        - Advance Frame - Copy Previous to TwoAgo, and then Current to Previous
-        - Rollback Frame - Copy Previous to Current
-    - ApplyTickRecordedValuesSuperSystem - Only for Simulate disabled, and maybe some other criteria for performance
-    - TickSimulationSuperSystem - Only for Simulate enabled
-    - RecordTickValuesSystem
-   - TickInterpolateSuperSystem
+   The server basically uses the local loop, except it does not have interpolation, and it does not discard a previous tick nor additively
+   apply input. It sends out snapshots afterwards.
 
-   Network Server
-   - InitializationSystemGroup - sync points are here
-   - UpdateInputQueuesSystem
-   - ApplyInputsForTickSystem
-   - TickUpdateHistorySuperSystem
-    - Advance Frame - Copy Previous to TwoAgo, and then Current to Previous
-   - TickSimulationSuperSystem
-   - SendSnapshotsSuperSystem
+   The client could possibly move input ahead of the loop, by zipping to the final tick, doing input, and then rolling back afterwards.
+   The client would need to save and restore this final input. But this comes at the slight advantage of getting inputs on the network sooner.
+   The client will have several systems after tick sync point but before TickUpdateHistorySuperSystem for managing snapshots and prediction needs.
+   The client will have several systems after TickSimulationSuperSystem and possibly after the ticking loop but before interpolation for saving predicted states.
  */
-#endif
 
