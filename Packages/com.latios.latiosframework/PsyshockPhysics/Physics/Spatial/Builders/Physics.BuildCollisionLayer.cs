@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
+using Latios.Transforms;
 using Latios.Transforms.Abstract;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
@@ -23,11 +25,8 @@ namespace Latios.Psyshock
         /// <summary>
         /// Constructs the BuildCollsionLayer type handles using a managed system
         /// </summary>
-        public BuildCollisionLayerTypeHandles(SystemBase system)
+        public BuildCollisionLayerTypeHandles(SystemBase system) : this(ref system.CheckedStateRef)
         {
-            collider       = system.GetComponentTypeHandle<Collider>(true);
-            worldTransform = new WorldTransformReadOnlyAspect.TypeHandle(ref system.CheckedStateRef);
-            entity         = system.GetEntityTypeHandle();
         }
 
         /// <summary>
@@ -43,12 +42,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// Updates the type handles using a managed system
         /// </summary>
-        public void Update(SystemBase system)
-        {
-            collider.Update(system);
-            worldTransform.Update(ref system.CheckedStateRef);
-            entity.Update(system);
-        }
+        public void Update(SystemBase system) => Update(ref system.CheckedStateRef);
 
         /// <summary>
         /// Updates the type handles using a SystemState
@@ -60,6 +54,58 @@ namespace Latios.Psyshock
             entity.Update(ref system);
         }
     }
+
+#if !LATIOS_TRANSFORMS_UNITY
+    /// <summary>
+    /// A struct defining the type handles used when building a CollisionLayer from an EntityQuery.
+    /// All handles are ReadOnly. You can cache this structure inside a system to accelerate scheduling costs,
+    /// but you must also ensure the handles are updating during each OnUpdate before building any CollisionLayer.
+    /// This is a variant that uses TickedWorldTransform for generating transforms.
+    /// </summary>
+    public struct BuildTickedCollisionLayerTypeHandles
+    {
+        [ReadOnly] public ComponentTypeHandle<Collider>             collider;
+        [ReadOnly] public ComponentTypeHandle<TickedWorldTransform> worldTransform;
+        [ReadOnly] public EntityTypeHandle                          entity;
+
+        /// <summary>
+        /// Constructs the BuildCollsionLayer type handles using a managed system
+        /// </summary>
+        public BuildTickedCollisionLayerTypeHandles(SystemBase system) : this(ref system.CheckedStateRef)
+        {
+        }
+
+        /// <summary>
+        /// Constructs the BuildCollisionLayer type handles using a SystemState
+        /// </summary>
+        public BuildTickedCollisionLayerTypeHandles(ref SystemState system)
+        {
+            collider       = system.GetComponentTypeHandle<Collider>(true);
+            worldTransform = system.GetComponentTypeHandle<TickedWorldTransform>(true);
+            entity         = system.GetEntityTypeHandle();
+        }
+
+        /// <summary>
+        /// Updates the type handles using a managed system
+        /// </summary>
+        public void Update(SystemBase system) => Update(ref system.CheckedStateRef);
+
+        /// <summary>
+        /// Updates the type handles using a SystemState
+        /// </summary>
+        public void Update(ref SystemState system)
+        {
+            collider.Update(ref system);
+            worldTransform.Update(ref system);
+            entity.Update(ref system);
+        }
+
+        internal BuildCollisionLayerTypeHandles ToUnticked()
+        {
+            return UnsafeUtility.As<BuildTickedCollisionLayerTypeHandles, BuildCollisionLayerTypeHandles>(ref this);
+        }
+    }
+#endif
 
     /// <summary>
     /// The config object used in Physics.BuildCollisionLayer fluent chains
@@ -100,6 +146,16 @@ namespace Latios.Psyshock
         {
             return fluent.With<Collider>(true).WithWorldTransformReadOnly();
         }
+
+#if !LATIOS_TRANSFORMS_UNITY
+        /// <summary>
+        /// Adds the necessary components to an EntityQuery to ensure proper building of a CollisionLayer
+        /// </summary>
+        public static FluentQuery PatchQueryForBuildingTickedCollisionLayer(this FluentQuery fluent)
+        {
+            return fluent.With<Collider, TickedWorldTransform>(true);
+        }
+#endif
 
         #region Starters
         /// <summary>
@@ -155,6 +211,26 @@ namespace Latios.Psyshock
             };
             return config;
         }
+
+#if !LATIOS_TRANSFORMS_UNITY
+        /// <summary>
+        /// Creates a new CollisionLayer by extracting collider and transform data from the entities in an EntityQuery.
+        /// This is a start of a fluent chain.
+        /// </summary>
+        /// <param name="query">The EntityQuery from which to extract collider and transform data</param>
+        /// <param name="requiredTypeHandles">Cached type handles that must be updated before invoking this method</param>
+        public static BuildCollisionLayerConfig BuildCollisionLayer(EntityQuery query, in BuildTickedCollisionLayerTypeHandles requiredTypeHandles)
+        {
+            var config = new BuildCollisionLayerConfig
+            {
+                query        = query,
+                typeGroup    = requiredTypeHandles.ToUnticked(),
+                hasQueryData = true,
+                settings     = CollisionLayerSettings.kDefault,
+            };
+            return config;
+        }
+#endif
 
         /// <summary>
         /// Creates a new CollisionLayer using the collider and transform data provided by the bodies array

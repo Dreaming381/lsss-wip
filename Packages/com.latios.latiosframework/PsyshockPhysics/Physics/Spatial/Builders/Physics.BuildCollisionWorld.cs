@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics;
+using Latios.Transforms;
 using Latios.Transforms.Abstract;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
@@ -25,13 +27,8 @@ namespace Latios.Psyshock
         /// <summary>
         /// Constructs the BuildCollsionWorld type handles using a managed system
         /// </summary>
-        public BuildCollisionWorldTypeHandles(SystemBase system)
+        public BuildCollisionWorldTypeHandles(SystemBase system) : this(ref system.CheckedStateRef)
         {
-            collider       = system.GetComponentTypeHandle<Collider>(true);
-            worldTransform = new WorldTransformReadOnlyAspect.TypeHandle(ref system.CheckedStateRef);
-            aabb           = system.GetComponentTypeHandle<CollisionWorldAabb>(true);
-            entity         = system.GetEntityTypeHandle();
-            index          = system.GetComponentTypeHandle<CollisionWorldIndex>(false);
         }
 
         /// <summary>
@@ -49,14 +46,7 @@ namespace Latios.Psyshock
         /// <summary>
         /// Updates the type handles using a managed system
         /// </summary>
-        public void Update(SystemBase system)
-        {
-            collider.Update(system);
-            worldTransform.Update(ref system.CheckedStateRef);
-            aabb.Update(system);
-            entity.Update(system);
-            index.Update(system);
-        }
+        public void Update(SystemBase system) => Update(ref system.CheckedStateRef);
 
         /// <summary>
         /// Updates the type handles using a SystemState
@@ -70,6 +60,64 @@ namespace Latios.Psyshock
             index.Update(ref system);
         }
     }
+
+#if !LATIOS_TRANSFORMS_UNITY
+    /// <summary>
+    /// A struct defining the type handles used when building a CollisionWorld from an EntityQuery.
+    /// All handles are ReadOnly. You can cache this structure inside a system to accelerate scheduling costs,
+    /// but you must also ensure the handles are updating during each OnUpdate before building any CollisionWorld.
+    /// This is a variant that uses TickedWorldTransform for generating transforms.
+    /// </summary>
+    public struct BuildTickedCollisionWorldTypeHandles
+    {
+        [ReadOnly] public ComponentTypeHandle<Collider>             collider;
+        [ReadOnly] public ComponentTypeHandle<TickedWorldTransform> worldTransform;
+        [ReadOnly] public ComponentTypeHandle<CollisionWorldAabb>   aabb;
+        [ReadOnly] public EntityTypeHandle                          entity;
+        public ComponentTypeHandle<CollisionWorldIndex>             index;
+
+        /// <summary>
+        /// Constructs the BuildCollsionWorld type handles using a managed system
+        /// </summary>
+        public BuildTickedCollisionWorldTypeHandles(SystemBase system) : this(ref system.CheckedStateRef)
+        {
+        }
+
+        /// <summary>
+        /// Constructs the BuildCollisionWorld type handles using a SystemState
+        /// </summary>
+        public BuildTickedCollisionWorldTypeHandles(ref SystemState system)
+        {
+            collider       = system.GetComponentTypeHandle<Collider>(true);
+            worldTransform = system.GetComponentTypeHandle<TickedWorldTransform>(true);
+            aabb           = system.GetComponentTypeHandle<CollisionWorldAabb>(true);
+            entity         = system.GetEntityTypeHandle();
+            index          = system.GetComponentTypeHandle<CollisionWorldIndex>(false);
+        }
+
+        /// <summary>
+        /// Updates the type handles using a managed system
+        /// </summary>
+        public void Update(SystemBase system) => Update(ref system.CheckedStateRef);
+
+        /// <summary>
+        /// Updates the type handles using a SystemState
+        /// </summary>
+        public void Update(ref SystemState system)
+        {
+            collider.Update(ref system);
+            worldTransform.Update(ref system);
+            aabb.Update(ref system);
+            entity.Update(ref system);
+            index.Update(ref system);
+        }
+
+        internal BuildCollisionWorldTypeHandles ToUnticked()
+        {
+            return UnsafeUtility.As<BuildTickedCollisionWorldTypeHandles, BuildCollisionWorldTypeHandles>(ref this);
+        }
+    }
+#endif
 
     /// <summary>
     /// The config object used in Physics.BuildCollisionWorld fluent chains
@@ -93,6 +141,16 @@ namespace Latios.Psyshock
             return fluent.With<Collider>(true).WithWorldTransformReadOnly();
         }
 
+#if !LATIOS_TRANSFORMS_UNITY
+        /// <summary>
+        /// Adds the necessary components to an EntityQuery to ensure proper building of a CollisionWorld
+        /// </summary>
+        public static FluentQuery PatchQueryForBuildingTickedCollisionWorld(this FluentQuery fluent)
+        {
+            return fluent.With<Collider, TickedWorldTransform>(true);
+        }
+#endif
+
         #region Starters
         /// <summary>
         /// Creates a new CollisionWorld by extracting collider and transform data from the entities in an EntityQuery.
@@ -111,6 +169,26 @@ namespace Latios.Psyshock
             };
             return config;
         }
+
+#if !LATIOS_TRANSFORMS_UNITY
+        /// <summary>
+        /// Creates a new CollisionWorld by extracting collider and transform data from the entities in an EntityQuery.
+        /// This is a start of a fluent chain.
+        /// </summary>
+        /// <param name="query">The EntityQuery from which to extract collider and transform data</param>
+        /// <param name="requiredTypeHandles">Cached type handles that must be updated before invoking this method</param>
+        public static BuildCollisionWorldConfig BuildCollisionWorld(EntityQuery query, in BuildTickedCollisionWorldTypeHandles requiredTypeHandles)
+        {
+            var config = new BuildCollisionWorldConfig
+            {
+                query      = query,
+                typeGroup  = requiredTypeHandles.ToUnticked(),
+                settings   = CollisionLayerSettings.kDefault,
+                worldIndex = 1
+            };
+            return config;
+        }
+#endif
         #endregion
 
         #region FluentChain
