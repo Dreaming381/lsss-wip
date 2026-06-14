@@ -120,14 +120,14 @@ namespace Latios.Transforms
             /// <param name="parentTransform">The parent's world-space transform for convenience, identity if there was no parent</param>
             /// <returns>The local position, rotation, and uniform scale of the entity</returns>
             public static TransformQvs TickedLocalTransformFrom(in EntityInHierarchyHandle handle,
-                                                                in WorldTransform worldTransform,
+                                                                in TickedWorldTransform worldTransform,
                                                                 ref ComponentBroker componentBroker,
                                                                 out TransformQvvs parentTransform)
-            => LocalTransformFrom(in handle,
-                                  in worldTransform,
-                                  ref TickedComponentBrokerAccess.From(ref componentBroker),
-                                  ref TickedComponentBrokerAccess.From(ref componentBroker),
-                                  out parentTransform);
+            => TickedLocalTransformFrom(in handle,
+                                        in worldTransform,
+                                        ref TickedComponentBrokerAccess.From(ref componentBroker),
+                                        ref TickedComponentBrokerAccess.From(ref componentBroker),
+                                        out parentTransform);
 
             /// <summary>
             /// Computes the ticked local transform of the entity. If the entity does not have a parent, then this
@@ -140,17 +140,17 @@ namespace Latios.Transforms
             /// <param name="parentTransform">The parent's world-space transform for convenience, identity if there was no parent</param>
             /// <returns>The local position, rotation, and uniform scale of the entity</returns>
             public static TransformQvs TickedLocalTransformFrom(in EntityInHierarchyHandle handle,
-                                                                in WorldTransform worldTransform,
+                                                                in TickedWorldTransform worldTransform,
                                                                 TransformsKey key,
                                                                 ref ComponentBroker componentBroker,
                                                                 out TransformQvvs parentTransform)
             {
                 key.Validate(handle.root.entity);
-                return LocalTransformFrom(in handle,
-                                          in worldTransform,
-                                          ref TickedComponentBrokerParallelAccess.From(ref componentBroker),
-                                          ref TickedComponentBrokerParallelAccess.From(ref componentBroker),
-                                          out parentTransform);
+                return TickedLocalTransformFrom(in handle,
+                                                in worldTransform,
+                                                ref TickedComponentBrokerParallelAccess.From(ref componentBroker),
+                                                ref TickedComponentBrokerParallelAccess.From(ref componentBroker),
+                                                out parentTransform);
             }
 
             /// <summary>
@@ -179,6 +179,24 @@ namespace Latios.Transforms
                                                                             ref TAlive alive,
                                                                             ref TWorld worldTransformLookupRO,
                                                                             out TransformQvvs parentTransform) where TAlive : unmanaged, IAlive where TWorld : unmanaged,
+            IWorldTransform
+            {
+                var parentHandle = handle.FindParent(ref alive);
+                if (!parentHandle.isNull)
+                {
+                    parentTransform = worldTransformLookupRO.GetWorldTransform(parentHandle.entity).worldTransform;
+                    return WorldLocalOps.GetLocalTransformRO(in parentTransform, in worldTransform.worldTransform, in parentHandle, in handle, worldTransformLookupRO.isTicked);
+                }
+                parentTransform = TransformQvvs.identity;
+                return new TransformQvs(worldTransform.position, worldTransform.rotation, worldTransform.scale);
+            }
+
+            internal static TransformQvs TickedLocalTransformFrom<TAlive, TWorld>(in EntityInHierarchyHandle handle,
+                                                                                  in TickedWorldTransform worldTransform,
+                                                                                  ref TAlive alive,
+                                                                                  ref TWorld worldTransformLookupRO,
+                                                                                  out TransformQvvs parentTransform) where TAlive : unmanaged,
+            IAlive where TWorld : unmanaged,
             IWorldTransform
             {
                 var parentHandle = handle.FindParent(ref alive);
