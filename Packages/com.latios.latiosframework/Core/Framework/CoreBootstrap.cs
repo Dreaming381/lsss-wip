@@ -19,6 +19,16 @@ namespace Latios
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<DestroyEntitiesOnSceneChangeSystem>(), world);
         }
 
+        /// <summary>
+        /// Installs the Ticking mechanisms into the World for local (singleplayer) ticking
+        /// </summary>
+        /// <param name="world">The World where systems should be installed.</param>
+        public static void InstallLocalTicking(World world)
+        {
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickLocalSuperSystem>(),       world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickInterpolateSuperSystem>(), world);
+        }
+
 #if NETCODE_PROJECT
         /// <summary>
         /// When installed in the Editor World, this removes the Disabled component from prespawned ghosts, allowing you to see them.

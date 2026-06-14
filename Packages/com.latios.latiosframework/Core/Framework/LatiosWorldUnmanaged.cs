@@ -131,20 +131,28 @@ namespace Latios
         #region sync point
         /// <summary>
         /// The main syncPoint system from which to get command buffers.
-        /// Command buffers retrieved from this property from within a system will have dependencies managed automatically
+        /// Command buffers retrieved from this property from within a system will have dependencies managed automatically.
         /// </summary>
         public ref Systems.SyncPointPlaybackSystem syncPoint
         {
             get
             {
                 CheckHandleIsValid();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-                if (m_impl->m_syncPointPlaybackSystem == null)
-                {
-                    throw new System.InvalidOperationException("There is no initialized SyncPointPlaybackSystem in the World.");
-                }
-#endif
                 return ref m_impl->GetSyncPoint();
+            }
+        }
+
+        /// <summary>
+        /// The Ticked syncPoint system from which to get command buffers. Only valid when ticking is installed.
+        /// Command buffers retrieved from this property from within a system will have dependencies managed automatically.
+        /// Playback will not occur if the tick this buffer was recorded on is discarded.
+        /// </summary>
+        public ref Systems.TickSyncPointPlaybackSystem tickedSyncPoint
+        {
+            get
+            {
+                CheckHandleIsValid();
+                return ref m_impl->GetTickedSyncPoint();
             }
         }
         #endregion
@@ -613,7 +621,8 @@ namespace Latios
         public bool                             m_liveBakedThisFrame;
         public int                              m_frameCounter;
 
-        public Systems.SyncPointPlaybackSystem* m_syncPointPlaybackSystem;
+        public Systems.SyncPointPlaybackSystem*     m_syncPointPlaybackSystem;
+        public Systems.TickSyncPointPlaybackSystem* m_tickSyncPointPlaybackSystem;
 
         public void BeginDependencyTracking(SystemHandle system)
         {
@@ -632,7 +641,7 @@ namespace Latios
                 {
                     var text = m_worldUnmanaged.ResolveSystemStateRef(system).DebugName;
                     UnityEngine.Debug.LogError(
-                        $"An unresolved sync point dependency was detected that originated outside of any Latios ComponentSystemGroup. See Core/\"Automatic Dependency Management Errors.md\" in the documentation. Beginning execution of {text}.");
+                        $"An unresolved syncPoint dependency was detected that originated outside of any Latios ComponentSystemGroup. See Core/\"Automatic Dependency Management Errors.md\" in the documentation. Beginning execution of {text}.");
                     m_errorState = true;
                 }
                 else
@@ -641,6 +650,24 @@ namespace Latios
                     var text       = m_worldUnmanaged.ResolveSystemStateRef(lastSystem).DebugName;
                     UnityEngine.Debug.LogError(
                         $"{text} has a pending auto-dependency on syncPoint but a new system has started executing. This is not allowed. See Core/\"Automatic Dependency Management Errors.md\" in the documentation.");
+                    m_errorState = true;
+                }
+            }
+            if (m_tickSyncPointPlaybackSystem != null && m_tickSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
+            {
+                if (m_executingSystemStack.IsEmpty)
+                {
+                    var text = m_worldUnmanaged.ResolveSystemStateRef(system).DebugName;
+                    UnityEngine.Debug.LogError(
+                        $"An unresolved tickedSyncPoint dependency was detected that originated outside of any Latios ComponentSystemGroup. See Core/\"Automatic Dependency Management Errors.md\" in the documentation. Beginning execution of {text}.");
+                    m_errorState = true;
+                }
+                else
+                {
+                    var lastSystem = m_executingSystemStack[m_executingSystemStack.Length - 1];
+                    var text       = m_worldUnmanaged.ResolveSystemStateRef(lastSystem).DebugName;
+                    UnityEngine.Debug.LogError(
+                        $"{text} has a pending auto-dependency on tickedSyncPoint but a new system has started executing. This is not allowed. See Core/\"Automatic Dependency Management Errors.md\" in the documentation.");
                     m_errorState = true;
                 }
             }
@@ -696,6 +723,10 @@ namespace Latios
                 {
                     m_syncPointPlaybackSystem->AddJobHandleForProducer(dependency);
                 }
+                if (m_tickSyncPointPlaybackSystem != null && m_tickSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
+                {
+                    m_tickSyncPointPlaybackSystem->AddJobHandleForProducer(dependency);
+                }
 
                 foreach (var dep in m_collectionDependencies)
                 {
@@ -729,6 +760,10 @@ namespace Latios
                 if (m_syncPointPlaybackSystem != null && m_syncPointPlaybackSystem->hasPendingJobHandlesToAquire)
                 {
                     m_syncPointPlaybackSystem->AddMainThreadCompletionForProducer();
+                }
+                if (m_tickSyncPointPlaybackSystem != null && m_tickSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
+                {
+                    m_tickSyncPointPlaybackSystem->AddMainThreadCompletionForProducer();
                 }
 
                 foreach (var dep in m_collectionDependencies)
@@ -827,6 +862,15 @@ namespace Latios
                 throw new System.InvalidOperationException("No SyncPointPlaybackSystem exists in the LatiosWorld.");
 #endif
             return ref *m_syncPointPlaybackSystem;
+        }
+
+        public ref Systems.TickSyncPointPlaybackSystem GetTickedSyncPoint()
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (m_syncPointPlaybackSystem == null)
+                throw new System.InvalidOperationException("No TickedSyncPointPlaybackSystem exists in the LatiosWorld. You may need to install ticking in the bootstrap.");
+#endif
+            return ref *m_tickSyncPointPlaybackSystem;
         }
 
         public bool isAllowedToRun => !(m_zeroToleranceForExceptionsEnabled && m_errorState);

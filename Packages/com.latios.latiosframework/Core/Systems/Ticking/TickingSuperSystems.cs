@@ -77,7 +77,7 @@ namespace Latios.Systems
         {
             EnableSystemSorting = false;
 
-            // Todo: Add ticked sync point system, which only updates when !TickingState.discardPreviousTick
+            GetOrCreateAndAddManagedSystem<TickSyncPointPlaybackSystemDispatch>();
             GetOrCreateAndAddManagedSystem<TickInputSuperSystem>();
             GetOrCreateAndAddManagedSystem<TickUpdateHistorySuperSystem>();
             GetOrCreateAndAddManagedSystem<TickSimulationSuperSystem>();

@@ -32,9 +32,15 @@ namespace Latios
         public BlackboardEntity sceneBlackboardEntity => m_unmanaged.sceneBlackboardEntity;
         /// <summary>
         /// The main syncPoint system from which to get command buffers.
-        /// Command buffers retrieved from this property from within a system will have dependencies managed automatically
+        /// Command buffers retrieved from this property from within a system will have dependencies managed automatically.
         /// </summary>
         public ref SyncPointPlaybackSystem syncPoint => ref m_unmanaged.syncPoint;
+        /// <summary>
+        /// The Ticked syncPoint system from which to get command buffers. Only valid when ticking is installed.
+        /// Command buffers retrieved from this property from within a system will have dependencies managed automatically.
+        /// Playback will not occur if the tick this buffer was recorded on is discarded.
+        /// </summary>
+        public ref TickSyncPointPlaybackSystem tickedSyncPoint => ref m_unmanaged.tickedSyncPoint;
         /// <summary>
         /// The InitializationSystemGroup of this world for convenience
         /// </summary>
