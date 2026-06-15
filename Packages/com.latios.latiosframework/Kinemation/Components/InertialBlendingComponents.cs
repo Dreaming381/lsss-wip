@@ -20,6 +20,15 @@ namespace Latios.Kinemation
     }
 
     /// <summary>
+    /// Same as OptimizedBoneInertialBlendState, but for Ticking.
+    /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
+    /// </summary>
+    public struct TickedOptimizedBoneInertialBlendState : IBufferElementData
+    {
+        public InertialBlendingTransformState inertialBlendState;
+    }
+
+    /// <summary>
     /// A structure used for performing inertial blending.
     /// You can reuse an instance for multiple inertial blending operations
     /// if they all have the same blendProgressTime.

@@ -110,11 +110,11 @@ namespace Latios.Kinemation
             var qvv = AclUnity.Decompression.SampleBone(compressedClipDataAligned16.GetUnsafePtr(), boneIndex, time, mode);
             return new TransformQvvs
             {
-                rotation   = qvv.rotation,
-                position   = qvv.translation.xyz,
+                rotation  = qvv.rotation,
+                position  = qvv.translation.xyz,
                 context32 = math.asint(1f),
-                stretch    = qvv.stretchScale.xyz,
-                scale      = qvv.stretchScale.w
+                stretch   = qvv.stretchScale.xyz,
+                scale     = qvv.stretchScale.w
             };
         }
 
@@ -143,10 +143,34 @@ namespace Latios.Kinemation
         }
 
         /// <summary>
+        /// Samples the animation clip for the entire skeleton at the given time weighted by the blendWeight.
+        /// This method uses a special fast-path.
+        /// </summary>
+        /// <param name="tickedOptimizedSkeletonAspect">The skeleton aspect on which to apply the animation</param>
+        /// <param name="time">The time value to sample the the clip in seconds.
+        /// <param name="blendWeight">A weight factor to use for blending in the range of (0f, 1f]</param>
+        /// This value is automatically clamped to a value between 0f and the clip's duration.</param>
+        /// <param name="keyframeInterpolationMode">The mechanism used to sample a time value between two keyframes</param>
+        public unsafe void SamplePose(ref TickedOptimizedSkeletonAspect tickedOptimizedSkeletonAspect,
+                                      float time,
+                                      float blendWeight,
+                                      KeyframeInterpolationMode keyframeInterpolationMode = KeyframeInterpolationMode.Interpolate)
+        {
+            CheckSkeletonIsBigEnoughForClip(in tickedOptimizedSkeletonAspect, boneCount);
+
+            var mode = (AclUnity.Decompression.KeyframeInterpolationMode)keyframeInterpolationMode;
+
+            if (tickedOptimizedSkeletonAspect.BeginSampleTrueIfAdditive(out var buffer))
+                AclUnity.Decompression.SamplePoseBlendedAdd(compressedClipDataAligned16.GetUnsafePtr(), buffer, blendWeight, time, mode);
+            else
+                AclUnity.Decompression.SamplePoseBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, blendWeight, time, mode);
+        }
+
+        /// <summary>
         /// Samples the animation clip for parts of the skeleton specified by the mask at the given time weighted by the blendWeight.
         /// This method uses a special fast-path.
         /// </summary>
-        /// <param name="optimizedSkeletonAspect">The skeleton aspect on which to apply the animation</param>
+        /// <param name="tickedOptimizedSkeletonAspect">The skeleton aspect on which to apply the animation</param>
         /// <param name="mask">A bit array where each bit specifies if the bone at that index should be sampled</param>
         /// <param name="time">The time value to sample the the clip in seconds.
         /// <param name="blendWeight">A weight factor to use for blending in the range of (0f, 1f]</param>
@@ -163,6 +187,32 @@ namespace Latios.Kinemation
             var mode = (AclUnity.Decompression.KeyframeInterpolationMode)keyframeInterpolationMode;
 
             if (optimizedSkeletonAspect.BeginSampleTrueIfAdditive(out var buffer))
+                AclUnity.Decompression.SamplePoseMaskedBlendedAdd(compressedClipDataAligned16.GetUnsafePtr(), buffer, mask, blendWeight, time, mode);
+            else
+                AclUnity.Decompression.SamplePoseMaskedBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, mask, blendWeight, time, mode);
+        }
+
+        /// <summary>
+        /// Samples the animation clip for parts of the skeleton specified by the mask at the given time weighted by the blendWeight.
+        /// This method uses a special fast-path.
+        /// </summary>
+        /// <param name="optimizedSkeletonAspect">The skeleton aspect on which to apply the animation</param>
+        /// <param name="mask">A bit array where each bit specifies if the bone at that index should be sampled</param>
+        /// <param name="time">The time value to sample the the clip in seconds.
+        /// <param name="blendWeight">A weight factor to use for blending in the range of (0f, 1f]</param>
+        /// This value is automatically clamped to a value between 0f and the clip's duration.</param>
+        /// <param name="keyframeInterpolationMode">The mechanism used to sample a time value between two keyframes</param>
+        public unsafe void SamplePose(ref TickedOptimizedSkeletonAspect tickedOptimizedSkeletonAspect,
+                                      ReadOnlySpan<ulong>               mask,
+                                      float time,
+                                      float blendWeight,
+                                      KeyframeInterpolationMode keyframeInterpolationMode = KeyframeInterpolationMode.Interpolate)
+        {
+            CheckSkeletonIsBigEnoughForClip(in tickedOptimizedSkeletonAspect, boneCount);
+
+            var mode = (AclUnity.Decompression.KeyframeInterpolationMode)keyframeInterpolationMode;
+
+            if (tickedOptimizedSkeletonAspect.BeginSampleTrueIfAdditive(out var buffer))
                 AclUnity.Decompression.SamplePoseMaskedBlendedAdd(compressedClipDataAligned16.GetUnsafePtr(), buffer, mask, blendWeight, time, mode);
             else
                 AclUnity.Decompression.SamplePoseMaskedBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, mask, blendWeight, time, mode);
@@ -315,6 +365,13 @@ namespace Latios.Kinemation
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckSkeletonIsBigEnoughForClip(in OptimizedSkeletonAspect osa, short boneCount)
+        {
+            if (osa.boneCount < boneCount)
+                throw new ArgumentException("The Optimized Skeleton does not contain enough bones for the animation clip.");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        void CheckSkeletonIsBigEnoughForClip(in TickedOptimizedSkeletonAspect osa, short boneCount)
         {
             if (osa.boneCount < boneCount)
                 throw new ArgumentException("The Optimized Skeleton does not contain enough bones for the animation clip.");

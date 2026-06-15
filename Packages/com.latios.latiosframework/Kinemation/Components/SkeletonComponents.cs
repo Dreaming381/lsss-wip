@@ -249,6 +249,16 @@ namespace Latios.Kinemation
     }
 
     /// <summary>
+    /// Same as OptimizedBoneTransform, except this version is intended for Ticking.
+    /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
+    /// </summary>
+    [InternalBufferCapacity(0)]
+    public struct TickedOptimizedBoneTransform : IBufferElementData
+    {
+        public TransformQvvs boneTransform;
+    }
+
+    /// <summary>
     /// The control state for an optimized skeleton. This component keeps track of the transform set rotations,
     /// whether or not anything interacted with the pose during the frame, and animation sampling and blending
     /// statuses.
@@ -274,6 +284,15 @@ namespace Latios.Kinemation
         internal static readonly int[] CurrentFromMask  = { 0, 1, 2, 0, 0, 1, 2 };
         internal static readonly int[] PreviousFromMask = { 2, 0, 1, 2, 2, 0, 1};
         internal static readonly int[] TwoAgoFromMask   = { 2, 0, 1, 1, 1, 2, 0};
+    }
+
+    /// <summary>
+    /// Same as OptimizedSkeletonState, except this version is intended for Ticking.
+    /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
+    /// </summary>
+    public struct TickedOptimizedSkeletonState : IComponentData
+    {
+        public OptimizedSkeletonState.Flags state;
     }
 
     /// <summary>

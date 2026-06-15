@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,32 +9,21 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Transforms;
 
 namespace Latios.Kinemation
 {
-    internal struct OptimizedSkeletonWorldTransform
+    internal struct TickedOptimizedSkeletonWorldTransform
     {
-#if LATIOS_TRANSFORMS_UNITY
-        public TransformQvvs worldTransform;
-        public bool requiresSocketPropagation => false;
-        public OptimizedSkeletonWorldTransform(Unity.Transforms.LocalToWorld localToWorld)
-        {
-            var ltw = localToWorld.Value;
-            worldTransform = new TransformQvvs(ltw.Translation(), ltw.Rotation(), ltw.Scale().x, 1f);
-        }
-#else
-        public TransformAspect transformAspect;
+        public TickedTransformAspect transformAspect;
         public TransformQvvs worldTransform => transformAspect.worldTransform;
         public bool requiresSocketPropagation => true;
-        public OptimizedSkeletonWorldTransform(TransformAspect ta)
+        public TickedOptimizedSkeletonWorldTransform(TickedTransformAspect ta)
         {
             transformAspect = ta;
         }
-#endif
     }
 
-    public partial struct OptimizedSkeletonAspect
+    public partial struct TickedOptimizedSkeletonAspect
     {
 #if !LATIOS_DISABLE_ACL
         internal bool BeginSampleTrueIfAdditive(out NativeArray<AclUnity.Qvvs> targetLocalTransforms)
@@ -212,11 +202,10 @@ namespace Latios.Kinemation
                 localTransforms[0] = local;
                 rootTransforms[0]  = local;
             }
-#if !LATIOS_TRANSFORMS_UNITY
             // Assuming a 1 MB stack size, then the max struct size for the max bone count we can fit is 32 bytes (actually a little less in practice).
             // Batch commands are bigger than that, so we have to use the ThreadStackAllocator.
             var tsa             = ThreadStackAllocator.GetAllocator();
-            var commands        = tsa.AllocateAsSpan<TransformBatchWriteCommand>(m_socketCount);
+            var commands        = tsa.AllocateAsSpan<TickedTransformBatchWriteCommand>(m_socketCount);
             int commandsWritten = 0;
             for (int i = 1; i < boneCount; i++)
             {
@@ -227,14 +216,13 @@ namespace Latios.Kinemation
                     if (!m_worldTransform.transformAspect.TryGetAspect(in socketHandle, out var socketTransform))
                         continue;
                     rootTransform.context32   = socketTransform.worldTransform.context32;
-                    commands[commandsWritten] = TransformBatchWriteCommand.SetLocalTransformQvvs(socketTransform, in rootTransform);
+                    commands[commandsWritten] = TickedTransformBatchWriteCommand.SetLocalTransformQvvs(socketTransform, in rootTransform);
                     commandsWritten++;
                 }
             }
             commands = commands.Slice(0, commandsWritten);
             commands.ApplyTransforms();
             tsa.Dispose();
-#endif
 
             m_skeletonState.ValueRW.state &= ~(OptimizedSkeletonState.Flags.NeedsSync | OptimizedSkeletonState.Flags.NextSampleShouldAdd);
             m_skeletonState.ValueRW.state |= OptimizedSkeletonState.Flags.IsDirty;
@@ -249,12 +237,12 @@ namespace Latios.Kinemation
         }
     }
 
-    public partial struct OptimizedBone
+    public partial struct TickedOptimizedBone
     {
-        internal OptimizedSkeletonWorldTransform                m_skeletonWorldTransform;
+        internal TickedOptimizedSkeletonWorldTransform          m_skeletonWorldTransform;
         internal RefRO<OptimizedSkeletonHierarchyBlobReference> m_skeletonHierarchyBlobRef;
-        internal RefRW<OptimizedSkeletonState>                  m_skeletonState;
-        internal DynamicBuffer<OptimizedBoneTransform>          m_boneTransforms;
+        internal RefRW<TickedOptimizedSkeletonState>            m_skeletonState;
+        internal DynamicBuffer<TickedOptimizedBoneTransform>    m_boneTransforms;
         internal short                                          m_index;
         internal short                                          m_boneCount;
         internal short                                          m_socketCount;
@@ -369,73 +357,60 @@ namespace Latios.Kinemation
 
         ref struct SocketUpdater
         {
-#if !LATIOS_TRANSFORMS_UNITY
-            TransformAspect                  referenceTransformAspect;
-            ThreadStackAllocator             tsa;
-            Span<TransformBatchWriteCommand> commands;
-            int                              commandCount;
-#endif
+            TickedTransformAspect                  referenceTransformAspect;
+            ThreadStackAllocator                   tsa;
+            Span<TickedTransformBatchWriteCommand> commands;
+            int                                    commandCount;
 
-            public SocketUpdater(OptimizedSkeletonWorldTransform skeletonWorldTransform, int socketCount)
+            public SocketUpdater(TickedOptimizedSkeletonWorldTransform skeletonWorldTransform, int socketCount)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 referenceTransformAspect = skeletonWorldTransform.transformAspect;
                 tsa                      = ThreadStackAllocator.GetAllocator();
-                commands                 = tsa.AllocateAsSpan<TransformBatchWriteCommand>(socketCount);
+                commands                 = tsa.AllocateAsSpan<TickedTransformBatchWriteCommand>(socketCount);
                 commandCount             = 0;
-#endif
             }
 
             public void ApplyAndDispose()
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 commands.ApplyTransforms();
                 tsa.Dispose();
-#endif
             }
 
             public void SetTransform(int socketTransformHierarchyIndex, TransformQvvs transform)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
 
                 var socket             = referenceTransformAspect[handle];
                 transform.context32    = socket.context32;
-                commands[commandCount] = TransformBatchWriteCommand.SetLocalTransformQvvs(socket, in transform);
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalTransformQvvs(socket, in transform);
                 commandCount++;
-#endif
             }
 
             public void SetPosition(int socketTransformHierarchyIndex, float3 position)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle             = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
                 var socket             = referenceTransformAspect[handle];
-                commands[commandCount] = TransformBatchWriteCommand.SetLocalPosition(socket, position);
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalPosition(socket, position);
                 commandCount++;
-#endif
             }
 
             public void SetRotation(int socketTransformHierarchyIndex, quaternion rotation)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
                 if (!referenceTransformAspect.TryGetAspect(in handle, out var socket))
                     return;
-                commands[commandCount] = TransformBatchWriteCommand.SetLocalRotation(socket, rotation);
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalRotation(socket, rotation);
                 commandCount++;
-#endif
             }
 
             public void SetPositionRotation(int socketTransformHierarchyIndex, float3 position, quaternion rotation)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
@@ -443,27 +418,23 @@ namespace Latios.Kinemation
                     return;
                 // Todo: Switch to explicit position-rotation command when that is supported.
                 var localScale         = socket.localScale;
-                commands[commandCount] = TransformBatchWriteCommand.SetLocalTransform(socket, new TransformQvs(position, rotation, localScale));
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalTransform(socket, new TransformQvs(position, rotation, localScale));
                 commandCount++;
-#endif
             }
 
             public void SetScale(int socketTransformHierarchyIndex, float scale)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
                 if (!referenceTransformAspect.TryGetAspect(in handle, out var socket))
                     return;
-                commands[commandCount] = TransformBatchWriteCommand.SetLocalScale(socket, scale);
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalScale(socket, scale);
                 commandCount++;
-#endif
             }
 
             public void SetPositionScale(int socketTransformHierarchyIndex, float3 position, float scale)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
@@ -471,22 +442,19 @@ namespace Latios.Kinemation
                     return;
                 // Todo: Switch to explicit position-scale command when that is supported.
                 var localRotation      = socket.localRotation;
-                commands[commandCount] = TransformBatchWriteCommand.SetLocalTransform(socket, new TransformQvs(position, localRotation, scale));
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalTransform(socket, new TransformQvs(position, localRotation, scale));
                 commandCount++;
-#endif
             }
 
             public void SetStretch(int socketTransformHierarchyIndex, float3 stretch)
             {
-#if !LATIOS_TRANSFORMS_UNITY
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
                 if (!referenceTransformAspect.TryGetAspect(in handle, out var socket))
                     return;
-                commands[commandCount] = TransformBatchWriteCommand.SetStretch(socket, stretch);
+                commands[commandCount] = TickedTransformBatchWriteCommand.SetStretch(socket, stretch);
                 commandCount++;
-#endif
             }
         }
 
@@ -654,9 +622,10 @@ namespace Latios.Kinemation
             if ((m_skeletonState.ValueRO.state & OptimizedSkeletonState.Flags.NeedsSync) == OptimizedSkeletonState.Flags.NeedsSync)
             {
                 throw new InvalidOperationException(
-                    "Attempted to interact with an OptimizedBone while the OptimizedSkeleton has not been synchronized. Call Sync() on the OptimizedSkeletonAspect after sampling animation poses before attempting to read or write to the OptimizedBone.");
+                    "Attempted to interact with an TickedOptimizedBone while the TickedOptimizedSkeleton has not been synchronized. Call Sync() on the TickedOptimizedSkeletonAspect after sampling animation poses before attempting to read or write to the TickedOptimizedBone.");
             }
         }
     }
 }
+#endif
 
