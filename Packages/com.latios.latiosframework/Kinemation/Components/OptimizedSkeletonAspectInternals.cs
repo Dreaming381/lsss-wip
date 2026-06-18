@@ -641,6 +641,7 @@ namespace Latios.Kinemation
                     transformSpanIndex++;
                 }
             }
+            socketUpdater.ApplyAndDispose();
         }
 
         struct TransformWithIndicesComparer : IComparer<TransformQvvs>
