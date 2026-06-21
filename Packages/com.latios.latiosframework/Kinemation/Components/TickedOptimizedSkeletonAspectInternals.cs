@@ -381,8 +381,8 @@ namespace Latios.Kinemation
                 if (socketTransformHierarchyIndex < 0)
                     return;
                 var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
-
-                var socket             = referenceTransformAspect[handle];
+                if (!referenceTransformAspect.TryGetAspect(in handle, out var socket))
+                    return;
                 transform.context32    = socket.context32;
                 commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalTransformQvvs(socket, in transform);
                 commandCount++;
@@ -392,8 +392,9 @@ namespace Latios.Kinemation
             {
                 if (socketTransformHierarchyIndex < 0)
                     return;
-                var handle             = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
-                var socket             = referenceTransformAspect[handle];
+                var handle = referenceTransformAspect.entityInHierarchyHandle.GetFromIndexInHierarchy(socketTransformHierarchyIndex);
+                if (!referenceTransformAspect.TryGetAspect(in handle, out var socket))
+                    return;
                 commands[commandCount] = TickedTransformBatchWriteCommand.SetLocalPosition(socket, position);
                 commandCount++;
             }
