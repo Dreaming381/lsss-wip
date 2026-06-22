@@ -6,13 +6,24 @@ namespace Latios.Systems
 {
     #region Injectable
     /// <summary>
+    /// ComponentSystemGroup which updates both at runtime and at bake time (for closed subscenes) responsible
+    /// for correcting entities and their attached components based on the presence of the TickedEntityTag and
+    /// TickingOnlyEntityTag.
+    /// </summary>
+    [DisableAutoCreation]
+    [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.EntitySceneOptimizations)]
+    public partial class TickedArchetypeCorrectionSystemGroup : ComponentSystemGroup
+    {
+    }
+
+    /// <summary>
     /// SuperSystem where history is either updated or reverted.
     /// isReplayTick - load snapshot for whatever needs it (Todo: How to cull this?)
     /// discardPreviousTick - Set current equal to previous
     /// !discardPreviousTick - Set previous equal to current for all predicted (replay) or all (!replay)
     /// </summary>
     [DisableAutoCreation]
-    public partial class TickUpdateHistorySuperSystem : SuperSystem
+    public partial class TickedUpdateHistorySuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
@@ -28,7 +39,7 @@ namespace Latios.Systems
     /// isRollbackTick - provide input recorded from a history buffer (for networking use cases)
     /// </summary>
     [DisableAutoCreation]
-    public partial class TickInputSuperSystem : SuperSystem
+    public partial class TickedInputSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
@@ -40,7 +51,7 @@ namespace Latios.Systems
     /// SuperSystem where tick-based simulation occurs
     /// </summary>
     [DisableAutoCreation]
-    public partial class TickSimulationSuperSystem : SuperSystem
+    public partial class TickedSimulationSuperSystem : SuperSystem
     {
         protected override void CreateSystems()
         {
@@ -53,9 +64,9 @@ namespace Latios.Systems
     /// finalTickFraction - interpolation factor between previous and current
     /// </summary>
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
-    [UpdateAfter(typeof(TickLocalSuperSystem))]
+    [UpdateAfter(typeof(TickedLocalSuperSystem))]
     [DisableAutoCreation]
-    public partial class TickInterpolateSuperSystem : RootSuperSystem
+    public partial class TickedInterpolateSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
@@ -71,16 +82,17 @@ namespace Latios.Systems
     [UpdateInGroup(typeof(SimulationSystemGroup), OrderFirst = true)]
     [UpdateAfter(typeof(FixedStepSimulationSystemGroup))]
     [DisableAutoCreation]
-    public partial class TickLocalSuperSystem : RootSuperSystem
+    public partial class TickedLocalSuperSystem : RootSuperSystem
     {
         protected override void CreateSystems()
         {
             EnableSystemSorting = false;
 
-            GetOrCreateAndAddManagedSystem<TickSyncPointPlaybackSystemDispatch>();
-            GetOrCreateAndAddManagedSystem<TickInputSuperSystem>();
-            GetOrCreateAndAddManagedSystem<TickUpdateHistorySuperSystem>();
-            GetOrCreateAndAddManagedSystem<TickSimulationSuperSystem>();
+            GetOrCreateAndAddManagedSystem<TickedSyncPointPlaybackSystemDispatch>();
+            GetOrCreateAndAddManagedSystem<TickedArchetypeCorrectionSystemGroup>();
+            GetOrCreateAndAddManagedSystem<TickedInputSuperSystem>();
+            GetOrCreateAndAddManagedSystem<TickedUpdateHistorySuperSystem>();
+            GetOrCreateAndAddManagedSystem<TickedSimulationSuperSystem>();
         }
 
         protected override void OnUpdate()

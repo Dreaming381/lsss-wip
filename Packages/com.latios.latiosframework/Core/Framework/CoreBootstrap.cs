@@ -25,8 +25,8 @@ namespace Latios
         /// <param name="world">The World where systems should be installed.</param>
         public static void InstallLocalTicking(World world)
         {
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickLocalSuperSystem>(),       world);
-            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickInterpolateSuperSystem>(), world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickedLocalSuperSystem>(),       world);
+            BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickedInterpolateSuperSystem>(), world);
         }
 
 #if NETCODE_PROJECT

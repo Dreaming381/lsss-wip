@@ -1,6 +1,7 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System;
 using Latios.Unsafe;
+using static Latios.Transforms.LiveTransformCapture;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -380,6 +381,69 @@ namespace Latios.Transforms
 
             if (addSet.linkedEntityGroup)
                 em.GetBuffer<LinkedEntityGroup>(addSet.entity).Add(new LinkedEntityGroup { Value = addSet.entity });
+        }
+
+        public static void RemoveUnnecessaryTransformComponents(ref ThreadStackAllocator parentTsa, EntityManager em, ReadOnlySpan<EntityInHierarchy> hierarchy)
+        {
+            var        tsa            = parentTsa.CreateChildAllocator();
+            const byte hasNormalBit   = 1;
+            const byte hasTickedBit   = 2;
+            const byte needsNormalBit = 4;
+            const byte needsTickedBit = 8;
+            var        bitArray       = tsa.AllocateAsSpan<byte>(hierarchy.Length);
+            bitArray.Clear();
+
+            int i = 0;
+            foreach (var element in hierarchy)
+            {
+                if (element.parentIndex < 0 && !em.IsAlive(element.entity))
+                    continue;
+
+                var hasNormal   = em.HasComponent<WorldTransform>(element.entity);
+                var hasTicked   = em.HasComponent<TickedWorldTransform>(element.entity);
+                var needsTicked = em.HasComponent<TickedEntityTag>(element.entity);
+                var needsNormal = !needsTicked || !em.HasComponent<TickingOnlyEntityTag>(element.entity);
+                if (hasNormal)
+                    bitArray[i] += hasNormalBit;
+                if (hasTicked)
+                    bitArray[i] += hasTickedBit;
+                if (needsNormal)
+                    bitArray[i] += needsNormalBit;
+                if (needsTicked)
+                    bitArray[i] += needsTickedBit;
+                for (int parentIndex = element.parentIndex; parentIndex >= 0; parentIndex = hierarchy[parentIndex].parentIndex)
+                {
+                    var  parent              = hierarchy[parentIndex];
+                    bool wasMissingSomething = false;
+                    if (needsNormal && (bitArray[parentIndex] & needsNormalBit) == 0)
+                    {
+                        wasMissingSomething    = true;
+                        bitArray[parentIndex] += needsNormalBit;
+                    }
+                    if (needsTicked && (bitArray[parentIndex] & hasTickedBit) == 0)
+                    {
+                        wasMissingSomething    = true;
+                        bitArray[parentIndex] += needsTickedBit;
+                    }
+                    if (!wasMissingSomething)
+                        break;
+                }
+                i++;
+            }
+
+            var entities = CopyHierarchyEntities(ref tsa, hierarchy);
+            i            = 0;
+            foreach (var entity in entities)
+            {
+                var bits = bitArray[i];
+                if ((bits & (hasNormalBit + needsNormalBit)) == hasNormalBit)
+                    em.RemoveComponent(entity, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                if ((bits & (hasTickedBit + needsTickedBit)) == needsTickedBit)
+                    em.RemoveComponent(entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                i++;
+            }
+
+            tsa.Dispose();
         }
     }
 }

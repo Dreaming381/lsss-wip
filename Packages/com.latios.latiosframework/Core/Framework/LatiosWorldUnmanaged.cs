@@ -147,7 +147,7 @@ namespace Latios
         /// Command buffers retrieved from this property from within a system will have dependencies managed automatically.
         /// Playback will not occur if the tick this buffer was recorded on is discarded.
         /// </summary>
-        public ref Systems.TickSyncPointPlaybackSystem tickedSyncPoint
+        public ref Systems.TickedSyncPointPlaybackSystem tickedSyncPoint
         {
             get
             {
@@ -621,8 +621,8 @@ namespace Latios
         public bool                             m_liveBakedThisFrame;
         public int                              m_frameCounter;
 
-        public Systems.SyncPointPlaybackSystem*     m_syncPointPlaybackSystem;
-        public Systems.TickSyncPointPlaybackSystem* m_tickSyncPointPlaybackSystem;
+        public Systems.SyncPointPlaybackSystem*       m_syncPointPlaybackSystem;
+        public Systems.TickedSyncPointPlaybackSystem* m_tickedSyncPointPlaybackSystem;
 
         public void BeginDependencyTracking(SystemHandle system)
         {
@@ -653,7 +653,7 @@ namespace Latios
                     m_errorState = true;
                 }
             }
-            if (m_tickSyncPointPlaybackSystem != null && m_tickSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
+            if (m_tickedSyncPointPlaybackSystem != null && m_tickedSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
             {
                 if (m_executingSystemStack.IsEmpty)
                 {
@@ -723,9 +723,9 @@ namespace Latios
                 {
                     m_syncPointPlaybackSystem->AddJobHandleForProducer(dependency);
                 }
-                if (m_tickSyncPointPlaybackSystem != null && m_tickSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
+                if (m_tickedSyncPointPlaybackSystem != null && m_tickedSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
                 {
-                    m_tickSyncPointPlaybackSystem->AddJobHandleForProducer(dependency);
+                    m_tickedSyncPointPlaybackSystem->AddJobHandleForProducer(dependency);
                 }
 
                 foreach (var dep in m_collectionDependencies)
@@ -761,9 +761,9 @@ namespace Latios
                 {
                     m_syncPointPlaybackSystem->AddMainThreadCompletionForProducer();
                 }
-                if (m_tickSyncPointPlaybackSystem != null && m_tickSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
+                if (m_tickedSyncPointPlaybackSystem != null && m_tickedSyncPointPlaybackSystem->hasPendingJobHandlesToAquire)
                 {
-                    m_tickSyncPointPlaybackSystem->AddMainThreadCompletionForProducer();
+                    m_tickedSyncPointPlaybackSystem->AddMainThreadCompletionForProducer();
                 }
 
                 foreach (var dep in m_collectionDependencies)
@@ -864,13 +864,13 @@ namespace Latios
             return ref *m_syncPointPlaybackSystem;
         }
 
-        public ref Systems.TickSyncPointPlaybackSystem GetTickedSyncPoint()
+        public ref Systems.TickedSyncPointPlaybackSystem GetTickedSyncPoint()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             if (m_syncPointPlaybackSystem == null)
                 throw new System.InvalidOperationException("No TickedSyncPointPlaybackSystem exists in the LatiosWorld. You may need to install ticking in the bootstrap.");
 #endif
-            return ref *m_tickSyncPointPlaybackSystem;
+            return ref *m_tickedSyncPointPlaybackSystem;
         }
 
         public bool isAllowedToRun => !(m_zeroToleranceForExceptionsEnabled && m_errorState);

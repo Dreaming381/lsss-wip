@@ -1,4 +1,3 @@
-#if false
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -11,6 +10,7 @@ namespace Latios.Authoring
     {
     }
 
+    [DisableAutoCreation]
     public class TickedEntityAuthoringBaker : Baker<TickedEntityAuthoring>
     {
         public override void Bake(TickedEntityAuthoring authoring)
@@ -20,5 +20,4 @@ namespace Latios.Authoring
         }
     }
 }
-#endif
 

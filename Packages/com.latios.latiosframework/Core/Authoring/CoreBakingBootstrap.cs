@@ -17,6 +17,16 @@ namespace Latios.Authoring
         {
             context.bakingSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<RemoveBadLinkedEntityGroupBakingSystem>());
         }
+
+        /// <summary>
+        /// Installs the mechanism that allows ticking to be baked into the simulation.
+        /// </summary>
+        /// <param name="context"></param>
+        public static void InstallTicking(ref CustomBakingBootstrapContext context)
+        {
+            context.filteredBakerTypes.Add(typeof(TickedEntityAuthoringBaker));
+            context.optimizationSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<Latios.Systems.TickedArchetypeCorrectionSystemGroup>());
+        }
     }
 }
 

@@ -427,6 +427,12 @@ namespace Latios.Transforms
             }
         }
 
+        public static void CopyLocal(in EntityInHierarchyHandle handle, bool normalToTicked)
+        {
+            (var position, var scale) = ReadLocal(in handle, !normalToTicked);
+            WriteLocal(in handle, normalToTicked, position, scale);
+        }
+
         static (float3, float) ReadLocal(in EntityInHierarchyHandle handle, bool isTicked)
         {
             ref readonly var element = ref handle.m_hierarchy.AsReadOnlySpan()[handle.indexInHierarchy];

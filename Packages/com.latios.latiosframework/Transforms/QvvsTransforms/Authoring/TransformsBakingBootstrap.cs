@@ -32,6 +32,8 @@ namespace Latios.Transforms.Authoring
             context.bakingSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<Systems.ExtraTransformComponentsBakingSystem>());
             context.bakingSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<Systems.TransformBakingSystem>());
             context.bakingSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<Systems.AddLinkedEntityGroupToHierarchiesBakingSystem>());
+            if (context.optimizationSystemTypesToInject.Contains(TypeManager.GetSystemTypeIndex<Latios.Systems.TickedArchetypeCorrectionSystemGroup>()))
+                context.optimizationSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<Transforms.Systems.TickedTransformsArchetypeFixupSystem>());
         }
     }
 }

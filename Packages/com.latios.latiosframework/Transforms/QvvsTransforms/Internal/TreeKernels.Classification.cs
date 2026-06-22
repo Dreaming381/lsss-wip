@@ -1,4 +1,5 @@
 #if !LATIOS_TRANSFORMS_UNITY
+using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -87,6 +88,19 @@ namespace Latios.Transforms
             public int    indexInHierarchy;
             public bool   isRootAlive;
             public bool   found;
+        }
+
+        public static Entity FindAliveAncestor(EntityManager em, ReadOnlySpan<EntityInHierarchy> hierarchy, int childIndex)
+        {
+            while (childIndex > 0)
+            {
+                var child  = hierarchy[childIndex];
+                var parent = hierarchy[child.parentIndex].entity;
+                if (em.IsAlive(parent))
+                    return parent;
+                childIndex = child.parentIndex;
+            }
+            return Entity.Null;
         }
 
         public static FoundRoot FindRoot(EntityManager em, Entity entity)

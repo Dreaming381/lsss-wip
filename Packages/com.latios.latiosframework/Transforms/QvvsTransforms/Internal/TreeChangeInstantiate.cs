@@ -610,6 +610,9 @@ namespace Latios.Transforms
 
             public EntityCommandBuffer.ParallelWriter ecb;
 
+            HasChecker<TickedEntityTag>      tickedEntityTagChecker;
+            HasChecker<TickingOnlyEntityTag> tickingOnlyEntityTagChecker;
+
             public unsafe void Execute(int rootIndex)
             {
                 var rootWorkState       = rootWorkStates[rootIndex];
@@ -657,6 +660,7 @@ namespace Latios.Transforms
                 var oldHierarchy = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
                 var rootLeg      = esi.Chunk.Has(ref legHandle) ? esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk] : default;
                 TreeKernels.RemoveDeadDescendantsFromHierarchyAndLeg(ref tsa, ref hierarchy, ref rootLeg, esil, ref worldTransformLookup, ref tickedWorldTransformLookup);
+                var cleanedAnything = hierarchy.Length != oldHierarchy.Length;
                 if (hierarchy.Length == 0)
                 {
                     hierarchy.Add(new EntityInHierarchy
@@ -797,6 +801,8 @@ namespace Latios.Transforms
 
                 if (hadEnoughLegBefore && rootLeg.Length < 2)
                     ecb.RemoveComponent<LinkedEntityGroup>(rootIndex, root);
+                if (cleanedAnything)
+                    RemoveUnnecessaryTransformComponents(ref tsa, hierarchy.AsNativeArray(), rootIndex);
 
                 tsa.Dispose();
             }
@@ -843,6 +849,70 @@ namespace Latios.Transforms
                     var leg                               = esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk];
                     leg.Add(new LinkedEntityGroup { Value = addSet.entity });
                 }
+            }
+
+            void RemoveUnnecessaryTransformComponents(ref ThreadStackAllocator parentTsa, ReadOnlySpan<EntityInHierarchy> hierarchy, int sortKey)
+            {
+                var        tsa            = parentTsa.CreateChildAllocator();
+                const byte hasNormalBit   = 1;
+                const byte hasTickedBit   = 2;
+                const byte needsNormalBit = 4;
+                const byte needsTickedBit = 8;
+                var        bitArray       = tsa.AllocateAsSpan<byte>(hierarchy.Length);
+                bitArray.Clear();
+
+                int i = 0;
+                foreach (var element in hierarchy)
+                {
+                    if (element.parentIndex < 0 && !esil.IsAlive(element.entity))
+                        continue;
+
+                    var chunk       = esil[element.entity].Chunk;
+                    var hasNormal   = worldTransformLookup.HasComponent(element.entity);
+                    var hasTicked   = tickedWorldTransformLookup.HasComponent(element.entity);
+                    var needsTicked = tickedEntityTagChecker[chunk];
+                    var needsNormal = !needsTicked || !tickingOnlyEntityTagChecker[chunk];
+                    if (hasNormal)
+                        bitArray[i] += hasNormalBit;
+                    if (hasTicked)
+                        bitArray[i] += hasTickedBit;
+                    if (needsNormal)
+                        bitArray[i] += needsNormalBit;
+                    if (needsTicked)
+                        bitArray[i] += needsTickedBit;
+                    for (int parentIndex = element.parentIndex; parentIndex >= 0; parentIndex = hierarchy[parentIndex].parentIndex)
+                    {
+                        var  parent              = hierarchy[parentIndex];
+                        bool wasMissingSomething = false;
+                        if (needsNormal && (bitArray[parentIndex] & needsNormalBit) == 0)
+                        {
+                            wasMissingSomething    = true;
+                            bitArray[parentIndex] += needsNormalBit;
+                        }
+                        if (needsTicked && (bitArray[parentIndex] & hasTickedBit) == 0)
+                        {
+                            wasMissingSomething    = true;
+                            bitArray[parentIndex] += needsTickedBit;
+                        }
+                        if (!wasMissingSomething)
+                            break;
+                    }
+                    i++;
+                }
+
+                var entities = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy);
+                i            = 0;
+                foreach (var entity in entities)
+                {
+                    var bits = bitArray[i];
+                    if ((bits & (hasNormalBit + needsNormalBit)) == hasNormalBit)
+                        ecb.RemoveComponent(sortKey, entity, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    if ((bits & (hasTickedBit + needsTickedBit)) == needsTickedBit)
+                        ecb.RemoveComponent(sortKey, entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    i++;
+                }
+
+                tsa.Dispose();
             }
         }
         #endregion

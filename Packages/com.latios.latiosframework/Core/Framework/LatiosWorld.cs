@@ -40,7 +40,7 @@ namespace Latios
         /// Command buffers retrieved from this property from within a system will have dependencies managed automatically.
         /// Playback will not occur if the tick this buffer was recorded on is discarded.
         /// </summary>
-        public ref TickSyncPointPlaybackSystem tickedSyncPoint => ref m_unmanaged.tickedSyncPoint;
+        public ref TickedSyncPointPlaybackSystem tickedSyncPoint => ref m_unmanaged.tickedSyncPoint;
         /// <summary>
         /// The InitializationSystemGroup of this world for convenience
         /// </summary>
