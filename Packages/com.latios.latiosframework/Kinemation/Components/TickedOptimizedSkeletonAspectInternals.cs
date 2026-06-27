@@ -372,7 +372,7 @@ namespace Latios.Kinemation
 
             public void ApplyAndDispose()
             {
-                commands.ApplyTransforms();
+                commands.Slice(0, commandCount).ApplyTransforms();
                 tsa.Dispose();
             }
 
