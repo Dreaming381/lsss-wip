@@ -14,6 +14,7 @@ namespace Latios.Kinemation
     /// The inertial blending states per bone in the optimized skeleton.
     /// Usage: Prefer to use OptimizedSkeletonAspect instead of this component directly.
     /// </summary>
+    [InternalBufferCapacity(0)]
     public struct OptimizedBoneInertialBlendState : IBufferElementData
     {
         public InertialBlendingTransformState inertialBlendState;
@@ -23,6 +24,8 @@ namespace Latios.Kinemation
     /// Same as OptimizedBoneInertialBlendState, but for Ticking.
     /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
     /// </summary>
+    [TickedAutoAdd(typeof(OptimizedBoneInertialBlendState), true)]
+    [InternalBufferCapacity(0)]
     public struct TickedOptimizedBoneInertialBlendState : IBufferElementData
     {
         public InertialBlendingTransformState inertialBlendState;

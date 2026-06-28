@@ -252,6 +252,7 @@ namespace Latios.Kinemation
     /// Same as OptimizedBoneTransform, except this version is intended for Ticking.
     /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
     /// </summary>
+    [TickedAutoAdd(typeof(OptimizedBoneTransform), true)]
     [InternalBufferCapacity(0)]
     public struct TickedOptimizedBoneTransform : IBufferElementData
     {
@@ -290,6 +291,7 @@ namespace Latios.Kinemation
     /// Same as OptimizedSkeletonState, except this version is intended for Ticking.
     /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
     /// </summary>
+    [TickedAutoAdd(typeof(OptimizedSkeletonState), true)]
     public struct TickedOptimizedSkeletonState : IComponentData
     {
         public OptimizedSkeletonState.Flags state;

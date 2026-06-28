@@ -14,6 +14,12 @@ namespace Latios.Systems
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.EntitySceneOptimizations)]
     public partial class TickedArchetypeCorrectionSystemGroup : ComponentSystemGroup
     {
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+            var handle = World.GetOrCreateSystem<TickedAutoStructuralChangeSystem>();
+            AddSystemToUpdateList(handle);
+        }
     }
 
     /// <summary>

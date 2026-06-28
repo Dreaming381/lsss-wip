@@ -138,6 +138,20 @@ namespace Latios
         }
 
         /// <summary>
+        /// Adds a required component to the query with the specified access. Enabled state is ignored.
+        /// </summary>
+        /// <param name="typeIndex">The typeIndex of the component</param>
+        /// <param name="readOnly">Should the component be marked as ReadOnly?</param>
+        public FluentQuery With(TypeIndex typeIndex, bool readOnly)
+        {
+            if (readOnly)
+                m_with.Add(ComponentType.ReadOnly(typeIndex));
+            else
+                m_with.Add(ComponentType.FromTypeIndex(typeIndex));
+            return this;
+        }
+
+        /// <summary>
         /// Adds a required component to the query with the specified access. The component must be enabled.
         /// </summary>
         /// <typeparam name="T">The type of component to add</typeparam>
@@ -305,6 +319,16 @@ namespace Latios
         public FluentQuery Without<T0, T1, T2>(bool isChunkComponent = false)
         {
             return Without<T0, T1>(isChunkComponent).Without<T2>(isChunkComponent);
+        }
+
+        /// <summary>
+        /// Adds a component to be explicitly excluded from the query. A disabled component is not excluded.
+        /// </summary>
+        /// <param name="typeIndex">The type of component to exclude</param>
+        public FluentQuery Without(TypeIndex typeIndex)
+        {
+            m_without.Add(ComponentType.ReadOnly(typeIndex));
+            return this;
         }
 
         /// <summary>

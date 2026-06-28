@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -6,11 +7,15 @@ namespace Latios
 {
     /// <summary>
     /// A component that signifies that ticking behavior should be applied to the entity.
+    /// This tag is used for systems that add or remove ticking components, but otherwise
+    /// has no impact on whether an entity is processed during ticking.
     /// </summary>
     public struct TickedEntityTag : IComponentData { }
 
     /// <summary>
     /// A component that signifies that no interpolation behavior is needed for this entity.
+    /// This tag is used for systems that add or remove non-ticking components, but otherwise
+    /// has no impact on whether an entity is processed during interpolation.
     /// </summary>
     public struct TickingOnlyEntityTag : IComponentData { }
 
@@ -94,6 +99,24 @@ namespace Latios
         /// True if the previous tick is going to be completely resimulated, and therefore its results should be discarded.
         /// </summary>
         public bool discardPreviousTick => tick == previousEvaluatedTick || (tick == firstTickThisFrame && firstTickThisFrame - 1 + ticksThisFrame == previousEvaluatedTick);
+    }
+
+    /// <summary>
+    /// Add this to a component to allow for automatic structural changes to be applied for the component based on the TickedEntityTag and TickingOnlyEntityTag.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Struct)]
+    public class TickedAutoAddAttribute : Attribute
+    {
+        public Type nonTickedType;
+        public bool copyData;
+
+        /// <param name="nonTickedType">The target type this type pairs with for structural changes</param>
+        /// <param name="copyData">If set to true, structural changes will also copy component values. Only valid for unmanaged IComponentData and IBufferElementData.</param>
+        public TickedAutoAddAttribute(Type nonTickedType, bool copyData)
+        {
+            this.nonTickedType = nonTickedType;
+            this.copyData      = copyData;
+        }
     }
 }
 
