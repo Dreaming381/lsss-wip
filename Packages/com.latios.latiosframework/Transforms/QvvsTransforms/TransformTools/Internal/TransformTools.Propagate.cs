@@ -42,11 +42,9 @@ namespace Latios.Transforms
             }
 
             // Rules:
-            // commands are sorted by index in hierarchy
-            // commands are unique indices
+            // commands are sorted by index in hierarchy, and then by order they should be applied
             // commands only reference alive entities
-            // Only commands that use CopyParentParentChanged are allowed when the inheritance flag is CopyParent
-            // Multiple commands embedded within the first command's tree (or any previous command tree) is not yet supported
+            // Only commands that use CopyParentParentChanged are allowed when the inheritance flag is CopyParent, and only one per index in hierarchy
             public static void WriteAndPropagate<TWorld, TAlive>(NativeArray<EntityInHierarchy> hierarchy,
                                                                  EntityInHierarchy*             extraHierarchy,
                                                                  ReadOnlySpan<TransformQvvs>    commandTransformParts,
@@ -85,19 +83,49 @@ namespace Latios.Transforms
                             // We aren't inheriting any changes from parents. This is a modification only.
                             if (command.indexInHierarchy == 0)
                             {
-                                changedTransform = ComputeCommandTransformRoot(command,
+                                changedTransform = ComputeCommandTransformRoot(in command,
                                                                                in commandTransformParts[commandsRead],
                                                                                entityInHierarchyToPropagate.entity,
                                                                                ref transformLookup);
+                                commandsRead++;
+                                for (int extraCommandRead = commandsRead; extraCommandRead < commands.Length; extraCommandRead++)
+                                {
+                                    if (commands[extraCommandRead].indexInHierarchy != 0)
+                                        break;
+                                    var extraChangedTransform = ComputeCommandTransformRoot(in commands[extraCommandRead],
+                                                                                            in commandTransformParts[extraCommandRead],
+                                                                                            entityInHierarchyToPropagate.entity,
+                                                                                            ref transformLookup);
+                                    changedTransform.newTransform = extraChangedTransform.newTransform;
+                                    commandsRead++;
+                                }
                             }
                             else
                             {
-                                changedTransform = ComputeCommandTransformChild(command, in commandTransformParts[commandsRead], new EntityInHierarchyHandle
+                                var hierarchyHandle = new EntityInHierarchyHandle
                                 {
                                     m_hierarchy      = hierarchy,
                                     m_extraHierarchy = extraHierarchy,
                                     m_index          = command.indexInHierarchy
-                                }, ref transformLookup, ref aliveLookup);
+                                };
+                                changedTransform = ComputeCommandTransformChild(in command,
+                                                                                in commandTransformParts[commandsRead],
+                                                                                in hierarchyHandle,
+                                                                                ref transformLookup,
+                                                                                ref aliveLookup);
+                                commandsRead++;
+                                for (int extraCommandRead = commandsRead; extraCommandRead < commands.Length; extraCommandRead++)
+                                {
+                                    if (commands[extraCommandRead].indexInHierarchy != 0)
+                                        break;
+                                    var extraChangedTransform = ComputeCommandTransformChild(in commands[extraCommandRead],
+                                                                                             in commandTransformParts[extraCommandRead],
+                                                                                             in hierarchyHandle,
+                                                                                             ref transformLookup,
+                                                                                             ref aliveLookup);
+                                    changedTransform.newTransform = extraChangedTransform.newTransform;
+                                    commandsRead++;
+                                }
                             }
                             // Don't advance the instruction reader
                             instructionsRead--;
@@ -120,28 +148,41 @@ namespace Latios.Transforms
                             {
                                 changedTransform = ComputePropagatedTransform(in parentOldNewTransforms,
                                                                               flags,
-                                                                              handle,
+                                                                              in handle,
                                                                               instruction.ancestorIndexInHierarchy,
                                                                               ref transformLookup);
+                                commandsRead++;
                             }
                             else
                             {
                                 var localChangedTransform = ComputePropagatedTransform(in parentOldNewTransforms,
                                                                                        flags,
-                                                                                       handle,
+                                                                                       in handle,
                                                                                        instruction.ancestorIndexInHierarchy,
                                                                                        ref transformLookup);
-                                changedTransform = ComputeCommandTransform(command,
-                                                                           commandTransformParts[commandsRead],
-                                                                           handle,
+                                changedTransform = ComputeCommandTransform(in command,
+                                                                           in commandTransformParts[commandsRead],
+                                                                           in handle,
                                                                            in parentOldNewTransforms.newTransform,
                                                                            instruction.ancestorIndexInHierarchy,
                                                                            ref transformLookup);
+                                commandsRead++;
+                                for (int extraCommandRead = commandsRead; extraCommandRead < commands.Length; extraCommandRead++)
+                                {
+                                    if (commands[extraCommandRead].indexInHierarchy != 0)
+                                        break;
+                                    changedTransform = ComputeCommandTransform(in commands[extraCommandRead],
+                                                                               in commandTransformParts[extraCommandRead],
+                                                                               in handle,
+                                                                               in parentOldNewTransforms.newTransform,
+                                                                               instruction.ancestorIndexInHierarchy,
+                                                                               ref transformLookup);
+                                    commandsRead++;
+                                }
 
                                 changedTransform.oldTransform = localChangedTransform.oldTransform;
                             }
                         }
-                        commandsRead++;
                     }
                     else if (!transformLookup.HasWorldTransform(entityInHierarchyToPropagate.entity))
                     {
@@ -221,7 +262,7 @@ namespace Latios.Transforms
                 public bool             useOverrideFlagsForCopyParent;
             }
 
-            static OldNewWorldTransform ComputeCommandTransformRoot<TWorld>(WriteCommand command, in TransformQvvs writeData, Entity root,
+            static OldNewWorldTransform ComputeCommandTransformRoot<TWorld>(in WriteCommand command, in TransformQvvs writeData, in Entity root,
                                                                             ref TWorld transformLookup) where TWorld : unmanaged, IWorldTransform
             {
                 ref var transform            = ref transformLookup.GetWorldTransformRefRW(root).ValueRW.worldTransform;
@@ -279,7 +320,7 @@ namespace Latios.Transforms
                 return oldNewWorldTransform;
             }
 
-            static OldNewWorldTransform ComputeCommandTransformChild<TWorld, TAlive>(WriteCommand command,
+            static OldNewWorldTransform ComputeCommandTransformChild<TWorld, TAlive>(in WriteCommand command,
                                                                                      in TransformQvvs writeData,
                                                                                      in EntityInHierarchyHandle handle,
                                                                                      ref TWorld transformLookup,
@@ -415,9 +456,9 @@ namespace Latios.Transforms
                 return oldNewWorldTransform;
             }
 
-            static OldNewWorldTransform ComputeCommandTransform<T>(WriteCommand command,
-                                                                   TransformQvvs writeData,
-                                                                   EntityInHierarchyHandle handle,
+            static OldNewWorldTransform ComputeCommandTransform<T>(in WriteCommand command,
+                                                                   in TransformQvvs writeData,
+                                                                   in EntityInHierarchyHandle handle,
                                                                    in TransformQvvs parentTransform,
                                                                    int parentIndex,
                                                                    ref T transformLookup) where T : unmanaged, IWorldTransform
@@ -496,7 +537,7 @@ namespace Latios.Transforms
                 return oldNewWorldTransform;
             }
 
-            static OldNewWorldTransform ComputePropagatedTransform<T>(in OldNewWorldTransform oldNewWorldTransform, InheritanceFlags flags, EntityInHierarchyHandle handle,
+            static OldNewWorldTransform ComputePropagatedTransform<T>(in OldNewWorldTransform oldNewWorldTransform, InheritanceFlags flags, in EntityInHierarchyHandle handle,
                                                                       int parentIndex, ref T transformLookup) where T : unmanaged, IWorldTransform
             {
                 ref var transform    = ref transformLookup.GetWorldTransformRefRW(handle.entity).ValueRW.worldTransform;
@@ -510,35 +551,6 @@ namespace Latios.Transforms
                                                  transformLookup.isTicked);
                 result.newTransform = transform;
                 return result;
-            }
-
-            static quaternion ComputeMixedRotation(quaternion originalWorldRotation, quaternion hierarchyWorldRotation, InheritanceFlags flags)
-            {
-                var forward = math.select(math.forward(hierarchyWorldRotation),
-                                          math.forward(originalWorldRotation),
-                                          (flags & InheritanceFlags.WorldForward) == InheritanceFlags.WorldForward);
-                var up = math.select(math.rotate(hierarchyWorldRotation, math.up()),
-                                     math.rotate(originalWorldRotation, math.up()),
-                                     (flags & InheritanceFlags.WorldUp) == InheritanceFlags.WorldUp);
-
-                if ((flags & InheritanceFlags.StrictUp) == InheritanceFlags.StrictUp)
-                {
-                    float3 right = math.normalizesafe(math.cross(up, forward), float3.zero);
-                    if (right.Equals(float3.zero))
-                        return math.select(hierarchyWorldRotation.value, originalWorldRotation.value, (flags & InheritanceFlags.WorldUp) == InheritanceFlags.WorldUp);
-                    var newForward = math.cross(right, up);
-                    return new quaternion(new float3x3(right, up, newForward));
-                }
-                else
-                {
-                    float3 right = math.normalizesafe(math.cross(up, forward), float3.zero);
-                    if (right.Equals(float3.zero))
-                        return math.select(hierarchyWorldRotation.value,
-                                           originalWorldRotation.value,
-                                           (flags & InheritanceFlags.WorldForward) == InheritanceFlags.WorldForward);
-                    var newUp = math.cross(forward, right);
-                    return new quaternion(new float3x3(right, newUp, forward));
-                }
             }
         }
     }

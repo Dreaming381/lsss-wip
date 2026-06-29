@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using Latios.Unsafe;
+using static Latios.Transforms.TransformTools.Propagate;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -14,9 +16,10 @@ namespace Latios.Transforms
     /// </summary>
     public struct TransformBatchWriteCommand
     {
-        internal TransformAspect                                 aspect;
-        internal TransformTools.Propagate.WriteCommand.WriteType writeType;
-        internal TransformQvvs                                   writeData;
+        internal TransformAspect        aspect;
+        internal WriteCommand.WriteType writeType;
+        internal int                    sortId;  // Todo: Eliminate this with a stable sort.
+        internal TransformQvvs          writeData;
 
         /// <summary>
         /// Creates a command that sets the world transform
@@ -29,7 +32,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.WorldTransformSet,
+                writeType = WriteCommand.WriteType.WorldTransformSet,
                 writeData = worldTransform
             };
         }
@@ -45,7 +48,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.LocalTransformQvvsSet,
+                writeType = WriteCommand.WriteType.LocalTransformQvvsSet,
                 writeData = localTransform
             };
         }
@@ -61,7 +64,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.LocalTransformSet,
+                writeType = WriteCommand.WriteType.LocalTransformSet,
                 writeData = new TransformQvvs(localTransform.position, localTransform.rotation, localTransform.scale, 1f)
             };
         }
@@ -79,7 +82,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.LocalPositionSet,
+                writeType = WriteCommand.WriteType.LocalPositionSet,
                 writeData = data
             };
         }
@@ -97,7 +100,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.LocalRotationSet,
+                writeType = WriteCommand.WriteType.LocalRotationSet,
                 writeData = data
             };
         }
@@ -115,7 +118,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.LocalScaleSet,
+                writeType = WriteCommand.WriteType.LocalScaleSet,
                 writeData = data
             };
         }
@@ -133,7 +136,7 @@ namespace Latios.Transforms
             return new TransformBatchWriteCommand
             {
                 aspect    = transform,
-                writeType = TransformTools.Propagate.WriteCommand.WriteType.StretchSet,
+                writeType = WriteCommand.WriteType.StretchSet,
                 writeData = data
             };
         }
@@ -142,35 +145,61 @@ namespace Latios.Transforms
     public static class TransformBatchWriteCommandExtensions
     {
         /// <summary>
-        /// Applies a batch of commands.
-        /// WARNING: This method is incomplete, and currently only supports the fast path. For the fast-path to work
-        /// all commands must apply to the same hierarchy. In addition, only one command exists per entity, and the
-        /// commands are ordered by the order of entities in the hierarchy. Update: This method will now sort
-        /// unordered commands.
+        /// Applies a batch of commands. If there is a hierarchy, commands are applied in index order within the hierarchy.
+        /// If two commands target the same entity, then the commands are applied in the order they show up in the list
+        /// relative to each other.
         /// </summary>
         /// <param name="commands">An array of commands to apply</param>
-        /// <exception cref="System.NotSupportedException">Thrown if the commands do not satisfy the fast-path criteria</exception>
+        public static void ApplyTransforms(this NativeList<TransformBatchWriteCommand> commands)
+        {
+            ApplyTransforms((ReadOnlySpan<TransformBatchWriteCommand>)commands.AsReadOnly());
+        }
+
+        /// <summary>
+        /// Applies a batch of commands. If there is a hierarchy, commands are applied in index order within the hierarchy.
+        /// If two commands target the same entity, then the commands are applied in the order they show up in the array
+        /// relative to each other.
+        /// </summary>
+        /// <param name="commands">An array of commands to apply</param>
+        public static void ApplyTransforms(this NativeArray<TransformBatchWriteCommand>.ReadOnly commands)
+        {
+            ApplyTransforms((ReadOnlySpan<TransformBatchWriteCommand>)commands);
+        }
+
+        /// <summary>
+        /// Applies a batch of commands. If there is a hierarchy, commands are applied in index order within the hierarchy.
+        /// If two commands target the same entity, then the commands are applied in the order they show up in the array
+        /// relative to each other.
+        /// </summary>
+        /// <param name="commands">An array of commands to apply</param>
+        public static void ApplyTransforms(this NativeArray<TransformBatchWriteCommand> commands)
+        {
+            ApplyTransforms((ReadOnlySpan<TransformBatchWriteCommand>)commands);
+        }
+
+        /// <summary>
+        /// Applies a batch of commands. If there is a hierarchy, commands are applied in index order within the hierarchy.
+        /// If two commands target the same entity, then the commands are applied in the order they show up in the span
+        /// relative to each other.
+        /// </summary>
+        /// <param name="commands">An array of commands to apply</param>
         public static void ApplyTransforms(this Span<TransformBatchWriteCommand> commands)
         {
             ApplyTransforms((ReadOnlySpan<TransformBatchWriteCommand>)commands);
         }
 
         /// <summary>
-        /// Applies a batch of commands.
-        /// WARNING: This method is incomplete, and currently only supports the fast path. For the fast-path to work
-        /// all commands must apply to the same hierarchy. In addition, only one command exists per entity, and the
-        /// commands are ordered by the order of entities in the hierarchy. Update: This method will now sort
-        /// unordered commands.
+        /// Applies a batch of commands. If there is a hierarchy, commands are applied in index order within the hierarchy.
+        /// If two commands target the same entity, then the commands are applied in the order they show up in the span
+        /// relative to each other.
         /// </summary>
         /// <param name="commands">An array of commands to apply</param>
-        /// <exception cref="System.NotSupportedException">Thrown if the commands do not satisfy the fast-path criteria</exception>
         public static void ApplyTransforms(this ReadOnlySpan<TransformBatchWriteCommand> commands)
         {
             if (commands.Length == 0)
                 return;
 
             bool fastPath    = true;
-            bool sortPath    = true;
             var  firstAspect = commands[0].aspect;
             if (!firstAspect.entityInHierarchyHandle.isNull)
             {
@@ -180,15 +209,10 @@ namespace Latios.Transforms
                 foreach (var command in commands)
                 {
                     var handle = command.aspect.entityInHierarchyHandle;
-                    if (handle.isNull || handle.m_hierarchy != hierarchy)
+                    if (handle.isNull || handle.m_hierarchy != hierarchy || handle.indexInHierarchy <= previousIndex)
                     {
                         fastPath = false;
-                        sortPath = false;
                         break;
-                    }
-                    if (handle.indexInHierarchy <= previousIndex)
-                    {
-                        fastPath = false;
                     }
                     previousIndex = handle.indexInHierarchy;
                 }
@@ -196,113 +220,197 @@ namespace Latios.Transforms
             else
             {
                 fastPath = false;
-                sortPath = false;
             }
 
             var tsa = ThreadStackAllocator.GetAllocator();
             if (fastPath)
             {
-                ApplyBatchTransformsWithoutChecks(commands, ref tsa);
+                ApplyHierarchyBatchTransformsWithoutChecks(commands, ref tsa);
             }
-            else if (sortPath)
+            else
             {
                 var sortedCommands = tsa.AllocateAsSpan<TransformBatchWriteCommand>(commands.Length);
-                commands.CopyTo(sortedCommands);
-                sortedCommands.Sort(new CommandSorter());
-                int previousIndex = -1;
-                foreach (var command in sortedCommands)
+                int dst            = 0;
+                for (int src = 0; src < commands.Length; src++)
                 {
-                    if (previousIndex == command.aspect.entityInHierarchyHandle.indexInHierarchy)
+                    var command = commands[src];
+                    if (command.aspect.entityInHierarchyHandle.isNull)
                     {
-                        sortPath = false;
-                        break;
+                        ApplySoloCommand(command);
+                        continue;
                     }
-                    previousIndex = command.aspect.entityInHierarchyHandle.indexInHierarchy;
+                    sortedCommands[dst]        = command;
+                    sortedCommands[dst].sortId = dst;
+                    dst++;
                 }
-                if (sortPath)
+                if (sortedCommands.Length == 0)
                 {
-                    ApplyBatchTransformsWithoutChecks(sortedCommands, ref tsa);
+                    tsa.Dispose();
+                    return;
                 }
-            }
-            if (!fastPath && !sortPath)
-            {
-                // Todo: We need to sort the commands by root entity by first appearance. Not sure how to do that deterministically and efficiently yet with TSA.
-                // Then we need to merge commands when multiple writes are applied to the same target. We'll need to split writes if the commands conflict.
-                // And finally, we need to apply batches by hierarchy.
-                throw new System.NotSupportedException($"ApplyTransforms() is incomplete and only supports the fast-path. Refer to the method documentation for details.");
+
+                sortedCommands = sortedCommands.Slice(0, dst);
+                sortedCommands.Sort(new CommandSorter());
+
+                int rangeStart = 0;
+                var hierarchy  = sortedCommands[0].aspect.entityInHierarchyHandle.m_hierarchy;
+                for (int i = 1; i <= sortedCommands.Length; i++)
+                {
+                    if (i == sortedCommands.Length || hierarchy != sortedCommands[i].aspect.entityInHierarchyHandle.m_hierarchy)
+                    {
+                        var commandSlice = sortedCommands.Slice(rangeStart, i - rangeStart);
+                        var childTsa     = tsa.CreateChildAllocator();
+                        ApplyHierarchyBatchTransformsWithoutChecks(commandSlice, ref childTsa);
+                        childTsa.Dispose();
+                        rangeStart = i;
+                        hierarchy  = sortedCommands[i].aspect.entityInHierarchyHandle.m_hierarchy;
+                    }
+                }
             }
             tsa.Dispose();
         }
 
-        static unsafe void ApplyBatchTransformsWithoutChecks(ReadOnlySpan<TransformBatchWriteCommand> commands, ref ThreadStackAllocator tsa)
+        // We assume that all commands belong to a single hierarchy and are in hierarchy order.
+        // This method filters out commands to entities using CopyParent because that operation is trivial.
+        static unsafe void ApplyHierarchyBatchTransformsWithoutChecks(ReadOnlySpan<TransformBatchWriteCommand> commands, ref ThreadStackAllocator tsa)
         {
             var firstAspect = commands[0].aspect;
             var data        = tsa.AllocateAsSpan<TransformQvvs>(commands.Length);
-            var ops         = tsa.AllocateAsSpan<TransformTools.Propagate.WriteCommand>(commands.Length);
+            var ops         = tsa.AllocateAsSpan<WriteCommand>(commands.Length);
+            int dst         = 0;
             for (int i = 0; i < commands.Length; i++)
             {
-                data[i] = commands[i].writeData;
-                ops[i]  = new TransformTools.Propagate.WriteCommand
+                if (commands[i].aspect.entityInHierarchyHandle.isRoot || !commands[i].aspect.entityInHierarchyHandle.inheritanceFlags.HasCopyParent())
                 {
-                    indexInHierarchy = commands[i].aspect.entityInHierarchyHandle.indexInHierarchy,
-                    writeType        = commands[i].writeType,
-                };
+                    data[dst] = commands[i].writeData;
+                    ops[dst]  = new WriteCommand
+                    {
+                        indexInHierarchy = commands[i].aspect.entityInHierarchyHandle.indexInHierarchy,
+                        writeType        = commands[i].writeType,
+                    };
+                    dst++;
+                }
             }
+            data = data.Slice(0, dst);
+            ops  = ops.Slice(0, dst);
             switch (firstAspect.m_accessType)
             {
                 case TransformAspect.AccessType.EntityManager:
                 {
                     var access = new TransformTools.EntityManagerAccess(*(EntityManager*)firstAspect.m_access);
-                    TransformTools.Propagate.WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
-                                                               firstAspect.entityInHierarchyHandle.m_extraHierarchy,
-                                                               data,
-                                                               ops,
-                                                               ref access,
-                                                               ref access);
+                    WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
+                                      firstAspect.entityInHierarchyHandle.m_extraHierarchy,
+                                      data,
+                                      ops,
+                                      ref access,
+                                      ref access);
                     break;
                 }
                 case TransformAspect.AccessType.ComponentBroker:
                 {
                     ref var access = ref TransformTools.ComponentBrokerAccess.From(ref *(ComponentBroker*)firstAspect.m_access);
-                    TransformTools.Propagate.WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
-                                                               firstAspect.entityInHierarchyHandle.m_extraHierarchy,
-                                                               data,
-                                                               ops,
-                                                               ref access,
-                                                               ref access);
+                    WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
+                                      firstAspect.entityInHierarchyHandle.m_extraHierarchy,
+                                      data,
+                                      ops,
+                                      ref access,
+                                      ref access);
                     break;
                 }
                 case TransformAspect.AccessType.ComponentBrokerKeyed:
                 {
                     ref var access = ref TransformTools.ComponentBrokerParallelAccess.From(ref *(ComponentBroker*)firstAspect.m_access);
-                    TransformTools.Propagate.WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
-                                                               firstAspect.entityInHierarchyHandle.m_extraHierarchy,
-                                                               data,
-                                                               ops,
-                                                               ref access,
-                                                               ref access);
+                    WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
+                                      firstAspect.entityInHierarchyHandle.m_extraHierarchy,
+                                      data,
+                                      ops,
+                                      ref access,
+                                      ref access);
                     break;
                 }
                 case TransformAspect.AccessType.ComponentLookup:
                 {
                     ref var access = ref TransformTools.LookupWorldTransform.From(ref *(ComponentLookup<WorldTransform>*)firstAspect.m_access);
                     ref var alive  = ref TransformTools.EsilAlive.From(ref firstAspect.m_esil);
-                    TransformTools.Propagate.WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
-                                                               firstAspect.entityInHierarchyHandle.m_extraHierarchy,
-                                                               data,
-                                                               ops,
-                                                               ref access,
-                                                               ref alive);
+                    WriteAndPropagate(firstAspect.entityInHierarchyHandle.m_hierarchy,
+                                      firstAspect.entityInHierarchyHandle.m_extraHierarchy,
+                                      data,
+                                      ops,
+                                      ref access,
+                                      ref alive);
                     break;
                 }
             }
         }
 
+        static unsafe void ApplySoloCommand(TransformBatchWriteCommand command)
+        {
+            ref var transform = ref command.aspect.m_worldTransform.ValueRW.worldTransform;
+            switch (command.writeType)
+            {
+                case WriteCommand.WriteType.LocalPositionSet:
+                case WriteCommand.WriteType.WorldPositionSet:
+                    transform.position = command.writeData.position;
+                    break;
+                case WriteCommand.WriteType.LocalRotationSet:
+                case WriteCommand.WriteType.WorldRotationSet:
+                    transform.rotation = command.writeData.rotation;
+                    break;
+                case WriteCommand.WriteType.LocalScaleSet:
+                case WriteCommand.WriteType.WorldScaleSet:
+                    transform.scale = command.writeData.scale;
+                    break;
+                case WriteCommand.WriteType.StretchSet:
+                    transform.stretch = command.writeData.stretch;
+                    break;
+                case WriteCommand.WriteType.LocalTransformSet:
+                    transform.position = command.writeData.position;
+                    transform.rotation = command.writeData.rotation;
+                    transform.scale    = command.writeData.scale;
+                    break;
+                case WriteCommand.WriteType.LocalTransformQvvsSet:
+                case WriteCommand.WriteType.WorldTransformSet:
+                    transform = command.writeData;
+                    break;
+                case WriteCommand.WriteType.LocalPositionDelta:
+                case WriteCommand.WriteType.WorldPositionDelta:
+                    transform.position += command.writeData.position;
+                    break;
+                case WriteCommand.WriteType.LocalRotationDelta:
+                case WriteCommand.WriteType.WorldRotationDelta:
+                    transform.rotation = math.normalize(math.mul(command.writeData.rotation, transform.rotation));
+                    break;
+                case WriteCommand.WriteType.ScaleDelta:
+                    transform.scale *= command.writeData.scale;
+                    break;
+                case WriteCommand.WriteType.StretchDelta:
+                    transform.stretch *= command.writeData.stretch;
+                    break;
+                case WriteCommand.WriteType.LocalTransformDelta:
+                case WriteCommand.WriteType.WorldTransformDelta:
+                    transform = qvvs.mulclean(in command.writeData, in transform);
+                    break;
+                case WriteCommand.WriteType.LocalInverseTransformDelta:
+                case WriteCommand.WriteType.WorldInverseTransformDelta:
+                    transform = qvvs.inversemulqvvsclean(in command.writeData, in transform);
+                    break;
+            }
+        }
+
         struct CommandSorter : IComparer<TransformBatchWriteCommand>
         {
-            public int Compare(TransformBatchWriteCommand x, TransformBatchWriteCommand y)
+            public unsafe int Compare(TransformBatchWriteCommand x, TransformBatchWriteCommand y)
             {
-                return x.aspect.entityInHierarchyHandle.indexInHierarchy.CompareTo(y.aspect.entityInHierarchyHandle.indexInHierarchy);
+                var lptr = x.aspect.entityInHierarchyHandle.m_hierarchy.GetUnsafeReadOnlyPtr();
+                var rptr = y.aspect.entityInHierarchyHandle.m_hierarchy.GetUnsafeReadOnlyPtr();
+                if (lptr == rptr)
+                {
+                    var result = x.aspect.entityInHierarchyHandle.indexInHierarchy.CompareTo(y.aspect.entityInHierarchyHandle.indexInHierarchy);
+                    if (result == 0)
+                        return x.sortId.CompareTo(y.sortId);
+                    return result;
+                }
+                return math.select(1, -1, lptr < rptr);
             }
         }
     }

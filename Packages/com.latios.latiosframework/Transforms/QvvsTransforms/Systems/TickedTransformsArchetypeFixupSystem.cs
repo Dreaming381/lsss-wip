@@ -5,6 +5,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
+using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 
 namespace Latios.Transforms.Systems
 {
@@ -26,6 +27,8 @@ namespace Latios.Transforms.Systems
         EntityQuery m_childAddNormalQuery;
         EntityQuery m_childRemoveTickedQuery;
         EntityQuery m_childRemoveNormalQuery;
+        EntityQuery m_childMissingTickedCacheQuery;
+        EntityQuery m_removeTickedCacheQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -53,6 +56,10 @@ namespace Latios.Transforms.Systems
                                        .IncludeDisabledEntities().IncludePrefabs().Build();
             m_childRemoveNormalQuery = state.Fluent().With<RootReference, WorldTransform, TickingOnlyEntityTag>(true)
                                        .IncludeDisabledEntities().IncludePrefabs().Build();
+
+            m_childMissingTickedCacheQuery = state.Fluent().With<RootReference, TickedPreviousTransform>(true).Without<TickedPreviousLocalTransformCache>()
+                                             .IncludeDisabledEntities().IncludePrefabs().Build();
+            m_removeTickedCacheQuery = state.Fluent().With<TickedPreviousLocalTransformCache>(true).Without<RootReference>().IncludeDisabledEntities().IncludePrefabs().Build();
 
             m_rootWithHierarchyRemoveTickedQuery.AddOrderVersionFilter();
             m_rootWithHierarchyRemoveNormalQuery.AddOrderVersionFilter();
@@ -206,7 +213,8 @@ namespace Latios.Transforms.Systems
                 else if (rootTickedBits == needsTickedBit)
                 {
                     var qvvs                                                          = state.EntityManager.GetComponentData<WorldTransform>(root).worldTransform;
-                    ecb.AddComponents(root, new TickedWorldTransform { worldTransform = qvvs }, new TickedPreviousTransform { worldTransform = qvvs});
+                    var previousQvvs                                                  = state.EntityManager.HasComponent<Prefab>(root) ? qvvs : default;
+                    ecb.AddComponents(root, new TickedWorldTransform { worldTransform = qvvs }, new TickedPreviousTransform { worldTransform = previousQvvs});
                 }
 
                 for (int i = 1; i < bitArray.Length; i++)
@@ -224,18 +232,43 @@ namespace Latios.Transforms.Systems
                     }
                     var tickedBits = bitArray[i] & (hasTickedBit + needsTickedBit);
                     if (tickedBits == hasTickedBit)
-                        ecb.RemoveComponent(handle.entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                        ecb.RemoveComponent(handle.entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                     else if (tickedBits == needsTickedBit)
                     {
-                        var qvvs =
-                            state.EntityManager.GetComponentData<WorldTransform>(handle.entity).worldTransform;
-                        ecb.AddComponents(handle.entity, new TickedWorldTransform { worldTransform = qvvs}, new TickedPreviousTransform { worldTransform = qvvs});
+                        var qvvs         = state.EntityManager.GetComponentData<WorldTransform>(handle.entity).worldTransform;
+                        var previousQvvs = state.EntityManager.HasComponent<Prefab>(handle.entity) ? qvvs : default;
                         WorldLocalOps.CopyLocal(in handle, true);
+                        ecb.AddComponents(handle.entity,
+                                          new TickedWorldTransform { worldTransform    = qvvs},
+                                          new TickedPreviousTransform { worldTransform = previousQvvs},
+                                          WorldLocalOps.CopyTickedLocalToCache(in handle));
                     }
                 }
             }
 
             ecb.Playback(state.EntityManager);
+
+            if (!m_childMissingTickedCacheQuery.IsEmptyIgnoreFilter)
+            {
+                var rootRefs    = m_childMissingTickedCacheQuery.ToComponentDataArray<RootReference>(state.WorldUpdateAllocator);
+                var localCaches = CollectionHelper.CreateNativeArray<TickedPreviousLocalTransformCache>(rootRefs.Length,
+                                                                                                        state.WorldUpdateAllocator,
+                                                                                                        NativeArrayOptions.UninitializedMemory);
+                for (int i = 0; i < rootRefs.Length; i++)
+                {
+                    var handle     = rootRefs[i].ToHandle(state.EntityManager);
+                    localCaches[i] = new TickedPreviousLocalTransformCache
+                    {
+                        position = handle.m_hierarchy[handle.indexInHierarchy].m_tickedLocalPosition,
+                        scale    = handle.m_hierarchy[handle.indexInHierarchy].m_tickedLocalScale
+                    };
+                }
+                state.EntityManager.AddComponentData(m_childMissingTickedCacheQuery, localCaches);
+            }
+            if (!m_removeTickedCacheQuery.IsEmptyIgnoreFilter)
+            {
+                state.EntityManager.RemoveComponent<TickedPreviousLocalTransformCache>(m_removeTickedCacheQuery);
+            }
         }
     }
 }

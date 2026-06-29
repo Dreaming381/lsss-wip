@@ -258,6 +258,15 @@ namespace Latios.Transforms
     }
 
     /// <summary>
+    /// The embedded EntityInHierarchy local ticked data from the previous tick
+    /// </summary>
+    public struct TickedPreviousLocalTransformCache : IComponentData
+    {
+        internal float3 position;
+        internal float  scale;
+    }
+
+    /// <summary>
     /// The TickedWorldTransform from two ticks ago. This may be read for gameplay purposes.
     /// </summary>
     public struct TickedTwoAgoTransform : IComponentData

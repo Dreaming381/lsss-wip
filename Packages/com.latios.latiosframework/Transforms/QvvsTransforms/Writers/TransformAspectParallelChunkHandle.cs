@@ -179,6 +179,7 @@ namespace Latios.Transforms
                     handle.currentCapturedChunkIndex = handle.chunkRanges[parallelForIndex].x + i;
                     chunkJob.Execute(in chunk, unfilteredChunkIndex, useEnabledMask, in chunkEnabledMask);
                 }
+                handle.ApplyDeferredTransforms();
             }
         }
         #endregion
@@ -324,6 +325,20 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Applies all pending deferred commands created by DeferredTransformAspects within hierarchies.
+        /// If using IJobParallelForDefer, you should call this yourself. If using IJobChunk or IJobEntity,
+        /// this will be automatically called after each batch, though you can call it yourself at any time
+        /// to get an up-to-date state of all transforms.
+        /// </summary>
+        public void ApplyDeferredTransforms()
+        {
+            if (cache == null || !cache->deferredCommands.IsCreated)
+                return; // We never started a chunk, so there can't be any commands.
+            cache->deferredCommands.ApplyTransforms();
+            cache->deferredCommands.Clear();
+        }
+
+        /// <summary>
         /// Gets the number of chunks in the group for the current IJobParallelForDefer index.
         /// </summary>
         public int GetChunkCountForIJobParallelForDeferIndex(int parallelForIndex) => chunkRanges[parallelForIndex].y;
@@ -393,6 +408,7 @@ namespace Latios.Transforms
             public BufferTypeHandle<EntityInHierarchyCleanup> entityInHierarchyCleanupHandle;
             public BufferAccessor<EntityInHierarchyCleanup>   entityInHierarchyCleanupAccessor;
             public NativeArray<RootReference>                 rootReferences;
+            public NativeList<TransformBatchWriteCommand>     deferredCommands;
             public ArchetypeChunk                             chunk;
             public Role                                       role;
         }
@@ -426,6 +442,7 @@ namespace Latios.Transforms
                 cache->transformHandle                = transformLookup.lookup.ToHandle(false);
                 cache->entityInHierarchyHandle        = hierarchyLookup.ToHandle(true);
                 cache->entityInHierarchyCleanupHandle = cleanupLookup.ToHandle(true);
+                cache->deferredCommands               = default;
             }
             cache->chunkTransforms = chunk.chunk.GetNativeArray(ref cache->transformHandle);
             if (chunk.role == Role.Solo)
@@ -486,7 +503,7 @@ namespace Latios.Transforms
         {
             if (cache == null)
                 throw new System.InvalidOperationException(
-                    "The TransformAccessParallelChunkHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to OnChunkBegin().");
+                    "The TransformAccessParallelChunkHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to OnChunkBegin(), or call SetActiveChunkForIJobParallelForDefer().");
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

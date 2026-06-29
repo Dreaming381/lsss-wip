@@ -1508,9 +1508,9 @@ namespace Latios.Transforms
                 else
                 {
                     if (!requiresTicked && isTicked)
-                        em.RemoveComponent(parentToClean, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                        em.RemoveComponent(parentToClean, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                     else if (!requiresNormal && isNormal)
-                        em.RemoveComponent(parentToClean, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                        em.RemoveComponent(parentToClean, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
                     return;
                 }
             }
@@ -1543,9 +1543,9 @@ namespace Latios.Transforms
                 }
 
                 if (toRemoveIsTicked)
-                    em.RemoveComponent(element.entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    em.RemoveComponent(element.entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                 else
-                    em.RemoveComponent(element.entity, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    em.RemoveComponent(element.entity, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
                 previousToIgnore = element.entity;
                 indexInHierarchy = element.parentIndex;
             }
@@ -1571,7 +1571,7 @@ namespace Latios.Transforms
                 if (!requiresTicked && isTicked)
                     em.RemoveComponent(root, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
                 else if (!requiresNormal && isNormal)
-                    em.RemoveComponent(root, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    em.RemoveComponent(root, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
                 return;
             }
 

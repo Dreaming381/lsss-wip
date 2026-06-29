@@ -906,9 +906,10 @@ namespace Latios.Transforms
                 {
                     var bits = bitArray[i];
                     if ((bits & (hasNormalBit + needsNormalBit)) == hasNormalBit)
-                        ecb.RemoveComponent(sortKey, entity, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                        ecb.RemoveComponent(sortKey, entity, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
                     if ((bits & (hasTickedBit + needsTickedBit)) == needsTickedBit)
-                        ecb.RemoveComponent(sortKey, entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                        ecb.RemoveComponent(sortKey, entity,
+                                            new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                     i++;
                 }
 

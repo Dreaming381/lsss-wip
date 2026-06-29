@@ -437,9 +437,9 @@ namespace Latios.Transforms
             {
                 var bits = bitArray[i];
                 if ((bits & (hasNormalBit + needsNormalBit)) == hasNormalBit)
-                    em.RemoveComponent(entity, new TypePack<WorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    em.RemoveComponent(entity, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
                 if ((bits & (hasTickedBit + needsTickedBit)) == needsTickedBit)
-                    em.RemoveComponent(entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedTwoAgoTransform>());
+                    em.RemoveComponent(entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                 i++;
             }
 

@@ -433,6 +433,21 @@ namespace Latios.Transforms
             WriteLocal(in handle, normalToTicked, position, scale);
         }
 
+        public static TickedPreviousLocalTransformCache CopyTickedLocalToCache(in EntityInHierarchyHandle handle)
+        {
+            (var position, var scale) = ReadLocal(in handle, true);
+            return new TickedPreviousLocalTransformCache
+            {
+                position = position,
+                scale    = scale
+            };
+        }
+
+        public static void RestoreFromTickedLocalCache(in EntityInHierarchyHandle handle, in TickedPreviousLocalTransformCache cache)
+        {
+            WriteLocal(in handle, true, cache.position, cache.scale);
+        }
+
         static (float3, float) ReadLocal(in EntityInHierarchyHandle handle, bool isTicked)
         {
             ref readonly var element = ref handle.m_hierarchy.AsReadOnlySpan()[handle.indexInHierarchy];
