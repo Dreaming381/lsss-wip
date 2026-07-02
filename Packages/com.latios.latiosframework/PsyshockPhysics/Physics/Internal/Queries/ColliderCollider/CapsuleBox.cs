@@ -56,7 +56,7 @@ namespace Latios.Psyshock
                                         in RigidTransform targetBoxTransform,
                                         out ColliderCastResult result)
         {
-            if (DistanceBetween(in targetBox, in targetBoxTransform, in capsuleToCast, in castStart, 0f, out _))
+            if (AreOverlapping(in targetBox, in targetBoxTransform, in capsuleToCast, in castStart))
             {
                 result = default;
                 return false;
@@ -173,7 +173,7 @@ namespace Latios.Psyshock
                                         in RigidTransform targetCapsuleTransform,
                                         out ColliderCastResult result)
         {
-            if (DistanceBetween(in boxToCast, in castStart, in targetCapsule, in targetCapsuleTransform, 0f, out _))
+            if (AreOverlapping(in boxToCast, in castStart, in targetCapsule, in targetCapsuleTransform))
             {
                 result = default;
                 return false;
