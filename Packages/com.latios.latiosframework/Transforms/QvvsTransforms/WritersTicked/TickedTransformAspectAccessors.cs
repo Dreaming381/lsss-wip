@@ -1,5 +1,7 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
+using System.Linq;
+using Latios.Transforms;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -9,12 +11,20 @@ using Unity.Mathematics;
 namespace Latios.Transforms
 {
     /// <summary>
-    /// A struct which should be a field of a single-threaded job. It can provide TickedTransformAspect instances for the context of such a job.
+    /// A struct which should be a field of a (single-threaded if not read-only) job.
+    /// It can provide TickedTransformAspect and TickedTransformReadAspect instances for the context of such a job.
     /// </summary>
     public unsafe struct TickedTransformAspectLookup
     {
-        /* Construct Snippet
+        /* RW Construct Snippet
            new TickedTransformAspectLookup(SystemAPI.GetComponentLookup<TickedWorldTransform>(false),
+                                  SystemAPI.GetComponentLookup<RootReference>(true),
+                                  SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
+                                  SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
+                                  SystemAPI.GetEntityStorageInfoLookup())
+
+           RO Construct Snippet (requires [ReadOnly] on job field)
+           new TransformAspectLookup(SystemAPI.GetComponentLookup<TickedWorldTransform>(true),
                                   SystemAPI.GetComponentLookup<RootReference>(true),
                                   SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
                                   SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
@@ -77,14 +87,129 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Retrieves a TransformReadAspect from the entity
+        /// </summary>
+        public TickedTransformReadAspect ReadOnly(Entity entity)
+        {
+            var worldTransform = transformLookup.GetRefRO(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+            if (handle.isNull)
+                return new TickedTransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TickedTransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                };
+            }
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TickedTransformAspect corresponding to the EntityInHierarchyHandle. Returns false
+        /// if the entity does not have a TickedWorldTransform (it might only have a WorldTransform).
+        /// </summary>
+        public bool TryGetAspect(in EntityInHierarchyHandle handle, out TickedTransformAspect tickedTransformAspect)
+        {
+            if (transformLookup.TryGetRefRW(handle.entity, out var worldTransform))
+            {
+                tickedTransformAspect = new TickedTransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup)
+                };
+                return true;
+            }
+            tickedTransformAspect = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TickedTransformAspect from the entity. Returns false if the entity does not have a WorldTransform.
+        /// </summary>
+        public bool TryGetAspect(Entity entity, out TickedTransformAspect tickedTransformAspect)
+        {
+            if (!transformLookup.TryGetRefRW(entity, out var worldTransform))
+            {
+                tickedTransformAspect = default;
+                return false;
+            }
+            var handle = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+            if (handle.isNull)
+                tickedTransformAspect = new TickedTransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                tickedTransformAspect = new TickedTransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                };
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TickedTransformReadAspect corresponding to the EntityInHierarchyHandle. Returns false
+        /// if the entity does not have a TickedWorldTransform (it might only have a WorldTransform).
+        /// </summary>
+        public bool TryGetReadAspect(in EntityInHierarchyHandle handle, out TickedTransformReadAspect tickedTransformAspect)
+        {
+            if (transformLookup.TryGetRefRO(handle.entity, out var worldTransform))
+            {
+                tickedTransformAspect = new TickedTransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup)
+                };
+                return true;
+            }
+            tickedTransformAspect = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TickedTransformReadAspect from the entity. Returns false if the entity does not have a WorldTransform.
+        /// </summary>
+        public bool TryGetReadAspect(Entity entity, out TickedTransformReadAspect tickedTransformAspect)
+        {
+            if (!transformLookup.TryGetRefRO(entity, out var worldTransform))
+            {
+                tickedTransformAspect = default;
+                return false;
+            }
+            var handle = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+            if (handle.isNull)
+                tickedTransformAspect = new TickedTransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                tickedTransformAspect = new TickedTransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                };
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Access to the internal EntityStorageInfoLookup for convenience
         /// </summary>
         public EntityStorageInfoLookup entityStorageInfoLookup => esil;
-        /// <summary>
-        /// Tries to look up a TickedWorldTransform with read-only access
-        /// </summary>
-        public bool TryGetTickedWorldTransformRO(Entity entity, out RefRO<TickedWorldTransform> tickedWorldTransform) => transformLookup.TryGetRefRO(entity,
-                                                                                                                                                     out tickedWorldTransform);
     }
 
     /// <summary>
@@ -230,7 +355,7 @@ namespace Latios.Transforms
     public static class TickedTransformAspectAccessExtensions
     {
         /// <summary>
-        /// Gets the TickedTransformAspect of the handle powered by the system's EntityManager.
+        /// Gets the TickedTransformAspect of the handle powered by EntityManager.
         /// </summary>
         public static unsafe TickedTransformAspect GetTickedTransfromAspect(this EntityManager em, EntityInHierarchyHandle handle)
         {
@@ -246,7 +371,7 @@ namespace Latios.Transforms
         }
 
         /// <summary>
-        /// Gets the TickedTransformAspect of the entity powered by the system's EntityManager.
+        /// Gets the TickedTransformAspect of the entity powered by EntityManager.
         /// </summary>
         public static unsafe TickedTransformAspect GetTickedTransfromAspect(this EntityManager em, Entity entity)
         {
@@ -259,6 +384,44 @@ namespace Latios.Transforms
                 return new TickedTransformAspect
                 {
                     m_worldTransform = tickedWorldTransform,
+                    m_handle         = handle,
+                    m_esil           = em.GetEntityStorageInfoLookup(),
+                    m_accessType     = TickedTransformAspect.AccessType.EntityManager,
+                    m_access         = em.GetEntityManagerPtr()
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TickedTransformReadAspect of the handle powered by EntityManager.
+        /// </summary>
+        public static unsafe TickedTransformReadAspect GetTickedTransfromReadAspect(this EntityManager em, EntityInHierarchyHandle handle)
+        {
+            var worldTransform = em.GetComponentDataRO<TickedWorldTransform>(handle.entity);
+            return new TickedTransformReadAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = em.GetEntityStorageInfoLookup(),
+                m_accessType     = TickedTransformAspect.AccessType.EntityManager,
+                m_access         = em.GetEntityManagerPtr()
+            };
+        }
+
+        /// <summary>
+        /// Gets the TickedTransformReadAspect of the entity powered by EntityManager.
+        /// </summary>
+        public static unsafe TickedTransformReadAspect GetTickedTransfromReadAspect(this EntityManager em, Entity entity)
+        {
+            var worldTransform = em.GetComponentDataRO<TickedWorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, em);
+            if (handle.isNull)
+                return new TickedTransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TickedTransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
                     m_handle         = handle,
                     m_esil           = em.GetEntityStorageInfoLookup(),
                     m_accessType     = TickedTransformAspect.AccessType.EntityManager,
@@ -354,6 +517,101 @@ namespace Latios.Transforms
                 return new TickedTransformAspect
                 {
                     m_worldTransform = tickedWorldTransform,
+                    m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentBrokerKeyed,
+                    m_access         = UnsafeUtility.AddressOf(ref broker)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TickedTransformReadAspect of the handle powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TickedTransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup.
+        /// </summary>
+        public static unsafe TickedTransformReadAspect GetTickedTransformReadAspect(this ref ComponentBroker broker, EntityInHierarchyHandle handle)
+        {
+            var worldTransform = broker.GetRO<TickedWorldTransform>(handle.entity);
+            return new TickedTransformReadAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = broker.entityStorageInfoLookup,
+                m_accessType     = TickedTransformAspect.AccessType.ComponentBroker,
+                m_access         = UnsafeUtility.AddressOf(ref broker)
+            };
+        }
+
+        /// <summary>
+        /// Gets the TickedTransformReadAspect of the entity powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TickedTransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup.
+        /// </summary>
+        public static unsafe TickedTransformReadAspect GetTickedTransformReadAspect(this ref ComponentBroker broker, Entity entity)
+        {
+            var worldTransform = broker.GetRO<TickedWorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref broker);
+            if (handle.isNull)
+                return new TickedTransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TickedTransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
+                    m_accessType     = TickedTransformAspect.AccessType.ComponentBroker,
+                    m_access         = UnsafeUtility.AddressOf(ref broker)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TickedTransformReadAspect of the handle powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TickedTransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup. The aspect
+        /// is verified in parallel writing contexts by the key.
+        /// </summary>
+        public static unsafe TickedTransformReadAspect GetTickedTransformReadAspect(this ref ComponentBroker broker, EntityInHierarchyHandle handle, TransformsKey key)
+        {
+            key.Validate(handle.root.entity);
+            var worldTransform = broker.GetROIgnoreParallelSafety<TickedWorldTransform>(handle.entity);
+            return new TickedTransformReadAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = broker.entityStorageInfoLookup,
+                m_accessType     = TickedTransformAspect.AccessType.ComponentBrokerKeyed,
+                m_access         = UnsafeUtility.AddressOf(ref broker)
+            };
+        }
+
+        /// <summary>
+        /// Gets the TickedTransformReadAspect of the entity powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TickedTransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup. The aspect
+        /// is verified in parallel writing contexts by the key.
+        /// </summary>
+        public static unsafe TickedTransformReadAspect GetTickedTransformReadAspect(this ref ComponentBroker broker, Entity entity, TransformsKey key)
+        {
+            var worldTransform = broker.GetROIgnoreParallelSafety<TickedWorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref broker);
+            if (handle.isNull)
+            {
+                key.Validate(entity);
+                return new TickedTransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            }
+            else
+            {
+                key.Validate(handle.root.entity);
+                return new TickedTransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
                     m_handle         = handle,
                     m_esil           = broker.entityStorageInfoLookup,
                     m_accessType     = TickedTransformAspect.AccessType.ComponentBrokerKeyed,

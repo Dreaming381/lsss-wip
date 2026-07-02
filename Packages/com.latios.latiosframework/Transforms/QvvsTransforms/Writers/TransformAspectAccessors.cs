@@ -9,12 +9,20 @@ using Unity.Mathematics;
 namespace Latios.Transforms
 {
     /// <summary>
-    /// A struct which should be a field of a single-threaded job. It can provide TransformAspect instances for the context of such a job.
+    /// A struct which should be a field of a (single-threaded if not read-only) job.
+    /// It can provide TransformAspect and TransformReadAspect instances for the context of such a job.
     /// </summary>
     public unsafe struct TransformAspectLookup
     {
-        /* Construct Snippet
+        /* RW Construct Snippet
            new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
+                                  SystemAPI.GetComponentLookup<RootReference>(true),
+                                  SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
+                                  SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
+                                  SystemAPI.GetEntityStorageInfoLookup())
+
+           RO Construct Snippet (requires [ReadOnly] on job field)
+           new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(true),
                                   SystemAPI.GetComponentLookup<RootReference>(true),
                                   SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
                                   SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
@@ -77,18 +85,134 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Retrieves a TransformReadAspect from the entity
+        /// </summary>
+        public TransformReadAspect ReadOnly(Entity entity)
+        {
+            var worldTransform = transformLookup.GetRefRO(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+            if (handle.isNull)
+                return new TransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                };
+            }
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TransformAspect corresponding to the EntityInHierarchyHandle. Returns false
+        /// if the entity does not have a WorldTransform (it might only have a TickedWorldTransform).
+        /// </summary>
+        public bool TryGetAspect(in EntityInHierarchyHandle handle, out TransformAspect transformAspect)
+        {
+            if (transformLookup.TryGetRefRW(handle.entity, out var worldTransform))
+            {
+                transformAspect = new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup)
+                };
+                return true;
+            }
+            transformAspect = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TransformAspect from the entity. Returns false if the entity does not have a WorldTransform.
+        /// </summary>
+        public bool TryGetAspect(Entity entity, out TransformAspect transformAspect)
+        {
+            if (!transformLookup.TryGetRefRW(entity, out var worldTransform))
+            {
+                transformAspect = default;
+                return false;
+            }
+            var handle = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+            if (handle.isNull)
+                transformAspect = new TransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                transformAspect = new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                };
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TransformReadAspect corresponding to the EntityInHierarchyHandle. Returns false
+        /// if the entity does not have a WorldTransform (it might only have a TickedWorldTransform).
+        /// </summary>
+        public bool TryGetReadAspect(in EntityInHierarchyHandle handle, out TransformReadAspect transformAspect)
+        {
+            if (transformLookup.TryGetRefRO(handle.entity, out var worldTransform))
+            {
+                transformAspect = new TransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup)
+                };
+                return true;
+            }
+            transformAspect = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to retrieve the TransformReadAspect from the entity. Returns false if the entity does not have a WorldTransform.
+        /// </summary>
+        public bool TryGetReadAspect(Entity entity, out TransformReadAspect transformAspect)
+        {
+            if (!transformLookup.TryGetRefRO(entity, out var worldTransform))
+            {
+                transformAspect = default;
+                return false;
+            }
+            var handle = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
+            if (handle.isNull)
+                transformAspect = new TransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                transformAspect = new TransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = esil,
+                    m_accessType     = TransformAspect.AccessType.ComponentLookup,
+                    m_access         = UnsafeUtility.AddressOf(ref transformLookup),
+                };
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Access to the internal EntityStorageInfoLookup for convenience
         /// </summary>
         public EntityStorageInfoLookup entityStorageInfoLookup => esil;
-        /// <summary>
-        /// Tries to look up a WorldTransform with read-only access
-        /// </summary>
-        public bool TryGetWorldTransformRO(Entity entity, out RefRO<WorldTransform> worldTransform) => transformLookup.TryGetRefRO(entity, out worldTransform);
     }
 
     /// <summary>
     /// A struct which should be a field of a parallel IJobChunk, IJobEntityChunkBeginEnd, or equivalent.
-    /// It can provide TransformAspect for any root or solo entities with thread-safe guarantees.
+    /// It can provide TransformAspect and TransformReadAspect for any root or solo entities with thread-safe guarantees.
     /// For each chunk, call SetupChunk(). Then use the indexer with the index of the entity within the chunk to get the TransformAspect.
     /// If used in an IJobEntity, make sure to include WorldTransform in your query!
     /// </summary>
@@ -229,7 +353,7 @@ namespace Latios.Transforms
     public static class TransformAspectAccessExtensions
     {
         /// <summary>
-        /// Gets the TransformAspect of the handle powered by the system's EntityManager.
+        /// Gets the TransformAspect of the handle powered by EntityManager.
         /// </summary>
         public static unsafe TransformAspect GetTransfromAspect(this EntityManager em, EntityInHierarchyHandle handle)
         {
@@ -245,7 +369,7 @@ namespace Latios.Transforms
         }
 
         /// <summary>
-        /// Gets the TransformAspect of the entity powered by the system's EntityManager.
+        /// Gets the TransformAspect of the entity powered by EntityManager.
         /// </summary>
         public static unsafe TransformAspect GetTransfromAspect(this EntityManager em, Entity entity)
         {
@@ -256,6 +380,44 @@ namespace Latios.Transforms
             else
             {
                 return new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = em.GetEntityStorageInfoLookup(),
+                    m_accessType     = TransformAspect.AccessType.EntityManager,
+                    m_access         = em.GetEntityManagerPtr()
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TransformReadAspect of the handle powered by EntityManager.
+        /// </summary>
+        public static unsafe TransformReadAspect GetTransfromReadAspect(this EntityManager em, EntityInHierarchyHandle handle)
+        {
+            var worldTransform = em.GetComponentDataRO<WorldTransform>(handle.entity);
+            return new TransformReadAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = em.GetEntityStorageInfoLookup(),
+                m_accessType     = TransformAspect.AccessType.EntityManager,
+                m_access         = em.GetEntityManagerPtr()
+            };
+        }
+
+        /// <summary>
+        /// Gets the TransformReadAspect of the entity powered by EntityManager.
+        /// </summary>
+        public static unsafe TransformReadAspect GetTransfromReadAspect(this EntityManager em, Entity entity)
+        {
+            var worldTransform = em.GetComponentDataRO<WorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, em);
+            if (handle.isNull)
+                return new TransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TransformReadAspect
                 {
                     m_worldTransform = worldTransform,
                     m_handle         = handle,
@@ -351,6 +513,101 @@ namespace Latios.Transforms
             {
                 key.Validate(handle.root.entity);
                 return new TransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
+                    m_accessType     = TransformAspect.AccessType.ComponentBrokerKeyed,
+                    m_access         = UnsafeUtility.AddressOf(ref broker)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TransformReadAspect of the handle powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup.
+        /// </summary>
+        public static unsafe TransformReadAspect GetTransformReadAspect(this ref ComponentBroker broker, EntityInHierarchyHandle handle)
+        {
+            var worldTransform = broker.GetRO<WorldTransform>(handle.entity);
+            return new TransformReadAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = broker.entityStorageInfoLookup,
+                m_accessType     = TransformAspect.AccessType.ComponentBroker,
+                m_access         = UnsafeUtility.AddressOf(ref broker)
+            };
+        }
+
+        /// <summary>
+        /// Gets the TransformReadAspect of the entity powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup.
+        /// </summary>
+        public static unsafe TransformReadAspect GetTransformReadAspect(this ref ComponentBroker broker, Entity entity)
+        {
+            var worldTransform = broker.GetRO<WorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref broker);
+            if (handle.isNull)
+                return new TransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            else
+            {
+                return new TransformReadAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
+                    m_accessType     = TransformAspect.AccessType.ComponentBroker,
+                    m_access         = UnsafeUtility.AddressOf(ref broker)
+                };
+            }
+        }
+
+        /// <summary>
+        /// Gets the TransformReadAspect of the handle powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup. The aspect
+        /// is verified in parallel writing contexts by the key.
+        /// </summary>
+        public static unsafe TransformReadAspect GetTransformReadAspect(this ref ComponentBroker broker, EntityInHierarchyHandle handle, TransformsKey key)
+        {
+            key.Validate(handle.root.entity);
+            var worldTransform = broker.GetROIgnoreParallelSafety<WorldTransform>(handle.entity);
+            return new TransformReadAspect
+            {
+                m_worldTransform = worldTransform,
+                m_handle         = handle,
+                m_esil           = broker.entityStorageInfoLookup,
+                m_accessType     = TransformAspect.AccessType.ComponentBrokerKeyed,
+                m_access         = UnsafeUtility.AddressOf(ref broker)
+            };
+        }
+
+        /// <summary>
+        /// Gets the TransformReadAspect of the entity powered by a ComponentBroker. The ComponentBroker
+        /// must have a fixed address for the lifecycle of the TransformReadAspect, such as a field in a
+        /// currently executing job. The ComponentBroker requires write access to WorldTransform, and
+        /// read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup. The aspect
+        /// is verified in parallel writing contexts by the key.
+        /// </summary>
+        public static unsafe TransformReadAspect GetTransformReadAspect(this ref ComponentBroker broker, Entity entity, TransformsKey key)
+        {
+            var worldTransform = broker.GetROIgnoreParallelSafety<WorldTransform>(entity);
+            var handle         = TransformTools.GetHierarchyHandle(entity, ref broker);
+            if (handle.isNull)
+            {
+                key.Validate(entity);
+                return new TransformReadAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            }
+            else
+            {
+                key.Validate(handle.root.entity);
+                return new TransformReadAspect
                 {
                     m_worldTransform = worldTransform,
                     m_handle         = handle,

@@ -418,6 +418,20 @@ namespace Latios.Transforms
         public EntityInHierarchyHandle entityInHierarchyHandle => m_handle;
 
         /// <summary>
+        /// Retrieves the read-only form of this TransformAspect. The read-only form can be used in
+        /// methods that require it, or to read other transforms in the hierarchy without dirtying
+        /// change filters.
+        /// </summary>
+        public TransformReadAspect asRO => new TransformReadAspect
+        {
+            m_access         = m_access,
+            m_accessType     = m_accessType,
+            m_handle         = m_handle,
+            m_esil           = m_esil,
+            m_worldTransform = (RefRO<WorldTransform>)m_worldTransform
+        };
+
+        /// <summary>
         /// Retrieves the TransformAspect for the specified handle belonging to the same hierarchy
         /// as this TransformAspect. When safety checks exist, this method throws if the specifed
         /// handle comes from another hierarchy or if either its handle or this TransformAspect's
