@@ -302,6 +302,22 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Access to the TickedTransformDeferableAspect at the specified index of the currently active chunk.
+        /// Use this when you want to batch writes to multiple transforms in a hierarchy from an IJobEntity or IJobChunk.
+        /// </summary>
+        public TickedTransformDeferableAspect Deferable(int indexInChunk)
+        {
+            var transform = this[indexInChunk];
+            if (!cache->deferredCommands.IsCreated)
+                cache->deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
+            return new TickedTransformDeferableAspect
+            {
+                transform = transform,
+                commands  = cache->deferredCommands,
+            };
+        }
+
+        /// <summary>
         /// Gets the TransformsKey associated with hierarchy the entity at the specified index in the chunk belongs to
         /// </summary>
         public TransformsKey GetTransformsKey(int indexInChunk)
@@ -326,7 +342,21 @@ namespace Latios.Transforms
         }
 
         /// <summary>
-        /// Applies all pending deferred commands created by DeferredTransformAspects within hierarchies.
+        /// Adds a deferred command for future playback. Deferred commands are played back in hierarchy order.
+        /// Refer to ApplyDeferredTransforms() for more details.
+        /// </summary>
+        /// <param name="command"></param>
+        public void AddDeferredCommand(in TickedTransformBatchWriteCommand command)
+        {
+            CheckInit();
+            if (!cache->deferredCommands.IsCreated)
+                cache->deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
+            cache->deferredCommands.Add(command);
+        }
+
+        /// <summary>
+        /// Applies all pending deferred commands created by calls to AddDeferredCommand or from
+        /// TickedTransformDeferableAspects within hierarchies.
         /// If using IJobParallelForDefer, you should call this yourself. If using IJobChunk or IJobEntity,
         /// this will be automatically called after each batch, though you can call it yourself at any time
         /// to get an up-to-date state of all transforms.

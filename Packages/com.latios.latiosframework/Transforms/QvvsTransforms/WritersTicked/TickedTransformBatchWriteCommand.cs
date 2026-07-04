@@ -39,6 +39,60 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Creates a command that sets the world position
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="worldPosition">The new world position to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand SetWorldPosition(TickedTransformAspect transform, float3 worldPosition)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = worldPosition;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldPositionSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a command that sets the world rotation
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="worldRotation">The new world rotation to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand SetWorldRotation(TickedTransformAspect transform, quaternion worldRotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.rotation = worldRotation;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldRotationSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a command that sets the world scale
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="worldScale">The new world scale to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand SetWorldScale(TickedTransformAspect transform, float worldScale)
+        {
+            var data   = TransformQvvs.identity;
+            data.scale = worldScale;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldScaleSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
         /// Creates a command that sets the local transform including stretch and context32
         /// </summary>
         /// <param name="transform">The TickedTransformAspect the command should apply to</param>
@@ -138,6 +192,96 @@ namespace Latios.Transforms
             {
                 aspect    = transform,
                 writeType = WriteCommand.WriteType.StretchSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a position delta in world-space
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="translation">The position delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand TranslateWorld(TickedTransformAspect transform, float3 translation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = translation;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldPositionDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a rotation delta in world-space
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="rotation">The rotation delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand RotateWorld(TickedTransformAspect transform, quaternion rotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.rotation = rotation;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldRotationDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a uniform scale delta
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="scale">The scale delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand Scale(TickedTransformAspect transform, float scale)
+        {
+            var data   = TransformQvvs.identity;
+            data.scale = scale;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.ScaleDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a position delta in local-space
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="translation">The position delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand TranslateLocal(TickedTransformAspect transform, float3 translation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = translation;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.LocalPositionDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a rotation delta in local-space
+        /// </summary>
+        /// <param name="transform">The TickedTransformAspect the command should apply to</param>
+        /// <param name="rotation">The rotation delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TickedTransformBatchWriteCommand RotateLocal(TickedTransformAspect transform, quaternion rotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.rotation = rotation;
+            return new TickedTransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.LocalRotationDelta,
                 writeData = data
             };
         }

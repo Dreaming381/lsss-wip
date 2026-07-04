@@ -38,6 +38,60 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Creates a command that sets the world position
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="worldPosition">The new world position to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand SetWorldPosition(TransformAspect transform, float3 worldPosition)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = worldPosition;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldPositionSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a command that sets the world rotation
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="worldRotation">The new world rotation to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand SetWorldRotation(TransformAspect transform, quaternion worldRotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.rotation = worldRotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldRotationSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a command that sets the world scale
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="worldScale">The new world scale to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand SetWorldScale(TransformAspect transform, float worldScale)
+        {
+            var data   = TransformQvvs.identity;
+            data.scale = worldScale;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldScaleSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
         /// Creates a command that sets the local transform including stretch and context32
         /// </summary>
         /// <param name="transform">The TransformAspect the command should apply to</param>
@@ -137,6 +191,96 @@ namespace Latios.Transforms
             {
                 aspect    = transform,
                 writeType = WriteCommand.WriteType.StretchSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a position delta in world-space
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="translation">The position delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand TranslateWorld(TransformAspect transform, float3 translation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = translation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldPositionDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a rotation delta in world-space
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="rotation">The rotation delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand RotateWorld(TransformAspect transform, quaternion rotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.rotation = rotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldRotationDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a uniform scale delta
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="scale">The scale delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand Scale(TransformAspect transform, float scale)
+        {
+            var data   = TransformQvvs.identity;
+            data.scale = scale;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.ScaleDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a position delta in local-space
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="translation">The position delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand TranslateLocal(TransformAspect transform, float3 translation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = translation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.LocalPositionDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies a rotation delta in local-space
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="rotation">The rotation delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand RotateLocal(TransformAspect transform, quaternion rotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.rotation = rotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.LocalRotationDelta,
                 writeData = data
             };
         }
