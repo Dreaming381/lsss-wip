@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
 using AccessType = Latios.Transforms.TransformAspect.AccessType;
 using Unity.Collections;
@@ -381,4 +382,5 @@ namespace Latios.Transforms
         #endregion
     }
 }
+#endif
 

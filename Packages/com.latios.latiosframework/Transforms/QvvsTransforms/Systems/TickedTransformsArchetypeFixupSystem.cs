@@ -1,3 +1,4 @@
+#if !LATIOS_TRANSFORMS_UNITY
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -5,7 +6,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 using static Unity.Entities.SystemAPI;
-using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 
 namespace Latios.Transforms.Systems
 {
@@ -272,4 +272,5 @@ namespace Latios.Transforms.Systems
         }
     }
 }
+#endif
 

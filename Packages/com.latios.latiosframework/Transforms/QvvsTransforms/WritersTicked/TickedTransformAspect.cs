@@ -1,5 +1,4 @@
 #if !LATIOS_TRANSFORMS_UNITY
-
 using System.Diagnostics;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;

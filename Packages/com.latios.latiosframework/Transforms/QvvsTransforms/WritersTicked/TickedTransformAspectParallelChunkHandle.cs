@@ -411,6 +411,10 @@ namespace Latios.Transforms
         }
         #endregion
 
+        #region Internal API
+        internal ComponentTypeHandle<TickedWorldTransform> GetTemporaryTransformHandle() => transformLookup.lookup.ToHandle(false);
+        #endregion
+
         #region Impl
         enum Role : byte
         {

@@ -1,6 +1,5 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
-using System.Linq;
 using Latios.Transforms;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
