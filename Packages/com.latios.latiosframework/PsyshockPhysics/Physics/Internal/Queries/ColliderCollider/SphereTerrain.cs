@@ -1,5 +1,7 @@
+using System;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine.Audio;
 
 namespace Latios.Psyshock
 {
@@ -263,6 +265,22 @@ namespace Latios.Psyshock
                                                                           in ColliderDistanceResult distanceResult)
         {
             return ContactManifoldHelpers.GetSingleContactManifold(in distanceResult);
+        }
+
+        public static int LatiosContactsBetween(Span<LatiosSim.Contact>   contacts,
+                                                float3 contactNormal,
+                                                in TerrainCollider terrain,
+                                                in RigidTransform terrainTransform,
+                                                in SphereCollider sphere,
+                                                in RigidTransform sphereTransform,
+                                                in ColliderDistanceResult distanceResult)
+        {
+            var triangleIndices = terrain.terrainColliderBlob.Value.GetTriangle(distanceResult.subColliderIndexA);
+            var triangle        = PointRayTerrain.CreateLocalTriangle(ref terrain.terrainColliderBlob.Value,
+                                                                      triangleIndices,
+                                                                      terrain.baseHeightOffset,
+                                                                      terrain.scale);
+            return SphereTriangle.LatiosContactsBetween(contacts, contactNormal, in triangle, in terrainTransform, in sphere, in sphereTransform, in distanceResult);
         }
 
         unsafe struct DistanceBetweenAllProcessor<T> : TerrainColliderBlob.IFindTrianglesProcessor where T : unmanaged, IDistanceBetweenAllProcessor

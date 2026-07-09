@@ -117,7 +117,7 @@ namespace Latios.Psyshock
             float castOffset   = 0f;
             if (distanceResult.distance <= 0f)
             {
-                castOffset     = (-distanceResult.distance * math.EPSILON + math.EPSILON);
+                castOffset     = (-distanceResult.distance * (1f + math.EPSILON) + math.EPSILON);
                 castStart.pos += contactNormal * castOffset;
             }
             if (ColliderCast(in sphereB, in castStart, castStart.pos - castDistance * contactNormal, in sphereA, in aTransform, out var castResult))
