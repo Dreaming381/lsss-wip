@@ -21,6 +21,15 @@ namespace Unity.Entities.Exposed
             return world.Unmanaged.GetTypeOfSystem(world.Unmanaged.ExecutingSystem);
         }
 
+        public static unsafe ref T GetUnsafeSystemRefFromSystemState<T>(this WorldUnmanaged world, ref SystemState state) where T : unmanaged, ISystem
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            if (state.m_SystemTypeIndex != TypeManager.GetSystemTypeIndex<T>())
+                throw new System.InvalidOperationException($"The SystemState does not belong to the system of type {typeof(T)}");
+#endif
+            return ref UnsafeUtility.AsRef<T>(state.m_SystemPtr);
+        }
+
         public static SystemHandle GetCurrentlyExecutingSystem(this ref WorldUnmanaged world)
         {
             return world.ExecutingSystem;
