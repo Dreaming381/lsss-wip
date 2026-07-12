@@ -59,6 +59,11 @@ namespace Latios.Kinemation
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<UpdateSocketsSystem>(),                                  world);
 #endif
 
+            if (world.GetExistingSystemManaged<Latios.Systems.TickedArchetypeCorrectionSystemGroup>() != null)
+            {
+                BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickedOptimizedSkeletonHistorySystem>(), world);
+            }
+
 #if UNITY_EDITOR
             BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<KinemationAfterLiveBakingSuperSystem>(), world);
 #endif

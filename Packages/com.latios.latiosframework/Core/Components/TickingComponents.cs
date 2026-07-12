@@ -118,5 +118,20 @@ namespace Latios
             this.copyData      = copyData;
         }
     }
+
+    /// <summary>
+    /// Add this to a component that represents the "previous" state of a value, that should automatically be backed up and restored via MemCpy.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Struct)]
+    public class TickedAutoPreviousAttribute : Attribute
+    {
+        public Type currentTickedType;
+
+        /// <param name="currentTickedType">The type that represents the "current" state of the value</param>
+        public TickedAutoPreviousAttribute(Type currentTickedType)
+        {
+            this.currentTickedType = currentTickedType;
+        }
+    }
 }
 
