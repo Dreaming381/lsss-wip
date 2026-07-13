@@ -24,8 +24,7 @@ namespace Latios.Kinemation.Systems
         {
             latiosWorld = state.GetLatiosWorldUnmanaged();
             m_query     = state.Fluent().With<InterpolateOptimizedSkeletonTag, TickedOptimizedSkeletonState, TickedOptimizedBoneTransform>(true)
-                          .With<OptimizedSkeletonHierarchyBlobReference, DependentSkinnedMesh>(true).With<OptimizedSkeletonState, OptimizedBoneTransform,
-                                                                                                          WorldTransform>(false).Build();
+                          .With<OptimizedSkeletonHierarchyBlobReference>(true).With<OptimizedSkeletonState, OptimizedBoneTransform, WorldTransform>(false).Build();
         }
 
         [BurstCompile]
@@ -84,14 +83,14 @@ namespace Latios.Kinemation.Systems
                 {
                     var                                            boneBuffer       = boneBuffers[i];
                     DynamicBuffer<OptimizedBoneInertialBlendState> dummyBlendBuffer = default;
-                    var                                            skeletonAspect   = new OptimizedSkeletonAspect(transformHandle[i],
-                                                                       ref socketLookup,
-                                                                       new RefRO<OptimizedSkeletonHierarchyBlobReference>(hierarchies,
-                                                                                                                          i),
-                                                                       new RefRW<OptimizedSkeletonState>(states, i),
-                                                                       ref boneBuffer,
-                                                                       ref dummyBlendBuffer,
-                                                                       skinnedMeshBuffers[i]);
+
+                    var skeletonAspect = new OptimizedSkeletonAspect(transformHandle[i],
+                                                                     ref socketLookup,
+                                                                     new RefRO<OptimizedSkeletonHierarchyBlobReference>(hierarchies, i),
+                                                                     new RefRW<OptimizedSkeletonState>(states, i),
+                                                                     ref boneBuffer,
+                                                                     ref dummyBlendBuffer,
+                                                                     skinnedMeshBuffers.Length > 0 ? skinnedMeshBuffers[i] : default);
                     var dstBones = skeletonAspect.rawLocalTransformsRW;
 
                     var tickedState = tickedStates[i];
@@ -176,7 +175,7 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct Job : IJobChunk, IJobChunkParallelTransform
+        struct Job : IJobChunk
         {
             [ReadOnly] public ComponentTypeHandle<TickedOptimizedSkeletonState> tickedStateHandle;
             [ReadOnly] public BufferTypeHandle<TickedOptimizedBoneTransform> tickedBonesHandle;
@@ -185,8 +184,6 @@ namespace Latios.Kinemation.Systems
             public ComponentTypeHandle<OptimizedSkeletonState> stateHandle;
             public BufferTypeHandle<OptimizedBoneTransform> boneTransformHandle;
             public float factor;
-
-            public ref TransformAspectParallelChunkHandle transformAspectHandleAccess => ref transformHandle.RefAccess();
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
