@@ -298,6 +298,12 @@ namespace Latios.Kinemation
     }
 
     /// <summary>
+    /// Add this tag to an optimized skeleton entity to automatically interpolate all the bone
+    /// local transforms between the ticked current and previous bone local transforms
+    /// </summary>
+    public struct InterpolateOptimizedSkeletonTag : IComponentData { }
+
+    /// <summary>
     /// Describes a socket entity which should inherit the root transform
     /// of an optimized bone as the the entity's LocalTransform.
     /// Usage: Add to an entity to make it track a bone in an optimized skeleton.

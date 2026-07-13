@@ -63,6 +63,17 @@ namespace Latios.Transforms
                                                        bool isTicked)
         {
             var (pos, scale) = ReadLocal(in childHandle, isTicked);
+            return GetLocalTransformRO(in parent, in child, in parentHandle, in childHandle, pos, scale);
+        }
+
+        public static TransformQvs GetLocalTransformRO(in TransformQvvs parent,
+                                                       in TransformQvvs child,
+                                                       in EntityInHierarchyHandle parentHandle,
+                                                       in EntityInHierarchyHandle childHandle,
+                                                       float3 localPosition,
+                                                       float localScale)
+        {
+            var (pos, scale) = (localPosition, localScale);
             var rot          = math.normalize(math.mul(math.conjugate(parent.rotation), child.rotation));
             if (parentHandle.indexInHierarchy != childHandle.bloodParent.indexInHierarchy)
             {

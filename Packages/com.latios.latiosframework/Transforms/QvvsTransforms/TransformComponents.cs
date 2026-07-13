@@ -279,6 +279,11 @@ namespace Latios.Transforms
         public float3 stretch => worldTransform.stretch;
         public float3 nonUniformScale => scale * stretch;
     }
+
+    /// <summary>
+    /// Add this tag to an entity to have it automatically interpolate its local transform between current and previous ticked transforms.
+    /// </summary>
+    public struct InterpolateLocalTransformTag : IComponentData { }
     #endregion
 
     #region Flags

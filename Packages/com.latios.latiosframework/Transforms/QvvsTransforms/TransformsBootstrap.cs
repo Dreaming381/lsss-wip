@@ -30,6 +30,7 @@ namespace Latios.Transforms
             {
                 BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.TickedTransformsArchetypeFixupSystem>(), world);
                 BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.TickedMotionHistorySystem>(),            world);
+                BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<Systems.InterpolateLocalTransformSystem>(),      world);
             }
 
 #if UNITY_EDITOR

@@ -62,6 +62,7 @@ namespace Latios.Kinemation
             if (world.GetExistingSystemManaged<Latios.Systems.TickedArchetypeCorrectionSystemGroup>() != null)
             {
                 BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<TickedOptimizedSkeletonHistorySystem>(), world);
+                BootstrapTools.InjectSystem(TypeManager.GetSystemTypeIndex<InterpolateOptimizedSkeletonsSystem>(),  world);
             }
 
 #if UNITY_EDITOR

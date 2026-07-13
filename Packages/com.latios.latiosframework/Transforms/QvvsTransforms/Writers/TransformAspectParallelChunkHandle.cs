@@ -408,6 +408,11 @@ namespace Latios.Transforms
             currentCapturedChunkIndex = range.x + chunkIndexInGroup;
             SetupChunk(chunks[currentCapturedChunkIndex]);
         }
+
+        /// <summary>
+        /// Access to the EntityStorageInfoLookup for convenience
+        /// </summary>
+        public EntityStorageInfoLookup entityStorageInfoLookup => esil;
         #endregion
 
         #region Impl
@@ -454,12 +459,12 @@ namespace Latios.Transforms
         bool                             didFirstCaptureChunk;
         AllocatorManager.AllocatorHandle allocator;
 
-        TransformsComponentLookup<WorldTransform>            transformLookup;
-        [ReadOnly] BufferLookup<EntityInHierarchy>           hierarchyLookup;
-        [ReadOnly] BufferLookup<EntityInHierarchyCleanup>    cleanupLookup;
-        [ReadOnly] public ComponentTypeHandle<RootReference> rootReferenceHandle;
-        [ReadOnly] EntityStorageInfoLookup                   esil;
-        [NativeDisableUnsafePtrRestriction] ThreadCache*     cache;
+        TransformsComponentLookup<WorldTransform>         transformLookup;
+        [ReadOnly] BufferLookup<EntityInHierarchy>        hierarchyLookup;
+        [ReadOnly] BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
+        [ReadOnly] ComponentTypeHandle<RootReference>     rootReferenceHandle;
+        [ReadOnly] EntityStorageInfoLookup                esil;
+        [NativeDisableUnsafePtrRestriction] ThreadCache*  cache;
 
         HasChecker<EntityInHierarchy>        hierarchyChecker;
         HasChecker<EntityInHierarchyCleanup> cleanupChecker;
