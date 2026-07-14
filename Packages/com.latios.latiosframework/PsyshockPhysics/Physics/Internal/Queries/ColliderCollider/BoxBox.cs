@@ -12,7 +12,13 @@ namespace Latios.Psyshock
                                           in BoxCollider boxB,
                                           in RigidTransform bTransform)
         {
-            return WithinDistance(in boxA, in aTransform, in boxB, in bTransform, 0f);
+            var aOffsetTransform  = aTransform;
+            aOffsetTransform.pos += math.rotate(aTransform.rot, boxA.center);
+            var bOffsetTransform  = bTransform;
+            bOffsetTransform.pos += math.rotate(bTransform.rot, boxB.center);
+            var bInATransform     = math.InverseTransformFast(in aOffsetTransform, in bOffsetTransform);
+            var aInBTransform     = math.InverseTransformFast(in bOffsetTransform, in aOffsetTransform);
+            return BoxBoxOverlapping(boxA.halfSize, boxB.halfSize, in bInATransform, in aInBTransform);
         }
 
         public static bool WithinDistance(in BoxCollider boxA,
@@ -21,7 +27,13 @@ namespace Latios.Psyshock
                                           in RigidTransform bTransform,
                                           float maxDistance)
         {
-            return DistanceBetween(in boxA, in aTransform, in boxB, in bTransform, maxDistance, out _);
+            var aOffsetTransform  = aTransform;
+            aOffsetTransform.pos += math.rotate(aTransform.rot, boxA.center);
+            var bOffsetTransform  = bTransform;
+            bOffsetTransform.pos += math.rotate(bTransform.rot, boxB.center);
+            var bInATransform     = math.InverseTransformFast(in aOffsetTransform, in bOffsetTransform);
+            var aInBTransform     = math.InverseTransformFast(in bOffsetTransform, in aOffsetTransform);
+            return BoxBoxWithin(boxA.halfSize, boxB.halfSize, in bInATransform, in aInBTransform, maxDistance);
         }
 
         public static bool DistanceBetween(in BoxCollider boxA,
@@ -364,6 +376,227 @@ namespace Latios.Psyshock
                     result++;
             }
             return result == 0;
+        }
+
+        // This implementation is a simplified mix of BoxBoxOverlapping() and BoxBoxDistance().
+        private static bool BoxBoxWithin(float3 halfSizeA,
+                                         float3 halfSizeB,
+                                         in RigidTransform bInASpace,
+                                         in RigidTransform aInBSpace,
+                                         float maxDistance)
+        {
+            var         bInARotMat = new float3x3(bInASpace.rot);
+            Span<float> axesX      =
+                stackalloc float[] { 1f, 0f, 0f, -1f, 0f, 0f, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, -bInARotMat.c0.y, -bInARotMat.c1.y,
+                                     -bInARotMat.c2.y };
+            Span<float> axesY =
+                stackalloc float[] { 0f, 1f, 0f, 0f, -1f, 0f, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x,
+                                     bInARotMat.c2.x };
+            Span<float> axesZ =
+                stackalloc float[] { 0f, 0f, 1f, 0f, 0f, -1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x, -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f,
+                                     0f };
+            Span<float> separations = stackalloc float[16];
+            for (int i = 0; i < 16; i++)
+            {
+                var axisX     = axesX[i];
+                var axisY     = axesY[i];
+                var axisZ     = axesZ[i];
+                var axisLenSq = axisX * axisX + axisY * axisY + axisZ * axisZ;
+                var valid     = axisLenSq > math.FLT_MIN_NORMAL;
+
+                var aSupportX = math.chgsign(halfSizeA.x, axisX);
+                var aSupportY = math.chgsign(halfSizeA.y, axisY);
+                var aSupportZ = math.chgsign(halfSizeA.z, axisZ);
+
+                // Scalar implementation of mul(aInBSpace.rot, axis)
+                var tx       = 2f * (aInBSpace.rot.value.y * axisZ - aInBSpace.rot.value.z * axisY);
+                var ty       = 2f * (aInBSpace.rot.value.z * axisX - aInBSpace.rot.value.x * axisZ);
+                var tz       = 2f * (aInBSpace.rot.value.x * axisY - aInBSpace.rot.value.y * axisX);
+                var axisInBX = axisX + aInBSpace.rot.value.w * tx + (aInBSpace.rot.value.y * tz - aInBSpace.rot.value.z * ty);
+                var axisInBY = axisY + aInBSpace.rot.value.w * ty + (aInBSpace.rot.value.z * tx - aInBSpace.rot.value.x * tz);
+                var axisInBZ = axisZ + aInBSpace.rot.value.w * tz + (aInBSpace.rot.value.x * ty - aInBSpace.rot.value.y * tx);
+
+                var bSupportInBX  = math.chgsign(halfSizeB.x, -axisInBX);
+                var bSupportInBY  = math.chgsign(halfSizeB.y, -axisInBY);
+                var bSupportInBZ  = math.chgsign(halfSizeB.z, -axisInBZ);
+                tx                = 2f * (bInASpace.rot.value.y * bSupportInBZ - bInASpace.rot.value.z * bSupportInBY);
+                ty                = 2f * (bInASpace.rot.value.z * bSupportInBX - bInASpace.rot.value.x * bSupportInBZ);
+                tz                = 2f * (bInASpace.rot.value.x * bSupportInBY - bInASpace.rot.value.y * bSupportInBX);
+                var bSupportRelBX = bSupportInBX + bInASpace.rot.value.w * tx + (bInASpace.rot.value.y * tz - bInASpace.rot.value.z * ty);
+                var bSupportRelBY = bSupportInBY + bInASpace.rot.value.w * ty + (bInASpace.rot.value.z * tx - bInASpace.rot.value.x * tz);
+                var bSupportRelBZ = bSupportInBZ + bInASpace.rot.value.w * tz + (bInASpace.rot.value.x * ty - bInASpace.rot.value.y * tx);
+                var bSupportX     = bInASpace.pos.x + bSupportRelBX;
+                var bSupportY     = bInASpace.pos.y + bSupportRelBY;
+                var bSupportZ     = bInASpace.pos.z + bSupportRelBZ;
+
+                var aSupportDot      = aSupportX * axisX + aSupportY * axisY + aSupportZ * axisZ;
+                var bSupportDot      = bSupportX * axisX + bSupportY * axisY + bSupportZ * axisZ;
+                var separationBFromA = bSupportDot - aSupportDot;
+
+                var negBSupportX     = bInASpace.pos.x - bSupportRelBX;
+                var negBSupportY     = bInASpace.pos.y - bSupportRelBY;
+                var negBSupportZ     = bInASpace.pos.z - bSupportRelBZ;
+                var negASupportDot   = -aSupportDot;
+                var negBSupportDot   = negBSupportX * axisX + negBSupportY * axisY + negBSupportZ * axisZ;
+                var separationAFromB = negASupportDot - negBSupportDot;
+
+                separations[i] = math.max(separationAFromB, separationBFromA);
+            }
+
+            // Reduce
+            float bestSeparation;
+            int   bestIndex;
+            {
+                Span<int> indices = stackalloc int[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    if (separations[i] >= separations[i + 8])
+                    {
+                        indices[i] = i;
+                    }
+                    else
+                    {
+                        indices[i]     = i + 8;
+                        separations[i] = separations[i + 8];
+                    }
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    if (separations[i] >= separations[i + 4])
+                    {
+                        indices[i] = indices[i];
+                    }
+                    else
+                    {
+                        indices[i]     = indices[i + 4];
+                        separations[i] = separations[i + 4];
+                    }
+                }
+                for (int i = 0; i < 2; i++)
+                {
+                    if (separations[i] >= separations[i + 2])
+                    {
+                        indices[i] = indices[i];
+                    }
+                    else
+                    {
+                        indices[i]     = indices[i + 2];
+                        separations[i] = separations[i + 2];
+                    }
+                }
+                if (separations[0] >= separations[1])
+                {
+                    bestSeparation = separations[0];
+                    bestIndex      = indices[0];
+                }
+                else
+                {
+                    bestSeparation = separations[1];
+                    bestIndex      = indices[1];
+                }
+            }
+
+            if (bestSeparation > maxDistance)
+                return false;
+
+            // If there was no separating axis, then we already have the overlap distance. And because we know
+            // we are within the maxDistance, then we can simply return true. We check maxDistance as it might
+            // provide Burst the opportunity to perform compile-time constant code elimination.
+            if (maxDistance <= 0f)
+                return true;
+
+            // We know there is separation, but we don't know what the distance is.
+            // If the max separation is an edge-edge axis, test that. Otherwise, we know the closest distance
+            // comes from a vertex.
+            float edgeEdgedistanceSq = float.MaxValue;
+            if (bestIndex > 6)
+            {
+                var   axis                 = new float3(axesX[bestIndex], axesY[bestIndex], axesZ[bestIndex]);
+                bool3 maskA                = false;
+                bool3 maskB                = false;
+                maskA[(bestIndex - 7) / 3] = true;
+                maskB[(bestIndex - 7) % 3] = true;
+
+                var aSigns       = math.select(axis, 1f, maskA);
+                var aSupportP    = math.chgsign(halfSizeA, aSigns);
+                var aSupportE    = math.select(0f, -2f * halfSizeA, maskA);
+                var edgeAxisInB  = math.rotate(aInBSpace.rot, axis);
+                var bSigns       = math.select(-edgeAxisInB, 1f, maskB);
+                var bSupportPinB = math.chgsign(halfSizeB, bSigns);
+                var bSupportEinB = math.select(0f, -2f * halfSizeB, maskB);
+                var bSupportP    = math.transform(bInASpace, bSupportPinB);
+                var bSupportE    = math.rotate(bInASpace, bSupportEinB);
+
+                // Look for the ordinate of the axis closest to zero. Flipping that should give us the next best support.
+                var absAxis            = math.abs(axis);
+                var aFlipMask          = absAxis == math.cmin(math.select(absAxis, float.MaxValue, maskA));
+                var aAlternateSupportP = math.select(aSupportP, -aSupportP, aFlipMask);
+
+                var absAxisInB         = math.abs(edgeAxisInB);
+                var bFlipMask          = absAxisInB == math.cmin(math.select(absAxisInB, float.MaxValue, maskB));
+                var bAlternateSupportP = math.transform(bInASpace, math.select(bSupportPinB, -bSupportPinB, bFlipMask));
+
+                var aStarts = new simdFloat3(aSupportP, aSupportP, aAlternateSupportP, aAlternateSupportP);
+                var bStarts = new simdFloat3(bSupportP, bAlternateSupportP, bSupportP, bAlternateSupportP);
+                var valid   = CapsuleCapsule.SegmentSegmentInvalidateEndpointsPointEdge(aStarts,
+                                                                                        new simdFloat3(aSupportE),
+                                                                                        bStarts,
+                                                                                        new simdFloat3(bSupportE),
+                                                                                        out var closestAs,
+                                                                                        out var closestBs);
+                if (math.any(valid))
+                {
+                    var distSqs        = math.select(float.MaxValue, simd.distancesq(closestAs, closestBs), valid);
+                    var bestPairIndex  = math.tzcnt(math.bitmask(distSqs == math.cmin(distSqs)));
+                    edgeEdgedistanceSq = distSqs[bestPairIndex];
+                }
+            }
+
+            // Transform each box's vertices into the other's space, and then compare to the clamped.
+            for (int i = 0; i < 16; i++)
+            {
+                var rotX   = math.select(aInBSpace.rot.value.x, bInASpace.rot.value.x, i >= 8);
+                var rotY   = math.select(aInBSpace.rot.value.y, bInASpace.rot.value.y, i >= 8);
+                var rotZ   = math.select(bInASpace.rot.value.z, bInASpace.rot.value.z, i >= 8);
+                var rotW   = math.select(aInBSpace.rot.value.w, bInASpace.rot.value.w, i >= 8);
+                var posX   = math.select(aInBSpace.pos.x, bInASpace.pos.x, i >= 8);
+                var posY   = math.select(aInBSpace.pos.y, bInASpace.pos.z, i >= 8);
+                var posZ   = math.select(aInBSpace.pos.z, bInASpace.pos.y, i >= 8);
+                var pointX = math.select(halfSizeA.x, halfSizeB.x, i >= 8);
+                var pointY = math.select(halfSizeA.y, halfSizeB.y, i >= 8);
+                var pointZ = math.select(halfSizeA.z, halfSizeB.z, i >= 8);
+                var halfX  = math.select(halfSizeB.x, halfSizeA.x, i >= 8);
+                var halfY  = math.select(halfSizeB.y, halfSizeA.y, i >= 8);
+                var halfZ  = math.select(halfSizeB.z, halfSizeA.z, i >= 8);
+
+                pointX = math.select(pointX, -pointX, (i & 1) != 0);
+                pointY = math.select(pointY, -pointY, (i & 2) != 0);
+                pointZ = math.select(pointZ, -pointZ, (i & 4) != 0);
+
+                // Transform point
+                var tx                = 2f * (rotY * pointZ - rotZ * pointY);
+                var ty                = 2f * (rotZ * pointX - rotX * pointZ);
+                var tz                = 2f * (rotX * pointY - rotY * pointX);
+                var transformedPointX = pointX + pointX + rotW * tx + (rotY * tz - rotZ * ty);
+                var transformedPointY = pointY + pointY + rotW * ty + (rotZ * tx - rotX * tz);
+                var transformedPointZ = pointZ + pointZ + rotW * tz + (rotX * ty - rotY * tx);
+
+                var diffX = transformedPointX - math.clamp(transformedPointX, -halfX, halfX);
+                var diffY = transformedPointY - math.clamp(transformedPointY, -halfY, halfY);
+                var diffZ = transformedPointZ - math.clamp(transformedPointZ, -halfZ, halfZ);
+
+                separations[i] = diffX * diffX + diffY * diffY + diffZ * diffZ;
+            }
+
+            // Find the best vertex distance.
+            uint bestValue = uint.MaxValue;
+            for (int i = 0; i < 16; i++)
+            {
+                var candidate = math.asuint(separations[i]);
+                candidate     = math.min(candidate, bestValue);
+            }
+            var bestDistSq = math.min(math.asfloat(bestValue), edgeEdgedistanceSq);
+            return bestDistSq <= maxDistance * maxDistance;
         }
 
         // This custom algorithm is really weird, but is faster than GJK+EPA. It is a mix of SAT and Lin-Canny.
@@ -747,12 +980,12 @@ namespace Latios.Psyshock
 
                 var aStarts = new simdFloat3(aSupportP, aSupportP, aAlternateSupportP, aAlternateSupportP);
                 var bStarts = new simdFloat3(bSupportP, bAlternateSupportP, bSupportP, bAlternateSupportP);
-                var valid   = CapsuleCapsule.SegmentSegmentInvalidateEndpointsOld(aStarts,
-                                                                                  new simdFloat3(aSupportE),
-                                                                                  bStarts,
-                                                                                  new simdFloat3(bSupportE),
-                                                                                  out var closestAs,
-                                                                                  out var closestBs);
+                var valid   = CapsuleCapsule.SegmentSegmentInvalidateEndpointsPointEdge(aStarts,
+                                                                                        new simdFloat3(aSupportE),
+                                                                                        bStarts,
+                                                                                        new simdFloat3(bSupportE),
+                                                                                        out var closestAs,
+                                                                                        out var closestBs);
                 if (math.any(valid))
                 {
                     var distSqs       = math.select(float.MaxValue, simd.distancesq(closestAs, closestBs), valid);
@@ -1390,12 +1623,12 @@ namespace Latios.Psyshock
 
                 var aStarts = new simdFloat3(aSupportP, aSupportP, aAlternateSupportP, aAlternateSupportP);
                 var bStarts = new simdFloat3(bSupportP, bAlternateSupportP, bSupportP, bAlternateSupportP);
-                var valid   = CapsuleCapsule.SegmentSegmentInvalidateEndpointsOld(aStarts,
-                                                                                  new simdFloat3(aSupportE),
-                                                                                  bStarts,
-                                                                                  new simdFloat3(bSupportE),
-                                                                                  out var closestAs,
-                                                                                  out var closestBs);
+                var valid   = CapsuleCapsule.SegmentSegmentInvalidateEndpointsPointEdge(aStarts,
+                                                                                        new simdFloat3(aSupportE),
+                                                                                        bStarts,
+                                                                                        new simdFloat3(bSupportE),
+                                                                                        out var closestAs,
+                                                                                        out var closestBs);
                 if (math.any(valid))
                 {
                     var distSqs       = math.select(float.MaxValue, simd.distancesq(closestAs, closestBs), valid);
