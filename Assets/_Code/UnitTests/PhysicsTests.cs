@@ -129,6 +129,17 @@ namespace UnitTests
             return result.distance;
         }
 
+        internal struct ColliderDistanceResultInternal
+        {
+            public float3   hitpointA;
+            public float3   hitpointB;
+            public float3   normalA;
+            public float3   normalB;
+            public float    distance;
+            internal ushort featureCodeA;
+            internal ushort featureCodeB;
+        }
+
         [BurstCompile]
         internal static unsafe float BoxCapsuleDistanceBurst(BoxCollider* box, CapsuleCollider* capsule, float maxDistance)
         {
@@ -362,14 +373,14 @@ namespace UnitTests
         {
             var         bInARotMat = new float3x3(bInASpace.rot);
             Span<float> axesX      =
-                stackalloc float[] { 1f, 0f, 0f, -1f, 0f, 0f, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, -bInARotMat.c0.y, -bInARotMat.c1.y,
-                                     -bInARotMat.c2.y };
+                stackalloc float[] { 1f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z,
+                                     -bInARotMat.c0.y, -bInARotMat.c1.y, -bInARotMat.c2.y };
             Span<float> axesY =
-                stackalloc float[] { 0f, 1f, 0f, 0f, -1f, 0f, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x,
-                                     bInARotMat.c2.x };
+                stackalloc float[] { 0f, 1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f,
+                                     bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x };
             Span<float> axesZ =
-                stackalloc float[] { 0f, 0f, 1f, 0f, 0f, -1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x, -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f,
-                                     0f };
+                stackalloc float[] { 0f, 0f, 1f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x,
+                                     -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f, 0f };
             // Burst is doing something stupid that is preventing LLVM from seeing doing vector early-out.
             int result = 0;
             for (int i = 0; i < 16; i++)
@@ -436,22 +447,26 @@ namespace UnitTests
         {
             var         bInARotMat = new float3x3(bInASpace.rot);
             Span<float> axesX      =
-                stackalloc float[] { 1f, 0f, 0f, -1f, 0f, 0f, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, -bInARotMat.c0.y, -bInARotMat.c1.y,
-                                     -bInARotMat.c2.y };
+                stackalloc float[] { 1f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z,
+                                     -bInARotMat.c0.y, -bInARotMat.c1.y, -bInARotMat.c2.y };
             Span<float> axesY =
-                stackalloc float[] { 0f, 1f, 0f, 0f, -1f, 0f, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x,
-                                     bInARotMat.c2.x };
+                stackalloc float[] { 0f, 1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f,
+                                     bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x };
             Span<float> axesZ =
-                stackalloc float[] { 0f, 0f, 1f, 0f, 0f, -1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x, -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f,
-                                     0f };
+                stackalloc float[] { 0f, 0f, 1f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x,
+                                     -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f, 0f };
             Span<float> separations = stackalloc float[16];
             for (int i = 0; i < 16; i++)
             {
-                var axisX     = axesX[i];
-                var axisY     = axesY[i];
-                var axisZ     = axesZ[i];
-                var axisLenSq = axisX * axisX + axisY * axisY + axisZ * axisZ;
-                var valid     = axisLenSq > math.FLT_MIN_NORMAL;
+                var axisX         = axesX[i];
+                var axisY         = axesY[i];
+                var axisZ         = axesZ[i];
+                var axisLenSq     = axisX * axisX + axisY * axisY + axisZ * axisZ;
+                var valid         = axisLenSq > math.FLT_MIN_NORMAL;
+                var axisLenRsqrt  = math.rsqrt(axisLenSq);
+                axisX            *= axisLenRsqrt;
+                axisY            *= axisLenRsqrt;
+                axisZ            *= axisLenRsqrt;
 
                 var aSupportX = math.chgsign(halfSizeA.x, axisX);
                 var aSupportY = math.chgsign(halfSizeA.y, axisY);
@@ -489,62 +504,24 @@ namespace UnitTests
                 var negBSupportDot   = negBSupportX * axisX + negBSupportY * axisY + negBSupportZ * axisZ;
                 var separationAFromB = negASupportDot - negBSupportDot;
 
-                separations[i] = math.max(separationAFromB, separationBFromA);
+                separations[i] = math.select(float.MinValue, math.max(separationAFromB, separationBFromA), valid);
             }
 
-            // Reduce
+            // Find maximum separation
             float bestSeparation;
-            int   bestIndex;
             {
-                Span<int> indices = stackalloc int[8];
+                Span<float> maxes = stackalloc float[8];
                 for (int i = 0; i < 8; i++)
                 {
-                    if (separations[i] >= separations[i + 8])
-                    {
-                        indices[i] = i;
-                    }
-                    else
-                    {
-                        indices[i]     = i + 8;
-                        separations[i] = separations[i + 8];
-                    }
+                    maxes[i] = math.max(separations[i], separations[i + 8]);
                 }
                 for (int i = 0; i < 4; i++)
                 {
-                    if (separations[i] >= separations[i + 4])
-                    {
-                        indices[i] = indices[i];
-                    }
-                    else
-                    {
-                        indices[i]     = indices[i + 4];
-                        separations[i] = separations[i + 4];
-                    }
+                    maxes[i] = math.max(maxes[i], maxes[i + 4]);
                 }
-                for (int i = 0; i < 2; i++)
-                {
-                    if (separations[i] >= separations[i + 2])
-                    {
-                        indices[i] = indices[i];
-                    }
-                    else
-                    {
-                        indices[i]     = indices[i + 2];
-                        separations[i] = separations[i + 2];
-                    }
-                }
-                if (separations[0] >= separations[1])
-                {
-                    bestSeparation = separations[0];
-                    bestIndex      = indices[0];
-                }
-                else
-                {
-                    bestSeparation = separations[1];
-                    bestIndex      = indices[1];
-                }
+                bestSeparation = math.cmax(new float4(maxes[0], maxes[1], maxes[2], maxes[3]));
             }
-
+            // If the max separation is beyond our max distance, exit early.
             if (bestSeparation > maxDistance)
                 return false;
 
@@ -554,27 +531,56 @@ namespace UnitTests
             if (maxDistance <= 0f)
                 return true;
 
-            // We know there is separation, but we don't know what the distance is.
-            // If the max separation is an edge-edge axis, test that. Otherwise, we know the closest distance
-            // comes from a vertex.
-            float edgeEdgedistanceSq = float.MaxValue;
-            if (bestIndex > 6)
-            {
-                var   axis                 = new float3(axesX[bestIndex], axesY[bestIndex], axesZ[bestIndex]);
-                bool3 maskA                = false;
-                bool3 maskB                = false;
-                maskA[(bestIndex - 7) / 3] = true;
-                maskB[(bestIndex - 7) % 3] = true;
+            // The boxes are not penetrating, but we don't know what the distance is.
+            // If edges have best separating axes, test those.
+            // Otherwise, it can be guaranteed we do not have an edge-edge pair.
 
-                var aSigns       = math.select(axis, 1f, maskA);
-                var aSupportP    = math.chgsign(halfSizeA, aSigns);
-                var aSupportE    = math.select(0f, -2f * halfSizeA, maskA);
-                var edgeAxisInB  = math.rotate(aInBSpace.rot, axis);
-                var bSigns       = math.select(-edgeAxisInB, 1f, maskB);
-                var bSupportPinB = math.chgsign(halfSizeB, bSigns);
-                var bSupportEinB = math.select(0f, -2f * halfSizeB, maskB);
-                var bSupportP    = math.transform(bInASpace, bSupportPinB);
-                var bSupportE    = math.rotate(bInASpace, bSupportEinB);
+            // Find all edge axes that match our best separation, and make a mask out of them.
+            // We fudge this a little so that we avoid cases where floating-point error steers us down the wrong path.
+            uint  bestAxesMaskRaw = 0;
+            float epsilon         = math.EPSILON * math.max(math.abs(bestSeparation), 128f);
+            for (int i = 7; i < 16; i++)
+            {
+                uint toAdd       = 1u << i;
+                bestAxesMaskRaw += math.select(0, toAdd, math.distance(separations[i], bestSeparation) <= epsilon);
+            }
+            var   bestAxesMask       = new BitField32(bestAxesMaskRaw);
+            bool  foundClosestEdge   = false;
+            float bestEdgeDistanceSq = float.MinValue;
+
+            //if (edgeMaxDistance + 1e-4f >= alignedMaxDistance)
+            while (bestAxesMask.Value != 0)
+            {
+                var bestEdgeIndex = bestAxesMask.CountTrailingZeros();
+                var axis          = math.normalize(new float3(axesX[bestEdgeIndex], axesY[bestEdgeIndex], axesZ[bestEdgeIndex]));
+                {
+                    var supportA            = math.chgsign(halfSizeA, axis);
+                    var maxA                = math.dot(supportA, axis);
+                    var minA                = -maxA;
+                    var axisInB             = math.rotate(aInBSpace.rot, axis);
+                    var supportBinB         = math.chgsign(halfSizeB, axisInB);
+                    var supportB            = math.rotate(bInASpace.rot, supportBinB);
+                    var offsetB             = math.dot(supportB, axis);
+                    var centerB             = math.dot(bInASpace.pos, axis);
+                    var maxB                = centerB + offsetB;
+                    var minB                = centerB - offsetB;
+                    var azPositiveDistances = minB - maxA;
+                    var azNegativeDistances = minA - maxB;
+                    axis                    = math.select(axis, -axis, azPositiveDistances < azNegativeDistances);
+                }
+                bool3 maskA                    = false;
+                bool3 maskB                    = false;
+                maskA[(bestEdgeIndex - 7) / 3] = true;
+                maskB[(bestEdgeIndex - 7) % 3] = true;
+                var aSigns                     = math.select(axis, 1f, maskA);
+                var aSupportP                  = math.chgsign(halfSizeA, aSigns);
+                var aSupportE                  = math.select(0f, -2f * halfSizeA, maskA);
+                var edgeAxisInB                = math.rotate(aInBSpace.rot, axis);
+                var bSigns                     = math.select(-edgeAxisInB, 1f, maskB);
+                var bSupportPinB               = math.chgsign(halfSizeB, bSigns);
+                var bSupportEinB               = math.select(0f, -2f * halfSizeB, maskB);
+                var bSupportP                  = math.transform(bInASpace, bSupportPinB);
+                var bSupportE                  = math.rotate(bInASpace, bSupportEinB);
 
                 // Look for the ordinate of the axis closest to zero. Flipping that should give us the next best support.
                 var absAxis            = math.abs(axis);
@@ -595,9 +601,24 @@ namespace UnitTests
                                                                          out var closestBs);
                 if (math.any(valid))
                 {
-                    var distSqs        = math.select(float.MaxValue, simd.distancesq(closestAs, closestBs), valid);
-                    var bestPairIndex  = math.tzcnt(math.bitmask(distSqs == math.cmin(distSqs)));
-                    edgeEdgedistanceSq = distSqs[bestPairIndex];
+                    var distSq = math.cmin(math.select(float.MaxValue, simd.distancesq(closestAs, closestBs), valid));
+                    if (distSq > bestEdgeDistanceSq)
+                    {
+                        foundClosestEdge   = true;
+                        bestEdgeDistanceSq = distSq;
+                    }
+                }
+                bestAxesMask.SetBits(bestEdgeIndex, false);
+            }
+            if (foundClosestEdge)
+            {
+                // If our edge-edge pair is closer than any face axis, then we know this is our distance and can skip the point-face tests.
+                var faceSeparations03 = new float4(separations[0], separations[1], separations[2], separations[3]);
+                var faceSeparations47 = new float4(separations[4], separations[5], separations[6], separations[7]);
+                var maxFaceSeparation = math.cmax(math.max(faceSeparations03, faceSeparations47));
+                if (maxFaceSeparation < 0f || bestEdgeDistanceSq <= maxFaceSeparation * maxFaceSeparation)
+                {
+                    return bestEdgeDistanceSq <= maxDistance * maxDistance;
                 }
             }
 
@@ -606,7 +627,7 @@ namespace UnitTests
             {
                 var rotX   = math.select(aInBSpace.rot.value.x, bInASpace.rot.value.x, i >= 8);
                 var rotY   = math.select(aInBSpace.rot.value.y, bInASpace.rot.value.y, i >= 8);
-                var rotZ   = math.select(bInASpace.rot.value.z, bInASpace.rot.value.z, i >= 8);
+                var rotZ   = math.select(aInBSpace.rot.value.z, bInASpace.rot.value.z, i >= 8);
                 var rotW   = math.select(aInBSpace.rot.value.w, bInASpace.rot.value.w, i >= 8);
                 var posX   = math.select(aInBSpace.pos.x, bInASpace.pos.x, i >= 8);
                 var posY   = math.select(aInBSpace.pos.y, bInASpace.pos.z, i >= 8);
@@ -626,9 +647,9 @@ namespace UnitTests
                 var tx                = 2f * (rotY * pointZ - rotZ * pointY);
                 var ty                = 2f * (rotZ * pointX - rotX * pointZ);
                 var tz                = 2f * (rotX * pointY - rotY * pointX);
-                var transformedPointX = pointX + pointX + rotW * tx + (rotY * tz - rotZ * ty);
-                var transformedPointY = pointY + pointY + rotW * ty + (rotZ * tx - rotX * tz);
-                var transformedPointZ = pointZ + pointZ + rotW * tz + (rotX * ty - rotY * tx);
+                var transformedPointX = posX + pointX + rotW * tx + (rotY * tz - rotZ * ty);
+                var transformedPointY = posY + pointY + rotW * ty + (rotZ * tx - rotX * tz);
+                var transformedPointZ = posZ + pointZ + rotW * tz + (rotX * ty - rotY * tx);
 
                 var diffX = transformedPointX - math.clamp(transformedPointX, -halfX, halfX);
                 var diffY = transformedPointY - math.clamp(transformedPointY, -halfY, halfY);
@@ -642,10 +663,876 @@ namespace UnitTests
             for (int i = 0; i < 16; i++)
             {
                 var candidate = math.asuint(separations[i]);
-                candidate     = math.min(candidate, bestValue);
+                bestValue     = math.min(candidate, bestValue);
             }
-            var bestDistSq = math.min(math.asfloat(bestValue), edgeEdgedistanceSq);
+            var bestDistSq = math.min(math.asfloat(bestValue), bestEdgeDistanceSq);
             return bestDistSq <= maxDistance * maxDistance;
+        }
+
+        [BurstCompile]
+        internal static unsafe bool BoxBoxDistanceBurst(float3*                         halfSizeA,
+                                                        float3*                         halfSizeB,
+                                                        RigidTransform*                 bInASpace,
+                                                        RigidTransform*                 aInBSpace,
+                                                        float maxDistance,
+                                                        ColliderDistanceResultInternal* result)
+        {
+            return BoxBoxDistance(*halfSizeA, *halfSizeB, *bInASpace, *aInBSpace, maxDistance, out *result);
+        }
+
+        private static bool BoxBoxDistance(float3 halfSizeA,
+                                           float3 halfSizeB,
+                                           in RigidTransform bInASpace,
+                                           in RigidTransform aInBSpace,
+                                           float maxDistance,
+                                           out ColliderDistanceResultInternal result)
+        {
+            // Do initial SAT test
+            var         bInARotMat = new float3x3(bInASpace.rot);
+            Span<float> axesX      =
+                stackalloc float[] { 1f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z,
+                                     -bInARotMat.c0.y, -bInARotMat.c1.y, -bInARotMat.c2.y };
+            Span<float> axesY =
+                stackalloc float[] { 0f, 1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f,
+                                     bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x };
+            Span<float> axesZ =
+                stackalloc float[] { 0f, 0f, 1f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x,
+                                     -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f, 0f };
+            Span<float> separations = stackalloc float[16];
+            for (int i = 0; i < 16; i++)
+            {
+                var axisX         = axesX[i];
+                var axisY         = axesY[i];
+                var axisZ         = axesZ[i];
+                var axisLenSq     = axisX * axisX + axisY * axisY + axisZ * axisZ;
+                var valid         = axisLenSq > math.FLT_MIN_NORMAL;
+                var axisLenRsqrt  = math.rsqrt(axisLenSq);
+                axisX            *= axisLenRsqrt;
+                axisY            *= axisLenRsqrt;
+                axisZ            *= axisLenRsqrt;
+
+                var aSupportX = math.chgsign(halfSizeA.x, axisX);
+                var aSupportY = math.chgsign(halfSizeA.y, axisY);
+                var aSupportZ = math.chgsign(halfSizeA.z, axisZ);
+
+                // Scalar implementation of mul(aInBSpace.rot, axis)
+                var tx       = 2f * (aInBSpace.rot.value.y * axisZ - aInBSpace.rot.value.z * axisY);
+                var ty       = 2f * (aInBSpace.rot.value.z * axisX - aInBSpace.rot.value.x * axisZ);
+                var tz       = 2f * (aInBSpace.rot.value.x * axisY - aInBSpace.rot.value.y * axisX);
+                var axisInBX = axisX + aInBSpace.rot.value.w * tx + (aInBSpace.rot.value.y * tz - aInBSpace.rot.value.z * ty);
+                var axisInBY = axisY + aInBSpace.rot.value.w * ty + (aInBSpace.rot.value.z * tx - aInBSpace.rot.value.x * tz);
+                var axisInBZ = axisZ + aInBSpace.rot.value.w * tz + (aInBSpace.rot.value.x * ty - aInBSpace.rot.value.y * tx);
+
+                var bSupportInBX  = math.chgsign(halfSizeB.x, -axisInBX);
+                var bSupportInBY  = math.chgsign(halfSizeB.y, -axisInBY);
+                var bSupportInBZ  = math.chgsign(halfSizeB.z, -axisInBZ);
+                tx                = 2f * (bInASpace.rot.value.y * bSupportInBZ - bInASpace.rot.value.z * bSupportInBY);
+                ty                = 2f * (bInASpace.rot.value.z * bSupportInBX - bInASpace.rot.value.x * bSupportInBZ);
+                tz                = 2f * (bInASpace.rot.value.x * bSupportInBY - bInASpace.rot.value.y * bSupportInBX);
+                var bSupportRelBX = bSupportInBX + bInASpace.rot.value.w * tx + (bInASpace.rot.value.y * tz - bInASpace.rot.value.z * ty);
+                var bSupportRelBY = bSupportInBY + bInASpace.rot.value.w * ty + (bInASpace.rot.value.z * tx - bInASpace.rot.value.x * tz);
+                var bSupportRelBZ = bSupportInBZ + bInASpace.rot.value.w * tz + (bInASpace.rot.value.x * ty - bInASpace.rot.value.y * tx);
+                var bSupportX     = bInASpace.pos.x + bSupportRelBX;
+                var bSupportY     = bInASpace.pos.y + bSupportRelBY;
+                var bSupportZ     = bInASpace.pos.z + bSupportRelBZ;
+
+                var aSupportDot      = aSupportX * axisX + aSupportY * axisY + aSupportZ * axisZ;
+                var bSupportDot      = bSupportX * axisX + bSupportY * axisY + bSupportZ * axisZ;
+                var separationBFromA = bSupportDot - aSupportDot;
+
+                var negBSupportX     = bInASpace.pos.x - bSupportRelBX;
+                var negBSupportY     = bInASpace.pos.y - bSupportRelBY;
+                var negBSupportZ     = bInASpace.pos.z - bSupportRelBZ;
+                var negASupportDot   = -aSupportDot;
+                var negBSupportDot   = negBSupportX * axisX + negBSupportY * axisY + negBSupportZ * axisZ;
+                var separationAFromB = negASupportDot - negBSupportDot;
+
+                separations[i] = math.select(float.MinValue, math.max(separationAFromB, separationBFromA), valid);
+            }
+
+            // Find maximum separation
+            float bestSeparation;
+            {
+                Span<float> maxes = stackalloc float[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    maxes[i] = math.max(separations[i], separations[i + 8]);
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    maxes[i] = math.max(maxes[i], maxes[i + 4]);
+                }
+                bestSeparation = math.cmax(new float4(maxes[0], maxes[1], maxes[2], maxes[3]));
+            }
+            // If the max separation is beyond our max distance, exit early.
+            if (bestSeparation > maxDistance)
+            {
+                result = default;
+                return false;
+            }
+
+            // Find all axes that match our best separation, and make a mask out of them.
+            // We fudge this a little so that we avoid cases where floating-point error steers us down the wrong path.
+            uint  bestAxesMaskRaw = 0;
+            float epsilon         = math.EPSILON * math.max(math.abs(bestSeparation), 128f);
+            for (int i = 0; i < 16; i++)
+            {
+                uint toAdd       = 1u << i;
+                bestAxesMaskRaw += math.select(0, toAdd, math.distance(separations[i], bestSeparation) <= epsilon);
+            }
+            var bestAxesMask = new BitField32(bestAxesMaskRaw);
+            bestAxesMask.SetBits(6, false);
+
+            if (bestSeparation <= 0f)
+            {
+                // We have penetration. Run through the gauntlet of equal separations and try to find the first valid hit.
+                // We start with the point-face pairs, prioritizing y, then z, then x.
+                static simdFloat3 GetMultipleSupports(float3 direction, float3 halfSize, float epsilon, out int4 featureCodes)
+                {
+                    simdFloat3 result = default;
+                    bool4      tfMask = new bool4(true, true, false, false);
+                    bool4      xPositives;
+                    bool4      yPositives;
+                    bool4      zPositives;
+                    var        directionZero = math.abs(direction) <= epsilon;
+                    if (directionZero.x)
+                    {
+                        xPositives = tfMask;
+                        tfMask     = new bool4(true, false, true, false);
+                    }
+                    else
+                        xPositives = direction.x > 0f;
+                    if (directionZero.y)
+                    {
+                        yPositives = tfMask;
+                        tfMask     = new bool4(true, false, true, false);
+                    }
+                    else
+                        yPositives = direction.y > 0f;
+                    if (directionZero.z)
+                        zPositives = tfMask;
+                    else
+                        zPositives  = direction.z > 0f;
+                    featureCodes    = 0;
+                    featureCodes   += math.select(1, int4.zero, xPositives);
+                    result.x        = math.select(-halfSize.x, halfSize.x, xPositives);
+                    featureCodes   += math.select(2, int4.zero, yPositives);
+                    result.y        = math.select(-halfSize.y, halfSize.y, yPositives);
+                    featureCodes   += math.select(4, int4.zero, zPositives);
+                    result.z        = math.select(-halfSize.z, halfSize.z, zPositives);
+                    return result;
+                }
+
+                if (bestAxesMask.IsSet(1))
+                {
+                    // There's a vertex on B closest to a face A along A's y axis.
+                    var aFaceNormal    = new float3(0f, math.chgsign(1f, bInASpace.pos.y), 0f);
+                    var aFaceNormalInB = math.rotate(aInBSpace.rot, aFaceNormal);
+                    if (math.all(math.abs(aFaceNormalInB) > epsilon))
+                    {
+                        // There is a singular closest vertex in B
+                        var faceSupportB = math.transform(bInASpace, math.chgsign(halfSizeB, -aFaceNormalInB));
+                        // Check that the vertex is inside A (or fully penetrated through). If this fails, we'll look for a different axis.
+                        var clampedSupport = math.clamp(faceSupportB.xz, -halfSizeA.xz - epsilon, halfSizeA.xz + epsilon);
+                        if (clampedSupport.Equals(faceSupportB.xz))
+                        {
+                            clampedSupport   = math.clamp(faceSupportB.xz, -halfSizeA.xz, halfSizeA.xz);
+                            var featureCodeB = (ushort)math.bitmask(new bool4(-aFaceNormalInB < 0f, false));
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = new float3(clampedSupport.x, aFaceNormal.y * halfSizeA.y, clampedSupport.y),
+                                hitpointB = faceSupportB,
+                                normalA   = aFaceNormal,
+                                //normalB = math.rotate(bInASpace.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                                featureCodeA = (ushort)(0x8000 + math.select(1, 4, aFaceNormal.y < 0f)),
+                                featureCodeB = featureCodeB
+                            };
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // There are multiple vertices in B equally close to the A plane. We need to try all of them.
+                        var faceSupportsBinB = GetMultipleSupports(-aFaceNormalInB, halfSizeB, epsilon, out var featureCodesB);
+                        var faceSupportsB    = simd.transform(bInASpace, faceSupportsBinB);
+                        var clampedSupportsX = math.clamp(faceSupportsB.x, -halfSizeA.x, halfSizeA.x);
+                        var clampedSupportsZ = math.clamp(faceSupportsB.z, -halfSizeA.z, halfSizeA.z);
+                        var candidates       = (math.abs(faceSupportsB.x - clampedSupportsX) < epsilon) & (math.abs(faceSupportsB.z - clampedSupportsZ) < epsilon);
+                        if (math.any(candidates))
+                        {
+                            var supportIndex = math.tzcnt(math.bitmask(candidates));
+                            var faceSupportB = faceSupportsB[supportIndex];
+                            var featureCodeB = (ushort)featureCodesB[supportIndex];
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = new float3(clampedSupportsX[supportIndex], aFaceNormal.y * halfSizeA.y, clampedSupportsZ[supportIndex]),
+                                hitpointB = faceSupportB,
+                                normalA   = aFaceNormal,
+                                //normalB = math.rotate(bInASpace.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                                featureCodeA = (ushort)(0x8000 + math.select(1, 4, aFaceNormal.y < 0f)),
+                                featureCodeB = featureCodeB
+                            };
+                            return true;
+                        }
+                    }
+                }
+                if (bestAxesMask.IsSet(4))
+                {
+                    // There's a vertex on A closest to a face B along B's y axis
+                    var bFaceNormal    = new float3(0f, math.chgsign(1f, aInBSpace.pos.y), 0f);
+                    var bFaceNormalInA = math.rotate(bInASpace.rot, bFaceNormal);
+                    if (math.all(math.abs(bFaceNormalInA) > epsilon))
+                    {
+                        // There is a singular closest vertex in A
+                        var faceSupportAinA = math.chgsign(halfSizeA, -bFaceNormalInA);
+                        var faceSupportA    = math.transform(aInBSpace, faceSupportAinA);
+                        // Check that the vertex is inside A (or fully penetrated through). If this fails, we'll look for a different axis.
+                        var clampedSupport = math.clamp(faceSupportA.xz, -halfSizeB.xz - epsilon, halfSizeB.xz + epsilon);
+                        if (clampedSupport.Equals(faceSupportA.xz))
+                        {
+                            clampedSupport   = math.clamp(faceSupportA.xz, -halfSizeB.xz, halfSizeB.xz);
+                            var featureCodeA = (ushort)math.bitmask(new bool4(-bFaceNormalInA < 0f, false));
+                            var hitpointB    = new float3(clampedSupport.x, bFaceNormal.y * halfSizeB.y, clampedSupport.y);
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = faceSupportAinA,
+                                hitpointB = math.transform(bInASpace, hitpointB),
+                                //normalA = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                                normalB      = bFaceNormalInA,
+                                featureCodeA = featureCodeA,
+                                featureCodeB = (ushort)(0x8000 + math.select(1, 4, bFaceNormal.y < 0f)),
+                            };
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // There are multiple verices in A equally close to the B plane. We need to try all of them.
+                        var faceSupportsAinA = GetMultipleSupports(-bFaceNormalInA, halfSizeA, epsilon, out var featureCodesA);
+                        var faceSupportsA    = simd.transform(aInBSpace, faceSupportsAinA);
+                        var clampedSupportsX = math.clamp(faceSupportsA.x, -halfSizeB.x, halfSizeB.x);
+                        var clampedSupportsZ = math.clamp(faceSupportsA.z, -halfSizeB.z, halfSizeB.z);
+                        var candidates       = (math.abs(faceSupportsA.x - clampedSupportsX) < epsilon) & (math.abs(faceSupportsA.z - clampedSupportsZ) < epsilon);
+                        if (math.any(candidates))
+                        {
+                            var supportIndex    = math.tzcnt(math.bitmask(candidates));
+                            var faceSupportAinA = faceSupportsAinA[supportIndex];
+                            var featureCodeA    = (ushort)featureCodesA[supportIndex];
+                            var hitpointB       = new float3(clampedSupportsX[supportIndex], bFaceNormal.y * halfSizeB.y, clampedSupportsZ[supportIndex]);
+                            result              = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = faceSupportAinA,
+                                hitpointB = math.transform(bInASpace, hitpointB),
+                                //normalA = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                                normalB      = bFaceNormalInA,
+                                featureCodeA = featureCodeA,
+                                featureCodeB = (ushort)(0x8000 + math.select(1, 4, bFaceNormal.y < 0f)),
+                            };
+                            return true;
+                        }
+                    }
+                }
+                if (bestAxesMask.IsSet(2))
+                {
+                    // There's a vertex on B closest to a face A along A's z axis.
+                    var aFaceNormal    = new float3(0f, 0f, math.chgsign(1f, bInASpace.pos.z));
+                    var aFaceNormalInB = math.rotate(aInBSpace.rot, aFaceNormal);
+                    if (math.all(math.abs(aFaceNormalInB) > epsilon))
+                    {
+                        // There is a singular closest vertex in B
+                        var faceSupportB = math.transform(bInASpace, math.chgsign(halfSizeB, -aFaceNormalInB));
+                        // Check that the vertex is inside A (or fully penetrated through). If this fails, we'll look for a different axis.
+                        var clampedSupport = math.clamp(faceSupportB.xy, -halfSizeA.xy - epsilon, halfSizeA.xy + epsilon);
+                        if (clampedSupport.Equals(faceSupportB.xy))
+                        {
+                            clampedSupport   = math.clamp(faceSupportB.xy, -halfSizeA.xy, halfSizeA.xy);
+                            var featureCodeB = (ushort)math.bitmask(new bool4(-aFaceNormalInB < 0f, false));
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = new float3(clampedSupport.xy, aFaceNormal.z * halfSizeA.z),
+                                hitpointB = faceSupportB,
+                                normalA   = aFaceNormal,
+                                //normalB = math.rotate(bInASpace.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                                featureCodeA = (ushort)(0x8000 + math.select(2, 5, aFaceNormal.z < 0f)),
+                                featureCodeB = featureCodeB
+                            };
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // There are multiple vertices in B equally close to the A plane. We need to try all of them.
+                        var faceSupportsBinB = GetMultipleSupports(-aFaceNormalInB, halfSizeB, epsilon, out var featureCodesB);
+                        var faceSupportsB    = simd.transform(bInASpace, faceSupportsBinB);
+                        var clampedSupportsX = math.clamp(faceSupportsB.x, -halfSizeA.x, halfSizeA.x);
+                        var clampedSupportsY = math.clamp(faceSupportsB.y, -halfSizeA.y, halfSizeA.y);
+                        var candidates       = (math.abs(faceSupportsB.x - clampedSupportsX) < epsilon) & (math.abs(faceSupportsB.y - clampedSupportsY) < epsilon);
+                        if (math.any(candidates))
+                        {
+                            var supportIndex = math.tzcnt(math.bitmask(candidates));
+                            var faceSupportB = faceSupportsB[supportIndex];
+                            var featureCodeB = (ushort)featureCodesB[supportIndex];
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = new float3(clampedSupportsX[supportIndex], clampedSupportsY[supportIndex], aFaceNormal.z * halfSizeA.z),
+                                hitpointB = faceSupportB,
+                                normalA   = aFaceNormal,
+                                //normalB = math.rotate(bInASpace.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                                featureCodeA = (ushort)(0x8000 + math.select(2, 5, aFaceNormal.z < 0f)),
+                                featureCodeB = featureCodeB
+                            };
+                            return true;
+                        }
+                    }
+                }
+                if (bestAxesMask.IsSet(5))
+                {
+                    // There's a vertex on A closest to a face B along B's z axis
+                    var bFaceNormal    = new float3(0f, 0f, math.chgsign(1f, aInBSpace.pos.z));
+                    var bFaceNormalInA = math.rotate(bInASpace.rot, bFaceNormal);
+                    if (math.all(math.abs(bFaceNormalInA) > epsilon))
+                    {
+                        // There is a singular closest vertex in A
+                        var faceSupportAinA = math.chgsign(halfSizeA, -bFaceNormalInA);
+                        var faceSupportA    = math.transform(aInBSpace, faceSupportAinA);
+                        // Check that the vertex is inside A (or fully penetrated through). If this fails, we'll look for a different axis.
+                        var clampedSupport = math.clamp(faceSupportA.xy, -halfSizeB.xy - epsilon, halfSizeB.xy + epsilon);
+                        if (clampedSupport.Equals(faceSupportA.xy))
+                        {
+                            clampedSupport   = math.clamp(faceSupportA.xy, -halfSizeB.xy, halfSizeB.xy);
+                            var featureCodeA = (ushort)math.bitmask(new bool4(-bFaceNormalInA < 0f, false));
+                            var hitpointB    = new float3(clampedSupport.xy, bFaceNormal.z * halfSizeB.z);
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = faceSupportAinA,
+                                hitpointB = math.transform(bInASpace, hitpointB),
+                                //normalA = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                                normalB      = bFaceNormalInA,
+                                featureCodeA = featureCodeA,
+                                featureCodeB = (ushort)(0x8000 + math.select(2, 5, bFaceNormal.z < 0f)),
+                            };
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // There are multiple verices in A equally close to the B plane. We need to try all of them.
+                        var faceSupportsAinA = GetMultipleSupports(-bFaceNormalInA, halfSizeA, epsilon, out var featureCodesA);
+                        var faceSupportsA    = simd.transform(aInBSpace, faceSupportsAinA);
+                        var clampedSupportsX = math.clamp(faceSupportsA.x, -halfSizeB.x, halfSizeB.x);
+                        var clampedSupportsY = math.clamp(faceSupportsA.y, -halfSizeB.y, halfSizeB.y);
+                        var candidates       = (math.abs(faceSupportsA.x - clampedSupportsX) < epsilon) & (math.abs(faceSupportsA.y - clampedSupportsY) < epsilon);
+                        if (math.any(candidates))
+                        {
+                            var supportIndex    = math.tzcnt(math.bitmask(candidates));
+                            var faceSupportAinA = faceSupportsAinA[supportIndex];
+                            var featureCodeA    = (ushort)featureCodesA[supportIndex];
+                            var hitpointB       = new float3(clampedSupportsX[supportIndex], clampedSupportsY[supportIndex], bFaceNormal.z * halfSizeB.z);
+                            result              = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = faceSupportAinA,
+                                hitpointB = math.transform(bInASpace, hitpointB),
+                                //normalA = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                                normalB      = bFaceNormalInA,
+                                featureCodeA = featureCodeA,
+                                featureCodeB = (ushort)(0x8000 + math.select(2, 5, bFaceNormal.z < 0f)),
+                            };
+                            return true;
+                        }
+                    }
+                }
+                if (bestAxesMask.IsSet(0))
+                {
+                    // There's a vertex on B closest to a face A along A's x axis.
+                    var aFaceNormal    = new float3(math.chgsign(1f, bInASpace.pos.x), 0f, 0f);
+                    var aFaceNormalInB = math.rotate(aInBSpace.rot, aFaceNormal);
+                    if (math.all(math.abs(aFaceNormalInB) > epsilon))
+                    {
+                        // There is a singular closest vertex in B
+                        var faceSupportB = math.transform(bInASpace, math.chgsign(halfSizeB, -aFaceNormalInB));
+                        // Check that the vertex is inside A (or fully penetrated through). If this fails, we'll look for a different axis.
+                        var clampedSupport = math.clamp(faceSupportB.yz, -halfSizeA.yz - epsilon, halfSizeA.yz + epsilon);
+                        if (clampedSupport.Equals(faceSupportB.yz))
+                        {
+                            clampedSupport   = math.clamp(faceSupportB.yz, -halfSizeA.yz, halfSizeA.yz);
+                            var featureCodeB = (ushort)math.bitmask(new bool4(-aFaceNormalInB < 0f, false));
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = new float3(aFaceNormal.x * halfSizeA.x, clampedSupport.xy),
+                                hitpointB = faceSupportB,
+                                normalA   = aFaceNormal,
+                                //normalB = math.rotate(bInASpace.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                                featureCodeA = (ushort)(0x8000 + math.select(0, 3, aFaceNormal.x < 0f)),
+                                featureCodeB = featureCodeB
+                            };
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // There are multiple vertices in B equally close to the A plane. We need to try all of them.
+                        var faceSupportsBinB = GetMultipleSupports(-aFaceNormalInB, halfSizeB, epsilon, out var featureCodesB);
+                        var faceSupportsB    = simd.transform(bInASpace, faceSupportsBinB);
+                        var clampedSupportsY = math.clamp(faceSupportsB.y, -halfSizeA.y, halfSizeA.y);
+                        var clampedSupportsZ = math.clamp(faceSupportsB.z, -halfSizeA.z, halfSizeA.z);
+                        var candidates       = (math.abs(faceSupportsB.y - clampedSupportsY) < epsilon) & (math.abs(faceSupportsB.z - clampedSupportsZ) < epsilon);
+                        if (math.any(candidates))
+                        {
+                            var supportIndex = math.tzcnt(math.bitmask(candidates));
+                            var faceSupportB = faceSupportsB[supportIndex];
+                            var featureCodeB = (ushort)featureCodesB[supportIndex];
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = new float3(aFaceNormal.x * halfSizeA.x, clampedSupportsY[supportIndex], clampedSupportsZ[supportIndex]),
+                                hitpointB = faceSupportB,
+                                normalA   = aFaceNormal,
+                                //normalB = math.rotate(bInASpace.rot, PointRayBox.BoxNormalFromFeatureCode(featureCodeB)),
+                                featureCodeA = (ushort)(0x8000 + math.select(0, 3, aFaceNormal.x < 0f)),
+                                featureCodeB = featureCodeB
+                            };
+                            return true;
+                        }
+                    }
+                }
+                if (bestAxesMask.IsSet(3))
+                {
+                    // There's a vertex on A closest to a face B along B's x axis
+                    var bFaceNormal    = new float3(math.chgsign(1f, aInBSpace.pos.x), 0f, 0f);
+                    var bFaceNormalInA = math.rotate(bInASpace.rot, bFaceNormal);
+                    if (math.all(math.abs(bFaceNormalInA) > epsilon))
+                    {
+                        // There is a singular closest vertex in A
+                        var faceSupportAinA = math.chgsign(halfSizeA, -bFaceNormalInA);
+                        var faceSupportA    = math.transform(aInBSpace, faceSupportAinA);
+                        // Check that the vertex is inside A (or fully penetrated through). If this fails, we'll look for a different axis.
+                        var clampedSupport = math.clamp(faceSupportA.yz, -halfSizeB.yz - epsilon, halfSizeB.yz + epsilon);
+                        if (clampedSupport.Equals(faceSupportA.yz))
+                        {
+                            clampedSupport   = math.clamp(faceSupportA.yz, -halfSizeB.yz, halfSizeB.yz);
+                            var featureCodeA = (ushort)math.bitmask(new bool4(-bFaceNormalInA < 0f, false));
+                            var hitpointB    = new float3(bFaceNormal.x * halfSizeB.x, clampedSupport.xy);
+                            result           = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = faceSupportAinA,
+                                hitpointB = math.transform(bInASpace, hitpointB),
+                                //normalA = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                                normalB      = bFaceNormalInA,
+                                featureCodeA = featureCodeA,
+                                featureCodeB = (ushort)(0x8000 + math.select(0, 3, bFaceNormal.x < 0f)),
+                            };
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        // There are multiple verices in A equally close to the B plane. We need to try all of them.
+                        var faceSupportsAinA = GetMultipleSupports(-bFaceNormalInA, halfSizeA, epsilon, out var featureCodesA);
+                        var faceSupportsA    = simd.transform(aInBSpace, faceSupportsAinA);
+                        var clampedSupportsY = math.clamp(faceSupportsA.y, -halfSizeB.y, halfSizeB.y);
+                        var clampedSupportsZ = math.clamp(faceSupportsA.z, -halfSizeB.z, halfSizeB.z);
+                        var candidates       = (math.abs(faceSupportsA.y - clampedSupportsY) < epsilon) & (math.abs(faceSupportsA.z - clampedSupportsZ) < epsilon);
+                        if (math.any(candidates))
+                        {
+                            var supportIndex    = math.tzcnt(math.bitmask(candidates));
+                            var faceSupportAinA = faceSupportsAinA[supportIndex];
+                            var featureCodeA    = (ushort)featureCodesA[supportIndex];
+                            var hitpointB       = new float3(bFaceNormal.x * halfSizeB.x, clampedSupportsY[supportIndex], clampedSupportsZ[supportIndex]);
+                            result              = new ColliderDistanceResultInternal
+                            {
+                                distance  = bestSeparation,
+                                hitpointA = faceSupportAinA,
+                                hitpointB = math.transform(bInASpace, hitpointB),
+                                //normalA = PointRayBox.BoxNormalFromFeatureCode(featureCodeA),
+                                normalB      = bFaceNormalInA,
+                                featureCodeA = featureCodeA,
+                                featureCodeB = (ushort)(0x8000 + math.select(0, 3, bFaceNormal.x < 0f)),
+                            };
+                            return true;
+                        }
+                    }
+                }
+
+                // Since we haven't returned already, we have edge-edge penetration.
+                bestAxesMask.SetBits(0, false, 6);
+                if (bestAxesMask.Value == 0)
+                {
+                    // Our point-face axes failed, and due to floating-point precision, our edge-edge axes aren't quite as good.
+                    // So we need to find the next best separation value.
+                    bestSeparation =
+                        math.max(separations[7],
+                                 math.cmax(math.max(new float4(separations[8], separations[9], separations[10], separations[11]),
+                                                    new float4(separations[12], separations[13], separations[14], separations[15]))));
+                    bestAxesMaskRaw = 0;
+                    for (int i = 7; i < 16; i++)
+                    {
+                        uint toAdd       = 1u << i;
+                        bestAxesMaskRaw += math.select(0, toAdd, separations[i] == bestSeparation);
+                    }
+                    bestAxesMask.Value = bestAxesMaskRaw;
+                }
+                // There may be multiple edge axes we can test, so we loop through until we find one that produces a good result,
+                // or we are on the last candidate.
+                while (bestAxesMask.Value != 0)
+                {
+                    var bestIndex = bestAxesMask.CountTrailingZeros();
+                    var axis      = math.normalize(new float3(axesX[bestIndex], axesY[bestIndex], axesZ[bestIndex]));
+                    {
+                        var supportA            = math.chgsign(halfSizeA, axis);
+                        var maxA                = math.dot(supportA, axis);
+                        var minA                = -maxA;
+                        var axisInB             = math.rotate(aInBSpace.rot, axis);
+                        var supportBinB         = math.chgsign(halfSizeB, axisInB);
+                        var supportB            = math.rotate(bInASpace.rot, supportBinB);
+                        var offsetB             = math.dot(supportB, axis);
+                        var centerB             = math.dot(bInASpace.pos, axis);
+                        var maxB                = centerB + offsetB;
+                        var minB                = centerB - offsetB;
+                        var azPositiveDistances = minB - maxA;
+                        var azNegativeDistances = minA - maxB;
+                        axis                    = math.select(axis, -axis, azPositiveDistances < azNegativeDistances);
+                    }
+                    bool3 maskA                = false;
+                    bool3 maskB                = false;
+                    maskA[(bestIndex - 7) / 3] = true;
+                    maskB[(bestIndex - 7) % 3] = true;
+
+                    // first letter = box, second letter = p is point, o is other point
+                    var aSigns       = math.select(axis, 1f, maskA);
+                    var aSupportP    = math.chgsign(halfSizeA, aSigns);
+                    var aSupportO    = math.select(aSupportP, -aSupportP, maskA);
+                    var edgeAxisInB  = math.rotate(aInBSpace.rot, axis);
+                    var bSigns       = math.select(-edgeAxisInB, 1f, maskB);
+                    var bSupportPinB = math.chgsign(halfSizeB, bSigns);
+                    var bSupportOinB = math.select(bSupportPinB, -bSupportPinB, maskB);
+                    var bSupportP    = math.transform(bInASpace, bSupportPinB);
+                    var bSupportO    = math.transform(bInASpace, bSupportOinB);
+                    SegmentSegment(aSupportP, aSupportO, bSupportP, bSupportO, out var closestA, out var closestB, out _);
+                    var closestAinB = math.transform(aInBSpace, closestA);
+                    // The two points should be on or inside each other's boxes, or else we picked up the wrong edges
+                    // (edges of parallel faces could have multiple valid support points)
+                    bool valid  = math.clamp(closestAinB, -halfSizeB - epsilon, halfSizeB + epsilon).Equals(closestAinB);
+                    valid      &= math.clamp(closestB, -halfSizeA - epsilon, halfSizeA + epsilon).Equals(closestB);
+                    valid      &= math.distance(math.distance(closestA, closestB), math.abs(bestSeparation)) <= epsilon;
+                    if (!valid)
+                    {
+                        // Look for the ordinate of the axis closest to zero. Flipping that should give us the next best support.
+                        var absAxis            = math.abs(axis);
+                        var aFlipMask          = absAxis == math.cmin(absAxis);
+                        var aAlternateSupportP = math.select(aSupportP, -aSupportP, aFlipMask);
+
+                        var absAxisInB            = math.abs(edgeAxisInB);
+                        var bFlipMask             = absAxisInB == math.cmin(absAxisInB);
+                        var bAlternateSupportPinB = math.select(bSupportPinB, -bSupportPinB, bFlipMask);
+                        var bAlternateSupportP    = math.transform(bInASpace, bAlternateSupportPinB);
+                        var bAlternateSupportO    = math.transform(bInASpace, math.select(bAlternateSupportPinB, -bAlternateSupportPinB, maskB));
+
+                        var aStarts = new simdFloat3(aSupportP, aSupportP, aAlternateSupportP, aAlternateSupportP);
+                        var aEnds   = simd.select(aStarts, -aStarts, maskA);
+                        var bStarts = new simdFloat3(bSupportP, bAlternateSupportP, bSupportP, bAlternateSupportP);
+                        var bEnds   = new simdFloat3(bSupportO, bAlternateSupportO, bSupportO, bAlternateSupportO);
+                        SegmentSegment(in aStarts, in aEnds, in bStarts, in bEnds, out var closestAs, out var closestBs);
+                        var closestAsInB       = simd.transform(aInBSpace, closestAs);
+                        var clampedAs          = simd.clamp(closestAsInB, -halfSizeB, halfSizeB);
+                        var clampedBs          = simd.clamp(closestBs, -halfSizeA, halfSizeA);
+                        var clampedDistortions = simd.distance(closestAsInB, clampedAs) + simd.distance(closestBs, clampedBs);
+                        var bestPairIndex      = math.tzcnt(math.bitmask(clampedDistortions == math.cmin(clampedDistortions)));
+                        if ((bestPairIndex & 2) == 2)
+                            aSigns = math.select(aSigns, -aSigns, aFlipMask);
+                        if ((bestPairIndex & 1) == 1)
+                            bSigns  = math.select(bSigns, -bSigns, bFlipMask);
+                        closestA    = closestAs[bestPairIndex];
+                        closestB    = closestBs[bestPairIndex];
+                        closestAinB = closestAsInB[bestPairIndex];
+                    }
+                    valid  = math.clamp(closestAinB, -halfSizeB - epsilon, halfSizeB + epsilon).Equals(closestAinB);
+                    valid &= math.clamp(closestB, -halfSizeA - epsilon, halfSizeA + epsilon).Equals(closestB);
+                    valid &= math.distance(math.distance(closestA, closestB), math.abs(bestSeparation)) <= epsilon;
+                    if (valid || bestAxesMask.CountBits() == 1)
+                    {
+                        var normalA    = math.select(math.chgsign(1f / math.sqrt(2f), aSigns), 0f, maskA);
+                        var normalBinB = math.select(math.chgsign(1f / math.sqrt(2f), bSigns), 0f, maskB);
+                        result         = new ColliderDistanceResultInternal
+                        {
+                            distance  = bestSeparation,
+                            hitpointA = closestA,
+                            hitpointB = closestB,
+                            normalA   = normalA,
+                            normalB   = math.rotate(bInASpace.rot, normalBinB),
+                            //featureCodeA = PointRayBox.FeatureCodeFromBoxNormal(normalA),
+                            //featureCodeB = PointRayBox.FeatureCodeFromBoxNormal(normalBinB)
+                        };
+                        return result.distance <= maxDistance;
+                    }
+                    bestAxesMask.SetBits(bestIndex, false);
+                }
+            }
+
+            // The boxes are not penetrating. If edges have best separating axes, test those.
+            // Otherwise, it can be guaranteed we do not have an edge-edge pair.
+            bool foundClosestEdge = false;
+            result                = default;
+            bestAxesMask.SetBits(0, false, 6);
+            float bestEdgeDistance = float.MinValue;
+
+            //if (edgeMaxDistance + 1e-4f >= alignedMaxDistance)
+            while (bestAxesMask.Value != 0)
+            {
+                var bestEdgeIndex = bestAxesMask.CountTrailingZeros();
+                var axis          = math.normalize(new float3(axesX[bestEdgeIndex], axesY[bestEdgeIndex], axesZ[bestEdgeIndex]));
+                {
+                    var supportA            = math.chgsign(halfSizeA, axis);
+                    var maxA                = math.dot(supportA, axis);
+                    var minA                = -maxA;
+                    var axisInB             = math.rotate(aInBSpace.rot, axis);
+                    var supportBinB         = math.chgsign(halfSizeB, axisInB);
+                    var supportB            = math.rotate(bInASpace.rot, supportBinB);
+                    var offsetB             = math.dot(supportB, axis);
+                    var centerB             = math.dot(bInASpace.pos, axis);
+                    var maxB                = centerB + offsetB;
+                    var minB                = centerB - offsetB;
+                    var azPositiveDistances = minB - maxA;
+                    var azNegativeDistances = minA - maxB;
+                    axis                    = math.select(axis, -axis, azPositiveDistances < azNegativeDistances);
+                }
+                bool3 maskA                    = false;
+                bool3 maskB                    = false;
+                maskA[(bestEdgeIndex - 7) / 3] = true;
+                maskB[(bestEdgeIndex - 7) % 3] = true;
+                var aSigns                     = math.select(axis, 1f, maskA);
+                var aSupportP                  = math.chgsign(halfSizeA, aSigns);
+                var aSupportE                  = math.select(0f, -2f * halfSizeA, maskA);
+                var edgeAxisInB                = math.rotate(aInBSpace.rot, axis);
+                var bSigns                     = math.select(-edgeAxisInB, 1f, maskB);
+                var bSupportPinB               = math.chgsign(halfSizeB, bSigns);
+                var bSupportEinB               = math.select(0f, -2f * halfSizeB, maskB);
+                var bSupportP                  = math.transform(bInASpace, bSupportPinB);
+                var bSupportE                  = math.rotate(bInASpace, bSupportEinB);
+
+                // Look for the ordinate of the axis closest to zero. Flipping that should give us the next best support.
+                var absAxis            = math.abs(axis);
+                var aFlipMask          = absAxis == math.cmin(math.select(absAxis, float.MaxValue, maskA));
+                var aAlternateSupportP = math.select(aSupportP, -aSupportP, aFlipMask);
+
+                var absAxisInB         = math.abs(edgeAxisInB);
+                var bFlipMask          = absAxisInB == math.cmin(math.select(absAxisInB, float.MaxValue, maskB));
+                var bAlternateSupportP = math.transform(bInASpace, math.select(bSupportPinB, -bSupportPinB, bFlipMask));
+
+                var aStarts = new simdFloat3(aSupportP, aSupportP, aAlternateSupportP, aAlternateSupportP);
+                var bStarts = new simdFloat3(bSupportP, bAlternateSupportP, bSupportP, bAlternateSupportP);
+                var valid   = SegmentSegmentInvalidateEndpointsPointEdge(aStarts,
+                                                                         new simdFloat3(aSupportE),
+                                                                         bStarts,
+                                                                         new simdFloat3(bSupportE),
+                                                                         out var closestAs,
+                                                                         out var closestBs);
+                if (math.any(valid))
+                {
+                    var distSqs       = math.select(float.MaxValue, simd.distancesq(closestAs, closestBs), valid);
+                    var bestPairIndex = math.tzcnt(math.bitmask(distSqs == math.cmin(distSqs)));
+                    var distance      = math.sqrt(distSqs[bestPairIndex]);
+                    if (distance > bestEdgeDistance)
+                    {
+                        if ((bestPairIndex & 2) == 2)
+                            aSigns = math.select(aSigns, -aSigns, aFlipMask);
+                        if ((bestPairIndex & 1) == 1)
+                            bSigns   = math.select(bSigns, -bSigns, bFlipMask);
+                        var closestA = closestAs[bestPairIndex];
+                        var closestB = closestBs[bestPairIndex];
+
+                        var normalA    = math.select(math.chgsign(1f / math.sqrt(2f), aSigns), 0f, maskA);
+                        var normalBinB = math.select(math.chgsign(1f / math.sqrt(2f), bSigns), 0f, maskB);
+                        result         = new ColliderDistanceResultInternal
+                        {
+                            distance  = distance,
+                            hitpointA = closestA,
+                            hitpointB = closestB,
+                            normalA   = normalA,
+                            normalB   = math.rotate(bInASpace.rot, normalBinB),
+                            //featureCodeA = PointRayBox.FeatureCodeFromBoxNormal(normalA),
+                            //featureCodeB = PointRayBox.FeatureCodeFromBoxNormal(normalBinB)
+                        };
+                        foundClosestEdge = true;
+                        bestEdgeDistance = distance;
+                    }
+                }
+                bestAxesMask.SetBits(bestEdgeIndex, false);
+            }
+            if (foundClosestEdge)
+            {
+                // Our primary could fail due to being an endpoint. And our alternate might not be as good a point-face
+                // due to floating point error. So check that there isn't a face separation that is better than our distance.
+                var faceSeparations03 = new float4(separations[0], separations[1], separations[2], separations[3]);
+                var faceSeparations47 = new float4(separations[4], separations[5], separations[6], separations[7]);
+                var maxFaceSeparation = math.cmax(math.max(faceSeparations03, faceSeparations47));
+                if (maxFaceSeparation < 0f || result.distance < maxFaceSeparation)
+                {
+                    return result.distance <= maxDistance;
+                }
+            }
+
+            // Transform each box's vertices into the other's space, and then compare to the clamped.
+            for (int i = 0; i < 16; i++)
+            {
+                var rotX   = math.select(aInBSpace.rot.value.x, bInASpace.rot.value.x, i >= 8);
+                var rotY   = math.select(aInBSpace.rot.value.y, bInASpace.rot.value.y, i >= 8);
+                var rotZ   = math.select(aInBSpace.rot.value.z, bInASpace.rot.value.z, i >= 8);
+                var rotW   = math.select(aInBSpace.rot.value.w, bInASpace.rot.value.w, i >= 8);
+                var posX   = math.select(aInBSpace.pos.x, bInASpace.pos.x, i >= 8);
+                var posY   = math.select(aInBSpace.pos.y, bInASpace.pos.y, i >= 8);
+                var posZ   = math.select(aInBSpace.pos.z, bInASpace.pos.z, i >= 8);
+                var pointX = math.select(halfSizeA.x, halfSizeB.x, i >= 8);
+                var pointY = math.select(halfSizeA.y, halfSizeB.y, i >= 8);
+                var pointZ = math.select(halfSizeA.z, halfSizeB.z, i >= 8);
+                var halfX  = math.select(halfSizeB.x, halfSizeA.x, i >= 8);
+                var halfY  = math.select(halfSizeB.y, halfSizeA.y, i >= 8);
+                var halfZ  = math.select(halfSizeB.z, halfSizeA.z, i >= 8);
+
+                pointX = math.select(pointX, -pointX, (i & 1) != 0);
+                pointY = math.select(pointY, -pointY, (i & 2) != 0);
+                pointZ = math.select(pointZ, -pointZ, (i & 4) != 0);
+
+                // Transform point
+                var tx                = 2f * (rotY * pointZ - rotZ * pointY);
+                var ty                = 2f * (rotZ * pointX - rotX * pointZ);
+                var tz                = 2f * (rotX * pointY - rotY * pointX);
+                var transformedPointX = posX + pointX + rotW * tx + (rotY * tz - rotZ * ty);
+                var transformedPointY = posY + pointY + rotW * ty + (rotZ * tx - rotX * tz);
+                var transformedPointZ = posZ + pointZ + rotW * tz + (rotX * ty - rotY * tx);
+
+                var diffX = transformedPointX - math.clamp(transformedPointX, -halfX, halfX);
+                var diffY = transformedPointY - math.clamp(transformedPointY, -halfY, halfY);
+                var diffZ = transformedPointZ - math.clamp(transformedPointZ, -halfZ, halfZ);
+
+                var separation = diffX * diffX + diffY * diffY + diffZ * diffZ;
+                separations[i] = separation;
+            }
+            int bestVertexIndex = 0;
+            {
+                Span<int> indices = stackalloc int[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    if (separations[i] <= separations[i + 8])
+                    {
+                        indices[i] = i;
+                    }
+                    else
+                    {
+                        indices[i]     = i + 8;
+                        separations[i] = separations[i + 8];
+                    }
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    if (separations[i] <= separations[i + 4])
+                    {
+                        indices[i] = indices[i];
+                    }
+                    else
+                    {
+                        indices[i]     = indices[i + 4];
+                        separations[i] = separations[i + 4];
+                    }
+                }
+                for (int i = 0; i < 2; i++)
+                {
+                    if (separations[i] <= separations[i + 2])
+                    {
+                        indices[i] = indices[i];
+                    }
+                    else
+                    {
+                        indices[i]     = indices[i + 2];
+                        separations[i] = separations[i + 2];
+                    }
+                }
+                if (separations[0] <= separations[1])
+                {
+                    bestSeparation  = separations[0];
+                    bestVertexIndex = indices[0];
+                }
+                else
+                {
+                    bestSeparation  = separations[1];
+                    bestVertexIndex = indices[1];
+                }
+            }
+
+            if (foundClosestEdge && bestSeparation > result.distance * result.distance)
+            {
+                // Edges were better.
+                return result.distance <= maxDistance;
+            }
+            if (bestSeparation > maxDistance * maxDistance)
+            {
+                return false;
+            }
+            // At this point, we know we have a good point-box pair. Now we can generate the result.
+            result.distance = math.sqrt(bestSeparation);
+            if (bestVertexIndex < 8)
+            {
+                var hitpointA     = math.select(halfSizeA, -halfSizeA, (new int3(1, 2, 4) & bestVertexIndex) != 0);
+                var hitpointAinB  = math.transform(aInBSpace, hitpointA);
+                var hitpointBinB  = math.clamp(hitpointAinB, -halfSizeB, halfSizeB);
+                var hitBInsideBox = halfSizeB - math.abs(hitpointBinB);
+                // Sometimes due to floating point error, we actually have overlap here. So we need to push the hitpoint out to the surface.
+                // First, try to correct very tiny floating point errors, so that we catch edges.
+                var isVeryTinyError = hitBInsideBox < 1e-5f;
+                hitpointBinB        = math.select(hitpointBinB, math.chgsign(halfSizeB, hitpointBinB), isVeryTinyError);
+                hitBInsideBox       = halfSizeB - math.abs(hitpointBinB);
+                if (math.all(hitBInsideBox > 0f))
+                {
+                    // The error is a little bigger. Pick the closest axis and push out to the face.
+                    var boostAxis            = math.tzcnt(math.bitmask(new bool4(hitBInsideBox == math.cmin(hitBInsideBox), false)));
+                    var boostAmount          = hitBInsideBox[boostAxis];
+                    result.distance         -= boostAmount;
+                    hitpointBinB[boostAxis]  = math.chgsign(halfSizeB[boostAxis], hitpointBinB[boostAxis]);
+                }
+                result.hitpointA    = hitpointA;
+                result.hitpointB    = math.transform(bInASpace, hitpointBinB);
+                result.featureCodeA = (ushort)bestVertexIndex;
+                result.normalA      = math.normalize(math.select(1f, -1f, (bestVertexIndex & new int3(1, 2, 4)) != 0));
+                result.normalB      = math.normalize(math.select(0f, math.chgsign(1f, hitpointBinB), hitpointBinB == math.chgsign(halfSizeB, hitpointBinB)));
+                //result.featureCodeB = PointRayBox.FeatureCodeFromBoxNormal(result.normalB);
+                result.normalB = math.rotate(bInASpace.rot, result.normalB);
+            }
+            else
+            {
+                var hitpointBinB  = math.select(halfSizeB, -halfSizeB, (new int3(1, 2, 4) & bestVertexIndex) != 0);
+                var hitpointB     = math.transform(bInASpace, hitpointBinB);
+                var hitpointA     = math.clamp(hitpointB, -halfSizeA, halfSizeA);
+                var hitAInsideBox = halfSizeA - math.abs(hitpointB);
+                // Sometimes due to floating point error, we actually have overlap here. So we need to push the hitpoint out to the surface.
+                // First, try to correct very tiny floating point errors, so that we catch edges.
+                var isVeryTinyError = hitAInsideBox < 1e-5f;
+                hitpointA           = math.select(hitpointA, math.chgsign(halfSizeA, hitpointA), isVeryTinyError);
+                hitAInsideBox       = halfSizeA - math.abs(hitpointA);
+                if (math.all(hitAInsideBox > 0f))
+                {
+                    // The error is a little bigger. Pick the closest axis and push out to the face.
+                    var boostAxis         = math.tzcnt(math.bitmask(new bool4(hitAInsideBox == math.cmin(hitAInsideBox), false)));
+                    var boostAmount       = hitAInsideBox[boostAxis];
+                    result.distance      -= boostAmount;
+                    hitpointA[boostAxis]  = math.chgsign(halfSizeA[boostAxis], hitpointA[boostAxis]);
+                }
+                result.hitpointA    = hitpointA;
+                result.hitpointB    = hitpointB;
+                result.featureCodeB = (ushort)bestVertexIndex;
+                result.normalB      = math.rotate(bInASpace.rot, math.normalize(math.select(1f, -1f, (bestVertexIndex & new int3(1, 2, 4)) != 0)));
+                result.normalA      = math.normalize(math.select(0f, math.chgsign(1f, hitpointA), hitpointA == math.chgsign(halfSizeA, hitpointA)));
+                //result.featureCodeA = PointRayBox.FeatureCodeFromBoxNormal(result.normalA);
+            }
+            return result.distance <= maxDistance;
         }
 
         static bool4 SegmentSegmentInvalidateEndpointsPointEdge(simdFloat3 pointA,
@@ -684,6 +1571,44 @@ namespace UnitTests
             closestBOut = pointB + fracB * edgeB;
 
             return fracA != 0f & fracA != 1f & fracB != 0f & fracB != 1f;
+        }
+
+        static void SegmentSegment(in simdFloat3 startSegmentA,
+                                   in simdFloat3 endSegmentA,
+                                   in simdFloat3 startSegmentB,
+                                   in simdFloat3 endSegmentB,
+                                   out simdFloat3 closestAOut,
+                                   out simdFloat3 closestBOut)
+        {
+            simdFloat3 edgeA = endSegmentA - startSegmentA;
+            simdFloat3 edgeB = endSegmentB - startSegmentB;
+            simdFloat3 diff  = startSegmentB - startSegmentA;
+
+            float4 r         = simd.dot(edgeA, edgeB);
+            float4 s1        = simd.dot(edgeA, diff);
+            float4 s2        = simd.dot(edgeB, diff);
+            float4 lengthASq = simd.lengthsq(edgeA);
+            float4 lengthBSq = simd.lengthsq(edgeB);
+
+            float4 invDenom, invLengthASq, invLengthBSq;
+            {
+                float4 denom = lengthASq * lengthBSq - r * r;
+                invDenom     = 1.0f / denom;
+                invLengthASq = 1.0f / lengthASq;
+                invLengthBSq = 1.0f / lengthBSq;
+            }
+
+            float4 fracA = (s1 * lengthBSq - s2 * r) * invDenom;
+            fracA        = math.clamp(fracA, 0.0f, 1.0f);
+
+            float4 fracB = fracA * (invLengthBSq * r) - invLengthBSq * s2;
+            fracB        = math.clamp(fracB, 0.0f, 1.0f);
+
+            fracA = fracB * invLengthASq * r + invLengthASq * s1;
+            fracA = math.clamp(fracA, 0.0f, 1.0f);
+
+            closestAOut = simd.select(startSegmentA + fracA * edgeA, endSegmentA, fracA == 1f);
+            closestBOut = simd.select(startSegmentB + fracB * edgeB, endSegmentB, fracB == 1f);
         }
 
         [Test]

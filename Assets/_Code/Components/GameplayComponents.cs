@@ -1,6 +1,7 @@
 ﻿using System;
 using Latios;
 using Latios.Psyshock;
+using Latios.Transforms;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -84,7 +85,7 @@ namespace Lsss
     [InternalBufferCapacity(8)]
     public struct ShipGunPoint : IBufferElementData
     {
-        public EntityWith<LocalToWorld> gun;
+        public EntityWith<WorldTransform> gun;
     }
 
     public struct ShipBulletPrefab : IComponentData
