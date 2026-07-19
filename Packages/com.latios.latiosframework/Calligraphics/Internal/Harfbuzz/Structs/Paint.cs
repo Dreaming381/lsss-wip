@@ -85,7 +85,7 @@ namespace Latios.Calligraphics.HarfBuzz
         // High-level convenience: sets svg_glyph/svg_font/svg_palette internally
         // then drives hb_font_paint_glyph_or_fail.
         // palette: CPAL palette index (pass 0 for default)
-        public bool PaintGlyph(Font font, uint glyphID, float penX, float penY, uint palette, ColorBGRA foreground)
+        public bool TryPaintGlyph(Font font, uint glyphID, float penX, float penY, uint palette, ColorBGRA foreground)
         => Harfbuzz.hb_raster_paint_glyph(ptr, font.ptr, glyphID, penX, penY, palette, foreground);
 
         /// <summary>

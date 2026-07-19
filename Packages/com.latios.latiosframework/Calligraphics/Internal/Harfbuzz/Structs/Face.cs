@@ -10,18 +10,18 @@ namespace Latios.Calligraphics.HarfBuzz
 
         //cache a couple of face meta data to avoid fetching them upon every face access
         public SDFOrientation sdfOrientation;
-        internal bool hasColor;
+        internal bool         hasColor;
         public uint GlyphCount => Harfbuzz.hb_face_get_glyph_count(ptr);
         public bool HasVarData => Harfbuzz.hb_ot_var_has_data(ptr);
         public uint AxisCount => Harfbuzz.hb_ot_var_get_axis_count(ptr);
-        public uint NamedInstanceCount => Harfbuzz.hb_ot_var_get_named_instance_count(ptr);        
+        public uint NamedInstanceCount => Harfbuzz.hb_ot_var_get_named_instance_count(ptr);
 
         public Face(Blob blob, int index)
         {
-            sdfOrientation= default;
-            hasColor = default;
-            ptr = Harfbuzz.hb_face_create(blob.ptr, (uint)index);
-            hasColor = HasCOLR() || HasColorBitmap();
+            sdfOrientation = default;
+            hasColor       = default;
+            ptr            = Harfbuzz.hb_face_create(blob.ptr, (uint)index);
+            hasColor       = HasCOLR() || HasColorBitmap();
             sdfOrientation = HasTrueTypeOutlines() ? SDFOrientation.TRUETYPE : SDFOrientation.POSTSCRIPT;
         }
         public uint UnitsPerEM
@@ -36,7 +36,7 @@ namespace Latios.Calligraphics.HarfBuzz
 
         public FixedString128Bytes GetName(NameID name_id, Language language)
         {
-            var result = new FixedString128Bytes();
+            var result   = new FixedString128Bytes();
             var textSize = (uint)result.Capacity;
             unsafe
             {
@@ -52,12 +52,12 @@ namespace Latios.Calligraphics.HarfBuzz
         }
         public NameID GetNamedInstancePostscriptNameID(int instanceIndex)
         {
-            return Harfbuzz.hb_ot_var_named_instance_get_subfamily_name_id(ptr, (uint)instanceIndex);
+            return Harfbuzz.hb_ot_var_named_instance_get_postscript_name_id(ptr, (uint)instanceIndex);
         }
 
         public void GetNamedInstanceDesignCoords(int instanceIndex, ref Span<float> coords, out uint coordLength)
         {
-            coordLength = (uint)coords.Length;            
+            coordLength    = (uint)coords.Length;
             uint axisCount = default;
             unsafe
             {
@@ -69,7 +69,7 @@ namespace Latios.Calligraphics.HarfBuzz
         }
         public void GetAxisInfos(int startOffset, int offset, ref Span<AxisInfo> axisInfos, out uint axisCount)
         {
-            axisCount = (uint)axisInfos.Length;
+            axisCount       = (uint)axisInfos.Length;
             uint axisCount2 = default;
             unsafe
             {
@@ -83,18 +83,18 @@ namespace Latios.Calligraphics.HarfBuzz
         public bool FindAxisInfo(AxisTag axisTag, out AxisInfo axisInfo)
         {
             return Harfbuzz.hb_ot_var_find_axis_info(ptr, axisTag, out axisInfo);
-        }        
+        }
 
         bool HasReferenceTable(uint HB_TAG)
         {
-            var blob = Harfbuzz.hb_face_reference_table(ptr, HB_TAG);
+            var blob        = Harfbuzz.hb_face_reference_table(ptr, HB_TAG);
             var tableLength = Harfbuzz.hb_blob_get_length(blob);
             Harfbuzz.hb_blob_destroy(blob);
             return tableLength > 0;
         }
         public bool HasColorBitmap()
         {
-            return HasReferenceTable(Harfbuzz.HB_TAG('C', 'B', 'D', 'T')) || 
+            return HasReferenceTable(Harfbuzz.HB_TAG('C', 'B', 'D', 'T')) ||
                    HasReferenceTable(Harfbuzz.HB_TAG('s', 'b', 'i', 'x'));
         }
         public bool HasSVG()
@@ -111,8 +111,8 @@ namespace Latios.Calligraphics.HarfBuzz
         }
         public bool HasPostScriptOutlines()
         {
-            return HasReferenceTable(Harfbuzz.HB_TAG('C', 'F', 'F', ' ')) || 
-                   HasReferenceTable(Harfbuzz.HB_TAG('C', 'F', 'F', '2')); 
+            return HasReferenceTable(Harfbuzz.HB_TAG('C', 'F', 'F', ' ')) ||
+                   HasReferenceTable(Harfbuzz.HB_TAG('C', 'F', 'F', '2'));
         }
         public bool IsImmutable() => Harfbuzz.hb_face_is_immutable(ptr);
         public void MakeImmutable()
@@ -125,3 +125,4 @@ namespace Latios.Calligraphics.HarfBuzz
         }
     }
 }
+

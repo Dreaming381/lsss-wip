@@ -44,8 +44,7 @@ namespace Latios.Calligraphics.Systems
         TextureAtlasArray<ushort>  m_sdf16Array;
         TextureAtlasArray<Color32> m_bitmapArray;
 
-        DrawDelegates  m_drawDelegates;
-        PaintDelegates m_paintDelegates;
+        DrawDelegates m_drawDelegates;
 
         // Shader bindings
         int _src;
@@ -101,8 +100,7 @@ namespace Latios.Calligraphics.Systems
             m_sdf16Array              = new TextureAtlasArray<ushort>(_tmdSdf16, kTextureDimension, initialAtlasArraySize, RenderTextureFormat.R16, false, true);
             m_bitmapArray             = new TextureAtlasArray<Color32>(_tmdBitmap, kTextureDimension, initialAtlasArraySize, RenderTextureFormat.ARGB32, true, false);  // Shader APIs will swizzle ARGB for us
 
-            m_drawDelegates  = new DrawDelegates(true);
-            m_paintDelegates = new PaintDelegates(true);
+            m_drawDelegates = new DrawDelegates(true);
 
             var atlas = new AtlasTable(Allocator.Persistent, kTextureDimension, kShelfAlignment);
             worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(atlas);
@@ -148,7 +146,6 @@ namespace Latios.Calligraphics.Systems
             m_bitmapArray.Dispose();
 
             m_drawDelegates.Dispose();
-            m_paintDelegates.Dispose();
         }
 
         public CollectState Collect(ref SystemState state)
@@ -278,7 +275,6 @@ namespace Latios.Calligraphics.Systems
                     fontTable                 = fontTable,
                     glyphEntryIDsToRasterize  = collected.glyphEntryIDsToRasterize.AsArray(),
                     glyphTable                = glyphTable,
-                    paintDelegates            = m_paintDelegates,
                     pixelUploadOffsetsInBytes = collected.pixelUploadOffsetsInBytes.AsArray(),
                     uploadBuffer              = uploadArray,
                     uploadMetaBuffer          = uploadMetaArray,
