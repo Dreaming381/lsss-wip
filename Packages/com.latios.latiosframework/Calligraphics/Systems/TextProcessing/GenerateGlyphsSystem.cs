@@ -41,7 +41,10 @@ namespace Latios.Calligraphics.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var fontTable  = latiosWorld.worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
+            var fontTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<FontTable>(true);
+            if (fontTable.faces.IsEmpty) // We only write to this on the main thread currently.
+                return;
+
             var glyphTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<GlyphTable>(false);
 
             int entityCount        = m_query.CalculateEntityCountWithoutFiltering();

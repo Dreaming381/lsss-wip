@@ -95,7 +95,7 @@ namespace Latios.Calligraphics.Systems
                 var characters  = calliString.GetEnumerator();
 
                 var fontLookupKeys = fontTable.fontLookupKeys;
-                var layoutConfig  = new LayoutConfig(in textBaseConfiguration);
+                var layoutConfig   = new LayoutConfig(in textBaseConfiguration);
 
                 XMLTag currentTag                   = default;
                 int    tagsCounter                  = 0;
@@ -112,8 +112,6 @@ namespace Latios.Calligraphics.Systems
                 bool                   isFirstLine                                     = true;
                 bool                   isLineStart                                     = true;
                 float                  currentLineHeight                               = 0f;
-                float                  ascentLineDelta                                 = 0;
-                float                  decentLineDelta                                 = 0;
                 float                  accumulatedVerticalOffset                       = 0f;
                 float                  maxLineAscender                                 = float.MinValue;
                 float                  maxLineDescender                                = float.MaxValue;
@@ -268,7 +266,6 @@ namespace Latios.Calligraphics.Systems
                     #endregion Handle Style Padding
 
                     var renderGlyph          = new RenderGlyph();
-                    renderGlyph.arrayIndex   = (uint)k;
                     renderGlyph.glyphEntryId = glyphID;
 
                     // Determine the position of the vertices of the Character or Sprite.
@@ -443,10 +440,10 @@ namespace Latios.Calligraphics.Systems
 
                     #region Check for Line Feed and Last Character
                     if (isLineStart)
-                        isLineStart   = false;
-                    currentLineHeight = (currentFont.fontExtents.ascender - currentFont.fontExtents.descender) * baseScale;
-                    ascentLineDelta   = maxLineAscender - currentFont.fontExtents.ascender * baseScale;
-                    decentLineDelta   = currentFont.fontExtents.descender * baseScale - maxLineDescender;
+                        isLineStart     = false;
+                    currentLineHeight   = (currentFont.fontExtents.ascender - currentFont.fontExtents.descender) * baseScale;
+                    var ascentLineDelta = maxLineAscender - currentFont.fontExtents.ascender * baseScale;
+                    var decentLineDelta = currentFont.fontExtents.descender * baseScale - maxLineDescender;
                     //if (currentRune.value == 10 || currentRune.value == 11 || currentRune.value == 0x03 || currentRune.value == 0x2028 ||
                     //    currentRune.value == 0x2029 || textConfiguration.m_characterCount == calliString.Length - 1)
                     if (currentRune.value == 10)

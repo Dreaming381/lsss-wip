@@ -164,7 +164,7 @@ namespace Latios.Calligraphics.Systems
             {
                 if (!threadRefCountChangeMap.IsCreated)
                     threadRefCountChangeMap = new UnsafeHashMap<uint, RefCountChangePtr>(1024, Allocator.Temp);
-
+                threadRefCountChangeMap.Clear();
                 var typeSet = new ComponentTypeSet(ComponentType.ReadWrite<ResidentRange>(), ComponentType.ReadWrite<PreviousRenderGlyph>());
                 ecb.RemoveComponent(unfilteredChunkIndex, chunk.GetNativeArray(entityHandle), in typeSet);
 
@@ -240,6 +240,7 @@ namespace Latios.Calligraphics.Systems
 
                 if (!threadRefCountChangeMap.IsCreated)
                     threadRefCountChangeMap = new UnsafeHashMap<uint, RefCountChangePtr>(1024, Allocator.Temp);
+                threadRefCountChangeMap.Clear();
 
                 refCountChangeBlocklist.BeginForEachIndex(unfilteredChunkIndex);
                 residentDeallocationBlocklist.BeginForEachIndex(unfilteredChunkIndex);
@@ -299,7 +300,7 @@ namespace Latios.Calligraphics.Systems
                         }
 
                         // Something changed. Figure out if we need to deallocate or just do an update.
-                        if (glyphs.Length != previousGlyphs.Length && residentRanges[i].count != 0)
+                        if (glyphs.Length != previousGlyphs.Length && residentRanges != null && residentRanges[i].count != 0)
                         {
                             // We need to deallocate.
                             residentDeallocationBlocklist.Write(residentRanges[i]);
@@ -307,7 +308,7 @@ namespace Latios.Calligraphics.Systems
                             residentRanges[i] = default;
                         }
                         // Reset the state, update ref counts, and copy previousGlyphs
-                        gpuStates[i].state = residentRanges[i].count != 0 ? GpuState.State.ResidentUncommitted : GpuState.State.Uncommitted;
+                        gpuStates[i].state = (residentRanges != null && residentRanges[i].count != 0) ? GpuState.State.ResidentUncommitted : GpuState.State.Uncommitted;
                         gpuStateMask[i]    = true;
                         UpdateRefCounts(previousGlyphs.Reinterpret<RenderGlyph>().AsNativeArray().AsReadOnlySpan(), -1);
                         UpdateRefCounts(glyphs.AsNativeArray().AsReadOnlySpan(),                                    1);
@@ -383,8 +384,7 @@ namespace Latios.Calligraphics.Systems
                 var count                  = refCountChangeBlocklistA.Count() + refCountChangeBlocklistB.Count();
                 var atlasRemovalCandidates = enableAtlasGC ? atlasTable.atlasRemovalCandidates : new NativeHashSet<uint>(count, Allocator.Temp);
 
-                //for (int streamSource = 0; streamSource < 3; streamSource++)  // bug?
-                for (int streamSource = 0; streamSource < 2; streamSource++)  // fix for bug?
+                for (int streamSource = 0; streamSource < 2; streamSource++)
                 {
                     ref var stream = ref refCountChangeBlocklistA;
                     if (streamSource == 1)
