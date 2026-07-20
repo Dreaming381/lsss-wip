@@ -5,6 +5,7 @@ using System.Reflection;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
 using Unity.Mathematics;
 
 namespace Latios.Unsafe.InternalSourceGen
@@ -30,7 +31,8 @@ namespace Latios.Unsafe.InternalSourceGen
 
             public ref T AsRef<T>() where T : unmanaged => ref *(T*)ptr;
 
-            public UnsafeApiPointer AsPtr() => new UnsafeApiPointer {
+            public UnsafeApiPointer AsPtr() => new UnsafeApiPointer
+            {
                 ptr = ptr
             };
 
@@ -492,6 +494,12 @@ namespace Latios.Unsafe.InternalSourceGen
         }
     }
 
+    internal struct VPtrImplAlias
+    {
+        public StaticAPI.VPtr                                       vptr;
+        public FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> functionPtr;
+    }
+
     static class VTable
     {
         struct Key : IEquatable<Key>
@@ -515,9 +523,16 @@ namespace Latios.Unsafe.InternalSourceGen
             }
         }
 
+        struct StableKey { }
+        struct StructToStableKey { }
+
         static readonly SharedStatic<UnsafeHashMap<Key, FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> > > s_lookup = SharedStatic<UnsafeHashMap<Key,
                                                                                                                                                        FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> > >.
                                                                                                                             GetOrCreate<Key>();
+        static readonly SharedStatic<UnsafeHashMap<Key, FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> > > s_stableLookup = SharedStatic<UnsafeHashMap<Key,
+                                                                                                                                                             FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> > >.
+                                                                                                                                  GetOrCreate<StableKey>();
+        static readonly SharedStatic<UnsafeHashMap<long, long> > s_structToStableLookup = SharedStatic<UnsafeHashMap<long, long> >.GetOrCreate<StructToStableKey>();
 
         public static void Add<TInterface, TStruct>(FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> functionPtr) where TStruct : unmanaged,
         TInterface where TInterface : IVInterface
@@ -528,6 +543,10 @@ namespace Latios.Unsafe.InternalSourceGen
                 structHash    = BurstRuntime.GetHashCode64<TStruct>()
             };
             s_lookup.Data.Add(key, functionPtr);
+            var stableHash = math.aslong(TypeHash.CalculateStableTypeHash(typeof(TStruct)));
+            s_structToStableLookup.Data.Add(key.structHash, stableHash);
+            key.structHash = stableHash;
+            s_stableLookup.Data.Add(key, functionPtr);
         }
 
         public static bool TryGet<TInterface, TStruct>(out FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> functionPtr) where TStruct : unmanaged,
@@ -551,14 +570,34 @@ namespace Latios.Unsafe.InternalSourceGen
             return s_lookup.Data.TryGetValue(key, out functionPtr);
         }
 
+        public static bool TryGetStable<TInterface>(long stableHash, out FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> functionPtr) where TInterface : IVInterface
+        {
+            var key = new Key
+            {
+                interfaceHash = BurstRuntime.GetHashCode64<TInterface>(),
+                structHash    = stableHash
+            };
+            return s_stableLookup.Data.TryGetValue(key, out functionPtr);
+        }
+
+        public static bool TryGetStableHashFor<TStruct>(out long stableHash) where TStruct : unmanaged, IVInterface
+        {
+            var key = BurstRuntime.GetHashCode64<TStruct>();
+            return s_structToStableLookup.Data.TryGetValue(key, out stableHash);
+        }
+
         public static void InitializeStatics()
         {
-            s_lookup.Data = new UnsafeHashMap<Key, FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> >(1024, Allocator.Persistent);
+            s_lookup.Data               = new UnsafeHashMap<Key, FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> >(1024, Allocator.Persistent);
+            s_stableLookup.Data         = new UnsafeHashMap<Key, FunctionPointer<StaticAPI.BurstDispatchVptrDelegate> >(1024, Allocator.Persistent);
+            s_structToStableLookup.Data = new UnsafeHashMap<long, long>(1024, Allocator.Persistent);
         }
 
         public static void DisposeStatics()
         {
             s_lookup.Data.Dispose();
+            s_stableLookup.Data.Dispose();
+            s_structToStableLookup.Data.Dispose();
         }
     }
 

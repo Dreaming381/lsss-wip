@@ -30,6 +30,8 @@ namespace Latios.Calligraphics.Systems
             public uint lastSystemVersion;
 
             UnsafeHashSet<GlyphTable.Key> chunkMissingGlyphsSet;
+            UnsafeText                    cleanedString;
+            UnsafeList<XMLTag>            xmlTags;
 
             [NativeSetThreadIndex]
             int threadIndex;
@@ -41,8 +43,13 @@ namespace Latios.Calligraphics.Systems
                     return;
 
                 if (!chunkMissingGlyphsSet.IsCreated)
+                {
                     chunkMissingGlyphsSet = new UnsafeHashSet<GlyphTable.Key>(128, Allocator.Temp);
+                    cleanedString         = new UnsafeText(1024, Allocator.Temp);
+                    xmlTags               = new UnsafeList<XMLTag>(64, Allocator.Temp);
+                }
                 chunkMissingGlyphsSet.Clear();
+                cleanedString.Clear();
 
                 var firstEntityIndex = firstEntityIndexInChunk[unfilteredChunkIndex];
                 missingGlyphsStream.BeginForEachIndex(unfilteredChunkIndex);
@@ -58,9 +65,8 @@ namespace Latios.Calligraphics.Systems
                 //var shaperList = HB.hb_shape_list_shapers();
                 //var shapePlanCache = new NativeHashMap<FontLookupKey, ShapePlan>(16, Allocator.Temp);
 
-                var          cleanedString = new NativeText(1024, Allocator.Temp);
-                LayoutConfig layoutConfig  = default;
-                FontConfig   fontConfig    = default;
+                LayoutConfig layoutConfig = default;
+                FontConfig   fontConfig   = default;
 
                 for (int indexInChunk = 0; indexInChunk < chunk.Count; indexInChunk++)
                 {
@@ -68,7 +74,7 @@ namespace Latios.Calligraphics.Systems
                     glyphOTFStream.BeginForEachIndex(entityIndex);
 
                     var xmlTagCount = xmlTagStream.BeginForEachIndex(entityIndex);
-                    var xmlTags     = new NativeArray<XMLTag>(xmlTagCount, Allocator.Temp);
+                    xmlTags.Resize(xmlTagCount);
                     for (int i = 0; i < xmlTagCount; i++)
                         xmlTags[i] = xmlTagStream.Read<XMLTag>();
                     xmlTagStream.EndForEachIndex();
@@ -86,7 +92,7 @@ namespace Latios.Calligraphics.Systems
                     if (xmlTagStream.Count() == 0)
                         ShapeNoRichText(calliString,
                                         ref layoutConfig,
-                                        cleanedString,
+                                        ref cleanedString,
                                         ref fontConfig,
                                         ref fontTable,
                                         ref openTypeFeatures,
@@ -97,7 +103,7 @@ namespace Latios.Calligraphics.Systems
                     else
                         ShapeRichText(calliString,
                                       ref layoutConfig,
-                                      cleanedString,
+                                      ref cleanedString,
                                       ref fontConfig,
                                       ref fontTable,
                                       ref openTypeFeatures,
@@ -115,7 +121,7 @@ namespace Latios.Calligraphics.Systems
                 buffer.Dispose();
             }
 
-            void AppendAndConvertCase(NativeText cleanedString, FontStyles fontStyles, ref Unicode.Rune currentRune)
+            void AppendAndConvertCase(ref UnsafeText cleanedString, FontStyles fontStyles, ref Unicode.Rune currentRune)
             {
                 if ((fontStyles & FontStyles.UpperCase) == FontStyles.UpperCase)
                     cleanedString.Append(currentRune.ToUpper());
@@ -126,7 +132,7 @@ namespace Latios.Calligraphics.Systems
             }
             void ShapeNoRichText(CalliString calliString,
                                  ref LayoutConfig layoutConfig,
-                                 NativeText cleanedString,
+                                 ref UnsafeText cleanedString,
                                  ref FontConfig fontConfig,
                                  ref FontTable fontTable,
                                  ref OpenTypeFeatureConfig openTypeFeatures,
@@ -140,11 +146,11 @@ namespace Latios.Calligraphics.Systems
                 while (rawCharacters.MoveNext())
                 {
                     var currentRune = rawCharacters.Current;
-                    AppendAndConvertCase(cleanedString, layoutConfig.m_fontStyles, ref currentRune);
+                    AppendAndConvertCase(ref cleanedString, layoutConfig.m_fontStyles, ref currentRune);
                 }
                 openTypeFeatures.SetGlobalFeatures(textBaseConfiguration, (uint)cleanedString.Length);
                 Shape(buffer,
-                      cleanedString,
+                      ref cleanedString,
                       0,
                       cleanedString.Length,
                       ref language,
@@ -158,7 +164,7 @@ namespace Latios.Calligraphics.Systems
 
             void ShapeRichText(CalliString calliString,
                                ref LayoutConfig layoutConfig,
-                               NativeText cleanedString,
+                               ref UnsafeText cleanedString,
                                ref FontConfig fontConfig,
                                ref FontTable fontTable,
                                ref OpenTypeFeatureConfig openTypeFeatures,
@@ -166,7 +172,7 @@ namespace Latios.Calligraphics.Systems
                                ref Language language,
                                ref Buffer buffer,
                                ref NativeStream.Writer glyphOTFStream,
-                               ref NativeArray<XMLTag>   xmlTags)
+                               ref UnsafeList<XMLTag>    xmlTags)
             {
                 //text has richtext tags. Search segments where font, language, script and direction does does not change (To-Do: use ICU for that),
                 //apply opentype features requested via richtext tags, and shape
@@ -194,7 +200,7 @@ namespace Latios.Calligraphics.Systems
                     }
                     if (!keepGoing)
                         continue;
-                    AppendAndConvertCase(cleanedString, layoutConfig.m_fontStyles, ref currentRune);
+                    AppendAndConvertCase(ref cleanedString, layoutConfig.m_fontStyles, ref currentRune);
                 }
 
                 var richTextStartID = 0;
@@ -218,7 +224,7 @@ namespace Latios.Calligraphics.Systems
                     var cleanedSegmentLength = cleanedEnd - cleanedStart;
                     if(cleanedSegmentLength > 0 )
                         Shape(buffer,
-                              cleanedString,
+                              ref cleanedString,
                               cleanedStart,
                               cleanedSegmentLength,
                               ref language,
@@ -237,7 +243,7 @@ namespace Latios.Calligraphics.Systems
             }
 
             void Shape(Buffer buffer,
-                       NativeText text,
+                       ref UnsafeText text,
                        int startIndex,
                        int length,
                        ref Language language,
