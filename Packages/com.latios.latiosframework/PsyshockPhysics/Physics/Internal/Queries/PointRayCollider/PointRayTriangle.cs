@@ -8,17 +8,19 @@ namespace Latios.Psyshock
     {
         public static bool AreOverlapping(float3 point, in TriangleCollider triangle, in RigidTransform triangleTransform)
         {
-            return WithinDistance(point, in triangle, in triangleTransform, 0f);
+            var pointInTriangleSpace = math.InverseTransformFast(in triangleTransform, point);
+            return PointTriangleOverlapping(pointInTriangleSpace, in triangle);
         }
 
         public static bool WithinDistance(float3 point, in TriangleCollider triangle, in RigidTransform triangleTransform, float maxDistance)
         {
-            return DistanceBetween(point, in triangle, in triangleTransform, maxDistance, out _);
+            var pointInTriangleSpace = math.InverseTransformFast(in triangleTransform, point);
+            return PointTriangleWithin(pointInTriangleSpace, in triangle, maxDistance);
         }
 
         public static bool DistanceBetween(float3 point, in TriangleCollider triangle, in RigidTransform triangleTransform, float maxDistance, out PointDistanceResult result)
         {
-            var  pointInTriangleSpace = math.transform(math.inverse(triangleTransform), point);
+            var  pointInTriangleSpace = math.InverseTransformFast(in triangleTransform, point);
             bool hit                  = PointTriangleDistance(pointInTriangleSpace, in triangle, maxDistance, out var localResult);
             result                    = new PointDistanceResult
             {
@@ -43,46 +45,151 @@ namespace Latios.Psyshock
             return hit;
         }
 
-        // Distance is unsigned, triangle is "double-sided"
-        internal static bool PointTriangleDistance(float3 point, in TriangleCollider triangle, float maxDistance, out PointDistanceResultInternal result)
+        internal static bool PointTriangleOverlapping(float3 point, in TriangleCollider triangle)
         {
-            float3 ab = triangle.pointB - triangle.pointA;
-            float3 bc = triangle.pointC - triangle.pointB;
-            float3 ca = triangle.pointA - triangle.pointC;
-            float3 ap = point - triangle.pointA;
-            float3 bp = point - triangle.pointB;
-            float3 cp = point - triangle.pointC;
+            if (point.Equals(triangle.pointA) || point.Equals(triangle.pointB) || point.Equals(triangle.pointC))
+                return true;
+            var planeNormal = math.normalizesafe(math.cross(triangle.pointB - triangle.pointA, triangle.pointA - triangle.pointC));
+            if (!planeNormal.Equals(float3.zero))
+            {
+                return math.dot(point - triangle.pointA, planeNormal) == 0f;
+            }
+            // Triangle is degenerate. Find the two extreme points to do point-capsule.
+            var             abDistSq = math.distancesq(triangle.pointA, triangle.pointB);
+            var             bcDistSq = math.distancesq(triangle.pointB, triangle.pointC);
+            var             caDistSq = math.distancesq(triangle.pointC, triangle.pointA);
+            CapsuleCollider capsule;
+            if (abDistSq >= bcDistSq && abDistSq >= caDistSq)
+                capsule = new CapsuleCollider(triangle.pointA, triangle.pointB, 0f);
+            else if (bcDistSq >= abDistSq && bcDistSq >= caDistSq)
+                capsule = new CapsuleCollider(triangle.pointB, triangle.pointC, 0f);
+            else
+                capsule = new CapsuleCollider(triangle.pointC, triangle.pointA, 0f);
+            return PointRayCapsule.PointCapsuleWithin(point, in capsule, 0f);
+        }
+
+        internal static bool PointTriangleWithin(float3 point, in TriangleCollider triangle, float maxDistance)
+        {
+            var vertices = triangle.AsSimdFloat3();
+            var edges    = vertices.bcaa - vertices;
+            var vp       = point - vertices;
 
             // project point onto plane
             // if counter-clockwise, normal faces "up"
-            float3 planeNormal    = math.normalizesafe(math.cross(ab, ca));
-            float  projectionDot  = math.dot(planeNormal, point - triangle.pointA);
-            float3 projectedPoint = point - projectionDot * planeNormal;
-
+            var planeNormal = math.normalizesafe(math.cross(edges.a, edges.c));
             // calculate edge planes aligned with triangle normal without the normalization (since it isn't required)
             // normals face "inward"
-            float3 abUnnormal = math.cross(ab, planeNormal);
-            float3 bcUnnormal = math.cross(bc, planeNormal);
-            float3 caUnnormal = math.cross(ca, planeNormal);
-
-            float3 dots = new float3(math.dot(abUnnormal, ap),
-                                     math.dot(bcUnnormal, bp),
-                                     math.dot(caUnnormal, cp));
-            int region = math.bitmask(new bool4(dots <= 0f, false));
+            var edgeUnnormals = simd.cross(edges, planeNormal);
+            var dots          = simd.dot(edgeUnnormals, vp);
+            int region        = math.bitmask(new bool4((dots < 0f).xyz, false));
             switch (region)
             {
                 case 0:
                 {
                     // all inside, hit plane
-                    result.hitpoint    = projectedPoint;
-                    result.distance    = math.abs(projectionDot);
-                    result.normal      = math.select(planeNormal, -planeNormal, math.dot(point - result.hitpoint, planeNormal) < 0);
-                    result.featureCode = 0x8000;
+                    var projectionDot = math.dot(planeNormal, point - triangle.pointA);
+                    return math.abs(projectionDot) <= maxDistance;
+                }
+                case 1:
+                {
+                    // outside ab plane
+                    var   ab         = edges.a;
+                    var   ap         = vp.a;
+                    float abLengthSq = math.lengthsq(ab);
+                    float dot        = math.clamp(math.dot(ap, ab), 0f, abLengthSq);
+                    var   hitpoint   = triangle.pointA + ab * dot / abLengthSq;
+                    return math.distancesq(point, hitpoint) <= maxDistance * maxDistance;
+                }
+                case 2:
+                {
+                    // outside bc plane
+                    var   bc         = edges.b;
+                    var   bp         = vp.b;
+                    float bcLengthSq = math.lengthsq(bc);
+                    float dot        = math.clamp(math.dot(bp, bc), 0f, bcLengthSq);
+                    var   hitpoint   = triangle.pointB + bc * dot / bcLengthSq;
+                    return math.distancesq(point, hitpoint) <= maxDistance * maxDistance;
+                }
+                case 3:
+                {
+                    // outside ab and bc so closest to point b
+                    return math.distancesq(point, triangle.pointB) <= maxDistance * maxDistance;
+                }
+                case 4:
+                {
+                    // outside ca plane
+                    var   ca         = edges.c;
+                    var   cp         = vp.c;
+                    float caLengthSq = math.lengthsq(ca);
+                    float dot        = math.clamp(math.dot(cp, ca), 0f, caLengthSq);
+                    var   hitpoint   = triangle.pointC + ca * dot / caLengthSq;
+                    return math.distancesq(point, hitpoint) <= maxDistance * maxDistance;
+                }
+                case 5:
+                {
+                    // outside ab and ca so closest to point a
+                    return math.distancesq(point, triangle.pointA) <= maxDistance * maxDistance;
+                }
+                case 6:
+                {
+                    // outside bc and ca so closest to point c
+                    return math.distancesq(point, triangle.pointC) <= maxDistance * maxDistance;
+                }
+                case 7:
+                {
+                    // on all three edges at once because the cross product was 0
+                    // Check distance to each edge and check if any are within the threshold.
+                    var dot            = simd.dot(vp, edges);
+                    var lengthSq       = simd.lengthsq(edges);
+                    var factor         = dot / lengthSq;
+                    factor             = math.select(0.5f, factor, math.isfinite(factor));
+                    var pointOnSegment = simd.select(vertices + edges * factor, vertices.bcaa, dot == lengthSq);
+                    return math.any(simd.distancesq(point, pointOnSegment) <= maxDistance * maxDistance);
+                }
+                default:
+                {
+                    //How the heck did we get here?
+                    //throw new InvalidOperationException();
+                    return false;
+                }
+            }
+        }
+
+        // Distance is unsigned, triangle is "double-sided"
+        internal static bool PointTriangleDistance(float3 point, in TriangleCollider triangle, float maxDistance, out PointDistanceResultInternal result)
+        {
+            var vertices = triangle.AsSimdFloat3();
+            var edges    = vertices.bcaa - vertices;
+            var vp       = point - vertices;
+
+            // project point onto plane
+            // if counter-clockwise, normal faces "up"
+            var planeNormal = math.normalizesafe(math.cross(edges.a, edges.c));
+            // calculate edge planes aligned with triangle normal without the normalization (since it isn't required)
+            // normals face "inward"
+            var edgeUnnormals = simd.cross(edges, planeNormal);
+            var dots          = simd.dot(edgeUnnormals, vp);
+            int region        = math.bitmask(new bool4((dots < 0f).xyz, false));
+
+            switch (region)
+            {
+                case 0:
+                {
+                    // all inside, hit plane
+                    float  projectionDot  = math.dot(planeNormal, point - triangle.pointA);
+                    float3 projectedPoint = point - projectionDot * planeNormal;
+                    result.hitpoint       = projectedPoint;
+                    result.distance       = math.abs(projectionDot);
+                    result.normal         = math.select(planeNormal, -planeNormal, math.dot(point - result.hitpoint, planeNormal) < 0);
+                    result.featureCode    = 0x8000;
                     break;
                 }
                 case 1:
                 {
                     // outside ab plane
+                    var   ab           = edges.a;
+                    var   ap           = vp.a;
+                    var   abUnnormal   = edgeUnnormals.a;
                     float abLengthSq   = math.lengthsq(ab);
                     float dot          = math.clamp(math.dot(ap, ab), 0f, abLengthSq);
                     result.hitpoint    = triangle.pointA + ab * dot / abLengthSq;
@@ -94,6 +201,9 @@ namespace Latios.Psyshock
                 case 2:
                 {
                     // outside bc plane
+                    var   bc           = edges.b;
+                    var   bp           = vp.b;
+                    var   bcUnnormal   = edgeUnnormals.b;
                     float bcLengthSq   = math.lengthsq(bc);
                     float dot          = math.clamp(math.dot(bp, bc), 0f, bcLengthSq);
                     result.hitpoint    = triangle.pointB + bc * dot / bcLengthSq;
@@ -105,15 +215,19 @@ namespace Latios.Psyshock
                 case 3:
                 {
                     // outside ab and bc so closest to point b
+                    var normals        = simd.normalize(edgeUnnormals);
                     result.hitpoint    = triangle.pointB;
                     result.distance    = math.distance(point, triangle.pointB);
-                    result.normal      = math.normalize(-math.normalize(abUnnormal) - math.normalize(bcUnnormal));
+                    result.normal      = math.normalize(-normals.a - normals.b);
                     result.featureCode = 1;
                     break;
                 }
                 case 4:
                 {
                     // outside ca plane
+                    var   ca           = edges.c;
+                    var   cp           = vp.c;
+                    var   caUnnormal   = edgeUnnormals.c;
                     float caLengthSq   = math.lengthsq(ca);
                     float dot          = math.clamp(math.dot(cp, ca), 0f, caLengthSq);
                     result.hitpoint    = triangle.pointC + ca * dot / caLengthSq;
@@ -125,18 +239,20 @@ namespace Latios.Psyshock
                 case 5:
                 {
                     // outside ab and ca so closest to point a
+                    var normals        = simd.normalize(edgeUnnormals);
                     result.hitpoint    = triangle.pointA;
                     result.distance    = math.distance(point, triangle.pointA);
-                    result.normal      = math.normalize(-math.normalize(abUnnormal) - math.normalize(caUnnormal));
+                    result.normal      = math.normalize(-normals.a - normals.c);
                     result.featureCode = 0;
                     break;
                 }
                 case 6:
                 {
                     // outside bc and ca so closest to point c
+                    var normals        = simd.normalize(edgeUnnormals);
                     result.hitpoint    = triangle.pointC;
                     result.distance    = math.distance(point, triangle.pointC);
-                    result.normal      = math.normalize(-math.normalize(caUnnormal) - math.normalize(bcUnnormal));
+                    result.normal      = math.normalize(-normals.c - normals.b);
                     result.featureCode = 2;
                     break;
                 }
@@ -150,7 +266,7 @@ namespace Latios.Psyshock
                     resultBC.featureCode++;
                     CapsuleCollider capCA  = new CapsuleCollider(triangle.pointC, triangle.pointA, 0f);
                     bool            hitCA  = PointRayCapsule.PointCapsuleDistance(point, in capCA, maxDistance, out var resultCA);
-                    resultCA.featureCode  += (ushort)math.select(2, -1, (resultCA.featureCode & 0xff) == 1);
+                    resultCA.featureCode  += (ushort)math.select(2, -1, resultCA.featureCode == 1);
                     if (!hitAB && !hitBC && !hitCA)
                     {
                         result = resultCA;
@@ -172,9 +288,9 @@ namespace Latios.Psyshock
                 {
                     //How the heck did we get here?
                     //throw new InvalidOperationException();
-                    result.hitpoint    = projectedPoint;
+                    result.hitpoint    = float3.zero;
                     result.distance    = 2f * maxDistance;
-                    result.normal      = new float3(0f, 1f, 0f);
+                    result.normal      = float3.zero;
                     result.featureCode = 0;
                     break;
                 }

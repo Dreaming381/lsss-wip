@@ -115,7 +115,8 @@ namespace Latios.Kinemation.Systems
             float cameraMultiplier = LodUtilities.CameraFactorFrom(in context.lodParameters, m_lodBias);
 
             var  mipmapParameters   = latiosWorld.worldBlackboardEntity.GetBuffer<MipMapCameraParameters>(false);
-            var  mipmapCameraFactor = LodUtilities.CameraMipMapFactorFrom(in context.lodParameters, m_aspectRatio);
+            var  aspectRatio        = context.viewType == UnityEngine.Rendering.BatchCullingViewType.Light ? 1f : m_aspectRatio;
+            var  mipmapCameraFactor = LodUtilities.CameraMipMapFactorFrom(in context.lodParameters, aspectRatio);
             bool add                = true;
             foreach (var cam in mipmapParameters)
             {
