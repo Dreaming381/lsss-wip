@@ -60,6 +60,8 @@ namespace Latios.InternalSourceGen
         #endregion
 
         #region ILatiosApi
+        public static LatiosWorldUnmanaged GetLatiosWorldUnmanaged(ref SystemState state) => state.GetLatiosWorldUnmanaged();
+
         public static T Create<T>(ref SystemState state) where T : unmanaged, ILatiosApiGettable
         {
             T result = default;

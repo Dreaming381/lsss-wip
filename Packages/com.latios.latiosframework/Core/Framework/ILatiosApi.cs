@@ -5,7 +5,6 @@ using Unity.Core;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Mathematics;
-using UnityEditorInternal;
 
 namespace Latios
 {

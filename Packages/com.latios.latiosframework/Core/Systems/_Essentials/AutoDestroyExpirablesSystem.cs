@@ -7,8 +7,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 // The strategy for this system is to use an Any query to find all entities
 // which should be kept alive, stored in a NativeParallelHashMap<ArchetypeChunk, v128>.
 // Then, using a job that ignores enabled states to get all the candidate chunks,
@@ -22,11 +20,10 @@ namespace Latios.Systems
     [UpdateInGroup(typeof(InitializationSystemGroup), OrderFirst = true)]
     [UpdateBefore(typeof(SyncPointPlaybackSystemDispatch))]
     [BurstCompile]
-    public unsafe partial struct AutoDestroyExpirablesSystem : ISystem
+    public unsafe partial struct AutoDestroyExpirablesSystem : ISystem, ILatiosApi
     {
-        private LatiosWorldUnmanaged m_latiosWorld;
-        private EntityQuery          m_withAnyEnabledQuery;
-        private EntityQuery          m_withAnyIgnoreComponentEnabledStatusQuery;
+        private EntityQuery m_withAnyEnabledQuery;
+        private EntityQuery m_withAnyIgnoreComponentEnabledStatusQuery;
 
         public void OnCreate(ref SystemState state)
         {
@@ -62,8 +59,9 @@ namespace Latios.Systems
         [BurstCompile]
         static void OnCreateBurst(ref SystemState state, AutoDestroyExpirablesSystem* thisPtr, ref NativeList<ComponentType> expirableTypes)
         {
-            thisPtr->m_latiosWorld = state.GetLatiosWorldUnmanaged();
-            thisPtr->m_latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal { });
+            thisPtr->OnCreateForLatios(ref state);
+            var api = (*thisPtr).GetApi(ref state);
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal { });
 
             var builder                    = new EntityQueryBuilder(Allocator.Temp);
             thisPtr->m_withAnyEnabledQuery = builder.WithAny(ref expirableTypes).Build(ref state);
@@ -79,15 +77,16 @@ namespace Latios.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api        = this.GetApi(ref state);
             var chunkCount = m_withAnyEnabledQuery.CalculateChunkCountWithoutFiltering();
             if (chunkCount == 0)
             {
-                m_latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal());
+                api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal());
                 return;
             }
 
             var chunkMasksMap           = new NativeParallelHashMap<ArchetypeChunk, v128>(chunkCount, state.WorldUpdateAllocator);
-            var destroyCommandBuffer    = m_latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var destroyCommandBuffer    = api.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
             var destroyedEntitiesStream = new NativeStream(chunkCount, state.WorldUpdateAllocator);
             var removedFromLegStream    = new NativeStream(chunkCount, state.WorldUpdateAllocator);
 
@@ -101,15 +100,15 @@ namespace Latios.Systems
             {
                 dcb                     = destroyCommandBuffer,
                 chunkMasksMap           = chunkMasksMap,
-                entityHandle            = GetEntityTypeHandle(),
-                legHandle               = GetBufferTypeHandle<LinkedEntityGroup>(false),
-                esil                    = GetEntityStorageInfoLookup(),
+                entityHandle            = api.GetEntityHandle(),
+                legHandle               = api.GetBufferHandle<LinkedEntityGroup>(false),
+                esil                    = api.GetEntityStorageInfoLookup(),
                 destroyedEntitiesStream = destroyedEntitiesStream.AsWriter(),
                 removedFromLegStream    = removedFromLegStream.AsWriter()
             };
             state.Dependency = destroyJob.ScheduleParallel(m_withAnyIgnoreComponentEnabledStatusQuery, buildDependency);
 
-            m_latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal
             {
                 destroyedEntitiesStream            = destroyedEntitiesStream,
                 removedFromLinkedEntityGroupStream = removedFromLegStream,
