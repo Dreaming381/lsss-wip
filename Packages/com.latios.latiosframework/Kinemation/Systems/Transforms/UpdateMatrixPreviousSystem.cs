@@ -8,8 +8,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
@@ -17,12 +15,13 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InitializeMatrixPreviousSystem : ISystem
+    public partial struct InitializeMatrixPreviousSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<PostProcessMatrix>(true).With<PreviousPostProcessMatrix>().IncludeDisabledEntities().Build();
             m_query.SetOrderVersionFilter();
         }
@@ -30,18 +29,15 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new UpdateMatricesJob
-            {
-                postProcessMatrixHandle         = GetComponentTypeHandle<PostProcessMatrix>(true),
-                previousPostProcessMatrixHandle = GetComponentTypeHandle<PreviousPostProcessMatrix>(false),
-            }.ScheduleParallel(m_query, state.Dependency);
+            var api           = this.GetApi(ref state);
+            state.Dependency = new UpdateMatricesJob().Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct UpdateMatricesJob : IJobChunk
+        partial struct UpdateMatricesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix> postProcessMatrixHandle;
-            public ComponentTypeHandle<PreviousPostProcessMatrix>    previousPostProcessMatrixHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<PostProcessMatrix> postProcessMatrixHandle;
+            [Inject] ComponentTypeHandle<PreviousPostProcessMatrix>    previousPostProcessMatrixHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -61,12 +57,13 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UpdateMatrixPreviousSystem : ISystem
+    public partial struct UpdateMatrixPreviousSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<PostProcessMatrix>(true).With<PreviousPostProcessMatrix>().IncludeDisabledEntities().Build();
             m_query.AddChangedVersionFilter(ComponentType.ReadOnly<PostProcessMatrix>());
         }
@@ -74,18 +71,15 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new UpdateMatricesJob
-            {
-                postProcessMatrixHandle         = GetComponentTypeHandle<PostProcessMatrix>(true),
-                previousPostProcessMatrixHandle = GetComponentTypeHandle<PreviousPostProcessMatrix>(false),
-            }.ScheduleParallel(m_query, state.Dependency);
+            var api           = this.GetApi(ref state);
+            state.Dependency = new UpdateMatricesJob().Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct UpdateMatricesJob : IJobChunk
+        partial struct UpdateMatricesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix> postProcessMatrixHandle;
-            public ComponentTypeHandle<PreviousPostProcessMatrix>    previousPostProcessMatrixHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<PostProcessMatrix> postProcessMatrixHandle;
+            [Inject] ComponentTypeHandle<PreviousPostProcessMatrix>    previousPostProcessMatrixHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -99,7 +93,6 @@ namespace Latios.Kinemation.Systems
 
 #elif LATIOS_TRANSFORMS_UNITY
 using Latios.Transforms.Systems;
-using static Unity.Entities.SystemAPI;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -116,31 +109,31 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UpdateMatrixPreviousSystem : ISystem
+    public partial struct UpdateMatrixPreviousSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<LocalToWorld>(true).With<BuiltinMaterialPropertyUnity_MatrixPreviousM>().IncludeDisabledEntities().Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             state.Dependency = new UpdateMatricesJob
             {
-                postProcessMatrixHandle         = GetComponentTypeHandle<LocalToWorld>(true),
-                previousPostProcessMatrixHandle = GetComponentTypeHandle<BuiltinMaterialPropertyUnity_MatrixPreviousM>(false),
-                lastSystemVersion               = state.LastSystemVersion
-            }.ScheduleParallel(m_query, state.Dependency);
+                lastSystemVersion = state.LastSystemVersion
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct UpdateMatricesJob : IJobChunk
+        partial struct UpdateMatricesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<LocalToWorld> postProcessMatrixHandle;
-            public ComponentTypeHandle<BuiltinMaterialPropertyUnity_MatrixPreviousM> previousPostProcessMatrixHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LocalToWorld> postProcessMatrixHandle;
+            [Inject] ComponentTypeHandle<BuiltinMaterialPropertyUnity_MatrixPreviousM> previousPostProcessMatrixHandle;
             public uint lastSystemVersion;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)

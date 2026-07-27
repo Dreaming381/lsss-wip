@@ -668,7 +668,7 @@ namespace Latios.Unsafe.InternalSourceGen
 
         public static void AddAssembly(Assembly assembly)
         {
-            if (!BootstrapTools.IsAssemblyReferencingSubstring(assembly, "Core"))
+            if (!BootstrapTools.IsAssemblyReferencingOtherAssembly(assembly, typeof(IVInterface).Assembly))
                 return;
 
             if (loadedAssemblies.Contains(assembly))

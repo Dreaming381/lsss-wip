@@ -100,12 +100,9 @@ namespace Latios.Systems
             {
                 dcb                     = destroyCommandBuffer,
                 chunkMasksMap           = chunkMasksMap,
-                entityHandle            = api.GetEntityHandle(),
-                legHandle               = api.GetBufferHandle<LinkedEntityGroup>(false),
-                esil                    = api.GetEntityStorageInfoLookup(),
                 destroyedEntitiesStream = destroyedEntitiesStream.AsWriter(),
                 removedFromLegStream    = removedFromLegStream.AsWriter()
-            };
+            }.Inject(api);
             state.Dependency = destroyJob.ScheduleParallel(m_withAnyIgnoreComponentEnabledStatusQuery, buildDependency);
 
             api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new AutoDestroyExpirationJournal
@@ -135,16 +132,16 @@ namespace Latios.Systems
         }
 
         [BurstCompile]
-        public struct DestroyJob : IJobChunk
+        public partial struct DestroyJob : IJobChunk, IInjectable
         {
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, v128> chunkMasksMap;
-            [ReadOnly] public EntityTypeHandle                            entityHandle;
-            [ReadOnly] public EntityStorageInfoLookup                     esil;
+            [ReadOnly, Inject] EntityTypeHandle                           entityHandle;
+            [ReadOnly, Inject] EntityStorageInfoLookup                    esil;
 
-            public BufferTypeHandle<LinkedEntityGroup> legHandle;
-            public DestroyCommandBuffer.ParallelWriter dcb;
-            public NativeStream.Writer                 destroyedEntitiesStream;
-            public NativeStream.Writer                 removedFromLegStream;
+            [Inject] BufferTypeHandle<LinkedEntityGroup> legHandle;
+            public DestroyCommandBuffer.ParallelWriter   dcb;
+            public NativeStream.Writer                   destroyedEntitiesStream;
+            public NativeStream.Writer                   removedFromLegStream;
 
             [BurstCompile]
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)

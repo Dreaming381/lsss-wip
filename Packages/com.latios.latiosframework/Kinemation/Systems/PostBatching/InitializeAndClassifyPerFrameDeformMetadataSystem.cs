@@ -4,50 +4,47 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InitializeAndClassifyPerFrameDeformMetadataSystem : ISystem
+    public partial struct InitializeAndClassifyPerFrameDeformMetadataSystem : ISystem, ILatiosApi
     {
-        EntityQuery          m_query;
-        LatiosWorldUnmanaged latiosWorld;
+        EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<ChunkHeader>(true).WithAnyEnabled<ChunkDeformPrefixSums>(true).WithAnyEnabled<ChunkCopyDeformTag>(true).Build();
+            var api = this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<ChunkHeader>(true).WithAnyEnabled<ChunkDeformPrefixSums>(true).WithAnyEnabled<ChunkCopyDeformTag>(true).Build();
 
-            latiosWorld.worldBlackboardEntity.AddComponent<MaxRequiredDeformData>();
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new DeformClassificationMap());
+            api.worldBlackboardEntity.AddComponent<MaxRequiredDeformData>();
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new DeformClassificationMap());
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            MaxRequiredDeformData maxes     = default;
+            var                    api   = this.GetApi(ref state);
+            MaxRequiredDeformData maxes = default;
             maxes.maxRequiredDeformVertices = 1;  // LegacyDotsDeformation treats index 0 as "no previous pose".
-            latiosWorld.worldBlackboardEntity.SetComponentData(maxes);
+            api.worldBlackboardEntity.SetComponentData(maxes);
 
             var map = new NativeParallelHashMap<ArchetypeChunk, DeformClassification>(m_query.CalculateEntityCountWithoutFiltering() * 2,
                                                                                       state.WorldUpdateAllocator);
 
-            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new DeformClassificationMap { deformClassificationMap = map });
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new DeformClassificationMap { deformClassificationMap = map });
 
             state.Dependency = new Job
             {
-                chunkHeaderHandle       = GetComponentTypeHandle<ChunkHeader>(true),
                 deformClassificationMap = map.AsParallelWriter(),
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader> chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader> chunkHeaderHandle;
 
             public NativeParallelHashMap<ArchetypeChunk, DeformClassification>.ParallelWriter deformClassificationMap;
 

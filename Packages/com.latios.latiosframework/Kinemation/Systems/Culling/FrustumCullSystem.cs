@@ -1,4 +1,5 @@
 using System;
+using Latios.Transforms;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -7,7 +8,6 @@ using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Profiling;
 using Unity.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -20,86 +20,57 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct FrustumCullSystem : ISystem
+    public partial struct FrustumCullSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_metaQuery;
-
-        FindChunksNeedingFrustumCullingJob m_findJob;
-        SingleSplitCullingJob              m_singleJob;
-        MultiSplitCullingJob               m_multiJob;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_metaQuery = state.Fluent().With<ChunkWorldRenderBounds>(true).With<ChunkHeader>(true).With<ChunkPerFrameCullingMask>(true)
                           .With<ChunkPerCameraCullingMask>(false).With<ChunkPerCameraCullingSplitsMask>(false).UseWriteGroups().Build();
-
-            m_findJob = new FindChunksNeedingFrustumCullingJob
-            {
-                perCameraCullingMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                chunkHeaderHandle          = state.GetComponentTypeHandle<ChunkHeader>(true)
-            };
-
-            m_singleJob = new SingleSplitCullingJob
-            {
-                chunkWorldRenderBoundsHandle = state.GetComponentTypeHandle<ChunkWorldRenderBounds>(true),
-                perCameraCullingMaskHandle   = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
-                worldRenderBoundsHandle      = state.GetComponentTypeHandle<WorldRenderBounds>(true)
-            };
-
-            m_multiJob = new MultiSplitCullingJob
-            {
-                chunkWorldRenderBoundsHandle     = m_singleJob.chunkWorldRenderBoundsHandle,
-                perCameraCullingMaskHandle       = m_singleJob.perCameraCullingMaskHandle,
-                perCameraCullingSplitsMaskHandle = state.GetComponentTypeHandle<ChunkPerCameraCullingSplitsMask>(false),
-                worldRenderBoundsHandle          = m_singleJob.worldRenderBoundsHandle
-            };
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var cullingContext = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
-            var cullingPlanes  = latiosWorld.worldBlackboardEntity.GetBuffer<CullingPlane>(true).Reinterpret<Plane>().AsNativeArray();
-            var cullingSplits  = latiosWorld.worldBlackboardEntity.GetBuffer<CullingSplitElement>(true).Reinterpret<CullingSplit>().AsNativeArray();
+            var api            = this.GetApi(ref state);
+            var cullingContext = api.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var cullingPlanes  = api.worldBlackboardEntity.GetBuffer<CullingPlane>(true).Reinterpret<Plane>().AsNativeArray();
+            var cullingSplits  = api.worldBlackboardEntity.GetBuffer<CullingSplitElement>(true).Reinterpret<CullingSplit>().AsNativeArray();
             var splits         = new CullingSplits(ref cullingContext, cullingPlanes, cullingSplits, QualitySettings.shadowProjection, state.WorldUpdateAllocator);
 
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
 
-            m_findJob.chunkHeaderHandle.Update(ref state);
-            m_findJob.chunksToProcess = chunkList.AsParallelWriter();
-            m_findJob.perCameraCullingMaskHandle.Update(ref state);
-            state.Dependency = m_findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
+            state.Dependency = new FindChunksNeedingFrustumCullingJob
+            {
+                chunksToProcess = chunkList.AsParallelWriter()
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 
             if (cullingContext.viewType == BatchCullingViewType.Light)
             {
-                m_multiJob.chunksToProcess = chunkList.AsDeferredJobArray();
-                m_multiJob.chunkWorldRenderBoundsHandle.Update(ref state);
-                m_multiJob.cullingSplits = splits;
-                m_multiJob.perCameraCullingMaskHandle.Update(ref state);
-                m_multiJob.perCameraCullingSplitsMaskHandle.Update(ref state);
-                m_multiJob.worldRenderBoundsHandle.Update(ref state);
-                state.Dependency = m_multiJob.ScheduleByRef(chunkList, 1, state.Dependency);
+                state.Dependency = new MultiSplitCullingJob
+                {
+                    chunksToProcess = chunkList.AsDeferredJobArray(),
+                    cullingSplits   = splits
+                }.Inject(api).Schedule(chunkList, 1, state.Dependency);
             }
             else
             {
-                m_singleJob.chunksToProcess = chunkList.AsDeferredJobArray();
-                m_singleJob.chunkWorldRenderBoundsHandle.Update(ref state);
-                m_singleJob.cullingSplits = splits;
-                m_singleJob.perCameraCullingMaskHandle.Update(ref state);
-                m_singleJob.worldRenderBoundsHandle.Update(ref state);
-                state.Dependency = m_singleJob.ScheduleByRef(chunkList, 1, state.Dependency);
+                state.Dependency = new SingleSplitCullingJob
+                {
+                    chunksToProcess = chunkList.AsDeferredJobArray(),
+                    cullingSplits   = splits
+                }.Inject(api).Schedule(chunkList, 1, state.Dependency);
             }
         }
 
         [BurstCompile]
-        struct FindChunksNeedingFrustumCullingJob : IJobChunk
+        partial struct FindChunksNeedingFrustumCullingJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>               chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>               chunkHeaderHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
@@ -128,15 +99,15 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        unsafe struct SingleSplitCullingJob : IJobParallelForDefer
+        unsafe partial struct SingleSplitCullingJob : IJobParallelForDefer, IInjectable
         {
             [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
 
-            [ReadOnly] public CullingSplits                               cullingSplits;
-            [ReadOnly] public ComponentTypeHandle<WorldRenderBounds>      worldRenderBoundsHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkWorldRenderBounds> chunkWorldRenderBoundsHandle;
+            [ReadOnly] public CullingSplits                                cullingSplits;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldRenderBounds>      worldRenderBoundsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkWorldRenderBounds> chunkWorldRenderBoundsHandle;
 
-            public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
 
             public void Execute(int i)
             {
@@ -185,16 +156,16 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        unsafe struct MultiSplitCullingJob : IJobParallelForDefer
+        unsafe partial struct MultiSplitCullingJob : IJobParallelForDefer, IInjectable
         {
             [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
 
-            [ReadOnly] public CullingSplits                               cullingSplits;
-            [ReadOnly] public ComponentTypeHandle<WorldRenderBounds>      worldRenderBoundsHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkWorldRenderBounds> chunkWorldRenderBoundsHandle;
+            [ReadOnly] public CullingSplits                                cullingSplits;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldRenderBounds>      worldRenderBoundsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkWorldRenderBounds> chunkWorldRenderBoundsHandle;
 
-            public ComponentTypeHandle<ChunkPerCameraCullingMask>       perCameraCullingMaskHandle;
-            public ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> perCameraCullingSplitsMaskHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingMask>       perCameraCullingMaskHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> perCameraCullingSplitsMaskHandle;
 
             public void Execute(int i)
             {

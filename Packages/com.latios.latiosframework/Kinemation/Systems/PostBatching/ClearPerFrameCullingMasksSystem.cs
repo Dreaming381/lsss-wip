@@ -4,20 +4,19 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct ClearPerFrameCullingMasksSystem : ISystem
+    public partial struct ClearPerFrameCullingMasksSystem : ISystem, ILatiosApi
     {
         EntityQuery m_renderMetaQuery;
         EntityQuery m_skeletonMetaQuery;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_renderMetaQuery   = state.Fluent().With<ChunkPerFrameCullingMask>(false).With<ChunkPerCameraCullingMask>(false).With<ChunkHeader>(true).Build();
             m_skeletonMetaQuery = state.Fluent().With<RenderVisibilityFeedbackFlag>(false).With<SkeletonRootTag>(true).Build();
         }
@@ -25,27 +24,23 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             state.Dependency = new ClearRenderJob
             {
-                frameHandle       = GetComponentTypeHandle<ChunkPerFrameCullingMask>(),
-                dispatchHandle    = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(),
                 lastSystemVersion = state.LastSystemVersion
-            }.ScheduleParallel(m_renderMetaQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_renderMetaQuery, state.Dependency);
 
             if (!m_skeletonMetaQuery.IsEmptyIgnoreFilter)
             {
-                state.Dependency = new ClearSkeletonsJob
-                {
-                    flagHandle = GetComponentTypeHandle<RenderVisibilityFeedbackFlag>()
-                }.ScheduleParallel(m_skeletonMetaQuery, state.Dependency);
+                state.Dependency = new ClearSkeletonsJob().Inject(api).ScheduleParallel(m_skeletonMetaQuery, state.Dependency);
             }
         }
 
         [BurstCompile]
-        struct ClearRenderJob : IJobChunk
+        partial struct ClearRenderJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<ChunkPerFrameCullingMask>    frameHandle;
-            public ComponentTypeHandle<ChunkPerDispatchCullingMask> dispatchHandle;
+            [Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    frameHandle;
+            [Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> dispatchHandle;
             public uint                                             lastSystemVersion;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
@@ -64,9 +59,9 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct ClearSkeletonsJob : IJobChunk
+        partial struct ClearSkeletonsJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<RenderVisibilityFeedbackFlag> flagHandle;
+            [Inject] ComponentTypeHandle<RenderVisibilityFeedbackFlag> flagHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -75,4 +70,3 @@ namespace Latios.Kinemation.Systems
         }
     }
 }
-

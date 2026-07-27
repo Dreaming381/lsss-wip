@@ -48,7 +48,7 @@ namespace Latios.Unika
 
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (!BootstrapTools.IsAssemblyReferencingSubstring(assembly, "Unika"))
+                if (!BootstrapTools.IsAssemblyReferencingOtherAssembly(assembly, typeof(IUnikaScript).Assembly))
                     continue;
 
                 loadedAssemblies.Add(assembly);
@@ -81,7 +81,7 @@ namespace Latios.Unika
 
         public static void AddAssembly(Assembly assembly)
         {
-            if (!BootstrapTools.IsAssemblyReferencingSubstring(assembly, "Unika"))
+            if (!BootstrapTools.IsAssemblyReferencingOtherAssembly(assembly, typeof(IUnikaScript).Assembly))
                 return;
 
             if (loadedAssemblies.Contains(assembly))

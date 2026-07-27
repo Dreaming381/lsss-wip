@@ -8,8 +8,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     // This system must update before TransformInitializeSuperSystem, because sockets rely on this before the
@@ -19,7 +17,7 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InitializeAnimatedBuffersSystem : ISystem
+    public partial struct InitializeAnimatedBuffersSystem : ISystem, ILatiosApi
     {
         EntityQuery m_initSkeletonsQuery;
         EntityQuery m_initBlendShapesQuery;
@@ -27,6 +25,7 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_initSkeletonsQuery = state.Fluent().With<OptimizedSkeletonState>(true).With<OptimizedBoneTransform>(false)
                                    .With<OptimizedSkeletonHierarchyBlobReference>(true).IncludeDisabledEntities().Build();
             m_initBlendShapesQuery   = state.Fluent().With<BlendShapeState>(true).With<BlendShapeWeight>(false).With<BoundMesh>(true).Build();
@@ -36,28 +35,22 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api                = this.GetApi(ref state);
             var lastSystemVersion = state.LastSystemVersion;
             var skeletonJh        = new InitSkeletonJob
             {
                 lastSystemVersion = lastSystemVersion,
-                blobHandle        = GetComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference>(true),
-                bonesHandle       = GetBufferTypeHandle<OptimizedBoneTransform>(false),
-                stateHandle       = GetComponentTypeHandle<OptimizedSkeletonState>(false),
-            }.ScheduleParallel(m_initSkeletonsQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_initSkeletonsQuery, state.Dependency);
 
             var blendShapeJh = new InitBlendShapesJob
             {
                 lastSystemVersion = lastSystemVersion,
-                blobHandle        = GetComponentTypeHandle<BoundMesh>(true),
-                weightsHandle     = GetBufferTypeHandle<BlendShapeWeight>(false)
-            }.ScheduleParallel(m_initBlendShapesQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_initBlendShapesQuery, state.Dependency);
 
             var meshJh = new InitMeshJob
             {
                 lastSystemVersion = lastSystemVersion,
-                blobHandle        = GetComponentTypeHandle<BoundMesh>(true),
-                verticesHandle    = GetBufferTypeHandle<DynamicMeshVertex>(false)
-            }.ScheduleParallel(m_initDynamicMeshesQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_initDynamicMeshesQuery, state.Dependency);
 
             state.Dependency = JobHandle.CombineDependencies(skeletonJh, blendShapeJh, meshJh);
         }
@@ -67,11 +60,11 @@ namespace Latios.Kinemation.Systems
 #else
         [BurstCompile]
 #endif
-        struct InitSkeletonJob : IJobChunk
+        partial struct InitSkeletonJob : IJobChunk, IInjectable
         {
-            public BufferTypeHandle<OptimizedBoneTransform>                                bonesHandle;
-            public ComponentTypeHandle<OptimizedSkeletonState>                             stateHandle;
-            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> blobHandle;
+            [Inject] BufferTypeHandle<OptimizedBoneTransform>                                bonesHandle;
+            [Inject] ComponentTypeHandle<OptimizedSkeletonState>                             stateHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> blobHandle;
 
             public uint lastSystemVersion;
 
@@ -145,10 +138,10 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct InitBlendShapesJob : IJobChunk
+        partial struct InitBlendShapesJob : IJobChunk, IInjectable
         {
-            public BufferTypeHandle<BlendShapeWeight>        weightsHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh> blobHandle;
+            [Inject] BufferTypeHandle<BlendShapeWeight>        weightsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh> blobHandle;
 
             public uint lastSystemVersion;
 
@@ -202,10 +195,10 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct InitMeshJob : IJobChunk
+        partial struct InitMeshJob : IJobChunk, IInjectable
         {
-            public BufferTypeHandle<DynamicMeshVertex>       verticesHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh> blobHandle;
+            [Inject] BufferTypeHandle<DynamicMeshVertex>       verticesHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh> blobHandle;
 
             public uint lastSystemVersion;
 

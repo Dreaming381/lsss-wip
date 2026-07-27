@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -33,6 +35,34 @@ namespace Latios
             throw new System.NotImplementedException("This method should have been replaced by codegen.");
         }
         #endregion
+    }
+
+    /// <summary>
+    /// An interface that allows various handle types with the [Inject] attribute to be injected via calling the Inject()
+    /// or InjectByRef() extension method
+    /// </summary>
+    public interface IInjectable
+    {
+        #region Impl
+        public void __CreateForApi(ref SystemState state)
+        {
+            throw new System.NotImplementedException("This method should have been replaced by codegen.");
+        }
+
+        public void __Inject<T>(ref SystemState state, ref T target) where T : unmanaged, IInjectable
+        {
+            throw new System.NotImplementedException("This method should have been replaced by codegen.");
+        }
+        #endregion
+    }
+
+    /// <summary>
+    /// Marks that the field should be injected with system handles.
+    /// Applicable to Entity/Component/BufferTypeHandle, EntityStorageInfo/Component/BufferLookup, ILatiosApiGettable, and ILatiosApiGettableBool
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class InjectAttribute : Attribute
+    {
     }
 
     /// <summary>
@@ -189,6 +219,16 @@ namespace Latios
             return result;
         }
         /// <summary>
+        /// Gets the cached BufferTypeHandle from the system using the specified access.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SharedComponentTypeHandle<T> GetSharedComponentHandle<T>(bool readOnly) where T : unmanaged, ISharedComponentData
+        {
+            var result = m_thisPtr->__Get<SharedComponentTypeHandle<T> >(readOnly);
+            result.Update(ref *m_state);
+            return result;
+        }
+        /// <summary>
         /// Gets the cached EntityTypeHandle.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -218,22 +258,58 @@ namespace Latios
         public static unsafe LatiosApiInvoker<T> GetApi<T>(ref this T system, ref SystemState state) where T : unmanaged, ISystem, ILatiosApi
         {
             // Todo: We could grab the pointer from the system parameter directly. Doing it this way seems safer though.
-            var                 ptr      = (T*)UnsafeUtility.AddressOf(ref state.WorldUnmanaged.GetUnsafeSystemRefFromSystemState<T>(ref state));
+            var ptr   = (T*)UnsafeUtility.AddressOf(ref state.WorldUnmanaged.GetUnsafeSystemRefFromSystemState<T>(ref state));
+            var world = ptr->__GetLatiosWorldUnmanaged();
+            CheckOnCreateForLatiosWasCalled(world);
             fixed (SystemState* statePtr = &state)
             return new LatiosApiInvoker<T>
             {
                 m_thisPtr     = ptr,
                 m_state       = statePtr,
-                m_latiosWorld = ptr->__GetLatiosWorldUnmanaged()
+                m_latiosWorld = world
             };
         }
 
         /// <summary>
         /// Call at the very beginning of OnCreate() to setup future calls to GetApi().
         /// </summary>
-        public static unsafe void OnCreateForLatios<T>(ref this T system, ref SystemState state) where T : unmanaged, ISystem, ILatiosApi
+        public static unsafe LatiosApiInvoker<T> OnCreateForLatios<T>(ref this T system, ref SystemState state) where T : unmanaged, ISystem, ILatiosApi
         {
             system.__OnCreateForLatios(ref state);
+            return GetApi(ref system, ref state);
+        }
+
+        /// <summary>
+        /// Populates compatible fields possessing the [Inject] attribute with cached instances.
+        /// Must be called from a method within the ILatiosApi type that created the api.
+        /// </summary>
+        /// <param name="api">The api of the ILatiosApi</param>
+        /// <returns>Returns the injected result</returns>
+        public static TInject Inject<TInject, TSystem>(this TInject injectable, LatiosApiInvoker<TSystem> api) where TInject : unmanaged, IInjectable where TSystem : unmanaged,
+        ISystem, ILatiosApi
+        {
+            return injectable.InjectByRef(api);
+        }
+
+        /// <summary>
+        /// Populates in-place the compatible fields possessing the [Inject] attribute with cached instances.
+        /// Must be called from a method within the ILatiosApi type that created the api.
+        /// </summary>
+        /// <param name="api">The api of the ILatiosApi</param>
+        /// <returns>Returns the injected result by ref, the same instance that this was called on</returns>
+        public static unsafe ref TInject InjectByRef<TInject, TSystem>(ref this TInject injectable, LatiosApiInvoker<TSystem> api) where TInject : unmanaged,
+        IInjectable where TSystem : unmanaged, ISystem, ILatiosApi
+        {
+            var cache = api.m_thisPtr->__Get<TInject>();
+            cache.__Inject(ref *api.m_state, ref injectable);
+            return ref injectable;
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        static void CheckOnCreateForLatiosWasCalled(LatiosWorldUnmanaged latiosWorld)
+        {
+            if (!latiosWorld.isValid)
+                throw new System.InvalidOperationException("GetApi() failed because the backing cache has not been initialized. Did you forget to call OnCreateForLatios()?");
         }
     }
 }

@@ -22,12 +22,12 @@ namespace Latios.Kinemation.Systems
     public partial struct GenerateBrgDrawCommandsSystem
     {
         [BurstCompile]
-        struct FindChunksWithVisibleJob : IJobChunk
+        partial struct FindChunksWithVisibleJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>               chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>               chunkHeaderHandle;
 
-            public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
+            [Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
@@ -38,7 +38,7 @@ namespace Latios.Kinemation.Systems
                 int chunksCount = 0;
                 var masks       = metaChunk.GetNativeArray(ref perCameraCullingMaskHandle);
                 var headers     = metaChunk.GetNativeArray(ref chunkHeaderHandle);
-                var mergeMask   = (ChunkPerDispatchCullingMask*)metaChunk.GetComponentDataPtrRW(ref perDispatchCullingMaskHandle);
+                var mergeMask   = metaChunk.GetComponentDataPtrRW(ref perDispatchCullingMaskHandle);
                 for (int i = 0; i < metaChunk.Count; i++)
                 {
                     var mask = masks[i];
@@ -60,31 +60,31 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        unsafe struct EmitDrawCommandsJob : IJobParallelForDefer
+        unsafe partial struct EmitDrawCommandsJob : IJobParallelForDefer, IInjectable
         {
-            [ReadOnly] public NativeArray<ArchetypeChunk>                          chunksToProcess;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask>       chunkPerCameraCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> chunkPerCameraCullingSplitsMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<LodCrossfade>                    lodCrossfadeHandle;
-            [ReadOnly] public ComponentTypeHandle<RendererPriority>                rendererPriorityHandle;
-            [ReadOnly] public ComponentTypeHandle<MeshLod>                         meshLodHandle;
-            [ReadOnly] public ComponentTypeHandle<MmiRangeLodFlags>                mmiRangelLodFlagsHandle;
-            [ReadOnly] public EntityQueryMask                                      motionVectorDeformQueryMask;
-            public bool                                                            splitsAreValid;
+            [ReadOnly] public NativeArray<ArchetypeChunk>                           chunksToProcess;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerCameraCullingMask>       chunkPerCameraCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerCameraCullingSplitsMask> chunkPerCameraCullingSplitsMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LodCrossfade>                    lodCrossfadeHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<RendererPriority>                rendererPriorityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MeshLod>                         meshLodHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MmiRangeLodFlags>                mmiRangelLodFlagsHandle;
+            [ReadOnly] public EntityQueryMask                                       motionVectorDeformQueryMask;
+            public bool                                                             splitsAreValid;
 
             //[ReadOnly] public IndirectList<ChunkVisibilityItem> VisibilityItems;
-            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo> EntitiesGraphicsChunkInfo;
-            [ReadOnly] public ComponentTypeHandle<MaterialMeshInfo>          MaterialMeshInfo;
+            [ReadOnly, Inject] ComponentTypeHandle<EntitiesGraphicsChunkInfo> EntitiesGraphicsChunkInfo;
+            [ReadOnly, Inject] ComponentTypeHandle<MaterialMeshInfo>          MaterialMeshInfo;
 #if !LATIOS_TRANSFORMS_UNITY
-            [ReadOnly] public ComponentTypeHandle<WorldTransform> WorldTransform;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldTransform> WorldTransform;
 #elif LATIOS_TRANSFORMS_UNITY
-            [ReadOnly] public ComponentTypeHandle<Unity.Transforms.LocalToWorld> WorldTransform;
+            [ReadOnly, Inject] ComponentTypeHandle<Unity.Transforms.LocalToWorld> WorldTransform;
 #endif
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix>          PostProcessMatrix;
-            [ReadOnly] public SharedComponentTypeHandle<RenderMeshArray>      RenderMeshArray;
-            [ReadOnly] public SharedComponentTypeHandle<RenderFilterSettings> RenderFilterSettings;
-            [ReadOnly] public SharedComponentTypeHandle<LightMaps>            LightMaps;
-            [ReadOnly] public NativeParallelHashMap<int, BRGRenderMeshArray>  BRGRenderMeshArrays;
+            [ReadOnly, Inject] ComponentTypeHandle<PostProcessMatrix>          PostProcessMatrix;
+            [ReadOnly] public SharedComponentTypeHandle<RenderMeshArray>       RenderMeshArray;
+            [ReadOnly, Inject] SharedComponentTypeHandle<RenderFilterSettings> RenderFilterSettings;
+            [ReadOnly, Inject] SharedComponentTypeHandle<LightMaps>            LightMaps;
+            [ReadOnly] public NativeParallelHashMap<int, BRGRenderMeshArray>   BRGRenderMeshArrays;
 
             public ChunkDrawCommandOutput DrawCommandOutput;
 
@@ -96,7 +96,7 @@ namespace Latios.Kinemation.Systems
             public ProfilerMarker ProfilerEmitChunk;
 
 #if UNITY_EDITOR
-            [ReadOnly] public SharedComponentTypeHandle<EditorRenderData> EditorDataComponentHandle;
+            [ReadOnly, Inject] SharedComponentTypeHandle<EditorRenderData> EditorDataComponentHandle;
 #endif
 
             HasChecker<DepthSorted_Tag>                                     depthSortedChecker;

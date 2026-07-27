@@ -4,8 +4,6 @@ using Unity.Burst.Intrinsics;
 using Unity.Entities;
 using Unity.Jobs;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
@@ -13,7 +11,7 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct RotateAnimatedBuffersSystem : ISystem
+    public partial struct RotateAnimatedBuffersSystem : ISystem, ILatiosApi
     {
         EntityQuery m_skeletonsQuery;
         EntityQuery m_blendShapesQuery;
@@ -21,6 +19,7 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_skeletonsQuery     = state.Fluent().With<OptimizedSkeletonState>().With<OptimizedBoneTransform>(true).IncludeDisabledEntities().Build();
             m_blendShapesQuery   = state.Fluent().With<BlendShapeState>().With<BlendShapeWeight>(true).IncludeDisabledEntities().Build();
             m_dynamicMeshesQuery = state.Fluent().With<DynamicMeshState>().With<DynamicMeshVertex>(true).IncludeDisabledEntities().Build();
@@ -29,20 +28,21 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api        = this.GetApi(ref state);
             var baseJh     = state.Dependency;
-            var skeletonJh = new SkeletonJob { stateHandle = GetComponentTypeHandle<OptimizedSkeletonState>() }.ScheduleParallel(m_skeletonsQuery, baseJh);
+            var skeletonJh = new SkeletonJob().Inject(api).ScheduleParallel(m_skeletonsQuery, baseJh);
 
-            var blendShapeJh = new BlendShapesJob { stateHandle = GetComponentTypeHandle<BlendShapeState>() }.ScheduleParallel(m_blendShapesQuery, baseJh);
+            var blendShapeJh = new BlendShapesJob().Inject(api).ScheduleParallel(m_blendShapesQuery, baseJh);
 
-            var meshJh = new MeshJob { stateHandle = GetComponentTypeHandle<DynamicMeshState>() }.ScheduleParallel(m_dynamicMeshesQuery, baseJh);
+            var meshJh = new MeshJob().Inject(api).ScheduleParallel(m_dynamicMeshesQuery, baseJh);
 
             state.Dependency = JobHandle.CombineDependencies(skeletonJh, blendShapeJh, meshJh);
         }
 
         [BurstCompile]
-        struct SkeletonJob : IJobChunk
+        partial struct SkeletonJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<OptimizedSkeletonState> stateHandle;
+            [Inject] ComponentTypeHandle<OptimizedSkeletonState> stateHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -68,9 +68,9 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct BlendShapesJob : IJobChunk
+        partial struct BlendShapesJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<BlendShapeState> stateHandle;
+            [Inject] ComponentTypeHandle<BlendShapeState> stateHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -96,9 +96,9 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct MeshJob : IJobChunk
+        partial struct MeshJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<DynamicMeshState> stateHandle;
+            [Inject] ComponentTypeHandle<DynamicMeshState> stateHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

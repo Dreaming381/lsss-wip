@@ -12,17 +12,14 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 using static Latios.Kinemation.StreamingMipMapArray;
-using static Unity.Entities.SystemAPI;
 
 namespace Latios.Kinemation
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct EvaluateMipMapStreamingLevelsSystem : ISystem
+    public partial struct EvaluateMipMapStreamingLevelsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_query;
 
         NativeHashMap<int, UnmanagedStreamingMipMapArray> m_sharedIndexToUnmanagedArrayMap;
@@ -38,7 +35,7 @@ namespace Latios.Kinemation
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_query = state.Fluent().With<MaterialMeshInfo, StreamingMipMapArray, WorldRenderBounds>(true).With<RenderMeshArray>(true)
                       .With<ChunkPerFrameCullingMask>(true, true).Build();
@@ -105,10 +102,11 @@ namespace Latios.Kinemation
 
         void OnUpdateBurst(ref SystemState state, ref NativeArray<UnmanagedStreamingMipMapArray> newArrays)
         {
+            var api = this.GetApi(ref state);
             foreach (var array in newArrays)
                 m_sharedIndexToUnmanagedArrayMap.Add(array.sharedComponentIndex, array);
 
-            var brgRmaMap    = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(true).brgRenderMeshArrays;
+            var brgRmaMap    = api.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(true).brgRenderMeshArrays;
             state.Dependency = new RebuildBatchToIndexMapsJob
             {
                 sharedIndexToArrayMap              = m_sharedIndexToUnmanagedArrayMap,
@@ -116,7 +114,7 @@ namespace Latios.Kinemation
             }.Schedule(state.Dependency);
 
             var textureToStateIndexMap = new NativeHashMap<UnityObjectRef<Texture2D>, int>(256, state.WorldUpdateAllocator);
-            var dispatchContext        = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var dispatchContext        = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             state.Dependency           = new PreprocessTexturesJob
             {
                 textureStates          = m_textureStates,
@@ -131,20 +129,16 @@ namespace Latios.Kinemation
                                                                                           NativeArrayOptions.ClearMemory);
             state.Dependency = new EvaluateEntitiesJob
             {
-                cameraParametersLookup             = GetBufferLookup<MipMapCameraParameters>(true),
-                materialMeshInfoHandle             = GetComponentTypeHandle<MaterialMeshInfo>(true),
                 newLevelsPerThread                 = newLevelsPerThread,
-                perFrameMaskHandle                 = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                renderMeshArrayHandle              = ManagedAPI.GetSharedComponentTypeHandle<RenderMeshArray>(),
+                renderMeshArrayHandle              = SystemAPI.ManagedAPI.GetSharedComponentTypeHandle<RenderMeshArray>(),
                 sharedIndexToArrayMap              = m_sharedIndexToUnmanagedArrayMap,
                 sharedIndexToBrgRenderMeshArrayMap = brgRmaMap,
-                streamingMipMapArrayHandle         = ManagedAPI.GetSharedComponentTypeHandle<StreamingMipMapArray>(),
+                streamingMipMapArrayHandle         = SystemAPI.ManagedAPI.GetSharedComponentTypeHandle<StreamingMipMapArray>(),
                 textureStates                      = m_textureStates,
                 textureToStateIndexMap             = textureToStateIndexMap,
-                worldBlackboardEntity              = latiosWorld.worldBlackboardEntity,
-                worldRenderBoundsHandle            = GetComponentTypeHandle<WorldRenderBounds>(true),
+                worldBlackboardEntity              = api.worldBlackboardEntity,
                 worldUpdateAllocator               = state.WorldUpdateAllocator
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
 
             state.Dependency = new MergeThreadLevelsJob
             {
@@ -155,11 +149,10 @@ namespace Latios.Kinemation
             var currentQualityLevel = QualitySettings.GetQualityLevel();
             state.Dependency        = new PostProcessTexturesJob
             {
-                mipMapsStreamingAssignmentLookup = GetBufferLookup<MipMapStreamingAssignment>(false),
-                textureStates                    = m_textureStates,
-                worldBlackboardEntity            = latiosWorld.worldBlackboardEntity,
-                reset                            = currentQualityLevel != m_lastQualityLevel
-            }.Schedule(state.Dependency);
+                textureStates         = m_textureStates,
+                worldBlackboardEntity = api.worldBlackboardEntity,
+                reset                 = currentQualityLevel != m_lastQualityLevel
+            }.Inject(api).Schedule(state.Dependency);
             m_lastQualityLevel = currentQualityLevel;
         }
 
@@ -402,17 +395,17 @@ namespace Latios.Kinemation
         }
 
         [BurstCompile]
-        struct EvaluateEntitiesJob : IJobChunk
+        partial struct EvaluateEntitiesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>     perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<MaterialMeshInfo>             materialMeshInfoHandle;
-            [ReadOnly] public ComponentTypeHandle<WorldRenderBounds>            worldRenderBoundsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MaterialMeshInfo>            materialMeshInfoHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldRenderBounds>           worldRenderBoundsHandle;
             [ReadOnly] public SharedComponentTypeHandle<RenderMeshArray>        renderMeshArrayHandle;
             [ReadOnly] public SharedComponentTypeHandle<StreamingMipMapArray>   streamingMipMapArrayHandle;
             [ReadOnly] public NativeHashMap<int, UnmanagedStreamingMipMapArray> sharedIndexToArrayMap;
             [ReadOnly] public NativeParallelHashMap<int, BRGRenderMeshArray>    sharedIndexToBrgRenderMeshArrayMap;
             [ReadOnly] public NativeHashMap<UnityObjectRef<Texture2D>, int>     textureToStateIndexMap;
-            [ReadOnly] public BufferLookup<MipMapCameraParameters>              cameraParametersLookup;
+            [ReadOnly, Inject] BufferLookup<MipMapCameraParameters>             cameraParametersLookup;
             [ReadOnly] public NativeList<TextureState>                          textureStates;
 
             [NativeDisableParallelForRestriction] public NativeArray<UnsafeList<int> > newLevelsPerThread;
@@ -643,12 +636,12 @@ namespace Latios.Kinemation
         }
 
         [BurstCompile]
-        struct PostProcessTexturesJob : IJob
+        partial struct PostProcessTexturesJob : IJob, IInjectable
         {
-            public NativeList<TextureState>                textureStates;
-            public BufferLookup<MipMapStreamingAssignment> mipMapsStreamingAssignmentLookup;
-            public Entity                                  worldBlackboardEntity;
-            public bool                                    reset;
+            public NativeList<TextureState>                  textureStates;
+            [Inject] BufferLookup<MipMapStreamingAssignment> mipMapsStreamingAssignmentLookup;
+            public Entity                                    worldBlackboardEntity;
+            public bool                                      reset;
 
             public void Execute()
             {

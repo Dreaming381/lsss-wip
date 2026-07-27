@@ -3,38 +3,34 @@ using Unity.Burst.Intrinsics;
 using Unity.Entities;
 using Unity.Jobs;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct ApplyDispatchMasksToFrameMasksSystem : ISystem
+    public partial struct ApplyDispatchMasksToFrameMasksSystem : ISystem, ILatiosApi
     {
         EntityQuery m_metaQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_metaQuery = state.Fluent().With<ChunkPerDispatchCullingMask, ChunkPerFrameCullingMask>(false).With<ChunkHeader>(true).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new Job
-            {
-                frameHandle    = GetComponentTypeHandle<ChunkPerFrameCullingMask>(false),
-                dispatchHandle = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(false)
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+            var api          = this.GetApi(ref state);
+            state.Dependency = new Job().Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<ChunkPerFrameCullingMask>    frameHandle;
-            public ComponentTypeHandle<ChunkPerDispatchCullingMask> dispatchHandle;
+            [Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    frameHandle;
+            [Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> dispatchHandle;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

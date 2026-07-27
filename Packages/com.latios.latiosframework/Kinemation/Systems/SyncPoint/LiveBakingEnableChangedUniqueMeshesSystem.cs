@@ -5,55 +5,44 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct LiveBakingEnableChangedUniqueMeshesSystem : ISystem
+    public partial struct LiveBakingEnableChangedUniqueMeshesSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_query;
+        EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<LiveBakedTag>(true).With<UniqueMeshConfig>(false).Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<LiveBakedTag>(true).With<UniqueMeshConfig>(false).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             state.Dependency = new Job
             {
-                posHandle         = GetBufferTypeHandle<UniqueMeshPosition>(true),
-                normHandle        = GetBufferTypeHandle<UniqueMeshNormal>(true),
-                tanHandle         = GetBufferTypeHandle<UniqueMeshTangent>(true),
-                colHandle         = GetBufferTypeHandle<UniqueMeshColor>(true),
-                uv0Handle         = GetBufferTypeHandle<UniqueMeshUv0xy>(true),
-                uv3Handle         = GetBufferTypeHandle<UniqueMeshUv3xyz>(true),
-                indexHandle       = GetBufferTypeHandle<UniqueMeshIndex>(true),
-                submeshHandle     = GetBufferTypeHandle<UniqueMeshSubmesh>(true),
-                configHandle      = GetComponentTypeHandle<UniqueMeshConfig>(false),
-                lastSystemVersion = latiosWorld.worldBlackboardEntity.GetComponentData<SystemVersionBeforeLiveBake>().version,
-            }.ScheduleParallel(m_query, state.Dependency);
+                lastSystemVersion = api.worldBlackboardEntity.GetComponentData<SystemVersionBeforeLiveBake>().version,
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public BufferTypeHandle<UniqueMeshPosition> posHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshNormal>   normHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshTangent>  tanHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshColor>    colHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshUv0xy>    uv0Handle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshUv3xyz>   uv3Handle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshIndex>    indexHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshSubmesh>  submeshHandle;
-            public ComponentTypeHandle<UniqueMeshConfig>           configHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshPosition> posHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshNormal>   normHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshTangent>  tanHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshColor>    colHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv0xy>    uv0Handle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv3xyz>   uv3Handle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshIndex>    indexHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshSubmesh>  submeshHandle;
+            [Inject] ComponentTypeHandle<UniqueMeshConfig>           configHandle;
 
             public uint lastSystemVersion;
 

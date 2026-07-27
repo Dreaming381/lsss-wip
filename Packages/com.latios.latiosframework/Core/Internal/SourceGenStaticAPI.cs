@@ -75,6 +75,25 @@ namespace Latios.InternalSourceGen
             result.CreateForApi(ref state, b);
             return result;
         }
+
+        public static void UpdateGettable<T>(ref T value, ref SystemState state) where T : unmanaged, ILatiosApiGettable
+        {
+            value.UpdateForApi(ref state);
+        }
+
+        public static void UpdateGettableBool<T>(ref T value, ref SystemState state) where T : unmanaged, ILatiosApiGettableBool
+        {
+            value.UpdateForApi(ref state);
+        }
+        #endregion
+
+        #region IInjectable
+        public static T CreateInjectable<T>(ref SystemState state) where T : unmanaged, IInjectable
+        {
+            T result = default;
+            result.__CreateForApi(ref state);
+            return result;
+        }
         #endregion
     }
 }

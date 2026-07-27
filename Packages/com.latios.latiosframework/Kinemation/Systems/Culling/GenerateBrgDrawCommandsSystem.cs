@@ -8,15 +8,13 @@ using Unity.Profiling;
 using Unity.Rendering;
 using UnityEngine.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [DontSyncPreviousUpdatesThisFrame(32)]
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct GenerateBrgDrawCommandsSystem : ISystem
+    public partial struct GenerateBrgDrawCommandsSystem : ISystem, ILatiosApi
     {
         /// <summary>
         /// Access via WorldUnamanged.GetUnsafeSystemRef(), this can be used to tune the performance of your project for your use case.
@@ -28,20 +26,18 @@ namespace Latios.Kinemation.Systems
             set => m_useFewerJobs = value;
         }
 
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_metaQuery;
-        EntityQueryMask      m_motionVectorDeformQueryMask;
-        EntityQuery          m_lodCrossfadeDependencyQuery;
+        EntityQuery     m_metaQuery;
+        EntityQueryMask m_motionVectorDeformQueryMask;
+        EntityQuery     m_lodCrossfadeDependencyQuery;
 
-        FindChunksWithVisibleJob m_findJob;
-        ProfilerMarker           m_profilerEmitChunk;
-        ProfilerMarker           m_profilerOnUpdate;
+        ProfilerMarker m_profilerEmitChunk;
+        ProfilerMarker m_profilerOnUpdate;
 
         bool m_useFewerJobs;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
             m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkPerCameraCullingMask>(true).With<ChunkPerCameraCullingSplitsMask>(true)
                           .With<ChunkPerDispatchCullingMask>(false).With<EntitiesGraphicsChunkInfo>(true).Build();
             var motionVectorDeformQuery = state.Fluent().WithAnyEnabled<PreviousDeformShaderIndex, TwoAgoDeformShaderIndex, PreviousMatrixVertexSkinningShaderIndex>(true)
@@ -51,13 +47,6 @@ namespace Latios.Kinemation.Systems
                                           Build();
             m_motionVectorDeformQueryMask = motionVectorDeformQuery.GetEntityQueryMask();
             m_lodCrossfadeDependencyQuery = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp).WithAll<LodCrossfade>());
-
-            m_findJob = new FindChunksWithVisibleJob
-            {
-                perCameraCullingMaskHandle   = state.GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                chunkHeaderHandle            = state.GetComponentTypeHandle<ChunkHeader>(true),
-                perDispatchCullingMaskHandle = state.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(false)
-            };
 
             m_useFewerJobs = false;
 
@@ -70,19 +59,20 @@ namespace Latios.Kinemation.Systems
         {
             m_profilerOnUpdate.Begin();
 
+            var       api            = this.GetApi(ref state);
             JobHandle finalJh        = default;
             JobHandle ecsJh          = default;
             JobHandle lodCrossfadeJh = default;
 
-            var brgCullingContext = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(false);
-            var cullingContext    = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var brgCullingContext = api.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(false);
+            var cullingContext    = api.worldBlackboardEntity.GetComponentData<CullingContext>();
 
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
 
-            m_findJob.chunkHeaderHandle.Update(ref state);
-            m_findJob.chunksToProcess = chunkList.AsParallelWriter();
-            m_findJob.perCameraCullingMaskHandle.Update(ref state);
-            m_findJob.perDispatchCullingMaskHandle.Update(ref state);
+            var findJob = new FindChunksWithVisibleJob
+            {
+                chunksToProcess = chunkList.AsParallelWriter(),
+            }.Inject(api);
 
             // TODO: Dynamically estimate this based on past frames
             int binCountEstimate       = 1;
@@ -93,39 +83,20 @@ namespace Latios.Kinemation.Systems
 
             var emitDrawCommandsJob = new EmitDrawCommandsJob
             {
-                BRGRenderMeshArrays                   = brgCullingContext.brgRenderMeshArrays,
-                CameraPosition                        = cullingContext.lodParameters.cameraPosition,
-                chunkPerCameraCullingMaskHandle       = GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                chunkPerCameraCullingSplitsMaskHandle = GetComponentTypeHandle<ChunkPerCameraCullingSplitsMask>(true),
-                chunksToProcess                       = chunkList.AsDeferredJobArray(),
-                CullingLayerMask                      = cullingContext.cullingLayerMask,
-                DrawCommandOutput                     = chunkDrawCommandOutput,
-#if UNITY_EDITOR
-                EditorDataComponentHandle = GetSharedComponentTypeHandle<EditorRenderData>(),
-#endif
-                EntitiesGraphicsChunkInfo   = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
+                BRGRenderMeshArrays         = brgCullingContext.brgRenderMeshArrays,
+                CameraPosition              = cullingContext.lodParameters.cameraPosition,
+                chunksToProcess             = chunkList.AsDeferredJobArray(),
+                CullingLayerMask            = cullingContext.cullingLayerMask,
+                DrawCommandOutput           = chunkDrawCommandOutput,
                 LastSystemVersion           = state.LastSystemVersion,
-                LightMaps                   = ManagedAPI.GetSharedComponentTypeHandle<LightMaps>(),
-                lodCrossfadeHandle          = GetComponentTypeHandle<LodCrossfade>(true),
-                mmiRangelLodFlagsHandle     = GetComponentTypeHandle<MmiRangeLodFlags>(true),
                 motionVectorDeformQueryMask = m_motionVectorDeformQueryMask,
-                PostProcessMatrix           = GetComponentTypeHandle<PostProcessMatrix>(true),
-                MaterialMeshInfo            = GetComponentTypeHandle<MaterialMeshInfo>(true),
-                meshLodHandle               = GetComponentTypeHandle<MeshLod>(true),
                 ProfilerEmitChunk           = m_profilerEmitChunk,
-                RenderFilterSettings        = GetSharedComponentTypeHandle<RenderFilterSettings>(),
-                RenderMeshArray             = ManagedAPI.GetSharedComponentTypeHandle<RenderMeshArray>(),
-                rendererPriorityHandle      = GetComponentTypeHandle<RendererPriority>(true),
+                RenderMeshArray             = SystemAPI.ManagedAPI.GetSharedComponentTypeHandle<RenderMeshArray>(),
                 SceneCullingMask            = cullingContext.sceneCullingMask,
                 splitsAreValid              = cullingContext.viewType == BatchCullingViewType.Light,
-#if !LATIOS_TRANSFORMS_UNITY
-                WorldTransform = GetComponentTypeHandle<WorldTransform>(true),
-#elif LATIOS_TRANSFORMS_UNITY
-                WorldTransform = GetComponentTypeHandle<Unity.Transforms.LocalToWorld>(true),
-#endif
-            };
+            }.Inject(api);
 
-            var findDependency = m_findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
+            var findDependency = findJob.ScheduleParallelByRef(m_metaQuery, state.Dependency);
 
             var emitDrawCommandsDependency = emitDrawCommandsJob.ScheduleByRef(chunkList, 1, findDependency);
             ecsJh                          = emitDrawCommandsDependency;
@@ -227,7 +198,7 @@ namespace Latios.Kinemation.Systems
             }
 
             state.Dependency = ecsJh;
-            latiosWorld.worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(finalJh, false);
+            api.worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(finalJh, false);
             m_lodCrossfadeDependencyQuery.AddDependency(lodCrossfadeJh);
 
             m_profilerOnUpdate.End();

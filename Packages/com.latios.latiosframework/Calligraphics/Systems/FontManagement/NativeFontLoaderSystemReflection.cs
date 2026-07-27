@@ -8,7 +8,6 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
-using UnityEngine.Networking;
 using UnityEngine.TextCore.LowLevel;
 
 using Font = Latios.Calligraphics.HarfBuzz.Font;

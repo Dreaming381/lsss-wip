@@ -11,17 +11,13 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.LifeFX.Systems
 {
     [UpdateInGroup(typeof(DispatchRoundRobinLateExtensionsSuperSystem))]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct GraphicsEventUploadSystem : ISystem, ICullingComputeDispatchSystem<GraphicsEventUploadSystem.CollectState, GraphicsEventUploadSystem.WriteState>
+    public partial struct GraphicsEventUploadSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<GraphicsEventUploadSystem.CollectState, GraphicsEventUploadSystem.WriteState>
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         CullingComputeDispatchData<CollectState, WriteState> m_data;
         EntityQuery                                          m_destinationsQuery;
         AllocatorHelper<RewindableAllocator>                 m_allocator;
@@ -35,15 +31,15 @@ namespace Latios.LifeFX.Systems
         public void OnCreate(ref SystemState state)
         {
             Initialize();
-            latiosWorld         = state.GetLatiosWorldUnmanaged();
-            m_data              = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+            var api             = this.OnCreateForLatios(ref state);
+            m_data              = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
             m_destinationsQuery = state.Fluent().With<GraphicsEventTunnelDestination>(true).Build();
             m_allocator         = new AllocatorHelper<RewindableAllocator>(Allocator.Persistent);
             m_allocator.Allocator.Initialize(16 * 1024);
 
             GraphicsEventTypeRegistry.Init();
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new GraphicsEventPostal(m_allocator.Allocator.Handle));
-            var broker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new GraphicsEventPostal(m_allocator.Allocator.Handle));
+            var broker = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
             foreach (var meta in GraphicsEventTypeRegistry.s_eventMetadataList.Data)
             {
                 broker.InitializeUploadPool(meta.brokerId, (uint)meta.size, UnityEngine.GraphicsBuffer.Target.Structured);
@@ -66,16 +62,17 @@ namespace Latios.LifeFX.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            if (latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
+            var api = this.GetApi(ref state);
+            if (api.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
                 return default;
 
             if (m_destinationsQuery.IsEmptyIgnoreFilter)
             {
                 // Force jobs to complete and rewind so that we don't have an infinite memory leak if we have events but no destinations.
-                latiosWorld.GetCollectionComponent<GraphicsEventPostal>(latiosWorld.worldBlackboardEntity, out var jobsToComplete);
+                api.latiosWorld.GetCollectionComponent<GraphicsEventPostal>(api.worldBlackboardEntity, out var jobsToComplete);
                 jobsToComplete.Complete();
                 m_allocator.Allocator.Rewind();
-                latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new GraphicsEventPostal(m_allocator.Allocator.Handle));
+                api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new GraphicsEventPostal(m_allocator.Allocator.Handle));
                 return default;
             }
 
@@ -93,14 +90,13 @@ namespace Latios.LifeFX.Systems
             var job = new CollectDestinationsJob
             {
                 chunks                  = m_destinationsQuery.ToArchetypeChunkListAsync(allocator, out var jh).AsDeferredJobArray(),
-                destinationHandle       = GetBufferTypeHandle<GraphicsEventTunnelDestination>(true),
                 destinations            = destinations,
                 tunnels                 = tunnels,
                 tunnelRangesByTypeIndex = tunnelRangesByTypeIndex
-            };
+            }.Inject(api);
             state.Dependency = job.Schedule(JobHandle.CombineDependencies(state.Dependency, jh));
 
-            var postal                         = latiosWorld.GetCollectionComponent<GraphicsEventPostal>(latiosWorld.worldBlackboardEntity, false);
+            var postal                         = api.latiosWorld.GetCollectionComponent<GraphicsEventPostal>(api.worldBlackboardEntity, false);
             var eventCountByTypeIndex          = CollectionHelper.CreateNativeArray<int>(eventTypeCount, allocator, NativeArrayOptions.UninitializedMemory);
             var eventRangesByTunnelByTypeIndex = CollectionHelper.CreateNativeArray<UnsafeList<int2> >(eventTypeCount, allocator, NativeArrayOptions.UninitializedMemory);
             state.Dependency                   = new GroupAndCountEventsJob
@@ -115,7 +111,7 @@ namespace Latios.LifeFX.Systems
 
             return new CollectState
             {
-                broker                         = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>(),
+                broker                         = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>(),
                 destinations                   = destinations,
                 tunnels                        = tunnels,
                 tunnelRangesByTypeIndex        = tunnelRangesByTypeIndex,
@@ -183,6 +179,7 @@ namespace Latios.LifeFX.Systems
             if (!written.broker.isCreated)
                 return;
 
+            var api = this.GetApi(ref state);
             ref var metas = ref GraphicsEventTypeRegistry.s_eventMetadataList.Data;
             for (int typeIndex = 0; typeIndex < written.eventCountByTypeIndex.Length; typeIndex++)
             {
@@ -191,7 +188,7 @@ namespace Latios.LifeFX.Systems
             }
 
             m_allocator.Allocator.Rewind();
-            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new GraphicsEventPostal(m_allocator.Allocator.Handle));
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new GraphicsEventPostal(m_allocator.Allocator.Handle));
 
             int destinationIndex = 0;
             for (int typeIndex = 0; typeIndex < written.eventCountByTypeIndex.Length; typeIndex++)
@@ -305,10 +302,10 @@ namespace Latios.LifeFX.Systems
 
         #region Jobs
         [BurstCompile]
-        struct CollectDestinationsJob : IJob
+        partial struct CollectDestinationsJob : IJob, IInjectable
         {
             [ReadOnly] public NativeArray<ArchetypeChunk>                      chunks;
-            [ReadOnly] public BufferTypeHandle<GraphicsEventTunnelDestination> destinationHandle;
+            [ReadOnly, Inject] BufferTypeHandle<GraphicsEventTunnelDestination> destinationHandle;
 
             public NativeList<GraphicsEventTunnelDestination>           destinations;
             public NativeList<UnityObjectRef<GraphicsEventTunnelBase> > tunnels;

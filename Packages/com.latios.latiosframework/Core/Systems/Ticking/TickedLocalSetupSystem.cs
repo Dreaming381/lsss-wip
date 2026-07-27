@@ -4,37 +4,34 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Systems
 {
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct TickLocalSetupSystem : ISystem
+    public partial struct TickLocalSetupSystem : ISystem, ILatiosApi
     {
         internal float tickDeltaTime;
         internal bool  snapInputToTick;  // When true, we typically only simulate one tick per frame (assuming faster framerate than tickrate), but inputs may not be applied as quickly.
-
-        LatiosWorldUnmanaged latiosWorld;
 
         float timeInTick;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             tickDeltaTime = 1f;
             timeInTick    = 0f;
 
-            latiosWorld.worldBlackboardEntity.AddComponentData(new TickingState { previousEvaluatedTick = -1 });
+            api.worldBlackboardEntity.AddComponentData(new TickingState { previousEvaluatedTick = -1 });
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var oldState   = latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>();
-            var dt         = Time.DeltaTime;
+            var api        = this.GetApi(ref state);
+            var oldState   = api.worldBlackboardEntity.GetComponentData<TickingState>();
+            var dt         = api.deltaTime;
             int rollovers  = 0;
             timeInTick    += dt;
             while (timeInTick > tickDeltaTime)
@@ -55,7 +52,7 @@ namespace Latios.Systems
                 newState.finalTickFraction  = timeInTick / tickDeltaTime;
                 newState.frameCounter++;
                 newState.previousEvaluatedTick = oldState.tick;
-                latiosWorld.worldBlackboardEntity.SetComponentData(newState);
+                api.worldBlackboardEntity.SetComponentData(newState);
             }
             else if (snapInputToTick || oldState.finalTickFraction > 0.9999f)
             {
@@ -70,7 +67,7 @@ namespace Latios.Systems
                 newState.finalTickFraction   = timeInTick / tickDeltaTime;
                 newState.frameCounter++;
                 newState.previousEvaluatedTick = oldState.tick;
-                latiosWorld.worldBlackboardEntity.SetComponentData(newState);
+                api.worldBlackboardEntity.SetComponentData(newState);
             }
             else
             {
@@ -85,7 +82,7 @@ namespace Latios.Systems
                 newState.finalTickFraction   = timeInTick / tickDeltaTime;
                 newState.frameCounter++;
                 newState.previousEvaluatedTick = oldState.tick;
-                latiosWorld.worldBlackboardEntity.SetComponentData(newState);
+                api.worldBlackboardEntity.SetComponentData(newState);
             }
         }
     }

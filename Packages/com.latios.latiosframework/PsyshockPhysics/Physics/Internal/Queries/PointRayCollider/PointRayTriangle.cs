@@ -266,7 +266,7 @@ namespace Latios.Psyshock
                     resultBC.featureCode++;
                     CapsuleCollider capCA  = new CapsuleCollider(triangle.pointC, triangle.pointA, 0f);
                     bool            hitCA  = PointRayCapsule.PointCapsuleDistance(point, in capCA, maxDistance, out var resultCA);
-                    resultCA.featureCode  += (ushort)math.select(2, -1, resultCA.featureCode == 1);
+                    resultCA.featureCode  += (ushort)math.select(2, -1, (resultCA.featureCode & 0xff) == 1);
                     if (!hitAB && !hitBC && !hitCA)
                     {
                         result = resultCA;

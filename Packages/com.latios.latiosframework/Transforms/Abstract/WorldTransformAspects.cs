@@ -112,7 +112,7 @@ namespace Latios.Transforms.Abstract
         /// Equivalent to <see cref="ComponentTypeHandle{T}"/> but for aspect types.
         /// Constructed from an system state via its constructor.
         /// </summary>
-        public struct TypeHandle
+        public struct TypeHandle : ILatiosApiGettable
         {
             [Unity.Collections.ReadOnly]
             ComponentTypeHandle<TransformComponent> transformHandle;
@@ -131,10 +131,7 @@ namespace Latios.Transforms.Abstract
             /// Must be called every frames before using the type handle.
             /// </summary>
             /// <param name="state">The system state the aspect type handle was created from.</param>
-            public void Update(ref SystemState state)
-            {
-                transformHandle.Update(ref state);
-            }
+            public void Update(ref SystemState state) => transformHandle.Update(ref state);
 
             /// <summary>
             /// Get the enclosing aspect's <see cref="ResolvedChunk"/> from an <see cref="ArchetypeChunk"/>.
@@ -149,14 +146,15 @@ namespace Latios.Transforms.Abstract
                 return resolved;
             }
 
-            public bool DidChange(in ArchetypeChunk chunk, uint version)
-            {
-                return chunk.DidChange(ref transformHandle, version);
-            }
+            public bool DidChange(in ArchetypeChunk chunk, uint version) => chunk.DidChange(ref transformHandle, version);
 
             public bool Has(in ArchetypeChunk chunk) => chunk.Has(ref transformHandle);
 
             public bool isNativeQvvs => true;
+
+            void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = new TypeHandle(ref state);
+
+            void ILatiosApiGettable.UpdateForApi(ref SystemState state) => Update(ref state);
         }
 
         public struct HasChecker

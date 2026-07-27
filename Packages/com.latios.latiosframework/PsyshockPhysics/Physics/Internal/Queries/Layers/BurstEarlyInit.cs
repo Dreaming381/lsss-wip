@@ -33,7 +33,7 @@ namespace Latios.Psyshock
             var foreachType  = typeof(IForEachPairProcessor);
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (!BootstrapTools.IsAssemblyReferencingSubstring(assembly, "Psyshock"))
+                if (!BootstrapTools.IsAssemblyReferencingOtherAssembly(assembly, typeof(IFindPairsProcessor).Assembly))
                     continue;
 
                 try

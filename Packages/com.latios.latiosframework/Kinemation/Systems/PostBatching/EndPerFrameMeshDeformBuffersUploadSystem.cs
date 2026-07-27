@@ -7,10 +7,8 @@ using Unity.Mathematics;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial struct EndPerFrameMeshDeformBuffersUploadSystem : ISystem
+    public partial struct EndPerFrameMeshDeformBuffersUploadSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         UnityObjectRef<UnityEngine.ComputeShader> m_verticesUploadShader;
         UnityObjectRef<UnityEngine.ComputeShader> m_transformUnionsUploadShader;
         UnityObjectRef<UnityEngine.ComputeShader> m_blendShapesUploadShader;
@@ -24,12 +22,12 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
-            m_verticesUploadShader        = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadVertices");
-            m_transformUnionsUploadShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadTransformUnions");
-            m_blendShapesUploadShader     = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadBlendShapes");
-            m_bytesUploadShader           = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadBytes");
+            m_verticesUploadShader        = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadVertices");
+            m_transformUnionsUploadShader = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadTransformUnions");
+            m_blendShapesUploadShader     = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadBlendShapes");
+            m_bytesUploadShader           = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadBytes");
 
             _src                = UnityEngine.Shader.PropertyToID("_src");
             _dst                = UnityEngine.Shader.PropertyToID("_dst");
@@ -41,8 +39,9 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var buffersMapped = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MeshGpuUploadBuffersMapped>(false);
-            var buffers       = latiosWorld.worldBlackboardEntity.GetComponentData<MeshGpuUploadBuffers>();
+            var api            = this.GetApi(ref state);
+            var buffersMapped = api.worldBlackboardEntity.GetCollectionComponent<MeshGpuUploadBuffersMapped>(false);
+            var buffers       = api.worldBlackboardEntity.GetComponentData<MeshGpuUploadBuffers>();
             state.CompleteDependency();
 
             if (!buffersMapped.needsMeshCommitment && !buffersMapped.needsBoneOffsetCommitment)
@@ -136,7 +135,7 @@ namespace Latios.Kinemation.Systems
                 buffersMapped.needsBoneOffsetCommitment = false;
             }
 
-            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(buffersMapped);
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(buffersMapped);
         }
     }
 }

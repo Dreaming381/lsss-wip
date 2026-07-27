@@ -8,23 +8,22 @@ using Unity.Mathematics;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial struct BeginPerFrameDeformMeshBuffersUploadSystem : ISystem
+    public partial struct BeginPerFrameDeformMeshBuffersUploadSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            latiosWorld.worldBlackboardEntity.AddComponentData(new MeshGpuUploadBuffers());
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MeshGpuUploadBuffersMapped());
+            var api = this.OnCreateForLatios(ref state);
+            api.worldBlackboardEntity.AddComponentData(new MeshGpuUploadBuffers());
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MeshGpuUploadBuffersMapped());
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var meshGpuManager        = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(false);
-            var boneOffsetsGpuManager = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(false);
-            var broker                = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            var api                    = this.GetApi(ref state);
+            var meshGpuManager        = api.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(false);
+            var boneOffsetsGpuManager = api.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(false);
+            var broker                = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
 
             state.CompleteDependency();
 
@@ -163,8 +162,8 @@ namespace Latios.Kinemation.Systems
 
             if (newBuffersMapped.needsMeshCommitment || newBuffersMapped.needsBoneOffsetCommitment)
             {
-                latiosWorld.worldBlackboardEntity.SetComponentData(newBuffers);
-                latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(newBuffersMapped);
+                api.worldBlackboardEntity.SetComponentData(newBuffers);
+                api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(newBuffersMapped);
                 state.Dependency = new ClearCommandsJob
                 {
                     commands      = meshGpuManager.uploadCommands,

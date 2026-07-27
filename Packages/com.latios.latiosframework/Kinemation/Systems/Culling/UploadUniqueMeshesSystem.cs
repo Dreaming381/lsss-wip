@@ -10,25 +10,22 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UploadUniqueMeshesSystem : ISystem, ICullingComputeDispatchSystem<UploadUniqueMeshesSystem.CollectState,  UploadUniqueMeshesSystem.WriteState>
+    public partial struct UploadUniqueMeshesSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<UploadUniqueMeshesSystem.CollectState,  UploadUniqueMeshesSystem.WriteState>
     {
-        LatiosWorldUnmanaged                                 latiosWorld;
         EntityQuery                                          m_query;
         CullingComputeDispatchData<CollectState, WriteState> m_data;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<MaterialMeshInfo>(false).WithEnabled<UniqueMeshConfig>(false).Build();
-            m_data      = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+            var api = this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<MaterialMeshInfo>(false).WithEnabled<UniqueMeshConfig>(false).Build();
+            m_data  = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
         }
 
         [BurstCompile]
@@ -36,28 +33,17 @@ namespace Latios.Kinemation
 
         public CollectState Collect(ref SystemState state)
         {
+            var api             = this.GetApi(ref state);
             var chunkCount      = m_query.CalculateChunkCountWithoutFiltering();
             var collectedChunks = new NativeList<CollectedChunk>(chunkCount, state.WorldUpdateAllocator);
             collectedChunks.Resize(chunkCount, NativeArrayOptions.ClearMemory);
-            var meshPool = latiosWorld.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(false);
+            var meshPool = api.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(false);
 
             state.Dependency = new FindAndValidateMeshesJob
             {
                 collectedChunks = collectedChunks,
-                colorHandle     = GetBufferTypeHandle<UniqueMeshColor>(true),
-                configHandle    = GetComponentTypeHandle<UniqueMeshConfig>(false),
-                entityHandle    = GetEntityTypeHandle(),
-                indexHandle     = GetBufferTypeHandle<UniqueMeshIndex>(true),
                 meshPool        = meshPool,
-                mmiHandle       = GetComponentTypeHandle<MaterialMeshInfo>(false),
-                normalHandle    = GetBufferTypeHandle<UniqueMeshNormal>(true),
-                positionHandle  = GetBufferTypeHandle<UniqueMeshPosition>(true),
-                submeshHandle   = GetBufferTypeHandle<UniqueMeshSubmesh>(true),
-                tangentHandle   = GetBufferTypeHandle<UniqueMeshTangent>(true),
-                trackedHandle   = GetComponentTypeHandle<TrackedUniqueMesh>(true),
-                uv0xyHandle     = GetBufferTypeHandle<UniqueMeshUv0xy>(true),
-                uv3xyzHandle    = GetBufferTypeHandle<UniqueMeshUv3xyz>(true),
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
 
             var meshesNeeded = new NativeReference<int>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
 
@@ -77,32 +63,22 @@ namespace Latios.Kinemation
 
         public WriteState Write(ref SystemState state, ref CollectState collectState)
         {
+            var api       = this.GetApi(ref state);
             var meshCount = collectState.meshesNeeded.Value;
             if (meshCount == 0)
                 return default;
             var meshesToUpload =
                 CollectionHelper.CreateNativeArray<UnityObjectRef<UnityEngine.Mesh> >(meshCount, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
             var meshDataArray = UnityEngine.Mesh.AllocateWritableMeshData(meshCount);
-            var meshPool      = latiosWorld.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(true);
+            var meshPool      = api.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(true);
 
             state.Dependency = new WriteMeshesJob
             {
                 collectedChunks = collectState.collectedChunks.AsDeferredJobArray(),
-                colorHandle     = GetBufferTypeHandle<UniqueMeshColor>(false),
-                configHandle    = GetComponentTypeHandle<UniqueMeshConfig>(false),
-                indexHandle     = GetBufferTypeHandle<UniqueMeshIndex>(false),
                 meshDataArray   = meshDataArray,
                 meshesToUpload  = meshesToUpload,
                 meshPool        = meshPool,
-                mmiHandle       = GetComponentTypeHandle<MaterialMeshInfo>(true),
-                normalHandle    = GetBufferTypeHandle<UniqueMeshNormal>(false),
-                positionHandle  = GetBufferTypeHandle<UniqueMeshPosition>(false),
-                submeshHandle   = GetBufferTypeHandle<UniqueMeshSubmesh>(false),
-                tangentHandle   = GetBufferTypeHandle<UniqueMeshTangent>(false),
-                trackedHandle   = GetComponentTypeHandle<TrackedUniqueMesh>(true),
-                uv0xyHandle     = GetBufferTypeHandle<UniqueMeshUv0xy>(false),
-                uv3xyzHandle    = GetBufferTypeHandle<UniqueMeshUv3xyz>(false),
-            }.Schedule(collectState.collectedChunks, 1, state.Dependency);
+            }.Inject(api).Schedule(collectState.collectedChunks, 1, state.Dependency);
 
             return new WriteState
             {
@@ -144,22 +120,22 @@ namespace Latios.Kinemation
         }
 
         [BurstCompile]
-        struct FindAndValidateMeshesJob : IJobChunk
+        partial struct FindAndValidateMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                       entityHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshPosition>   positionHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshNormal>     normalHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshTangent>    tangentHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshColor>      colorHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshUv0xy>      uv0xyHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshUv3xyz>     uv3xyzHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshIndex>      indexHandle;
-            [ReadOnly] public BufferTypeHandle<UniqueMeshSubmesh>    submeshHandle;
-            [ReadOnly] public ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
+            [ReadOnly, Inject] EntityTypeHandle                       entityHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshPosition>   positionHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshNormal>     normalHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshTangent>    tangentHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshColor>      colorHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv0xy>      uv0xyHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv3xyz>     uv3xyzHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshIndex>      indexHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshSubmesh>    submeshHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
             [ReadOnly] public UniqueMeshPool                         meshPool;
 
-            public ComponentTypeHandle<UniqueMeshConfig>                            configHandle;
-            public ComponentTypeHandle<MaterialMeshInfo>                            mmiHandle;
+            [Inject] ComponentTypeHandle<UniqueMeshConfig>                            configHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>                            mmiHandle;
             [NativeDisableParallelForRestriction] public NativeList<CollectedChunk> collectedChunks;  // Preallocated to query chunk count without filtering
 
             [NativeSetThreadIndex]
@@ -275,22 +251,22 @@ namespace Latios.Kinemation
         }
 
         [BurstCompile]
-        struct WriteMeshesJob : IJobParallelForDefer
+        partial struct WriteMeshesJob : IJobParallelForDefer, IInjectable
         {
             [ReadOnly] public NativeArray<CollectedChunk>            collectedChunks;
-            [ReadOnly] public ComponentTypeHandle<MaterialMeshInfo>  mmiHandle;
-            [ReadOnly] public ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MaterialMeshInfo>  mmiHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
             [ReadOnly] public UniqueMeshPool                         meshPool;
 
-            public ComponentTypeHandle<UniqueMeshConfig> configHandle;
-            public BufferTypeHandle<UniqueMeshPosition>  positionHandle;
-            public BufferTypeHandle<UniqueMeshNormal>    normalHandle;
-            public BufferTypeHandle<UniqueMeshTangent>   tangentHandle;
-            public BufferTypeHandle<UniqueMeshColor>     colorHandle;
-            public BufferTypeHandle<UniqueMeshUv0xy>     uv0xyHandle;
-            public BufferTypeHandle<UniqueMeshUv3xyz>    uv3xyzHandle;
-            public BufferTypeHandle<UniqueMeshIndex>     indexHandle;
-            public BufferTypeHandle<UniqueMeshSubmesh>   submeshHandle;
+            [Inject] ComponentTypeHandle<UniqueMeshConfig> configHandle;
+            [Inject] BufferTypeHandle<UniqueMeshPosition>  positionHandle;
+            [Inject] BufferTypeHandle<UniqueMeshNormal>    normalHandle;
+            [Inject] BufferTypeHandle<UniqueMeshTangent>   tangentHandle;
+            [Inject] BufferTypeHandle<UniqueMeshColor>     colorHandle;
+            [Inject] BufferTypeHandle<UniqueMeshUv0xy>     uv0xyHandle;
+            [Inject] BufferTypeHandle<UniqueMeshUv3xyz>    uv3xyzHandle;
+            [Inject] BufferTypeHandle<UniqueMeshIndex>     indexHandle;
+            [Inject] BufferTypeHandle<UniqueMeshSubmesh>   submeshHandle;
 
             [NativeDisableParallelForRestriction] public UnityEngine.Mesh.MeshDataArray                 meshDataArray;
             [NativeDisableParallelForRestriction] public NativeArray<UnityObjectRef<UnityEngine.Mesh> > meshesToUpload;

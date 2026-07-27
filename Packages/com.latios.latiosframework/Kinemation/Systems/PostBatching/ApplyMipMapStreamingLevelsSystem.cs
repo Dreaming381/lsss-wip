@@ -8,29 +8,27 @@ namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct ApplyMipMapStreamingLevelsSystem : ISystem
+    public partial struct ApplyMipMapStreamingLevelsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
-            latiosWorld.worldBlackboardEntity.AddComponent(new TypePack<MipMapStreamingAssignment, MipMapCameraParameters>());
+            api.worldBlackboardEntity.AddComponent(new TypePack<MipMapStreamingAssignment, MipMapCameraParameters>());
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var assignments = latiosWorld.worldBlackboardEntity.GetBuffer<MipMapStreamingAssignment>(false);
+            var api         = this.GetApi(ref state);
+            var assignments = api.worldBlackboardEntity.GetBuffer<MipMapStreamingAssignment>(false);
             foreach (var assignment in assignments)
             {
                 assignment.texture.RequestMipMapLevelIfValid(assignment.level);
             }
             assignments.Clear();
-            latiosWorld.worldBlackboardEntity.GetBuffer<MipMapCameraParameters>(false).Clear();
+            api.worldBlackboardEntity.GetBuffer<MipMapCameraParameters>(false).Clear();
         }
     }
 }
-

@@ -6,8 +6,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 // This system doesn't actually allocate the graphics buffers.
 // Doing so now would introduce a sync point.
 // This system just calculates the required size and distributes instance shader properties.
@@ -16,15 +14,14 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct AllocateDeformMaterialPropertiesSystem : ISystem
+    public partial struct AllocateDeformMaterialPropertiesSystem : ISystem, ILatiosApi
     {
-        EntityQuery          m_query;
-        EntityQuery          m_metaQuery;
-        LatiosWorldUnmanaged latiosWorld;
+        EntityQuery m_query;
+        EntityQuery m_metaQuery;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_query     = state.Fluent().With<ChunkDeformPrefixSums>(false, true).With<BoundMesh>(true).Without<ChunkCopyDeformTag>(true).Build();
             m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkDeformPrefixSums>().Without<ChunkCopyDeformTag>().Build();
@@ -33,84 +30,51 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dispatchContext = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var api             = this.GetApi(ref state);
+            var dispatchContext = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchContext.isCustomGraphicsDispatch)
             {
-                var features = latiosWorld.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.dynamicMeshes && !features.blendShapes && !features.skinning)
                     return;
             }
 
-            var map            = latiosWorld.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap;
-            var meshGpuEntries = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(true).entries.AsDeferredJobArray();
+            var map            = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap;
+            var meshGpuEntries = api.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(true).entries.AsDeferredJobArray();
 
             var prefixesJh = new GatherChunkSumsJob
             {
                 deformClassificationMap = map,
-                meshHandle              = GetComponentTypeHandle<BoundMesh>(true),
-                metaHandle              = GetComponentTypeHandle<ChunkDeformPrefixSums>(false),
-                perDispatchMaskHandle   = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameMaskHandle      = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
 
             prefixesJh = new ChunkPrefixSumJob
             {
-                maxRequiredDeformDataLookup = GetComponentLookup<MaxRequiredDeformData>(false),
-                metaHandle                  = GetComponentTypeHandle<ChunkDeformPrefixSums>(false),
-                perDispatchMaskHandle       = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameMaskHandle          = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                worldBlackboardEntity       = latiosWorld.worldBlackboardEntity
-            }.Schedule(m_metaQuery, prefixesJh);
+                worldBlackboardEntity = api.worldBlackboardEntity
+            }.Inject(api).Schedule(m_metaQuery, prefixesJh);
 
             prefixesJh = new AssignMaterialPropertiesJob
             {
-                currentDeformHandle        = GetComponentTypeHandle<CurrentDeformShaderIndex>(false),
-                currentDqsVertexHandle     = GetComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>(false),
-                currentMatrixVertexHandle  = GetComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>(false),
-                deformClassificationMap    = map,
-                legacyComputeDeformHandle  = GetComponentTypeHandle<LegacyComputeDeformShaderIndex>(false),
-                legacyDotsDeformHandle     = GetComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>(false),
-                legacyLbsHandle            = GetComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex>(false),
-                previousDeformHandle       = GetComponentTypeHandle<PreviousDeformShaderIndex>(false),
-                previousDqsVertexHandle    = GetComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>(false),
-                previousMatrixVertexHandle = GetComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex>(false),
-                twoAgoDeformHandle         = GetComponentTypeHandle<TwoAgoDeformShaderIndex>(false),
-                twoAgoDqsVertexHandle      = GetComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>(false),
-                twoAgoMatrixVertexHandle   = GetComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>(false),
-                meshHandle                 = GetComponentTypeHandle<BoundMesh>(true),
-                metaHandle                 = GetComponentTypeHandle<ChunkDeformPrefixSums>(true),
-                perDispatchMaskHandle      = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameMaskHandle         = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                meshGpuEnties              = meshGpuEntries,
-            }.ScheduleParallel(m_query, prefixesJh);
+                deformClassificationMap = map,
+                meshGpuEnties           = meshGpuEntries,
+            }.Inject(api).ScheduleParallel(m_query, prefixesJh);
 
             // The idea behind scheduling this separately is that it may be able to run alongside the single-threaded ChunkPrefixSumJob.
             var dirtyJh = new MarkMaterialPropertiesDirtyJob
             {
-                deformClassificationMap    = map,
-                perDispatchMaskHandle      = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameMaskHandle         = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                chunkHeaderHandle          = GetComponentTypeHandle<ChunkHeader>(true),
-                materialMaskHandle         = GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
-                materialPropertyTypeLookup = GetBufferLookup<MaterialPropertyComponentType>(true),
-                worldBlackboardEntity      = latiosWorld.worldBlackboardEntity
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+                deformClassificationMap = map,
+                worldBlackboardEntity   = api.worldBlackboardEntity
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 
             state.Dependency = JobHandle.CombineDependencies(prefixesJh, dirtyJh);
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
+        partial struct GatherChunkSumsJob : IJobChunk, IInjectable
         {
-        }
-
-        [BurstCompile]
-        struct GatherChunkSumsJob : IJobChunk
-        {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>                   meshHandle;
-            public ComponentTypeHandle<ChunkDeformPrefixSums>                  metaHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                   meshHandle;
+            [Inject] ComponentTypeHandle<ChunkDeformPrefixSums>                 metaHandle;
 
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
 
@@ -157,13 +121,13 @@ namespace Latios.Kinemation.Systems
 
         // Schedule single
         [BurstCompile]
-        struct ChunkPrefixSumJob : IJobChunk
+        partial struct ChunkPrefixSumJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
-            public ComponentTypeHandle<ChunkDeformPrefixSums>                  metaHandle;
-            public ComponentLookup<MaxRequiredDeformData>                      maxRequiredDeformDataLookup;
-            public Entity                                                      worldBlackboardEntity;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [Inject] ComponentTypeHandle<ChunkDeformPrefixSums>                 metaHandle;
+            [Inject] ComponentLookup<MaxRequiredDeformData>                     maxRequiredDeformDataLookup;
+            public Entity                                                       worldBlackboardEntity;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -211,30 +175,30 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct AssignMaterialPropertiesJob : IJobChunk
+        partial struct AssignMaterialPropertiesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>                   meshHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkDeformPrefixSums>       metaHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                   meshHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkDeformPrefixSums>       metaHandle;
 
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
             [ReadOnly] public NativeArray<MeshGpuEntry>                                   meshGpuEnties;
 
-            public ComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex> legacyLbsHandle;
-            public ComponentTypeHandle<LegacyComputeDeformShaderIndex>       legacyComputeDeformHandle;
-            public ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformHandle;
+            [Inject] ComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex> legacyLbsHandle;
+            [Inject] ComponentTypeHandle<LegacyComputeDeformShaderIndex>       legacyComputeDeformHandle;
+            [Inject] ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformHandle;
 
-            public ComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexHandle;
-            public ComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexHandle;
-            public ComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexHandle;
-            public ComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexHandle;
-            public ComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexHandle;
-            public ComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexHandle;
+            [Inject] ComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexHandle;
+            [Inject] ComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexHandle;
+            [Inject] ComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexHandle;
+            [Inject] ComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexHandle;
+            [Inject] ComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexHandle;
+            [Inject] ComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexHandle;
 
-            public ComponentTypeHandle<CurrentDeformShaderIndex>  currentDeformHandle;
-            public ComponentTypeHandle<PreviousDeformShaderIndex> previousDeformHandle;
-            public ComponentTypeHandle<TwoAgoDeformShaderIndex>   twoAgoDeformHandle;
+            [Inject] ComponentTypeHandle<CurrentDeformShaderIndex>  currentDeformHandle;
+            [Inject] ComponentTypeHandle<PreviousDeformShaderIndex> previousDeformHandle;
+            [Inject] ComponentTypeHandle<TwoAgoDeformShaderIndex>   twoAgoDeformHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -389,14 +353,14 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct MarkMaterialPropertiesDirtyJob : IJobChunk
+        partial struct MarkMaterialPropertiesDirtyJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask>            perDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>               perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                            chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask>           perDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>              perFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>                           chunkHeaderHandle;
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
-            public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>                    materialMaskHandle;
-            [ReadOnly] public BufferLookup<MaterialPropertyComponentType>                 materialPropertyTypeLookup;
+            [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>                  materialMaskHandle;
+            [ReadOnly, Inject] BufferLookup<MaterialPropertyComponentType>                materialPropertyTypeLookup;
             public Entity                                                                 worldBlackboardEntity;
 
             [NativeDisableContainerSafetyRestriction, NoAlias] NativeArray<ulong> propertyTypeMasks;

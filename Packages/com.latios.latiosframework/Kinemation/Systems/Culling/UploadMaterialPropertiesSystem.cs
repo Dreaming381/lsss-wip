@@ -14,11 +14,9 @@ namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
-    public partial struct UploadMaterialPropertiesSystem : ISystem, ICullingComputeDispatchSystem<UploadMaterialPropertiesSystem.CollectState,
-                                                                                                  UploadMaterialPropertiesSystem.WriteState>
+    public partial struct UploadMaterialPropertiesSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<UploadMaterialPropertiesSystem.CollectState,
+                                                                                                              UploadMaterialPropertiesSystem.WriteState>
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_metaQuery;
 
         private GraphicsBufferUnmanaged           m_GPUPersistentInstanceData;
@@ -50,9 +48,9 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
-            m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+            m_data = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
 
             m_metaQuery = state.Fluent().With<EntitiesGraphicsChunkInfo>(false).With<ChunkHeader>(true).With<ChunkPerDispatchCullingMask>(true).Build();
 
@@ -64,7 +62,7 @@ namespace Latios.Kinemation.Systems
                 (int)m_persistentInstanceDataSize / 4,
                 4);
             m_GPUPersistentInstanceBufferHandle = m_GPUPersistentInstanceData.ToManaged().bufferHandle;
-            m_GPUUploader                       = new LatiosSparseUploader(latiosWorld.latiosWorld, m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
+            m_GPUUploader                       = new LatiosSparseUploader(api.latiosWorld.latiosWorld, m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
         }
 
         // Todo: Get rid of the hard system dependencies.
@@ -95,10 +93,11 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dispatchData = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var api           = this.GetApi(ref state);
+            var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
-                var features = latiosWorld.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.materialProperties)
                     return;
             }
@@ -108,9 +107,10 @@ namespace Latios.Kinemation.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            var context               = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(true);
-            var materialPropertyTypes = latiosWorld.worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true);
-            var dispatchContext       = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var api                    = this.GetApi(ref state);
+            var context               = api.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(true);
+            var materialPropertyTypes = api.worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true);
+            var dispatchContext       = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
 
             // Conservative estimate is that every known type is in every chunk. There will be
             // at most one operation per type per chunk, which will be either an actual
@@ -127,18 +127,12 @@ namespace Latios.Kinemation.Systems
             m_burstCompatibleTypeArray.Update(ref state);
             var collectJh = new ComputeOperationsJob
             {
-                ChunkHeader                       = SystemAPI.GetComponentTypeHandle<ChunkHeader>(true),
                 ChunkProperties                   = context.chunkProperties,
-                chunkPropertyDirtyMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
-                chunkPerDispatchCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
                 ComponentTypes                    = m_burstCompatibleTypeArray,
                 GpuUploadOperations               = gpuUploadOperations,
-                EntitiesGraphicsChunkInfo         = SystemAPI.GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
                 NumGpuUploadOperations            = numGpuUploadOperations,
                 PreviousTransformPreviousType     = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousMI_Tag>(),
                 WorldTransformInverseType         = TypeManager.GetTypeIndex<WorldToLocal_Tag>(),
-                postProcessMatrixHandle           = SystemAPI.GetComponentTypeHandle<PostProcessMatrix>(true),
-                previousPostProcessMatrixHandle   = SystemAPI.GetComponentTypeHandle<PreviousPostProcessMatrix>(true),
 #if !LATIOS_TRANSFORMS_UNITY
                 WorldTransformType    = TypeManager.GetTypeIndex<WorldTransform>(),
                 PreviousTransformType = TypeManager.GetTypeIndex<PreviousTransform>(),
@@ -146,7 +140,7 @@ namespace Latios.Kinemation.Systems
                 WorldTransformType    = TypeManager.GetTypeIndex<Unity.Transforms.LocalToWorld>(),
                 PreviousTransformType = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousM>(),
 #endif
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 
             var uploadSizeRequirements = new NativeReference<UploadSizeRequirements>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
             state.Dependency           = new ComputeUploadSizeRequirementsJob
@@ -168,6 +162,7 @@ namespace Latios.Kinemation.Systems
 
         public WriteState Write(ref SystemState state, ref CollectState collectState)
         {
+            var api                    = this.GetApi(ref state);
             var numGpuUploadOperations = collectState.numGpuUploadOperations.Value;
             var gpuUploadOperations    = collectState.gpuUploadOperations;
 
@@ -189,7 +184,7 @@ namespace Latios.Kinemation.Systems
 
             // This is a different update, so we need to resecure this collection component.
             // Also, this time we write to it.
-            var context = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(false);
+            var context = api.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(false);
             // Since we have it, now is as good of a time as any to dispatch a resize if needed.
             //if (context.requiredPersistentInstanceDataSize > m_persistentInstanceDataSize)
             //{
@@ -251,14 +246,14 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct ComputeOperationsJob : IJobChunk
+        partial struct ComputeOperationsJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo>   EntitiesGraphicsChunkInfo;
-            public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>         chunkPropertyDirtyMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 ChunkHeader;
-            [ReadOnly] public ComponentTypeHandle<PostProcessMatrix>           postProcessMatrixHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousPostProcessMatrix>   previousPostProcessMatrixHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<EntitiesGraphicsChunkInfo>   EntitiesGraphicsChunkInfo;
+            [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>         chunkPropertyDirtyMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>                 ChunkHeader;
+            [ReadOnly, Inject] ComponentTypeHandle<PostProcessMatrix>           postProcessMatrixHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<PreviousPostProcessMatrix>   previousPostProcessMatrixHandle;
 
             [ReadOnly] public NativeArray<ChunkProperty> ChunkProperties;
             public int                                   WorldTransformType;

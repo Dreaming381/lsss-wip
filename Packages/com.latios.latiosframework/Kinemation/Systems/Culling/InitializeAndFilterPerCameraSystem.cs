@@ -9,24 +9,21 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [DontSyncPreviousUpdatesThisFrame(32)]
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InitializeAndFilterPerCameraSystem : ISystem
+    public partial struct InitializeAndFilterPerCameraSystem : ISystem, ILatiosApi
     {
         EntityQuery m_metaQuery;
 
-        LatiosWorldUnmanaged       latiosWorld;
         DynamicComponentTypeHandle m_materialMeshInfoHandle;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld              = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
             m_metaQuery              = state.Fluent().With<ChunkPerCameraCullingMask>(false).With<ChunkHeader>(true).With<EntitiesGraphicsChunkInfo>(true).Build();
             m_materialMeshInfoHandle = state.GetDynamicComponentTypeHandle(ComponentType.ReadOnly<MaterialMeshInfo>());
 
@@ -52,50 +49,38 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             m_materialMeshInfoHandle.Update(ref state);
-            var cullingContext = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var cullingContext = api.worldBlackboardEntity.GetComponentData<CullingContext>();
             state.Dependency   = new Job
             {
-                chunkInfoHandle        = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
-                headerHandle           = GetComponentTypeHandle<ChunkHeader>(true),
-                perCameraMaskHandle    = GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
-                filterHandle           = GetSharedComponentTypeHandle<RenderFilterSettings>(),
-                lightMapsHandle        = ManagedAPI.GetSharedComponentTypeHandle<LightMaps>(),
                 materialMeshInfoHandle = m_materialMeshInfoHandle,
                 cullingContext         = cullingContext
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 
 #if UNITY_EDITOR
             m_dynamicEditorHandle.Update(ref state);
 
-            var engineContext = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(true);
+            var engineContext = api.worldBlackboardEntity.GetCollectionComponent<BrgCullingContext>(true);
 
             state.Dependency = new EditorJob
             {
-                headerHandle              = GetComponentTypeHandle<ChunkHeader>(true),
-                maskHandle                = GetComponentTypeHandle<ChunkPerCameraCullingMask>(),
                 editorDataComponentHandle = m_dynamicEditorHandle,
-                entityHandle              = GetEntityTypeHandle(),
                 sceneCullingMask          = cullingContext.sceneCullingMask,
                 includeExcludeFilter      = engineContext.includeExcludeListFilter
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 #endif
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
+        partial struct Job : IJobChunk, IInjectable
         {
-        }
-
-        [BurstCompile]
-        struct Job : IJobChunk
-        {
-            public ComponentTypeHandle<ChunkPerCameraCullingMask>             perCameraMaskHandle;
-            [ReadOnly] public SharedComponentTypeHandle<RenderFilterSettings> filterHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                headerHandle;
-            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo>  chunkInfoHandle;
-            [ReadOnly] public SharedComponentTypeHandle<LightMaps>            lightMapsHandle;
-            [ReadOnly] public DynamicComponentTypeHandle                      materialMeshInfoHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingMask>            perCameraMaskHandle;
+            [Inject, ReadOnly] SharedComponentTypeHandle<RenderFilterSettings> filterHandle;
+            [Inject, ReadOnly] ComponentTypeHandle<ChunkHeader>                headerHandle;
+            [Inject, ReadOnly] ComponentTypeHandle<EntitiesGraphicsChunkInfo>  chunkInfoHandle;
+            [Inject, ReadOnly] SharedComponentTypeHandle<LightMaps>            lightMapsHandle;
+            [ReadOnly] public DynamicComponentTypeHandle                       materialMeshInfoHandle;
 
             public CullingContext cullingContext;
 
@@ -149,11 +134,11 @@ namespace Latios.Kinemation.Systems
         DynamicSharedComponentTypeHandle m_dynamicEditorHandle;
 
         [BurstCompile]
-        struct EditorJob : IJobChunk
+        partial struct EditorJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<ChunkPerCameraCullingMask> maskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader> headerHandle;
-            [ReadOnly] public EntityTypeHandle entityHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingMask> maskHandle;
+            [Inject, ReadOnly] ComponentTypeHandle<ChunkHeader> headerHandle;
+            [Inject, ReadOnly] EntityTypeHandle entityHandle;
 
             [ReadOnly] public DynamicSharedComponentTypeHandle editorDataComponentHandle;
             [ReadOnly] public IncludeExcludeListFilter includeExcludeFilter;

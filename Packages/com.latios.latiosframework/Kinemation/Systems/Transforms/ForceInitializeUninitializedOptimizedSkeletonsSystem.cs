@@ -141,7 +141,7 @@ namespace Latios.Kinemation.Systems
                     var boneBuffer       = boneBuffers[i];
                     DynamicBuffer<OptimizedBoneInertialBlendState> dummyBlendBuffer = default;
 
-                    _ = new OptimizedSkeletonAspect(in transformHandle[i],
+                    _ = new OptimizedSkeletonAspect(in ltws[i],
                                                     new RefRO<OptimizedSkeletonHierarchyBlobReference>(hierarchies, i),
                                                     new RefRW<OptimizedSkeletonState>(states, i),
                                                     ref boneBuffer,

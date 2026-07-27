@@ -9,8 +9,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 // Unity's implementation of LODs in ECS and GPU Resident Drawer prefer to encode
 // LODs as distances. The problem with this is that LODs are really defined as
 // percentages of screen heights. And such percentages are dependent on the scale
@@ -69,14 +67,10 @@ namespace Latios.Kinemation.Systems
     [DontSyncPreviousUpdatesThisFrame(32)]
     [DisableAutoCreation]
     [BurstCompile]
-    public unsafe partial struct CullLodsSystem : ISystem, ISystemShouldUpdate
+    public partial struct CullLodsSystem : ISystem, ILatiosApi, ISystemShouldUpdate
     {
         EntityQuery m_query;
         EntityQuery m_metaQuery;
-
-        LatiosWorldUnmanaged latiosWorld;
-
-        WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
 
         float3 m_previousCameraPosition;
         float  m_previousCameraHeightMultiplier;
@@ -88,12 +82,10 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().WithAnyEnabled<LodHeightPercentages, LodHeightPercentagesWithCrossfadeMargins>(true).WithWorldTransformReadOnly()
-                          .With<EntitiesGraphicsChunkInfo>(false, true).Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().WithAnyEnabled<LodHeightPercentages, LodHeightPercentagesWithCrossfadeMargins>(true).WithWorldTransformReadOnly()
+                      .With<EntitiesGraphicsChunkInfo>(false, true).Build();
             m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<EntitiesGraphicsChunkInfo>(false).With<ChunkPerCameraCullingMask>(false).Build();
-
-            m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
         }
 
         public bool ShouldUpdateSystem(ref SystemState state)
@@ -108,13 +100,14 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var context = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var api     = this.GetApi(ref state);
+            var context = api.worldBlackboardEntity.GetComponentData<CullingContext>();
 
             var   cameraPosition   = context.lodParameters.cameraPosition;
             var   isPerspective    = !context.lodParameters.isOrthographic;
             float cameraMultiplier = LodUtilities.CameraFactorFrom(in context.lodParameters, m_lodBias);
 
-            var  mipmapParameters   = latiosWorld.worldBlackboardEntity.GetBuffer<MipMapCameraParameters>(false);
+            var  mipmapParameters   = api.worldBlackboardEntity.GetBuffer<MipMapCameraParameters>(false);
             var  aspectRatio        = context.viewType == UnityEngine.Rendering.BatchCullingViewType.Light ? 1f : m_aspectRatio;
             var  mipmapCameraFactor = LodUtilities.CameraMipMapFactorFrom(in context.lodParameters, aspectRatio);
             bool add                = true;
@@ -152,37 +145,27 @@ namespace Latios.Kinemation.Systems
 
             if (needsCulling)
             {
-                m_worldTransformHandle.Update(ref state);
                 state.Dependency = new CullLodsJob
                 {
-                    worldTransformHandle                           = m_worldTransformHandle,
-                    lodHeightPercentagesHandle                     = GetComponentTypeHandle<LodHeightPercentages>(true),
-                    lodHeightPercentagesWithCrossfadeMarginsHandle = GetComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins>(true),
-                    chunkInfoHandle                                = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(false),
-                    crossfadeHandle                                = GetComponentTypeHandle<LodCrossfade>(false),
-                    cameraPosition                                 = cameraPosition,
-                    cameraHeightMultiplier                         = cameraMultiplier,
-                    maxResolutionLodLevel                          = m_maximumLODLevel,
-                    isPerspective                                  = isPerspective,
-                }.ScheduleParallel(m_query, state.Dependency);
+                    cameraPosition         = cameraPosition,
+                    cameraHeightMultiplier = cameraMultiplier,
+                    maxResolutionLodLevel  = m_maximumLODLevel,
+                    isPerspective          = isPerspective,
+                }.Inject(api).ScheduleParallel(m_query, state.Dependency);
             }
 
-            state.Dependency = new CopyLodsToPerCameraVisisbilitiesJob
-            {
-                chunkInfoHandle     = GetComponentTypeHandle<EntitiesGraphicsChunkInfo>(true),
-                perCameraMaskHandle = GetComponentTypeHandle<ChunkPerCameraCullingMask>(false)
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+            state.Dependency = new CopyLodsToPerCameraVisisbilitiesJob().Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
         }
 
         [BurstCompile]
-        unsafe struct CullLodsJob : IJobChunk
+        unsafe partial struct CullLodsJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle                       worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<LodHeightPercentages>                     lodHeightPercentagesHandle;
-            [ReadOnly] public ComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins> lodHeightPercentagesWithCrossfadeMarginsHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle                       worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LodHeightPercentages>                     lodHeightPercentagesHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins> lodHeightPercentagesWithCrossfadeMarginsHandle;
 
-            public ComponentTypeHandle<EntitiesGraphicsChunkInfo> chunkInfoHandle;
-            public ComponentTypeHandle<LodCrossfade>              crossfadeHandle;
+            [Inject] ComponentTypeHandle<EntitiesGraphicsChunkInfo> chunkInfoHandle;
+            [Inject] ComponentTypeHandle<LodCrossfade>              crossfadeHandle;
 
             public float3 cameraPosition;
             public float  cameraHeightMultiplier;
@@ -325,10 +308,10 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct CopyLodsToPerCameraVisisbilitiesJob : IJobChunk
+        partial struct CopyLodsToPerCameraVisisbilitiesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<EntitiesGraphicsChunkInfo> chunkInfoHandle;
-            public ComponentTypeHandle<ChunkPerCameraCullingMask>            perCameraMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<EntitiesGraphicsChunkInfo> chunkInfoHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingMask>           perCameraMaskHandle;
 
             public unsafe void Execute(in ArchetypeChunk metaChunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

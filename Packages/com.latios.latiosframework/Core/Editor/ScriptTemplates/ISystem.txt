@@ -8,25 +8,18 @@ using Latios.Transforms;
 
     #ROOTNAMESPACEBEGIN#
 [BurstCompile]
-public partial struct #SCRIPTNAME# : ISystem
+public partial struct #SCRIPTNAME# : ISystem, ILatiosApi
 {
-    LatiosWorldUnmanaged latiosWorld;
-
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        latiosWorld = state.GetLatiosWorldUnmanaged();
-    }
-
-    [BurstCompile]
-    public void OnDestroy(ref SystemState state)
-    {
+        var api = this.OnCreateForLatios(ref state);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        #NOTRIM#
+        var api = this.GetApi(ref state);
     }
 }
 #ROOTNAMESPACEEND#

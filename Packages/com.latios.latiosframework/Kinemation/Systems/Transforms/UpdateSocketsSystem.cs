@@ -7,8 +7,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
@@ -17,27 +15,24 @@ namespace Latios.Kinemation.Systems
     [UpdateBefore(typeof(LocalToWorldSystem))]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UpdateSocketsSystem : ISystem
+    public partial struct UpdateSocketsSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<LocalTransform>(false).With<Socket>(true).With<BoneOwningSkeletonReference>(true).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             state.Dependency = new CopyFromBoneJob
             {
-                socketHandle      = GetComponentTypeHandle<Socket>(true),
-                skeletonHandle    = GetComponentTypeHandle<BoneOwningSkeletonReference>(true),
-                obtLookup         = GetBufferLookup<OptimizedBoneTransform>(true),
-                stateLookup       = GetComponentLookup<OptimizedSkeletonState>(true),
-                transformHandle   = GetComponentTypeHandle<LocalTransform>(false),
                 lastSystemVersion = state.LastSystemVersion
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
@@ -45,13 +40,13 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct CopyFromBoneJob : IJobChunk
+        partial struct CopyFromBoneJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<Socket> socketHandle;
-            [ReadOnly] public ComponentTypeHandle<BoneOwningSkeletonReference> skeletonHandle;
-            [ReadOnly] public BufferLookup<OptimizedBoneTransform> obtLookup;
-            [ReadOnly] public ComponentLookup<OptimizedSkeletonState> stateLookup;
-            public ComponentTypeHandle<LocalTransform> transformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<Socket> socketHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoneOwningSkeletonReference> skeletonHandle;
+            [ReadOnly, Inject] BufferLookup<OptimizedBoneTransform> obtLookup;
+            [ReadOnly, Inject] ComponentLookup<OptimizedSkeletonState> stateLookup;
+            [Inject] ComponentTypeHandle<LocalTransform> transformHandle;
 
             public uint lastSystemVersion;
 

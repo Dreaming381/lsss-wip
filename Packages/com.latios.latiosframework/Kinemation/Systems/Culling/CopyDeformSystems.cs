@@ -6,23 +6,19 @@ using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine.Rendering;
-
-using static Unity.Entities.SystemAPI;
 
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct CopyDeformMaterialsSystem : ISystem
+    public partial struct CopyDeformMaterialsSystem : ISystem, ILatiosApi
     {
-        EntityQuery          m_metaQuery;
-        LatiosWorldUnmanaged latiosWorld;
+        EntityQuery m_metaQuery;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkCopyDeformTag>(true).With<ChunkPerFrameCullingMask>(true)
                           .With<ChunkPerCameraCullingMask>(false).With<ChunkPerCameraCullingSplitsMask>(false).UseWriteGroups().Build();
@@ -31,65 +27,32 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api       = this.GetApi(ref state);
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
 
             state.Dependency = new FindChunksNeedingCopyingJob
             {
-                chunkHeaderHandle            = GetComponentTypeHandle<ChunkHeader>(true),
-                chunksToProcess              = chunkList.AsParallelWriter(),
-                perDispatchCullingMaskHandle = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true)
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+                chunksToProcess = chunkList.AsParallelWriter(),
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 
             var skinCopier = new SkinCopier
             {
-                deformClassificationMap    = latiosWorld.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap,
-                materialMaskHandle         = GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
-                materialPropertyTypeLookup = GetBufferLookup<MaterialPropertyComponentType>(true),
-                worldBlackboardEntity      = latiosWorld.worldBlackboardEntity,
-
-                currentDeformHandle        = GetComponentTypeHandle<CurrentDeformShaderIndex>(false),
-                currentDqsVertexHandle     = GetComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>(false),
-                currentMatrixVertexHandle  = GetComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>(false),
-                legacyComputeDeformHandle  = GetComponentTypeHandle<LegacyComputeDeformShaderIndex>(false),
-                legacyDotsDeformHandle     = GetComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>(false),
-                legacyLbsHandle            = GetComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex>(false),
-                previousDeformHandle       = GetComponentTypeHandle<PreviousDeformShaderIndex>(false),
-                previousDqsVertexHandle    = GetComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>(false),
-                previousMatrixVertexHandle = GetComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex>(false),
-                twoAgoDeformHandle         = GetComponentTypeHandle<TwoAgoDeformShaderIndex>(false),
-                twoAgoDqsVertexHandle      = GetComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>(false),
-                twoAgoMatrixVertexHandle   = GetComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>(false),
-
-                currentDeformLookup        = GetComponentLookup<CurrentDeformShaderIndex>(false),
-                currentDqsVertexLookup     = GetComponentLookup<CurrentDqsVertexSkinningShaderIndex>(false),
-                currentMatrixVertexLookup  = GetComponentLookup<CurrentMatrixVertexSkinningShaderIndex>(false),
-                legacyComputeDeformLookup  = GetComponentLookup<LegacyComputeDeformShaderIndex>(false),
-                legacyDotsDeformLookup     = GetComponentLookup<LegacyDotsDeformParamsShaderIndex>(false),
-                legacyLbsLookup            = GetComponentLookup<LegacyLinearBlendSkinningShaderIndex>(false),
-                previousDeformLookup       = GetComponentLookup<PreviousDeformShaderIndex>(false),
-                previousDqsVertexLookup    = GetComponentLookup<PreviousDqsVertexSkinningShaderIndex>(false),
-                previousMatrixVertexLookup = GetComponentLookup<PreviousMatrixVertexSkinningShaderIndex>(false),
-                twoAgoDeformLookup         = GetComponentLookup<TwoAgoDeformShaderIndex>(false),
-                twoAgoDqsVertexLookup      = GetComponentLookup<TwoAgoDqsVertexSkinningShaderIndex>(false),
-                twoAgoMatrixVertexLookup   = GetComponentLookup<TwoAgoMatrixVertexSkinningShaderIndex>(false),
-            };
+                deformClassificationMap = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap,
+                worldBlackboardEntity   = api.worldBlackboardEntity,
+            }.Inject(api);
 
             state.Dependency = new CopySkinJob
             {
-                chunkPerDispatchMaskHandle = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                chunkPerFrameMaskHandle    = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                chunksToProcess            = chunkList.AsDeferredJobArray(),
-                esiLookup                  = GetEntityStorageInfoLookup(),
-                referenceHandle            = GetComponentTypeHandle<CopyDeformFromEntity>(true),
-                skinCopier                 = skinCopier,
-            }.Schedule(chunkList, 1, state.Dependency);
+                chunksToProcess = chunkList.AsDeferredJobArray(),
+                skinCopier      = skinCopier,
+            }.Inject(api).Schedule(chunkList, 1, state.Dependency);
         }
 
         [BurstCompile]
-        struct FindChunksNeedingCopyingJob : IJobChunk
+        partial struct FindChunksNeedingCopyingJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
@@ -118,14 +81,14 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        unsafe struct CopySkinJob : IJobParallelForDefer
+        unsafe partial struct CopySkinJob : IJobParallelForDefer, IInjectable
         {
             [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
 
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    chunkPerFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<CopyDeformFromEntity>        referenceHandle;
-            [ReadOnly] public EntityStorageInfoLookup                          esiLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    chunkPerFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<CopyDeformFromEntity>        referenceHandle;
+            [ReadOnly, Inject] EntityStorageInfoLookup                          esiLookup;
 
             public SkinCopier skinCopier;
 
@@ -166,14 +129,13 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct CopyDeformCustomSystem : ISystem
+    public partial struct CopyDeformCustomSystem : ISystem, ILatiosApi
     {
-        EntityQuery          m_metaQuery;
-        LatiosWorldUnmanaged latiosWorld;
+        EntityQuery m_metaQuery;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_metaQuery = state.Fluent().With<ChunkHeader>(true).With<ChunkCopyDeformTag>(true).With<ChunkPerFrameCullingMask>(true)
                           .With<ChunkPerDispatchCullingMask>(false).UseWriteGroups().Build();
@@ -182,10 +144,11 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dispatchContext = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var api             = this.GetApi(ref state);
+            var dispatchContext = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchContext.isCustomGraphicsDispatch)
             {
-                var features = latiosWorld.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.dynamicMeshes && !features.blendShapes && !features.skinning)
                     return;
             }
@@ -194,60 +157,27 @@ namespace Latios.Kinemation.Systems
 
             state.Dependency = new FindChunksNeedingCopyingJob
             {
-                chunkHeaderHandle            = GetComponentTypeHandle<ChunkHeader>(true),
-                chunksToProcess              = chunkList.AsParallelWriter(),
-                perDispatchCullingMaskHandle = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true)
-            }.ScheduleParallel(m_metaQuery, state.Dependency);
+                chunksToProcess = chunkList.AsParallelWriter(),
+            }.Inject(api).ScheduleParallel(m_metaQuery, state.Dependency);
 
             var skinCopier = new SkinCopier
             {
-                deformClassificationMap    = latiosWorld.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap,
-                materialMaskHandle         = GetComponentTypeHandle<ChunkMaterialPropertyDirtyMask>(false),
-                materialPropertyTypeLookup = GetBufferLookup<MaterialPropertyComponentType>(true),
-                worldBlackboardEntity      = latiosWorld.worldBlackboardEntity,
-
-                currentDeformHandle        = GetComponentTypeHandle<CurrentDeformShaderIndex>(false),
-                currentDqsVertexHandle     = GetComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>(false),
-                currentMatrixVertexHandle  = GetComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>(false),
-                legacyComputeDeformHandle  = GetComponentTypeHandle<LegacyComputeDeformShaderIndex>(false),
-                legacyDotsDeformHandle     = GetComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>(false),
-                legacyLbsHandle            = GetComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex>(false),
-                previousDeformHandle       = GetComponentTypeHandle<PreviousDeformShaderIndex>(false),
-                previousDqsVertexHandle    = GetComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>(false),
-                previousMatrixVertexHandle = GetComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex>(false),
-                twoAgoDeformHandle         = GetComponentTypeHandle<TwoAgoDeformShaderIndex>(false),
-                twoAgoDqsVertexHandle      = GetComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>(false),
-                twoAgoMatrixVertexHandle   = GetComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>(false),
-
-                currentDeformLookup        = GetComponentLookup<CurrentDeformShaderIndex>(false),
-                currentDqsVertexLookup     = GetComponentLookup<CurrentDqsVertexSkinningShaderIndex>(false),
-                currentMatrixVertexLookup  = GetComponentLookup<CurrentMatrixVertexSkinningShaderIndex>(false),
-                legacyComputeDeformLookup  = GetComponentLookup<LegacyComputeDeformShaderIndex>(false),
-                legacyDotsDeformLookup     = GetComponentLookup<LegacyDotsDeformParamsShaderIndex>(false),
-                legacyLbsLookup            = GetComponentLookup<LegacyLinearBlendSkinningShaderIndex>(false),
-                previousDeformLookup       = GetComponentLookup<PreviousDeformShaderIndex>(false),
-                previousDqsVertexLookup    = GetComponentLookup<PreviousDqsVertexSkinningShaderIndex>(false),
-                previousMatrixVertexLookup = GetComponentLookup<PreviousMatrixVertexSkinningShaderIndex>(false),
-                twoAgoDeformLookup         = GetComponentLookup<TwoAgoDeformShaderIndex>(false),
-                twoAgoDqsVertexLookup      = GetComponentLookup<TwoAgoDqsVertexSkinningShaderIndex>(false),
-                twoAgoMatrixVertexLookup   = GetComponentLookup<TwoAgoMatrixVertexSkinningShaderIndex>(false),
-            };
+                deformClassificationMap = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap,
+                worldBlackboardEntity   = api.worldBlackboardEntity,
+            }.Inject(api);
 
             state.Dependency = new CopySkinJob
             {
-                chunkPerDispatchMaskHandle = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(false),
-                chunksToProcess            = chunkList.AsDeferredJobArray(),
-                esiLookup                  = GetEntityStorageInfoLookup(),
-                referenceHandle            = GetComponentTypeHandle<CopyDeformFromEntity>(true),
-                skinCopier                 = skinCopier,
-            }.Schedule(chunkList, 1, state.Dependency);
+                chunksToProcess = chunkList.AsDeferredJobArray(),
+                skinCopier      = skinCopier,
+            }.Inject(api).Schedule(chunkList, 1, state.Dependency);
         }
 
         [BurstCompile]
-        struct FindChunksNeedingCopyingJob : IJobChunk
+        partial struct FindChunksNeedingCopyingJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
@@ -276,16 +206,15 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        unsafe struct CopySkinJob : IJobParallelForDefer
+        unsafe partial struct CopySkinJob : IJobParallelForDefer, IInjectable
         {
             [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
 
-            [ReadOnly] public ComponentTypeHandle<CopyDeformFromEntity> referenceHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<CopyDeformFromEntity> referenceHandle;
+            [ReadOnly, Inject] EntityStorageInfoLookup                   esiLookup;
 
-            [ReadOnly] public EntityStorageInfoLookup esiLookup;
-
-            public ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchMaskHandle;
-            public SkinCopier                                       skinCopier;
+            [Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchMaskHandle;
+            public SkinCopier                                         skinCopier;
 
             public void Execute(int i)
             {
@@ -341,44 +270,44 @@ namespace Latios.Kinemation.Systems
         }
     }
 
-    struct SkinCopier
+    partial struct SkinCopier : IInjectable
     {
         [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
 
-        public ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>            materialMaskHandle;
+        [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>          materialMaskHandle;
         [NativeDisableContainerSafetyRestriction, NoAlias] NativeArray<ulong> propertyTypeMasks;
-        [ReadOnly] public BufferLookup<MaterialPropertyComponentType>         materialPropertyTypeLookup;
+        [ReadOnly, Inject] BufferLookup<MaterialPropertyComponentType>        materialPropertyTypeLookup;
         public Entity                                                         worldBlackboardEntity;
 
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex> legacyLbsHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<LegacyComputeDeformShaderIndex>       legacyComputeDeformHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex> legacyLbsHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<LegacyComputeDeformShaderIndex>       legacyComputeDeformHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformHandle;
 
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexHandle;
 
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<CurrentDeformShaderIndex>  currentDeformHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<PreviousDeformShaderIndex> previousDeformHandle;
-        [NativeDisableContainerSafetyRestriction] public ComponentTypeHandle<TwoAgoDeformShaderIndex>   twoAgoDeformHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<CurrentDeformShaderIndex>  currentDeformHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<PreviousDeformShaderIndex> previousDeformHandle;
+        [NativeDisableContainerSafetyRestriction, Inject]  ComponentTypeHandle<TwoAgoDeformShaderIndex>   twoAgoDeformHandle;
 
-        [NativeDisableParallelForRestriction] public ComponentLookup<LegacyLinearBlendSkinningShaderIndex> legacyLbsLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<LegacyComputeDeformShaderIndex>       legacyComputeDeformLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<LegacyLinearBlendSkinningShaderIndex> legacyLbsLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<LegacyComputeDeformShaderIndex>       legacyComputeDeformLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformLookup;
 
-        [NativeDisableParallelForRestriction] public ComponentLookup<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexLookup;
 
-        [NativeDisableParallelForRestriction] public ComponentLookup<CurrentDeformShaderIndex>  currentDeformLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<PreviousDeformShaderIndex> previousDeformLookup;
-        [NativeDisableParallelForRestriction] public ComponentLookup<TwoAgoDeformShaderIndex>   twoAgoDeformLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<CurrentDeformShaderIndex>  currentDeformLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<PreviousDeformShaderIndex> previousDeformLookup;
+        [NativeDisableParallelForRestriction, Inject] ComponentLookup<TwoAgoDeformShaderIndex>   twoAgoDeformLookup;
 
         public struct Context
         {

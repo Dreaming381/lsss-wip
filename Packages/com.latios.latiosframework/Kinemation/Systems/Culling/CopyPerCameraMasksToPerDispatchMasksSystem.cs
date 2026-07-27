@@ -1,4 +1,3 @@
-using static Unity.Entities.SystemAPI;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -10,31 +9,29 @@ namespace Latios.Kinemation
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct CopyPerCameraMasksToPerDispatchMasksSystem : ISystem
+    public partial struct CopyPerCameraMasksToPerDispatchMasksSystem : ISystem, ILatiosApi
     {
         EntityQuery m_renderMetaQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_renderMetaQuery = state.Fluent().With<ChunkPerCameraCullingMask, ChunkHeader>(true).With<ChunkPerDispatchCullingMask>(false).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new RenderJob
-            {
-                perCameraHandle   = GetComponentTypeHandle<ChunkPerCameraCullingMask>(true),
-                perDispatchHandle = GetComponentTypeHandle<ChunkPerDispatchCullingMask>(false)
-            }.ScheduleParallel(m_renderMetaQuery, state.Dependency);
+            var api          = this.GetApi(ref state);
+            state.Dependency = new RenderJob().Inject(api).ScheduleParallel(m_renderMetaQuery, state.Dependency);
         }
 
         [BurstCompile]
-        struct RenderJob : IJobChunk
+        partial struct RenderJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraHandle;
-            public ComponentTypeHandle<ChunkPerDispatchCullingMask>          perDispatchHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraHandle;
+            [Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask>         perDispatchHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

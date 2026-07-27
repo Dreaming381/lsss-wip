@@ -11,45 +11,38 @@ using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.LifeFX.Systems
 {
     [UpdateInGroup(typeof(Kinemation.Systems.KinemationCustomGraphicsSetupSuperSystem), OrderFirst = true)]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UpdateTrackedWorldTransformSystem : ISystem
+    public partial struct UpdateTrackedWorldTransformSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery               m_query;
         NativeList<TransformQvvs> m_trackedTransforms;
         NativeList<Entity>        m_trackedEntities;
         NativeList<int>           m_freeList;
 
-        WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             m_query = state.Fluent().With<TrackedWorldTransform>(false).WithWorldTransformReadOnly().Build();
-
-            m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
 
             m_trackedTransforms = new NativeList<TransformQvvs>(1024, Allocator.Persistent);
             m_trackedEntities   = new NativeList<Entity>(1024, Allocator.Persistent);
             m_freeList          = new NativeList<int>(128, Allocator.Persistent);
 
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new TrackedTransformUploadList());
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new TrackedTransformUploadList());
         }
 
         public void OnDestroy(ref SystemState state)
         {
-            if (state.EntityManager.Exists(latiosWorld.worldBlackboardEntity))
+            var api = this.GetApi(ref state);
+            if (state.EntityManager.Exists(api.worldBlackboardEntity))
             {
-                latiosWorld.GetCollectionComponent<TrackedTransformUploadList>(latiosWorld.worldBlackboardEntity, out var jh);
+                api.latiosWorld.GetCollectionComponent<TrackedTransformUploadList>(api.worldBlackboardEntity, out var jh);
                 jh.Complete();
             }
             state.CompleteDependency();
@@ -60,6 +53,7 @@ namespace Latios.LifeFX.Systems
 
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             var chunkCount    = m_query.CalculateChunkCountWithoutFiltering();
             var newChunks     = new NativeList<DeferredChunk>(chunkCount, state.WorldUpdateAllocator);
             var uploadIndices = new UnsafeParallelBlockList<int>(1024, state.WorldUpdateAllocator);
@@ -67,22 +61,16 @@ namespace Latios.LifeFX.Systems
             int reapCapacity  = m_trackedEntities.Length;
             var reaped        = new NativeList<int>(reapCapacity, state.WorldUpdateAllocator);
 
-            m_worldTransformHandle.Update(ref state);
-
             var jh = new UpdateJob
             {
                 aliveByThread          = aliveByThread,
                 allocator              = state.WorldUpdateAllocator,
-                enabledFlagHandle      = GetComponentTypeHandle<TrackedWorldTransformEnableFlag>(true),
-                entityHandle           = GetEntityTypeHandle(),
                 lastSystemVersion      = state.LastSystemVersion,
                 newChunks              = newChunks.AsParallelWriter(),
                 trackedEntities        = m_trackedEntities.AsDeferredJobArray(),
-                trackedTransformHandle = GetComponentTypeHandle<TrackedWorldTransform>(false),
                 trackedTransforms      = m_trackedTransforms.AsDeferredJobArray(),
                 uploadIndices          = uploadIndices,
-                worldTransformHandle   = m_worldTransformHandle
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
 
             jh = new ReapJob
             {
@@ -95,18 +83,15 @@ namespace Latios.LifeFX.Systems
 
             state.Dependency = new AllocateNewJob
             {
-                entityHandle           = GetEntityTypeHandle(),
                 freelist               = m_freeList,
                 newChunks              = newChunks.AsDeferredJobArray(),
                 reaped                 = reaped,
                 trackedEntities        = m_trackedEntities,
                 trackedTransforms      = m_trackedTransforms,
-                trackedTransformHandle = GetComponentTypeHandle<TrackedWorldTransform>(false),
                 uploadIndices          = uploadIndices,
-                worldTransformHandle   = m_worldTransformHandle
-            }.Schedule(jh);
+            }.Inject(api).Schedule(jh);
 
-            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new TrackedTransformUploadList
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new TrackedTransformUploadList
             {
                 trackedTransforms = m_trackedTransforms,
                 uploadIndices     = uploadIndices
@@ -124,14 +109,14 @@ namespace Latios.LifeFX.Systems
         }
 
         [BurstCompile]
-        struct UpdateJob : IJobChunk
+        partial struct UpdateJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                                     entityHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle                     worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<TrackedWorldTransformEnableFlag> enabledFlagHandle;
+            [ReadOnly, Inject] EntityTypeHandle                                     entityHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle                     worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TrackedWorldTransformEnableFlag> enabledFlagHandle;
             [ReadOnly] public NativeArray<Entity>                                  trackedEntities;
 
-            public ComponentTypeHandle<TrackedWorldTransform>                        trackedTransformHandle;
+            [Inject] ComponentTypeHandle<TrackedWorldTransform>                        trackedTransformHandle;
             [NativeDisableParallelForRestriction] public NativeArray<TransformQvvs>  trackedTransforms;
             [NativeDisableParallelForRestriction] public NativeArray<UnsafeBitArray> aliveByThread;
             public NativeList<DeferredChunk>.ParallelWriter                          newChunks;
@@ -265,12 +250,12 @@ namespace Latios.LifeFX.Systems
         }
 
         [BurstCompile]
-        struct AllocateNewJob : IJob
+        partial struct AllocateNewJob : IJob, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                 entityHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle worldTransformHandle;
+            [ReadOnly, Inject] EntityTypeHandle                 entityHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle worldTransformHandle;
 
-            public ComponentTypeHandle<TrackedWorldTransform> trackedTransformHandle;
+            [Inject] ComponentTypeHandle<TrackedWorldTransform> trackedTransformHandle;
             public NativeList<Entity>                         trackedEntities;
             public NativeList<TransformQvvs>                  trackedTransforms;
             public NativeList<int>                            freelist;

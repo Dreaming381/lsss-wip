@@ -11,10 +11,9 @@ namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
-    public partial struct BlendShapesDispatchSystem : ISystem, ICullingComputeDispatchSystem<BlendShapesDispatchSystem.CollectState, BlendShapesDispatchSystem.WriteState>
+    public partial struct BlendShapesDispatchSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<BlendShapesDispatchSystem.CollectState,
+                                                                                                         BlendShapesDispatchSystem.WriteState>
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         UnityObjectRef<ComputeShader>                        m_dispatchShader;
         EntityQuery                                          m_query;
         CullingComputeDispatchData<CollectState, WriteState> m_data;
@@ -31,15 +30,15 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
-            m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+            m_data = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
 
             m_query = state.Fluent().With<BlendShapeWeight>(true).With<BlendShapeState>(true).With<BoundMesh>(true)
                       .With<ChunkPerDispatchCullingMask>(true, true).With<ChunkPerFrameCullingMask>(true, true)
                       .Without<DisableComputeShaderProcessingTag>().Build();
 
-            m_dispatchShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("ShapeBlending");
+            m_dispatchShader = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("ShapeBlending");
 
             _srcVertices                   = Shader.PropertyToID("_srcVertices");
             _dstVertices                   = Shader.PropertyToID("_dstVertices");
@@ -54,10 +53,11 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dispatchData = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var api          = this.GetApi(ref state);
+            var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
-                var features = latiosWorld.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.blendShapes)
                     return;
             }
@@ -67,25 +67,15 @@ namespace Latios.Kinemation.Systems
 
         public CollectState Collect(ref SystemState state)
         {
+            var api               = this.GetApi(ref state);
             var streamCount       = CollectionHelper.CreateNativeArray<int>(1, state.WorldUpdateAllocator);
             streamCount[0]        = m_query.CalculateChunkCountWithoutFiltering();
             var streamConstructJh = NativeStream.ScheduleConstruct(out var stream, streamCount, default, state.WorldUpdateAllocator);
             var collectJh         = new GatherUploadOperationsJob
             {
-                meshHandle                           = SystemAPI.GetComponentTypeHandle<BoundMesh>(true),
-                currentDeformShaderIndexHandle       = SystemAPI.GetComponentTypeHandle<CurrentDeformShaderIndex>(true),
-                deformClassificationMap              = latiosWorld.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap,
-                entityHandle                         = SystemAPI.GetEntityTypeHandle(),
-                legacyComputeDeformShaderIndexHandle = SystemAPI.GetComponentTypeHandle<LegacyComputeDeformShaderIndex>(true),
-                legacyDotsDeformShaderIndexHandle    = SystemAPI.GetComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>(true),
-                perDispatchMaskHandle                = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameMaskHandle                   = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                previousDeformShaderIndexHandle      = SystemAPI.GetComponentTypeHandle<PreviousDeformShaderIndex>(true),
-                stateHandle                          = SystemAPI.GetComponentTypeHandle<BlendShapeState>(true),
-                streamWriter                         = stream.AsWriter(),
-                twoAgoDeformShaderIndexHandle        = SystemAPI.GetComponentTypeHandle<TwoAgoDeformShaderIndex>(true),
-                weightsHandle                        = SystemAPI.GetBufferTypeHandle<BlendShapeWeight>(true),
-            }.ScheduleParallel(m_query, JobHandle.CombineDependencies(streamConstructJh, state.Dependency));
+                deformClassificationMap = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true).deformClassificationMap,
+                streamWriter            = stream.AsWriter(),
+            }.Inject(api).ScheduleParallel(m_query, JobHandle.CombineDependencies(streamConstructJh, state.Dependency));
 
             var payloads                  = new NativeList<UploadPayload>(1, state.WorldUpdateAllocator);
             var requiredWeightsBufferSize = new NativeReference<uint>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
@@ -97,7 +87,7 @@ namespace Latios.Kinemation.Systems
             }.Schedule(collectJh);
 
             // Fetching this now because culling jobs are still running (hopefully).
-            var graphicsBroker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            var graphicsBroker = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
 
             return new CollectState
             {
@@ -115,6 +105,7 @@ namespace Latios.Kinemation.Systems
                 return default;
             }
 
+            var api                       = this.GetApi(ref state);
             var graphicsBroker            = collectState.broker;
             var payloads                  = collectState.payloads;
             var requiredWeightsBufferSize = collectState.requiredWeightsBufferSize.Value;
@@ -125,7 +116,7 @@ namespace Latios.Kinemation.Systems
             state.Dependency = new WriteMetaBufferJob
             {
                 payloads       = payloads.AsDeferredJobArray(),
-                meshGpuEntries = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(true).entries.AsDeferredJobArray(),
+                meshGpuEntries = api.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(true).entries.AsDeferredJobArray(),
                 metaBuffer     = metaBuffer.LockBufferForWrite<uint4>(0, (int)metaBufferSize)
             }.Schedule(payloads, 1, state.Dependency);
 
@@ -143,6 +134,7 @@ namespace Latios.Kinemation.Systems
             if (!writeState.broker.isCreated)
                 return;
 
+            var api            = this.GetApi(ref state);
             var graphicsBroker = writeState.broker;
             var metaBuffer     = writeState.metaBuffer;
             var payloads       = writeState.payloads;
@@ -150,7 +142,7 @@ namespace Latios.Kinemation.Systems
 
             metaBuffer.UnlockBufferAfterWrite<uint4>((int)metaBufferSize);
 
-            var persistentBuffer = graphicsBroker.GetDeformBuffer(latiosWorld.worldBlackboardEntity.GetComponentData<MaxRequiredDeformData>().maxRequiredDeformVertices);
+            var persistentBuffer = graphicsBroker.GetDeformBuffer(api.worldBlackboardEntity.GetComponentData<MaxRequiredDeformData>().maxRequiredDeformVertices);
             m_dispatchShader.SetBuffer(0, _srcVertices,      graphicsBroker.GetMeshVerticesBuffer());
             m_dispatchShader.SetBuffer(0, _blendShapeDeltas, graphicsBroker.GetMeshBlendShapesBufferRO());
             m_dispatchShader.SetBuffer(0, _dstVertices,      persistentBuffer);
@@ -197,19 +189,19 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct GatherUploadOperationsJob : IJobChunk
+        partial struct GatherUploadOperationsJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask>            perDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>               perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<BlendShapeState>                        stateHandle;
-            [ReadOnly] public BufferTypeHandle<BlendShapeWeight>                          weightsHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>                              meshHandle;
-            [ReadOnly] public EntityTypeHandle                                            entityHandle;
-            [ReadOnly] public ComponentTypeHandle<CurrentDeformShaderIndex>               currentDeformShaderIndexHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousDeformShaderIndex>              previousDeformShaderIndexHandle;
-            [ReadOnly] public ComponentTypeHandle<TwoAgoDeformShaderIndex>                twoAgoDeformShaderIndexHandle;
-            [ReadOnly] public ComponentTypeHandle<LegacyComputeDeformShaderIndex>         legacyComputeDeformShaderIndexHandle;
-            [ReadOnly] public ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>      legacyDotsDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask>           perDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>              perFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BlendShapeState>                       stateHandle;
+            [ReadOnly, Inject] BufferTypeHandle<BlendShapeWeight>                         weightsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                             meshHandle;
+            [ReadOnly, Inject] EntityTypeHandle                                           entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<CurrentDeformShaderIndex>              currentDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<PreviousDeformShaderIndex>             previousDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TwoAgoDeformShaderIndex>               twoAgoDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LegacyComputeDeformShaderIndex>        legacyComputeDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>     legacyDotsDeformShaderIndexHandle;
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
 
             [NativeDisableParallelForRestriction] public NativeStream.Writer streamWriter;

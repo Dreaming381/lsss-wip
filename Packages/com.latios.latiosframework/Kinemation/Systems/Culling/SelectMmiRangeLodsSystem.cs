@@ -9,19 +9,14 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [DontSyncPreviousUpdatesThisFrame(32)]
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct SelectMmiRangeLodsSystem : ISystem, ISystemShouldUpdate
+    public partial struct SelectMmiRangeLodsSystem : ISystem, ILatiosApi, ISystemShouldUpdate
     {
-        LatiosWorldUnmanaged                    latiosWorld;
-        WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
-
         EntityQuery m_query;
 
         int   m_maximumLODLevel;
@@ -31,13 +26,12 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld            = state.GetLatiosWorldUnmanaged();
-            m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
+            var api = this.OnCreateForLatios(ref state);
 
             m_query = state.Fluent().With<MaterialMeshInfo, LodCrossfade>(false).With<WorldRenderBounds>(true)
                       .WithAnyEnabled<MmiRange2LodSelect, MmiRange3LodSelect, MeshLodCurve>(true).WithWorldTransformReadOnly().Build();
 
-            latiosWorld.worldBlackboardEntity.AddComponentDataIfMissing(new MeshLodCrossfadeMargin { margin = (half)0.05f });
+            api.worldBlackboardEntity.AddComponentDataIfMissing(new MeshLodCrossfadeMargin { margin = (half)0.05f });
         }
 
         public bool ShouldUpdateSystem(ref SystemState state)
@@ -53,27 +47,15 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var context    = latiosWorld.worldBlackboardEntity.GetComponentData<CullingContext>();
+            var api        = this.GetApi(ref state);
+            var context    = api.worldBlackboardEntity.GetComponentData<CullingContext>();
             var parameters = context.lodParameters;
-
-            m_worldTransformHandle.Update(ref state);
 
             float cameraFactorNoBias = LodUtilities.CameraFactorFrom(in parameters, 1f);
 
             state.Dependency = new Job
             {
-                perCameraMaskHandle    = GetComponentTypeHandle<ChunkPerCameraCullingMask>(false),
-                worldTransformHandle   = m_worldTransformHandle,
-                boundsHandle           = GetComponentTypeHandle<WorldRenderBounds>(true),
-                select2Handle          = GetComponentTypeHandle<MmiRange2LodSelect>(true),
-                select3Handle          = GetComponentTypeHandle<MmiRange3LodSelect>(true),
-                rangeLodFlagsHandle    = GetComponentTypeHandle<MmiRangeLodFlags>(true),
-                lodGroupCrossfades     = GetComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins>(true),
-                mmiHandle              = GetComponentTypeHandle<MaterialMeshInfo>(false),
-                crossfadeHandle        = GetComponentTypeHandle<LodCrossfade>(false),
-                meshLodHandle          = GetComponentTypeHandle<MeshLod>(false),
-                meshLodCurveHandle     = GetComponentTypeHandle<MeshLodCurve>(true),
-                meshLodCrossfadeMargin = latiosWorld.worldBlackboardEntity.GetComponentData<MeshLodCrossfadeMargin>().margin,
+                meshLodCrossfadeMargin = api.worldBlackboardEntity.GetComponentData<MeshLodCrossfadeMargin>().margin,
                 cameraPosition         = parameters.cameraPosition,
                 isPerspective          = !parameters.isOrthographic,
                 isShadowCasting        = context.viewType == UnityEngine.Rendering.BatchCullingViewType.Light,
@@ -81,24 +63,24 @@ namespace Latios.Kinemation.Systems
                 meshLodFactor          = m_meshLodThreshold / (cameraFactorNoBias * parameters.cameraPixelHeight),
                 inverseLodBias         = 1f / m_lodBias,
                 maxResolutionLodLevel  = m_maximumLODLevel
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        unsafe struct Job : IJobChunk
+        unsafe partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle                       worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<WorldRenderBounds>                        boundsHandle;
-            [ReadOnly] public ComponentTypeHandle<MmiRange2LodSelect>                       select2Handle;
-            [ReadOnly] public ComponentTypeHandle<MmiRange3LodSelect>                       select3Handle;
-            [ReadOnly] public ComponentTypeHandle<MmiRangeLodFlags>                         rangeLodFlagsHandle;
-            [ReadOnly] public ComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins> lodGroupCrossfades;
-            [ReadOnly] public ComponentTypeHandle<MeshLodCurve>                             meshLodCurveHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle                       worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldRenderBounds>                        boundsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MmiRange2LodSelect>                       select2Handle;
+            [ReadOnly, Inject] ComponentTypeHandle<MmiRange3LodSelect>                       select3Handle;
+            [ReadOnly, Inject] ComponentTypeHandle<MmiRangeLodFlags>                         rangeLodFlagsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LodHeightPercentagesWithCrossfadeMargins> lodGroupCrossfades;
+            [ReadOnly, Inject] ComponentTypeHandle<MeshLodCurve>                             meshLodCurveHandle;
 
-            public ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraMaskHandle;
-            public ComponentTypeHandle<MaterialMeshInfo>          mmiHandle;
-            public ComponentTypeHandle<LodCrossfade>              crossfadeHandle;
-            public ComponentTypeHandle<MeshLod>                   meshLodHandle;
+            [Inject] ComponentTypeHandle<ChunkPerCameraCullingMask> perCameraMaskHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>          mmiHandle;
+            [Inject] ComponentTypeHandle<LodCrossfade>              crossfadeHandle;
+            [Inject] ComponentTypeHandle<MeshLod>                   meshLodHandle;
 
             public float3 cameraPosition;
             public float  cameraFactor;

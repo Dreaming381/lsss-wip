@@ -6,38 +6,34 @@ using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct SetRenderVisibilityFeedbackFlagsSystem : ISystem
+    public partial struct SetRenderVisibilityFeedbackFlagsSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<RenderVisibilityFeedbackFlag>(false).With<ChunkPerFrameCullingMask>(true, true).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new Job
-            {
-                m_maskHandle = GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                m_flagHandle = GetComponentTypeHandle<RenderVisibilityFeedbackFlag>(false)
-            }.ScheduleParallel(m_query, state.Dependency);
+            var api           = this.GetApi(ref state);
+            state.Dependency  = new Job().Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask> m_maskHandle;
-            public ComponentTypeHandle<RenderVisibilityFeedbackFlag>        m_flagHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask> m_maskHandle;
+            [Inject] ComponentTypeHandle<RenderVisibilityFeedbackFlag>       m_flagHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -59,4 +55,3 @@ namespace Latios.Kinemation.Systems
         }
     }
 }
-

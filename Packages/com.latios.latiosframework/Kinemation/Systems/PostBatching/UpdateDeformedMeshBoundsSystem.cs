@@ -8,47 +8,41 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct UpdateDeformedMeshBoundsSystem : ISystem
+    public partial struct UpdateDeformedMeshBoundsSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<BoundMesh>(true).With<RenderBounds>(false).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             state.Dependency = new Job
             {
-                blobHandle                             = GetComponentTypeHandle<BoundMesh>(true),
-                dynamicMeshMaxVertexDisplacementHandle = GetComponentTypeHandle<DynamicMeshMaxVertexDisplacement>(true),
-                blendShapeWeightsHandle                = GetBufferTypeHandle<BlendShapeWeight>(true),
-                blendShapeStateHandle                  = GetComponentTypeHandle<BlendShapeState>(true),
-                shaderBoundsHandle                     = GetComponentTypeHandle<ShaderEffectRadialBounds>(true),
-                localBoundsHandle                      = GetComponentTypeHandle<RenderBounds>(false),
-                lastSystemVersion                      = state.LastSystemVersion
-            }.ScheduleParallel(m_query, state.Dependency);
+                lastSystemVersion = state.LastSystemVersion
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>                        blobHandle;
-            [ReadOnly] public ComponentTypeHandle<DynamicMeshMaxVertexDisplacement> dynamicMeshMaxVertexDisplacementHandle;
-            [ReadOnly] public BufferTypeHandle<BlendShapeWeight>                    blendShapeWeightsHandle;
-            [ReadOnly] public ComponentTypeHandle<BlendShapeState>                  blendShapeStateHandle;
-            [ReadOnly] public ComponentTypeHandle<ShaderEffectRadialBounds>         shaderBoundsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                        blobHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<DynamicMeshMaxVertexDisplacement> dynamicMeshMaxVertexDisplacementHandle;
+            [ReadOnly, Inject] BufferTypeHandle<BlendShapeWeight>                    blendShapeWeightsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BlendShapeState>                  blendShapeStateHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ShaderEffectRadialBounds>         shaderBoundsHandle;
 
-            public ComponentTypeHandle<RenderBounds> localBoundsHandle;
+            [Inject] ComponentTypeHandle<RenderBounds> localBoundsHandle;
 
             public uint lastSystemVersion;
 

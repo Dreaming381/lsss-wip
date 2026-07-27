@@ -6,18 +6,15 @@ using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct LiveBakingCheckForReinitsSystem : ISystem
+    public partial struct LiveBakingCheckForReinitsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_reinitMeshesQuery;
-        EntityQuery          m_unityTransformsBindSkeletonRootsQuery;
+        EntityQuery m_reinitMeshesQuery;
+        EntityQuery m_unityTransformsBindSkeletonRootsQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -26,7 +23,7 @@ namespace Latios.Kinemation.Systems
             state.Enabled = false;
             return;
 #endif
-            latiosWorld         = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
             m_reinitMeshesQuery = state.Fluent().With<MeshDeformDataBlobReference, BoundMesh, LiveBakedTag>(true).Build();
             m_reinitMeshesQuery.AddChangedVersionFilter(ComponentType.ReadOnly<MeshDeformDataBlobReference>());
             m_unityTransformsBindSkeletonRootsQuery = state.Fluent().With<Unity.Transforms.LocalTransform>(false).With<BindSkeletonRoot, LiveBakedTag>(true).Build();
@@ -36,36 +33,31 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var lastSystemVersion = latiosWorld.worldBlackboardEntity.GetComponentData<SystemVersionBeforeLiveBake>().version;
+            var api                = this.GetApi(ref state);
+            var lastSystemVersion = api.worldBlackboardEntity.GetComponentData<SystemVersionBeforeLiveBake>().version;
             m_reinitMeshesQuery.SetOverrideChangeFilterVersion(lastSystemVersion);
             m_unityTransformsBindSkeletonRootsQuery.SetOverrideChangeFilterVersion(lastSystemVersion);
             var ecb          = new EntityCommandBuffer(state.WorldUpdateAllocator);
             state.Dependency = new Job
             {
-                entityHandle        = GetEntityTypeHandle(),
-                meshReferenceHandle = GetComponentTypeHandle<MeshDeformDataBlobReference>(true),
-                boundMeshHandle     = GetComponentTypeHandle<BoundMesh>(true),
-                ecb                 = ecb.AsParallelWriter()
-            }.ScheduleParallel(m_reinitMeshesQuery, state.Dependency);
+                ecb = ecb.AsParallelWriter()
+            }.Inject(api).ScheduleParallel(m_reinitMeshesQuery, state.Dependency);
             state.CompleteDependency();
             ecb.Playback(state.EntityManager);
 
             if (!m_unityTransformsBindSkeletonRootsQuery.IsEmptyIgnoreFilter)
             {
                 // Clean up Unity local transforms that we parent to skeletons in case we don't rebind but transforms get rebaked and diffed over.
-                state.Dependency = new CleanupUnityLocalTransformsJob
-                {
-                    localTransformHandle = GetComponentTypeHandle<Unity.Transforms.LocalTransform>(false)
-                }.ScheduleParallel(m_unityTransformsBindSkeletonRootsQuery, default);
+                state.Dependency = new CleanupUnityLocalTransformsJob().Inject(api).ScheduleParallel(m_unityTransformsBindSkeletonRootsQuery, default);
             }
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                                 entityHandle;
-            [ReadOnly] public ComponentTypeHandle<MeshDeformDataBlobReference> meshReferenceHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>                   boundMeshHandle;
+            [ReadOnly, Inject] EntityTypeHandle                                 entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MeshDeformDataBlobReference> meshReferenceHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                   boundMeshHandle;
 
             public EntityCommandBuffer.ParallelWriter ecb;
 
@@ -84,9 +76,9 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct CleanupUnityLocalTransformsJob : IJobChunk
+        partial struct CleanupUnityLocalTransformsJob : IJobChunk, IInjectable
         {
-            public ComponentTypeHandle<Unity.Transforms.LocalTransform> localTransformHandle;
+            [Inject] ComponentTypeHandle<Unity.Transforms.LocalTransform> localTransformHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

@@ -16,10 +16,9 @@ namespace Latios.LifeFX.Systems
     [UpdateBefore(typeof(GraphicsGlobalBufferBroadcastSystem))]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct DispatchTrackedWorldTransformSystem : ISystem, ICullingComputeDispatchSystem<DispatchTrackedWorldTransformSystem.CollectState,
-                                                                                                       DispatchTrackedWorldTransformSystem.WriteState>
+    public partial struct DispatchTrackedWorldTransformSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<DispatchTrackedWorldTransformSystem.CollectState,
+                                                                                                                   DispatchTrackedWorldTransformSystem.WriteState>
     {
-        LatiosWorldUnmanaged                                 latiosWorld;
         CullingComputeDispatchData<CollectState, WriteState> m_data;
 
         static GraphicsBufferBroker.StaticID s_persistentID = GraphicsBufferBroker.ReservePersistentBuffer();
@@ -39,11 +38,11 @@ namespace Latios.LifeFX.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_data      = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+            var api = this.OnCreateForLatios(ref state);
+            m_data  = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
 
-            m_uploadShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadTrackedQvvs");
-            m_resizeShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("CopyTransformUnions");
+            m_uploadShader = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("UploadTrackedQvvs");
+            m_resizeShader = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("CopyTransformUnions");
 
             m_persistentID                = s_persistentID;
             m_uploadID                    = s_uploadID;
@@ -53,13 +52,13 @@ namespace Latios.LifeFX.Systems
             _count                        = UnityEngine.Shader.PropertyToID("_count");
             _latiosTrackedWorldTransforms = UnityEngine.Shader.PropertyToID("_latiosTrackedWorldTransforms");
 
-            var broker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            var broker = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
             broker.InitializePersistentBuffer(m_persistentID, 1024, (uint)UnsafeUtility.SizeOf<TransformQvvs>(), UnityEngine.GraphicsBuffer.Target.Structured, m_resizeShader);
             UnityEngine.Assertions.Assert.AreEqual(UnsafeUtility.SizeOf<UploadQvvs>(), 13 * 4);
             broker.InitializeUploadPool(m_uploadID, (uint)UnsafeUtility.SizeOf<UploadQvvs>(), UnityEngine.GraphicsBuffer.Target.Structured);
 
             var persistentBuffer = broker.GetPersistentBufferNoResize(m_persistentID);
-            latiosWorld.worldBlackboardEntity.GetCollectionComponent<ShaderPropertyToGlobalBufferMap>(true).AddOrReplace(_latiosTrackedWorldTransforms, persistentBuffer);
+            api.worldBlackboardEntity.GetCollectionComponent<ShaderPropertyToGlobalBufferMap>(true).AddOrReplace(_latiosTrackedWorldTransforms, persistentBuffer);
         }
 
         [BurstCompile]
@@ -67,10 +66,11 @@ namespace Latios.LifeFX.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            if (latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
+            var api = this.GetApi(ref state);
+            if (api.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
                 return default;
 
-            var uploadList   = latiosWorld.worldBlackboardEntity.GetCollectionComponent<TrackedTransformUploadList>(true);
+            var uploadList   = api.worldBlackboardEntity.GetCollectionComponent<TrackedTransformUploadList>(true);
             var threadRanges = CollectionHelper.CreateNativeArray<int2>(JobsUtility.ThreadIndexCount, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
 
             state.Dependency = new CollectJob
@@ -96,7 +96,8 @@ namespace Latios.LifeFX.Systems
             if (writeCount == 0)
                 return default;
 
-            var broker       = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            var api          = this.GetApi(ref state);
+            var broker       = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
             var uploadBuffer = broker.GetUploadBuffer(m_uploadID, (uint)writeCount);
             var uploadArray  = uploadBuffer.LockBufferForWrite<UploadQvvs>(0, writeCount);
 
@@ -122,6 +123,7 @@ namespace Latios.LifeFX.Systems
             if (written.writeCount == 0)
                 return;
 
+            var api = this.GetApi(ref state);
             written.uploadBuffer.UnlockBufferAfterWrite<UploadQvvs>(written.writeCount);
             var persistentBuffer = written.broker.GetPersistentBuffer(m_persistentID, (uint)written.requiredPersistentSize);
             m_uploadShader.SetBuffer(0, _dst, persistentBuffer);
@@ -138,7 +140,7 @@ namespace Latios.LifeFX.Systems
                 countRemaining      -= elementCount;
                 start               += dispatchCount;
             }
-            latiosWorld.worldBlackboardEntity.GetCollectionComponent<ShaderPropertyToGlobalBufferMap>(true).AddOrReplace(_latiosTrackedWorldTransforms, persistentBuffer);
+            api.worldBlackboardEntity.GetCollectionComponent<ShaderPropertyToGlobalBufferMap>(true).AddOrReplace(_latiosTrackedWorldTransforms, persistentBuffer);
             GraphicsUnmanaged.SetGlobalBuffer(_latiosTrackedWorldTransforms, persistentBuffer);
         }
 

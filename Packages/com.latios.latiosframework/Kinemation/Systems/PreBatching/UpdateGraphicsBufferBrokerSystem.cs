@@ -9,23 +9,22 @@ namespace Latios.Kinemation
 {
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
     [DisableAutoCreation]
-    public partial struct UpdateGraphicsBufferBrokerSystem : ISystem
+    public partial struct UpdateGraphicsBufferBrokerSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
         GraphicsBufferBroker broker;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             broker = new GraphicsBufferBroker(Allocator.Persistent);
-            latiosWorld.worldBlackboardEntity.AddComponentData(broker);
-            latiosWorld.worldBlackboardEntity.AddManagedStructComponent(new GraphicsBufferBrokerDeferredDisposer { broker = broker });
+            api.worldBlackboardEntity.AddComponentData(broker);
+            api.worldBlackboardEntity.AddManagedStructComponent(new GraphicsBufferBrokerDeferredDisposer { broker = broker });
 
-            var copyVerticesShader        = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyVertices");
-            var copyTransformUnionsShader = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyTransformUnions");
-            var copyBlendShapesShader     = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyBlendShapes");
-            var copyByteAddressShader     = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyBytes");
+            var copyVerticesShader        = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyVertices");
+            var copyTransformUnionsShader = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyTransformUnions");
+            var copyBlendShapesShader     = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyBlendShapes");
+            var copyByteAddressShader     = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<ComputeShader>("CopyBytes");
 
             broker.InitializePersistentBuffer(DeformationGraphicsBufferBrokerExtensions.s_ids.Data.skinningTransformsID,
                                               3 * 4 * 1024,
@@ -76,7 +75,8 @@ namespace Latios.Kinemation
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var broker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            var api    = this.GetApi(ref state);
+            var broker = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
             broker.Update();
         }
 

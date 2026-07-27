@@ -9,8 +9,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.LifeFX.Systems
 {
     [RequireMatchingQueriesForUpdate]
@@ -18,11 +16,9 @@ namespace Latios.LifeFX.Systems
     [UpdateAfter(typeof(GraphicsEventUploadSystem))]  // This only exists to improve job scheduling, but is not a strict requirement
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct GraphicsGlobalBufferBroadcastSystem : ISystem, ICullingComputeDispatchSystem<GraphicsGlobalBufferBroadcastSystem.CollectState,
-                                                                                                       GraphicsGlobalBufferBroadcastSystem.WriteState>
+    public partial struct GraphicsGlobalBufferBroadcastSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<GraphicsGlobalBufferBroadcastSystem.CollectState,
+                                                                                                                   GraphicsGlobalBufferBroadcastSystem.WriteState>
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         CullingComputeDispatchData<CollectState, WriteState> m_data;
         EntityQuery                                          m_destinationsQuery;
         int                                                  _latiosDeformBuffer;
@@ -37,8 +33,8 @@ namespace Latios.LifeFX.Systems
         public void OnCreate(ref SystemState state)
         {
             Initialize();
-            latiosWorld         = state.GetLatiosWorldUnmanaged();
-            m_data              = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
+            var api             = this.OnCreateForLatios(ref state);
+            m_data              = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
             m_destinationsQuery = state.Fluent().With<GraphicsGlobalBufferDestination>(true).Build();
 
             var propertyBufferMap = new NativeHashMap<int,
@@ -49,7 +45,7 @@ namespace Latios.LifeFX.Systems
                 UnityEngine.Shader.PropertyToID("_latiosDeformBuffer");
             _latiosBoneTransforms =
                 UnityEngine.Shader.PropertyToID("_latiosBoneTransforms");
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new ShaderPropertyToGlobalBufferMap { shaderPropertyToGlobalBufferMap = propertyBufferMap });
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new ShaderPropertyToGlobalBufferMap { shaderPropertyToGlobalBufferMap = propertyBufferMap });
         }
 
         [BurstCompile]
@@ -60,7 +56,8 @@ namespace Latios.LifeFX.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            if (latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
+            var api = this.GetApi(ref state);
+            if (api.worldBlackboardEntity.GetComponentData<DispatchContext>().dispatchIndexThisFrame != 0)
             {
                 return default;
             }
@@ -71,9 +68,8 @@ namespace Latios.LifeFX.Systems
             var job = new CollectDestinationsJob
             {
                 chunks            = m_destinationsQuery.ToArchetypeChunkListAsync(allocator, out var jh).AsDeferredJobArray(),
-                destinationHandle = GetBufferTypeHandle<GraphicsGlobalBufferDestination>(true),
                 destinations      = destinations,
-            };
+            }.Inject(api);
             state.Dependency = job.Schedule(JobHandle.CombineDependencies(state.Dependency, jh));
 
             return new CollectState
@@ -84,10 +80,11 @@ namespace Latios.LifeFX.Systems
 
         public unsafe WriteState Write(ref SystemState state, ref CollectState collected)
         {
+            var api = this.GetApi(ref state);
             return new WriteState
             {
                 destinations = collected.destinations,
-                broker       = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>()
+                broker       = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>()
             };
         }
 
@@ -96,7 +93,8 @@ namespace Latios.LifeFX.Systems
             if (!written.destinations.IsCreated)
                 return;
 
-            var                     propertyMap      = latiosWorld.worldBlackboardEntity.GetCollectionComponent<ShaderPropertyToGlobalBufferMap>(false);
+            var api = this.GetApi(ref state);
+            var                     propertyMap      = api.worldBlackboardEntity.GetCollectionComponent<ShaderPropertyToGlobalBufferMap>(false);
             var                     broker           = written.broker;
             var                     previousProperty = 0;
             GraphicsBufferUnmanaged currentBuffer    = default;
@@ -193,10 +191,10 @@ namespace Latios.LifeFX.Systems
 
         #region Jobs
         [BurstCompile]
-        struct CollectDestinationsJob : IJob
+        partial struct CollectDestinationsJob : IJob, IInjectable
         {
             [ReadOnly] public NativeArray<ArchetypeChunk>                       chunks;
-            [ReadOnly] public BufferTypeHandle<GraphicsGlobalBufferDestination> destinationHandle;
+            [ReadOnly, Inject] BufferTypeHandle<GraphicsGlobalBufferDestination> destinationHandle;
 
             public NativeList<GraphicsGlobalBufferDestination> destinations;
 

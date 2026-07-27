@@ -6,17 +6,13 @@ using Unity.Jobs;
 using Unity.Rendering;
 using UnityEngine.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct AllocateUniqueMeshesSystem : ISystem
+    public partial struct AllocateUniqueMeshesSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_newMeshesQuery;
         EntityQuery m_deadMeshesQuery;
         EntityQuery m_deadMeshesQuery2;
@@ -25,7 +21,7 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             m_newMeshesQuery   = state.Fluent().With<UniqueMeshConfig, MaterialMeshInfo>(true).Without<TrackedUniqueMesh>().Build();
             m_deadMeshesQuery  = state.Fluent().With<TrackedUniqueMesh>(true).Without<UniqueMeshConfig>().Build();
@@ -33,7 +29,7 @@ namespace Latios.Kinemation.Systems
             m_liveBakedQuery   = state.Fluent().With<TrackedUniqueMesh, LiveBakedTag>(true).With<MaterialMeshInfo>(false).Build();
             m_liveBakedQuery.AddChangedVersionFilter(ComponentType.ReadOnly<MaterialMeshInfo>());
 
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new UniqueMeshPool
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new UniqueMeshPool
             {
                 allMeshes    = new NativeList<UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent),
                 unusedMeshes = new NativeList<UnityObjectRef<UnityEngine.Mesh> >(64, Allocator.Persistent),
@@ -45,11 +41,12 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api              = this.GetApi(ref state);
             var newMeshesCount   = m_newMeshesQuery.CalculateEntityCountWithoutFiltering();
             var deadMeshesCount  = m_deadMeshesQuery.CalculateEntityCountWithoutFiltering();
             var deadMeshesCount2 = m_deadMeshesQuery2.CalculateEntityCountWithoutFiltering();
             var neededMeshes     = newMeshesCount - deadMeshesCount - deadMeshesCount2;
-            var meshPool         = latiosWorld.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(false);
+            var meshPool         = api.worldBlackboardEntity.GetCollectionComponent<UniqueMeshPool>(false);
             if (neededMeshes > 0)
             {
                 var newAllocatedMeshes = CollectionHelper.CreateNativeArray<UnityObjectRef<UnityEngine.Mesh> >(neededMeshes,
@@ -78,12 +75,9 @@ namespace Latios.Kinemation.Systems
             {
                 var job = new DeadMeshesJob
                 {
-                    ecb           = latiosWorld.syncPoint.CreateEntityCommandBuffer(),
-                    entityHandle  = GetEntityTypeHandle(),
-                    mmiHandle     = GetComponentTypeHandle<MaterialMeshInfo>(false),
-                    meshPool      = meshPool,
-                    trackedHandle = GetComponentTypeHandle<TrackedUniqueMesh>(true)
-                };
+                    ecb      = api.syncPoint.CreateEntityCommandBuffer(),
+                    meshPool = meshPool,
+                }.Inject(api);
                 if (deadMeshesCount > 0)
                     state.Dependency = job.Schedule(m_deadMeshesQuery, state.Dependency);
                 if (deadMeshesCount2 > 0)
@@ -93,20 +87,16 @@ namespace Latios.Kinemation.Systems
             {
                 state.Dependency = new NewMeshesJob
                 {
-                    accb         = latiosWorld.syncPoint.CreateAddComponentsCommandBuffer<TrackedUniqueMesh>(AddComponentsDestroyedEntityResolution.AddToNewEntityAndDestroy),
-                    entityHandle = GetEntityTypeHandle(),
-                    meshPool     = meshPool,
-                    mmiHandle    = GetComponentTypeHandle<MaterialMeshInfo>(false)
-                }.Schedule(m_newMeshesQuery, state.Dependency);
+                    accb     = api.syncPoint.CreateAddComponentsCommandBuffer<TrackedUniqueMesh>(AddComponentsDestroyedEntityResolution.AddToNewEntityAndDestroy),
+                    meshPool = meshPool,
+                }.Inject(api).Schedule(m_newMeshesQuery, state.Dependency);
             }
             if (!m_liveBakedQuery.IsEmptyIgnoreFilter)
             {
                 state.Dependency = new PatchLiveBakedMeshesJob
                 {
-                    meshPool      = meshPool,
-                    mmiHandle     = GetComponentTypeHandle<MaterialMeshInfo>(false),
-                    trackedHandle = GetComponentTypeHandle<TrackedUniqueMesh>(true)
-                }.ScheduleParallel(m_liveBakedQuery, state.Dependency);
+                    meshPool = meshPool,
+                }.Inject(api).ScheduleParallel(m_liveBakedQuery, state.Dependency);
             }
         }
 
@@ -132,11 +122,11 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct DeadMeshesJob : IJobChunk
+        partial struct DeadMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                       entityHandle;
-            [ReadOnly] public ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
-            public ComponentTypeHandle<MaterialMeshInfo>             mmiHandle;
+            [ReadOnly, Inject] EntityTypeHandle                       entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>             mmiHandle;
             public EntityCommandBuffer                               ecb;
             public UniqueMeshPool                                    meshPool;
 
@@ -157,10 +147,10 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct NewMeshesJob : IJobChunk
+        partial struct NewMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                   entityHandle;
-            public ComponentTypeHandle<MaterialMeshInfo>         mmiHandle;
+            [ReadOnly, Inject] EntityTypeHandle                   entityHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>         mmiHandle;
             public AddComponentsCommandBuffer<TrackedUniqueMesh> accb;
             public UniqueMeshPool                                meshPool;
 
@@ -183,10 +173,10 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct PatchLiveBakedMeshesJob : IJobChunk
+        partial struct PatchLiveBakedMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
-            public ComponentTypeHandle<MaterialMeshInfo>             mmiHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>             mmiHandle;
             [ReadOnly] public UniqueMeshPool                         meshPool;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
@@ -201,4 +191,3 @@ namespace Latios.Kinemation.Systems
         }
     }
 }
-

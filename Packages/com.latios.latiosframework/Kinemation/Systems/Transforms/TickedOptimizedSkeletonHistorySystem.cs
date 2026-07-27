@@ -6,37 +6,32 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [UpdateInGroup(typeof(Latios.Systems.TickedUpdateHistorySuperSystem))]
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct TickedOptimizedSkeletonHistorySystem : ISystem
+    public partial struct TickedOptimizedSkeletonHistorySystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_query;
+        EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<TickedOptimizedBoneTransform, TickedOptimizedSkeletonState>(false).With<OptimizedSkeletonHierarchyBlobReference>(true).Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<TickedOptimizedBoneTransform, TickedOptimizedSkeletonState>(false).With<OptimizedSkeletonHierarchyBlobReference>(true).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api           = this.GetApi(ref state);
             state.Dependency = new Job
             {
                 lastSystemVersion = state.LastSystemVersion,
-                blobHandle        = GetComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference>(true),
-                bonesHandle       = GetBufferTypeHandle<TickedOptimizedBoneTransform>(false),
-                stateHandle       = GetComponentTypeHandle<TickedOptimizedSkeletonState>(false),
-                advance           = !latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>().discardPreviousTick
-            }.ScheduleParallel(m_query, state.Dependency);
+                advance           = !api.worldBlackboardEntity.GetComponentData<TickingState>().discardPreviousTick
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
 #if LATIOS_BURST_DETERMINISM
@@ -44,11 +39,11 @@ namespace Latios.Kinemation.Systems
 #else
         [BurstCompile]
 #endif
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            public BufferTypeHandle<TickedOptimizedBoneTransform>                          bonesHandle;
-            public ComponentTypeHandle<TickedOptimizedSkeletonState>                       stateHandle;
-            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> blobHandle;
+            [Inject] BufferTypeHandle<TickedOptimizedBoneTransform>                          bonesHandle;
+            [Inject] ComponentTypeHandle<TickedOptimizedSkeletonState>                       stateHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> blobHandle;
 
             public uint lastSystemVersion;
             public bool advance;
