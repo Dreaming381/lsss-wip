@@ -9,22 +9,21 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AudioVolumeSystem : ISystem
+    public partial struct AudioVolumeSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
-            latiosWorld.worldBlackboardEntity.AddComponent<AudioMasterVolumes>();
+            api.worldBlackboardEntity.AddComponent<AudioMasterVolumes>();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var volumes = latiosWorld.worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
+            var api     = this.GetApi(ref state);
+            var volumes = api.worldBlackboardEntity.GetComponentData<AudioMasterVolumes>();
 
             foreach (var listener in SystemAPI.Query<RefRW<AudioListener> >())
             {

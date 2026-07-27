@@ -16,7 +16,7 @@ namespace Latios.Psyshock
     /// All handles are ReadOnly. You can cache this structure inside a system to accelerate scheduling costs,
     /// but you must also ensure the handles are updating during each OnUpdate before building any CollisionLayer.
     /// </summary>
-    public struct BuildCollisionLayerTypeHandles
+    public struct BuildCollisionLayerTypeHandles : ILatiosApiGettable
     {
         [ReadOnly] public ComponentTypeHandle<Collider>           collider;
         [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle worldTransform;
@@ -53,6 +53,10 @@ namespace Latios.Psyshock
             worldTransform.Update(ref system);
             entity.Update(ref system);
         }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = new BuildCollisionLayerTypeHandles(ref state);
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state) => Update(ref state);
     }
 
 #if !LATIOS_TRANSFORMS_UNITY
@@ -62,7 +66,7 @@ namespace Latios.Psyshock
     /// but you must also ensure the handles are updating during each OnUpdate before building any CollisionLayer.
     /// This is a variant that uses TickedWorldTransform for generating transforms.
     /// </summary>
-    public struct BuildTickedCollisionLayerTypeHandles
+    public struct BuildTickedCollisionLayerTypeHandles : ILatiosApiGettable
     {
         [ReadOnly] public ComponentTypeHandle<Collider>             collider;
         [ReadOnly] public ComponentTypeHandle<TickedWorldTransform> worldTransform;
@@ -104,6 +108,10 @@ namespace Latios.Psyshock
         {
             return UnsafeUtility.As<BuildTickedCollisionLayerTypeHandles, BuildCollisionLayerTypeHandles>(ref this);
         }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = new BuildTickedCollisionLayerTypeHandles(ref state);
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state) => Update(ref state);
     }
 #endif
 

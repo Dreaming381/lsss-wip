@@ -30,8 +30,6 @@ namespace Latios.Kinemation.Systems
         EntityQuery m_probeGridQuery;
         EntityQuery m_probeGridAnchorQuery;
 
-        WorldTransformReadOnlyAspect.Lookup m_worldTransformLookup;
-
         public void OnCreate(ref SystemState state)
         {
             this.OnCreateForLatios(ref state);
@@ -43,8 +41,6 @@ namespace Latios.Kinemation.Systems
 
             state.EntityManager.AddComponentData(state.SystemHandle, new RequiresFullRebuild { requiresFullRebuild = true });
             state.EntityManager.AddComponentObject(state.SystemHandle, new TetrahedralizationChangeCallbackReceiver(ref state));
-
-            m_worldTransformLookup = new WorldTransformReadOnlyAspect.Lookup(ref state);
         }
 
         public void OnDestroy(ref SystemState state)
@@ -69,9 +65,7 @@ namespace Latios.Kinemation.Systems
                 return;
             }
 
-            var api = this.GetApi(ref state);
-            m_worldTransformLookup.Update(ref state);
-
+            var api     = this.GetApi(ref state);
             int shIndex = api.worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true).Reinterpret<ComponentType>()
                           .AsNativeArray().IndexOf(ComponentType.ReadOnly<BuiltinMaterialPropertyUnity_SHCoefficients>());
             ulong shMaterialMaskLower = (ulong)shIndex >= 64UL ? 0UL : (1UL << shIndex);
@@ -95,20 +89,19 @@ namespace Latios.Kinemation.Systems
 
             state.Dependency = new Job
             {
-                lastSystemVersion       = state.LastSystemVersion,
-                lightProbeQuery         = query,
-                requiresFullRebuild     = requiresFullRebuild.requiresFullRebuild,
-                shMaskLower             = shMaterialMaskLower,
-                shMaskUpper             = shMaterialMaskUpper,
+                lastSystemVersion   = state.LastSystemVersion,
+                lightProbeQuery     = query,
+                requiresFullRebuild = requiresFullRebuild.requiresFullRebuild,
+                shMaskLower         = shMaterialMaskLower,
+                shMaskUpper         = shMaterialMaskUpper,
             }.Inject(api).ScheduleParallel(m_probeGridQuery, state.Dependency);
             state.Dependency = new AnchorJob
             {
-                lastSystemVersion       = state.LastSystemVersion,
-                lightProbeQuery         = query,
-                requiresFullRebuild     = requiresFullRebuild.requiresFullRebuild,
-                shMaskLower             = shMaterialMaskLower,
-                shMaskUpper             = shMaterialMaskUpper,
-                worldTransformLookup    = m_worldTransformLookup,
+                lastSystemVersion   = state.LastSystemVersion,
+                lightProbeQuery     = query,
+                requiresFullRebuild = requiresFullRebuild.requiresFullRebuild,
+                shMaskLower         = shMaterialMaskLower,
+                shMaskUpper         = shMaterialMaskUpper,
             }.Inject(api).ScheduleParallel(m_probeGridAnchorQuery, state.Dependency);
             state.Dependency = query.Dispose(state.Dependency);
         }
@@ -155,15 +148,15 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly, Inject] ComponentTypeHandle<WorldRenderBounds>                worldRenderBoundsHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<BlendProbeTag>                    blendProbeTagHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldRenderBounds>                 worldRenderBoundsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BlendProbeTag>                     blendProbeTagHandle;
             [Inject] ComponentTypeHandle<BuiltinMaterialPropertyUnity_SHCoefficients> shHandle;
             [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>              chunkMaterialMaskHandle;
-            [ReadOnly] public LightProbesQuery                                      lightProbeQuery;
-            public ulong                                                            shMaskLower;
-            public ulong                                                            shMaskUpper;
-            public uint                                                             lastSystemVersion;
-            public bool                                                             requiresFullRebuild;
+            [ReadOnly] public LightProbesQuery                                        lightProbeQuery;
+            public ulong                                                              shMaskLower;
+            public ulong                                                              shMaskUpper;
+            public uint                                                               lastSystemVersion;
+            public bool                                                               requiresFullRebuild;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -222,15 +215,15 @@ namespace Latios.Kinemation.Systems
         partial struct AnchorJob : IJobChunk, IInjectable
         {
             [ReadOnly, Inject] ComponentTypeHandle<OverrideLightProbeAnchorComponent> overrideAnchorHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.Lookup                    worldTransformLookup;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.Lookup                    worldTransformLookup;
             [ReadOnly, Inject] ComponentTypeHandle<BlendProbeTag>                     blendProbeTagHandle;
-            [Inject] ComponentTypeHandle<BuiltinMaterialPropertyUnity_SHCoefficients>  shHandle;
-            [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>               chunkMaterialMaskHandle;
-            [ReadOnly] public LightProbesQuery                                       lightProbeQuery;
-            public ulong                                                             shMaskLower;
-            public ulong                                                             shMaskUpper;
-            public uint                                                              lastSystemVersion;
-            public bool                                                              requiresFullRebuild;
+            [Inject] ComponentTypeHandle<BuiltinMaterialPropertyUnity_SHCoefficients> shHandle;
+            [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>              chunkMaterialMaskHandle;
+            [ReadOnly] public LightProbesQuery                                        lightProbeQuery;
+            public ulong                                                              shMaskLower;
+            public ulong                                                              shMaskUpper;
+            public uint                                                               lastSystemVersion;
+            public bool                                                               requiresFullRebuild;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

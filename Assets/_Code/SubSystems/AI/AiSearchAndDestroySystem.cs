@@ -5,19 +5,22 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AiSearchAndDestroySystem : ISystem
+    public partial struct AiSearchAndDestroySystem : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var jobA               = new JobA();
-            jobA.scanResultsLookup = GetComponentLookup<AiShipRadarScanResults>(true);
-            jobA.ScheduleParallel();
+            var api = this.GetApi(ref state);
+            new JobA().Inject(api).ScheduleParallel();
 
             //var stats            = new NativeReference<Stats>(state.WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
             //new StatsJob { stats = stats }.Schedule();
@@ -28,9 +31,9 @@ namespace Lsss
 
         [BurstCompile]
         [WithAll(typeof(AiTag))]
-        partial struct JobA : IJobEntity
+        partial struct JobA : IJobEntity, IInjectable
         {
-            [ReadOnly] public ComponentLookup<AiShipRadarScanResults> scanResultsLookup;
+            [ReadOnly, Inject] ComponentLookup<AiShipRadarScanResults> scanResultsLookup;
 
             public void Execute(ref AiSearchAndDestroyOutput output, in AiSearchAndDestroyPersonality personality, in AiShipRadarEntity shipRadarEntity)
             {

@@ -11,30 +11,28 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Profiling;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AiShipRadarScanSystem : ISystem
+    public partial struct AiShipRadarScanSystem : ISystem, ILatiosApi
     {
         private NativeList<NativeList<AiShipRadarScanResults> > m_scanResultsArrayListCache;
 
         private EntityQuery                      m_radarsQuery;
+        private EntityQuery                      m_factionsQuery;
         private DynamicSharedComponentTypeHandle m_factionMemberHandle;
-
-        private LatiosWorldUnmanaged latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_scanResultsArrayListCache = new NativeList<NativeList<AiShipRadarScanResults> >(Allocator.Persistent);
             m_factionMemberHandle       = state.GetDynamicSharedComponentTypeHandle(ComponentType.ReadOnly<FactionMember>());
 
-            m_radarsQuery =
-                QueryBuilder().WithAllRW<AiShipRadarScanResults>().WithAll<AiRadarTag, AiShipRadar, WorldTransform, FactionMember, AiShipRadarNeedsFullScanFlag>().Build();
+            m_radarsQuery = state.Fluent().With<AiShipRadarScanResults>(false).With<AiRadarTag, AiShipRadar, WorldTransform>(true)
+                            .With<FactionMember>(true).WithEnabled<AiShipRadarNeedsFullScanFlag>(true).Build();
+            m_factionsQuery = state.Fluent().With<Faction>(true).Build();
         }
 
         [BurstCompile]
@@ -46,33 +44,31 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var                    api = this.GetApi(ref state);
             CollisionLayerSettings settings;
-            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
-                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            if (api.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = api.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             else
                 settings               = BuildCollisionLayerConfig.defaultSettings;
             var collisionLayerSettings = settings;
-            var wallLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
-            var shipLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var wallLayer              = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var shipLayer              = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
 
             state.Dependency = new EvaluateScanRequestsJob
             {
-                wallLayer            = wallLayer,
-                worldTransformLookup = GetComponentLookup<WorldTransform>(true)
-            }.ScheduleParallel(state.Dependency);
+                wallLayer = wallLayer,
+            }.Inject(api).ScheduleParallel(state.Dependency);
 
             var allocator = state.WorldUpdateAllocator;
 
-            var factionEntities = QueryBuilder().WithAll<Faction>().Build().ToEntityArray(Allocator.Temp);
+            var factionEntities = m_factionsQuery.ToEntityArray(Allocator.Temp);
             m_factionMemberHandle.Update(ref state);
 
             var scanProcessor = new ScanProcessor
             {
-                radarLookup             = GetComponentLookup<AiShipRadar>(true),
-                wallLayer               = wallLayer,
-                entityStorageInfoLookup = GetEntityStorageInfoLookup(),
-                factionMemberHandle     = m_factionMemberHandle
-            };
+                wallLayer           = wallLayer,
+                factionMemberHandle = m_factionMemberHandle
+            }.Inject(api);
 
             var rootDependency = state.Dependency;
 
@@ -123,10 +119,10 @@ namespace Lsss
         [BurstCompile]
         [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
         [WithAll(typeof(AiRadarTag))]
-        partial struct EvaluateScanRequestsJob : IJobEntity
+        partial struct EvaluateScanRequestsJob : IJobEntity, IInjectable
         {
-            [ReadOnly] public CollisionLayer                  wallLayer;
-            [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
+            [ReadOnly] public CollisionLayer                   wallLayer;
+            [ReadOnly, Inject] ComponentLookup<WorldTransform> worldTransformLookup;
 
             public void Execute(EnabledRefRW<AiShipRadarNeedsFullScanFlag> flag,
                                 ref AiShipRadarScanResults results,
@@ -277,12 +273,12 @@ namespace Lsss
         }
 
         // Assumes A is radar, and B is other ship. Safe to schedule by A.
-        struct ScanProcessor : IFindPairsProcessor
+        partial struct ScanProcessor : IFindPairsProcessor, IInjectable
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
-            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarLookup;
+            [ReadOnly, Inject] ComponentLookup<AiShipRadar>                                  radarLookup;
             [ReadOnly] public DynamicSharedComponentTypeHandle                               factionMemberHandle;
-            [ReadOnly] public EntityStorageInfoLookup                                        entityStorageInfoLookup;
+            [ReadOnly, Inject] EntityStorageInfoLookup                                       entityStorageInfoLookup;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
 
             int radarFactionIndex;
@@ -405,27 +401,26 @@ namespace Lsss
     }
 
     [BurstCompile]
-    public partial struct AiShipRadarScanSystem2 : ISystem
+    public partial struct AiShipRadarScanSystem2 : ISystem, ILatiosApi
     {
         private EntityQuery m_radarsQuery;
-
-        private LatiosWorldUnmanaged latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
-            m_radarsQuery = QueryBuilder().WithAllRW<AiShipRadarScanResults>().WithAll<AiRadarTag, AiShipRadar, WorldTransform, FactionMember>().Build();
+            m_radarsQuery = state.Fluent().With<AiShipRadarScanResults>(false).With<AiRadarTag, AiShipRadar, WorldTransform>(true).With<FactionMember>(true).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var collisionLayerSettings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            var api                    = this.GetApi(ref state);
+            var collisionLayerSettings = api.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
 
-            var shipLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
-            var wallLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var shipLayer = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var wallLayer = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var allocator = state.WorldUpdateAllocator;
 
@@ -438,12 +433,9 @@ namespace Lsss
 
             var scanProcessor = new ScanProcessor
             {
-                entityStorageInfoLookup = GetEntityStorageInfoLookup(),
-                factionMemberHandle     = GetSharedComponentTypeHandle<FactionMember>(),
-                radarLookup             = GetComponentLookup<AiShipRadar>(false),
-                scanResultsArray        = scanResults,
-                wallLayer               = wallLayer
-            };
+                scanResultsArray = scanResults,
+                wallLayer        = wallLayer
+            }.Inject(api);
 
             state.Dependency = Physics.FindPairs(radarLayer, shipLayer, scanProcessor).WithCrossCache().ScheduleParallelByA(state.Dependency);
 
@@ -451,9 +443,8 @@ namespace Lsss
             state.Dependency = new CopyBackJob
             {
                 array                         = scanResults,
-                scanResultsHandle             = GetComponentTypeHandle<AiShipRadarScanResults>(false),
                 indicesOfFirstEntitiesInChunk = indices
-            }.ScheduleParallel(m_radarsQuery, jh);
+            }.Inject(api).ScheduleParallel(m_radarsQuery, jh);
         }
 
         [BurstCompile]
@@ -506,12 +497,12 @@ namespace Lsss
         }
 
         // Assumes A is radar, and B is other ship. Safe to schedule by A.
-        struct ScanProcessor : IFindPairsProcessor
+        partial struct ScanProcessor : IFindPairsProcessor, IInjectable
         {
             [ReadOnly] public CollisionLayer                                                 wallLayer;
-            [ReadOnly] public ComponentLookup<AiShipRadar>                                   radarLookup;
-            [ReadOnly] public SharedComponentTypeHandle<FactionMember>                       factionMemberHandle;
-            [ReadOnly] public EntityStorageInfoLookup                                        entityStorageInfoLookup;
+            [ReadOnly, Inject] ComponentLookup<AiShipRadar>                                  radarLookup;
+            [ReadOnly, Inject] SharedComponentTypeHandle<FactionMember>                      factionMemberHandle;
+            [ReadOnly, Inject] EntityStorageInfoLookup                                       entityStorageInfoLookup;
             [NativeDisableParallelForRestriction] public NativeArray<AiShipRadarScanResults> scanResultsArray;
 
             public void Execute(in FindPairsResult result)
@@ -623,10 +614,10 @@ namespace Lsss
         }
 
         [BurstCompile]
-        public struct CopyBackJob : IJobChunk
+        partial struct CopyBackJob : IJobChunk, IInjectable
         {
             [ReadOnly] public NativeArray<AiShipRadarScanResults>         array;
-            public ComponentTypeHandle<AiShipRadarScanResults>            scanResultsHandle;
+            [Inject] ComponentTypeHandle<AiShipRadarScanResults>          scanResultsHandle;
             [NativeDisableParallelForRestriction] public NativeArray<int> indicesOfFirstEntitiesInChunk;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
@@ -639,16 +630,14 @@ namespace Lsss
     }
 
     [BurstCompile]
-    public partial struct AiShipRadarScanSystem3 : ISystem
+    public partial struct AiShipRadarScanSystem3 : ISystem, ILatiosApi
     {
         private DynamicSharedComponentTypeHandle m_factionMemberHandle;
-
-        private LatiosWorldUnmanaged latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_factionMemberHandle = state.GetDynamicSharedComponentTypeHandle(ComponentType.ReadOnly<FactionMember>());
         }
@@ -656,39 +645,32 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            CollisionLayerSettings settings;
-            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
-                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
-            else
-                settings               = BuildCollisionLayerConfig.defaultSettings;
-            var collisionLayerSettings = settings;
-            var wallLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
-            var shipLayer              = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var api       = this.GetApi(ref state);
+            var wallLayer = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var shipLayer = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
 
             m_factionMemberHandle.Update(ref state);
 
             new EvaluateScanRequestsJob
             {
-                wallLayer            = wallLayer,
-                worldTransformLookup = GetComponentLookup<WorldTransform>(true)
-            }.ScheduleParallel();
+                wallLayer = wallLayer,
+            }.Inject(api).ScheduleParallel();
 
             new PerformFullScanJob
             {
-                wallLayer               = wallLayer,
-                shipLayer               = shipLayer,
-                entityStorageInfoLookup = GetEntityStorageInfoLookup(),
-                factionMemberHandle     = m_factionMemberHandle,
-            }.ScheduleParallel();
+                wallLayer           = wallLayer,
+                shipLayer           = shipLayer,
+                factionMemberHandle = m_factionMemberHandle,
+            }.Inject(api).ScheduleParallel();
         }
 
         [BurstCompile]
         [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
         [WithAll(typeof(AiRadarTag))]
-        partial struct EvaluateScanRequestsJob : IJobEntity
+        partial struct EvaluateScanRequestsJob : IJobEntity, IInjectable
         {
-            [ReadOnly] public CollisionLayer                  wallLayer;
-            [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
+            [ReadOnly] public CollisionLayer                   wallLayer;
+            [ReadOnly, Inject] ComponentLookup<WorldTransform> worldTransformLookup;
 
             public void Execute(EnabledRefRW<AiShipRadarNeedsFullScanFlag> flag,
                                 ref AiShipRadarScanResults results,
@@ -733,19 +715,18 @@ namespace Lsss
 
         [BurstCompile]
         [WithAll(typeof(AiRadarTag), typeof(AiShipRadarNeedsFullScanFlag))]
-        partial struct PerformFullScanJob : IJobEntity, IJobEntityChunkBeginEnd
+        partial struct PerformFullScanJob : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
         {
             [ReadOnly] public CollisionLayer                   wallLayer;
             [ReadOnly] public CollisionLayer                   shipLayer;
             [ReadOnly] public DynamicSharedComponentTypeHandle factionMemberHandle;
-            [ReadOnly] public EntityStorageInfoLookup          entityStorageInfoLookup;
+            [ReadOnly, Inject] EntityStorageInfoLookup         entityStorageInfoLookup;
 
             int radarFactionIndex;
 
             public void Execute(ref AiShipRadarScanResults results,
                                 in WorldTransform transform,
-                                in AiShipRadar radar,
-                                in AiShipRadarRequests requests)
+                                in AiShipRadar radar)
             {
                 results  = default;
                 var aabb = GetSearchAabb(in radar, in transform);

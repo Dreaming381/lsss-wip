@@ -10,44 +10,33 @@ namespace Latios.Transforms.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct CopyGameObjectTransformFromEntitySystem : ISystem
+    public partial struct CopyGameObjectTransformFromEntitySystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged                latiosWorld;
-        WorldTransformReadOnlyAspect.Lookup transformLookup;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-
-            transformLookup = new WorldTransformReadOnlyAspect.Lookup(ref state);
+            this.OnCreateForLatios(ref state);
 
             state.Fluent().With<GameObjectEntity.ExistComponent>(true).With<CopyTransformFromEntityTag>(true).With<CopyTransformFromEntityCleanupTag>(true)
             .WithWorldTransformReadOnly().Build();
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var mapping = latiosWorld.worldBlackboardEntity.GetCollectionComponent<CopyTransformFromEntityMapping>();
-            transformLookup.Update(ref state);
+            var api          = this.GetApi(ref state);
+            var mapping      = api.worldBlackboardEntity.GetCollectionComponent<CopyTransformFromEntityMapping>();
             state.Dependency = new Job
             {
                 indexToEntityMap = mapping.indexToEntityMap,
-                transformLookup  = transformLookup
-            }.Schedule(mapping.transformAccessArray, state.Dependency);
+            }.Inject(api).Schedule(mapping.transformAccessArray, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobParallelForTransform
+        partial struct Job : IJobParallelForTransform, IInjectable
         {
-            [ReadOnly] public NativeHashMap<int, Entity>          indexToEntityMap;
-            [ReadOnly] public WorldTransformReadOnlyAspect.Lookup transformLookup;
+            [ReadOnly] public NativeHashMap<int, Entity>           indexToEntityMap;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.Lookup transformLookup;
 
             public void Execute(int index, TransformAccess transform)
             {

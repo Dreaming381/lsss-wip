@@ -14,17 +14,15 @@ namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
-    public partial struct AiExploreInitializePersonalitySystem : ISystem, ISystemNewScene
+    public partial struct AiExploreInitializePersonalitySystem : ISystem, ILatiosApi, ISystemNewScene
     {
         EntityQuery m_query;
-
-        LatiosWorldUnmanaged latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     =
+            this.OnCreateForLatios(ref state);
+            m_query =
                 QueryBuilder().WithAllRW<AiExplorePersonality, AiExploreState>().WithAll<AiExplorePersonalityInitializerValues, WorldTransform, AiTag>().Build();
         }
 
@@ -33,9 +31,10 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
+            var api = this.GetApi(ref state);
+            var ecb = api.syncPoint.CreateEntityCommandBuffer();
 
-            float arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+            float arenaRadius = api.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             new Job
             {
                 rng         = state.GetJobRng(),
@@ -43,11 +42,6 @@ namespace Lsss
             }.ScheduleParallel(m_query);
 
             ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query.ToEntityArray(Allocator.Temp));
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
         }
 
         [BurstCompile]

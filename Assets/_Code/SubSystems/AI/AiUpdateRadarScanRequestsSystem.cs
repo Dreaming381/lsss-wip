@@ -1,32 +1,37 @@
+using Latios;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AiUpdateRadarScanRequestsSystem : ISystem
+    public partial struct AiUpdateRadarScanRequestsSystem : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             new Job
             {
-                requestsLookup = GetComponentLookup<AiShipRadarRequests>(false),
-                dt             = Time.DeltaTime
-            }.ScheduleParallel();
+                dt = api.deltaTime
+            }.Inject(api).ScheduleParallel();
         }
 
         [BurstCompile]
         [WithAll(typeof(AiTag))]
         [WithAll(typeof(AiSearchAndDestroyPersonality))]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IInjectable
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<AiShipRadarRequests> requestsLookup;
-            public float                                                                      dt;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<AiShipRadarRequests> requestsLookup;
+            public float                                                                       dt;
 
             public void Execute(in ShipReloadTime gunState, in AiShipRadarEntity radarEntity)
             {

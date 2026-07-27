@@ -8,33 +8,27 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
     [RequireMatchingQueriesForUpdate]
-    public partial struct AiExploreSystem : ISystem, ISystemNewScene
+    public partial struct AiExploreSystem : ISystem, ILatiosApi, ISystemNewScene
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         public void OnNewScene(ref SystemState state) => state.InitSystemRng("AiExploreSystem");
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             new Job
             {
-                arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius,
+                arenaRadius = api.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius,
                 rng         = state.GetJobRng(),
             }.ScheduleParallel();
         }

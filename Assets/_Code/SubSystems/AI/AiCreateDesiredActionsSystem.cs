@@ -12,14 +12,6 @@ namespace Lsss
     public partial struct AiCreateDesiredActionsSystem : ISystem
     {
         [BurstCompile]
-        public void OnCreate(ref SystemState state)
-        {
-        }
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
             new Job().ScheduleParallel();

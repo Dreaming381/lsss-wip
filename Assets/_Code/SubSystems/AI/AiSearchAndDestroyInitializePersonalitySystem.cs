@@ -12,18 +12,15 @@ using static Unity.Entities.SystemAPI;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AiSearchAndDestroyInitializePersonalitySystem : ISystem, ISystemNewScene
+    public partial struct AiSearchAndDestroyInitializePersonalitySystem : ISystem, ILatiosApi, ISystemNewScene
     {
         EntityQuery m_query;
-
-        LatiosWorldUnmanaged latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = QueryBuilder().WithAllRW<AiSearchAndDestroyPersonality>().WithAll<AiSearchAndDestroyPersonalityInitializerValues, AiTag>().Build();
-
-            latiosWorld = state.GetLatiosWorldUnmanaged();
         }
 
         public void OnNewScene(ref SystemState state) => state.InitSystemRng("AiSearchAndDestroyInitializePersonalitySystem");
@@ -31,7 +28,8 @@ namespace Lsss
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var ecb = latiosWorld.syncPoint.CreateEntityCommandBuffer();
+            var api = this.GetApi(ref state);
+            var ecb = api.syncPoint.CreateEntityCommandBuffer();
 
             new Job
             {
@@ -39,11 +37,6 @@ namespace Lsss
             }.ScheduleParallel(m_query);
 
             ecb.RemoveComponent<AiSearchAndDestroyPersonalityInitializerValues>(m_query.ToEntityArray(Allocator.Temp));
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
         }
 
         [BurstCompile]
