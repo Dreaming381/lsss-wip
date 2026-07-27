@@ -15,10 +15,8 @@ using Unity.Mathematics;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial struct SkinningDispatchSystem : ISystem, ICullingComputeDispatchSystem<SkinningDispatchSystem.CollectState, SkinningDispatchSystem.WriteState>
+    public partial struct SkinningDispatchSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<SkinningDispatchSystem.CollectState, SkinningDispatchSystem.WriteState>
     {
-        LatiosWorldUnmanaged latiosWorld;
-
 #if UNITY_ANDROID
         // Android devices often have buggy drivers that struggle with groupshared memory.
         // They may also not have enough memory for our compute shaders.
@@ -26,9 +24,6 @@ namespace Latios.Kinemation.Systems
 #else
         const int kBatchThreshold = 682;
 #endif
-
-        WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
-        WorldTransformReadOnlyAspect.Lookup     m_worldTransformLookup;
 
         EntityQuery m_skeletonQuery;
         EntityQuery m_skinnedMeshQuery;
@@ -65,12 +60,9 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
-            m_data = new CullingComputeDispatchData<CollectState, WriteState>(latiosWorld);
-
-            m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
-            m_worldTransformLookup = new WorldTransformReadOnlyAspect.Lookup(ref state);
+            m_data = new CullingComputeDispatchData<CollectState, WriteState>(api.latiosWorld);
 
             m_skeletonQuery        = state.Fluent().With<DependentSkinnedMesh>(true).Build();
             m_skinnedMeshQuery     = state.Fluent().With<SkeletonDependent>(true).With<ChunkPerDispatchCullingMask>(true, true).Build();
@@ -80,9 +72,9 @@ namespace Latios.Kinemation.Systems
             state.RequireForUpdate(m_skinnedMeshQuery);
 
             m_batchSkinningKernelIndex = UnityEngine.SystemInfo.maxComputeWorkGroupSizeX < 1024 ? 1 : 0;
-            m_batchSkinningShader      = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("BatchSkinning");
-            m_expansionShader          = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("SkeletonMeshExpansion");
-            m_meshSkinningShader       = latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("MeshSkinning");
+            m_batchSkinningShader      = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("BatchSkinning");
+            m_expansionShader          = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("SkeletonMeshExpansion");
+            m_meshSkinningShader       = api.latiosWorld.latiosWorld.LoadFromResourcesAndPreserve<UnityEngine.ComputeShader>("MeshSkinning");
 
             // Compute
             _dstTransforms          = UnityEngine.Shader.PropertyToID("_dstTransforms");
@@ -110,10 +102,11 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dispatchData = latiosWorld.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            var api          = this.GetApi(ref state);
+            var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
-                var features = latiosWorld.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.skinning)
                     return;
             }
@@ -123,6 +116,7 @@ namespace Latios.Kinemation.Systems
 
         public CollectState Collect(ref SystemState state)
         {
+            var api                = this.GetApi(ref state);
             var skeletonChunkCount = m_skeletonQuery.CalculateChunkCountWithoutFiltering();
 
             var skinningStream     = new NativeStream(skeletonChunkCount, state.WorldUpdateAllocator);
@@ -136,37 +130,19 @@ namespace Latios.Kinemation.Systems
             var groupedSkinningRequests                  = new NativeList<MeshSkinningRequest>(state.WorldUpdateAllocator);
             var skeletonEntityToSkinningRequestsGroupMap = new NativeHashMap<Entity, int>(1, state.WorldUpdateAllocator);
             var bufferLayouts                            = new NativeReference<BufferLayouts>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
-            var deformClassificationMap                  = latiosWorld.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true);
+            var deformClassificationMap                  = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true);
 
             var collectJh = new FindMeshChunksNeedingSkinningJob
             {
-                chunkHeaderHandle            = SystemAPI.GetComponentTypeHandle<ChunkHeader>(true),
-                chunksToProcess              = meshChunks.AsParallelWriter(),
-                perDispatchCullingMaskHandle = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameCullingMaskHandle    = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-            }.ScheduleParallel(m_skinnedMeshMetaQuery, state.Dependency);
+                chunksToProcess = meshChunks.AsParallelWriter(),
+            }.Inject(api).ScheduleParallel(m_skinnedMeshMetaQuery, state.Dependency);
 
             collectJh = new CollectVisibleMeshesJob
             {
-                chunksToProcess            = meshChunks.AsDeferredJobArray(),
-                currentDeformHandle        = SystemAPI.GetComponentTypeHandle<CurrentDeformShaderIndex>(true),
-                currentDqsVertexHandle     = SystemAPI.GetComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>(true),
-                currentMatrixVertexHandle  = SystemAPI.GetComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>(true),
-                deformClassificationMap    = deformClassificationMap.deformClassificationMap,
-                legacyComputeDeformHandle  = SystemAPI.GetComponentTypeHandle<LegacyComputeDeformShaderIndex>(true),
-                legacyDotsDeformHandle     = SystemAPI.GetComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>(true),
-                legacyLbsHandle            = SystemAPI.GetComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex>(true),
-                previousDeformHandle       = SystemAPI.GetComponentTypeHandle<PreviousDeformShaderIndex>(true),
-                previousDqsVertexHandle    = SystemAPI.GetComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>(true),
-                previousMatrixVertexHandle = SystemAPI.GetComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex>(true),
-                skeletonDependentHandle    = SystemAPI.GetComponentTypeHandle<SkeletonDependent>(true),
-                twoAgoDeformHandle         = SystemAPI.GetComponentTypeHandle<TwoAgoDeformShaderIndex>(true),
-                twoAgoDqsVertexHandle      = SystemAPI.GetComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>(true),
-                twoAgoMatrixVertexHandle   = SystemAPI.GetComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>(true),
-                perDispatchMaskHandle      = SystemAPI.GetComponentTypeHandle<ChunkPerDispatchCullingMask>(true),
-                perFrameMaskHandle         = SystemAPI.GetComponentTypeHandle<ChunkPerFrameCullingMask>(true),
-                requestsBlockList          = requestsBlockList
-            }.Schedule(meshChunks, 1, collectJh);
+                chunksToProcess         = meshChunks.AsDeferredJobArray(),
+                deformClassificationMap = deformClassificationMap.deformClassificationMap,
+                requestsBlockList       = requestsBlockList
+            }.Inject(api).Schedule(meshChunks, 1, collectJh);
 
             collectJh = new GroupRequestsBySkeletonJob
             {
@@ -178,27 +154,21 @@ namespace Latios.Kinemation.Systems
 
             collectJh = new GenerateSkinningCommandsJob
             {
-                boneReferenceBufferHandle                = SystemAPI.GetBufferTypeHandle<BoneReference>(true),
-                entityHandle                             = SystemAPI.GetEntityTypeHandle(),
                 groupedSkinningRequests                  = groupedSkinningRequests.AsDeferredJobArray(),
                 groupedSkinningRequestsStartsAndCounts   = groupedSkinningRequestsStartsAndCounts.AsDeferredJobArray(),
-                optimizedBoneBufferHandle                = SystemAPI.GetBufferTypeHandle<OptimizedBoneTransform>(true),
                 perChunkPrefixSums                       = perChunkPrefixSums,
-                renderVisibilityFeedbackFlagHandle       = SystemAPI.GetComponentTypeHandle<RenderVisibilityFeedbackFlag>(false),
                 skeletonEntityToSkinningRequestsGroupMap = skeletonEntityToSkinningRequestsGroupMap,
-                skinnedMeshesBufferHandle                = SystemAPI.GetBufferTypeHandle<DependentSkinnedMesh>(true),
                 skinningStream                           = skinningStream.AsWriter()
-            }.ScheduleParallel(m_skeletonQuery, collectJh);
+            }.Inject(api).ScheduleParallel(m_skeletonQuery, collectJh);
 
             state.Dependency = new PrefixSumCountsJob
             {
-                bufferLayouts               = bufferLayouts,
-                maxRequiredDeformDataLookup = SystemAPI.GetComponentLookup<MaxRequiredDeformData>(false),
-                perChunkPrefixSums          = perChunkPrefixSums,
-                worldBlackboardEntity       = latiosWorld.worldBlackboardEntity
-            }.Schedule(collectJh);
+                bufferLayouts         = bufferLayouts,
+                perChunkPrefixSums    = perChunkPrefixSums,
+                worldBlackboardEntity = api.worldBlackboardEntity
+            }.Inject(api).Schedule(collectJh);
 
-            var graphicsBroker = latiosWorld.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            var graphicsBroker = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
 
             return new CollectState
             {
@@ -218,39 +188,25 @@ namespace Latios.Kinemation.Systems
                 return default;
             }
 
+            var api            = this.GetApi(ref state);
             var graphicsBroker = collectState.broker;
-
-            m_worldTransformHandle.Update(ref state);
-            m_worldTransformLookup.Update(ref state);
 
             var skinningMetaBuffer   = graphicsBroker.GetMetaUint4UploadBuffer(layouts.requiredMetaSize);
             var boneTransformsBuffer = graphicsBroker.GetBonesBuffer(layouts.requiredUploadTransforms);
             var skinningMetaArray    = skinningMetaBuffer.LockBufferForWrite<uint4>(0, (int)layouts.requiredMetaSize);
             var boneTransformsArray  = boneTransformsBuffer.LockBufferForWrite<TransformQvvs>(0, (int)layouts.requiredUploadTransforms);
 
-            var boneOffsetsBuffer = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(true).offsets.AsDeferredJobArray();
+            var boneOffsetsBuffer = api.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(true).offsets.AsDeferredJobArray();
 
             state.Dependency = new WriteBuffersJob
             {
-                boneOffsetsBuffer            = boneOffsetsBuffer,
-                boneReferenceBufferHandle    = SystemAPI.GetBufferTypeHandle<BoneReference>(true),
-                boneTransformsUploadBuffer   = boneTransformsArray,
-                bufferLayouts                = collectState.layouts,
-                metaBuffer                   = skinningMetaArray,
-                optimizedBoneBufferHandle    = SystemAPI.GetBufferTypeHandle<OptimizedBoneTransform>(true),
-                optimizedSkeletonStateHandle = SystemAPI.GetComponentTypeHandle<OptimizedSkeletonState>(true),
-                perChunkPrefixSums           = collectState.perChunkPrefixSums,
-                worldTransformHandle         = m_worldTransformHandle,
-                worldTransformLookup         = m_worldTransformLookup,
-                skinnedMeshesBufferHandle    = SystemAPI.GetBufferTypeHandle<DependentSkinnedMesh>(true),
-                skinningStream               = collectState.skinningStream.AsReader(),
-#if !LATIOS_TRANSFORMS_UNITY
-                previousTransformHandle = SystemAPI.GetComponentTypeHandle<PreviousTransform>(true),
-                previousTransformLookup = SystemAPI.GetComponentLookup<PreviousTransform>(true),
-                twoAgoTransformHandle   = SystemAPI.GetComponentTypeHandle<TwoAgoTransform>(true),
-                twoAgoTransformLookup   = SystemAPI.GetComponentLookup<TwoAgoTransform>(true),
-#endif
-            }.ScheduleParallel(m_skeletonQuery, state.Dependency);
+                boneOffsetsBuffer          = boneOffsetsBuffer,
+                boneTransformsUploadBuffer = boneTransformsArray,
+                bufferLayouts              = collectState.layouts,
+                metaBuffer                 = skinningMetaArray,
+                perChunkPrefixSums         = collectState.perChunkPrefixSums,
+                skinningStream             = collectState.skinningStream.AsReader(),
+            }.Inject(api).ScheduleParallel(m_skeletonQuery, state.Dependency);
 
             return new WriteState
             {
@@ -266,6 +222,7 @@ namespace Latios.Kinemation.Systems
             if (!writeState.broker.isCreated)
                 return;
 
+            var api                  = this.GetApi(ref state);
             var graphicsBroker       = writeState.broker;
             var skinningMetaBuffer   = writeState.skinningMetaBuffer;
             var boneTransformsBuffer = writeState.boneTransformsBuffer;
@@ -274,7 +231,7 @@ namespace Latios.Kinemation.Systems
             skinningMetaBuffer.UnlockBufferAfterWrite<uint4>((int)layouts.requiredMetaSize);
             boneTransformsBuffer.UnlockBufferAfterWrite<TransformQvvs>((int)layouts.requiredUploadTransforms);
 
-            var requiredDeformSizes    = latiosWorld.worldBlackboardEntity.GetComponentData<MaxRequiredDeformData>();
+            var requiredDeformSizes    = api.worldBlackboardEntity.GetComponentData<MaxRequiredDeformData>();
             var shaderTransformsBuffer = graphicsBroker.GetSkinningTransformsBuffer(requiredDeformSizes.maxRequiredBoneTransformsForVertexSkinning);
             var shaderDeformBuffer     = graphicsBroker.GetDeformBuffer(requiredDeformSizes.maxRequiredDeformVertices);
 
@@ -512,11 +469,11 @@ namespace Latios.Kinemation.Systems
 
         #region Collect Jobs
         [BurstCompile]
-        struct FindMeshChunksNeedingSkinningJob : IJobChunk
+        partial struct FindMeshChunksNeedingSkinningJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameCullingMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameCullingMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>                 chunkHeaderHandle;
 
             public NativeList<ArchetypeChunk>.ParallelWriter chunksToProcess;
 
@@ -551,30 +508,28 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct CollectVisibleMeshesJob : IJobParallelForDefer
+        partial struct CollectVisibleMeshesJob : IJobParallelForDefer, IInjectable
         {
-            [ReadOnly] public NativeArray<ArchetypeChunk> chunksToProcess;
-
-            [ReadOnly] public ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent>           skeletonDependentHandle;
-
+            [ReadOnly] public NativeArray<ArchetypeChunk>                                 chunksToProcess;
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
 
-            [ReadOnly] public ComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex> legacyLbsHandle;
-            [ReadOnly] public ComponentTypeHandle<LegacyComputeDeformShaderIndex>       legacyComputeDeformHandle;
-            [ReadOnly] public ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<ChunkPerDispatchCullingMask> perDispatchMaskHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<ChunkPerFrameCullingMask>    perFrameMaskHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<SkeletonDependent>           skeletonDependentHandle;
 
-            [ReadOnly] public ComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexHandle;
-            [ReadOnly] public ComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexHandle;
-            [ReadOnly] public ComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexHandle;
-            [ReadOnly] public ComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<LegacyLinearBlendSkinningShaderIndex> legacyLbsHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<LegacyComputeDeformShaderIndex>       legacyComputeDeformHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>    legacyDotsDeformHandle;
 
-            [ReadOnly] public ComponentTypeHandle<CurrentDeformShaderIndex>  currentDeformHandle;
-            [ReadOnly] public ComponentTypeHandle<PreviousDeformShaderIndex> previousDeformHandle;
-            [ReadOnly] public ComponentTypeHandle<TwoAgoDeformShaderIndex>   twoAgoDeformHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<CurrentMatrixVertexSkinningShaderIndex>  currentMatrixVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<PreviousMatrixVertexSkinningShaderIndex> previousMatrixVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<TwoAgoMatrixVertexSkinningShaderIndex>   twoAgoMatrixVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<CurrentDqsVertexSkinningShaderIndex>     currentDqsVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<PreviousDqsVertexSkinningShaderIndex>    previousDqsVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<TwoAgoDqsVertexSkinningShaderIndex>      twoAgoDqsVertexHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<CurrentDeformShaderIndex>                currentDeformHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<PreviousDeformShaderIndex>               previousDeformHandle;
+            [ReadOnly, Inject]  ComponentTypeHandle<TwoAgoDeformShaderIndex>                 twoAgoDeformHandle;
 
             public UnsafeParallelBlockList<MeshSkinningRequestWithSkeletonTarget> requestsBlockList;
 
@@ -915,13 +870,13 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct GenerateSkinningCommandsJob : IJobChunk
+        partial struct GenerateSkinningCommandsJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                       entityHandle;
-            [ReadOnly] public BufferTypeHandle<DependentSkinnedMesh> skinnedMeshesBufferHandle;
+            [ReadOnly, Inject] EntityTypeHandle                       entityHandle;
+            [ReadOnly, Inject] BufferTypeHandle<DependentSkinnedMesh> skinnedMeshesBufferHandle;
 
-            [ReadOnly] public BufferTypeHandle<BoneReference>          boneReferenceBufferHandle;
-            [ReadOnly] public BufferTypeHandle<OptimizedBoneTransform> optimizedBoneBufferHandle;
+            [ReadOnly, Inject] BufferTypeHandle<BoneReference>          boneReferenceBufferHandle;
+            [ReadOnly, Inject] BufferTypeHandle<OptimizedBoneTransform> optimizedBoneBufferHandle;
 
             [ReadOnly] public NativeHashMap<Entity, int>                                  skeletonEntityToSkinningRequestsGroupMap;
             [ReadOnly] public NativeArray<int2>                                           groupedSkinningRequestsStartsAndCounts;
@@ -932,7 +887,7 @@ namespace Latios.Kinemation.Systems
 
             PerChunkPrefixSums chunkPrefixSums;
 
-            public ComponentTypeHandle<RenderVisibilityFeedbackFlag> renderVisibilityFeedbackFlagHandle;
+            [Inject] ComponentTypeHandle<RenderVisibilityFeedbackFlag> renderVisibilityFeedbackFlagHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -1909,12 +1864,12 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct PrefixSumCountsJob : IJob
+        partial struct PrefixSumCountsJob : IJob, IInjectable
         {
-            public NativeArray<PerChunkPrefixSums>        perChunkPrefixSums;
-            public NativeReference<BufferLayouts>         bufferLayouts;
-            public ComponentLookup<MaxRequiredDeformData> maxRequiredDeformDataLookup;
-            public Entity                                 worldBlackboardEntity;
+            public NativeArray<PerChunkPrefixSums>          perChunkPrefixSums;
+            public NativeReference<BufferLayouts>           bufferLayouts;
+            [Inject] ComponentLookup<MaxRequiredDeformData> maxRequiredDeformDataLookup;
+            public Entity                                   worldBlackboardEntity;
 
             public void Execute()
             {
@@ -1958,23 +1913,23 @@ namespace Latios.Kinemation.Systems
         #endregion
 
         [BurstCompile]
-        struct WriteBuffersJob : IJobChunk
+        partial struct WriteBuffersJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public BufferTypeHandle<DependentSkinnedMesh> skinnedMeshesBufferHandle;
-            [ReadOnly] public NativeArray<short>                     boneOffsetsBuffer;
+            [ReadOnly, Inject] BufferTypeHandle<DependentSkinnedMesh> skinnedMeshesBufferHandle;
+            [ReadOnly] public NativeArray<short>                      boneOffsetsBuffer;
 
-            [ReadOnly] public BufferTypeHandle<BoneReference>         boneReferenceBufferHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle worldTransformHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.Lookup     worldTransformLookup;
+            [ReadOnly, Inject] BufferTypeHandle<BoneReference>         boneReferenceBufferHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle worldTransformHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.Lookup     worldTransformLookup;
 #if !LATIOS_TRANSFORMS_UNITY
-            [ReadOnly] public ComponentTypeHandle<PreviousTransform> previousTransformHandle;
-            [ReadOnly] public ComponentLookup<PreviousTransform>     previousTransformLookup;
-            [ReadOnly] public ComponentTypeHandle<TwoAgoTransform>   twoAgoTransformHandle;
-            [ReadOnly] public ComponentLookup<TwoAgoTransform>       twoAgoTransformLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<PreviousTransform> previousTransformHandle;
+            [ReadOnly, Inject] ComponentLookup<PreviousTransform>     previousTransformLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<TwoAgoTransform>   twoAgoTransformHandle;
+            [ReadOnly, Inject] ComponentLookup<TwoAgoTransform>       twoAgoTransformLookup;
 #endif
 
-            [ReadOnly] public BufferTypeHandle<OptimizedBoneTransform>    optimizedBoneBufferHandle;
-            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonState> optimizedSkeletonStateHandle;
+            [ReadOnly, Inject] BufferTypeHandle<OptimizedBoneTransform>    optimizedBoneBufferHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<OptimizedSkeletonState> optimizedSkeletonStateHandle;
 
             [ReadOnly] public NativeStream.Reader             skinningStream;
             [ReadOnly] public NativeArray<PerChunkPrefixSums> perChunkPrefixSums;

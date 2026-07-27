@@ -15,8 +15,6 @@ namespace Latios.Transforms.Systems
     [BurstCompile]
     public partial struct TickedTransformsArchetypeFixupSystem : ISystem
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_rootMissingTickedQuery;
         EntityQuery m_rootMissingNormalQuery;
         EntityQuery m_soloRemoveTickedQuery;
@@ -33,8 +31,6 @@ namespace Latios.Transforms.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-
             m_rootMissingTickedQuery = state.Fluent().With<TickedEntityTag, WorldTransform>(true).Without<TickedWorldTransform, RootReference>()
                                        .IncludeDisabledEntities().IncludePrefabs().Build();
             m_rootMissingNormalQuery = state.Fluent().With<TickedWorldTransform>(true).Without<WorldTransform, RootReference, TickingOnlyEntityTag>()

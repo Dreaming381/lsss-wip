@@ -9,6 +9,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
+// Todo: Refactor this once EntitySceneOptimizations can be made a LatiosWorld.
 using static Unity.Entities.SystemAPI;
 
 namespace Latios.Kinemation.Systems

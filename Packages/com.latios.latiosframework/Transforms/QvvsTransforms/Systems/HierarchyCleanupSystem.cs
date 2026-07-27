@@ -1,13 +1,11 @@
 #if !LATIOS_TRANSFORMS_UNITY
+using Latios.Systems;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-
-using Latios.Systems;
-using static Unity.Entities.SystemAPI;
 
 namespace Latios.Transforms.Systems
 {
@@ -17,36 +15,33 @@ namespace Latios.Transforms.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct HierarchyCleanupSystem : ISystem
+    public partial struct HierarchyCleanupSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_query;
+        EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<EntityInHierarchyCleanup>(true).Without<EntityInHierarchy>().Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<EntityInHierarchyCleanup>(true).Without<EntityInHierarchy>().Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api          = this.GetApi(ref state);
             state.Dependency = new Job
             {
-                entityHandle  = GetEntityTypeHandle(),
-                cleanupHandle = GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
-                esil          = GetEntityStorageInfoLookup(),
-                ecb           = latiosWorld.syncPoint.CreateEntityCommandBuffer().AsParallelWriter()
-            }.ScheduleParallel(m_query, state.Dependency);
+                ecb = api.syncPoint.CreateEntityCommandBuffer().AsParallelWriter()
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                           entityHandle;
-            [ReadOnly] public BufferTypeHandle<EntityInHierarchyCleanup> cleanupHandle;
-            [ReadOnly] public EntityStorageInfoLookup                    esil;
+            [ReadOnly, Inject] EntityTypeHandle                           entityHandle;
+            [ReadOnly, Inject] BufferTypeHandle<EntityInHierarchyCleanup> cleanupHandle;
+            [ReadOnly, Inject] EntityStorageInfoLookup                    esil;
 
             public EntityCommandBuffer.ParallelWriter ecb;
 

@@ -5,8 +5,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
 #if !LATIOS_TRANSFORMS_UNITY
@@ -14,56 +12,43 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InterpolateOptimizedSkeletonsSystem : ISystem
+    public partial struct InterpolateOptimizedSkeletonsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_query;
+        EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<InterpolateOptimizedSkeletonTag, TickedOptimizedSkeletonState, TickedOptimizedBoneTransform>(true)
-                          .With<OptimizedSkeletonHierarchyBlobReference>(true).With<OptimizedSkeletonState, OptimizedBoneTransform, WorldTransform>(false).Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<InterpolateOptimizedSkeletonTag, TickedOptimizedSkeletonState, TickedOptimizedBoneTransform>(true)
+                      .With<OptimizedSkeletonHierarchyBlobReference>(true).With<OptimizedSkeletonState, OptimizedBoneTransform, WorldTransform>(false).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             var job = new Job
             {
-                boneTransformHandle = GetBufferTypeHandle<OptimizedBoneTransform>(false),
-                factor              = latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>().finalTickFraction,
-                hierarchyHandle     = GetComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference>(true),
-                skinnedMeshesHandle = GetBufferTypeHandle<DependentSkinnedMesh>(true),
-                socketLookup        = GetComponentLookup<Socket>(true),
-                stateHandle         = GetComponentTypeHandle<OptimizedSkeletonState>(false),
-                tickedBonesHandle   = GetBufferTypeHandle<TickedOptimizedBoneTransform>(true),
-                tickedStateHandle   = GetComponentTypeHandle<TickedOptimizedSkeletonState>(true),
-                transformHandle     = new TransformAspectParallelChunkHandle(GetComponentLookup<WorldTransform>(false),
-                                                                             GetComponentTypeHandle<RootReference>(true),
-                                                                             GetBufferLookup<EntityInHierarchy>(       true),
-                                                                             GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                                             GetEntityStorageInfoLookup(),
-                                                                             ref state)
-            };
-            var jh           = job.transformHandle.ScheduleChunkCaptureForQuery(m_query, state.Dependency);
-            jh               = job.transformHandle.ScheduleChunkGrouping(jh);
+                factor = api.worldBlackboardEntity.GetComponentData<TickingState>().finalTickFraction,
+            }.Inject(api);
+            var jh           = job.transformAspectHandleAccess.ScheduleChunkCaptureForQuery(m_query, state.Dependency);
+            jh               = job.transformAspectHandleAccess.ScheduleChunkGrouping(jh);
             state.Dependency = job.GetTransformsScheduler().ScheduleParallel(jh);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk, IJobChunkParallelTransform
+        partial struct Job : IJobChunk, IJobChunkParallelTransform, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<TickedOptimizedSkeletonState>            tickedStateHandle;
-            [ReadOnly] public BufferTypeHandle<TickedOptimizedBoneTransform>               tickedBonesHandle;
-            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> hierarchyHandle;
-            [ReadOnly] public BufferTypeHandle<DependentSkinnedMesh>                       skinnedMeshesHandle;
-            [ReadOnly] public ComponentLookup<Socket>                                      socketLookup;
-            public ComponentTypeHandle<OptimizedSkeletonState>                             stateHandle;
-            public BufferTypeHandle<OptimizedBoneTransform>                                boneTransformHandle;
-            public TransformAspectParallelChunkHandle                                      transformHandle;
-            public float                                                                   factor;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedOptimizedSkeletonState>            tickedStateHandle;
+            [ReadOnly, Inject] BufferTypeHandle<TickedOptimizedBoneTransform>               tickedBonesHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> hierarchyHandle;
+            [ReadOnly, Inject] BufferTypeHandle<DependentSkinnedMesh>                       skinnedMeshesHandle;
+            [ReadOnly, Inject] ComponentLookup<Socket>                                      socketLookup;
+            [Inject] ComponentTypeHandle<OptimizedSkeletonState>                            stateHandle;
+            [Inject] BufferTypeHandle<OptimizedBoneTransform>                               boneTransformHandle;
+            [Inject] TransformAspectParallelChunkHandle                                     transformHandle;
+            public float                                                                    factor;
 
             public ref TransformAspectParallelChunkHandle transformAspectHandleAccess => ref transformHandle.RefAccess();
 
@@ -144,23 +129,23 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InterpolateOptimizedSkeletonsSystem : ISystem
+    public partial struct InterpolateOptimizedSkeletonsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
         EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<InterpolateOptimizedSkeletonTag, TickedOptimizedSkeletonState, TickedOptimizedBoneTransform>(true)
-                          .With<OptimizedSkeletonHierarchyBlobReference, DependentSkinnedMesh, Unity.Transforms.LocalToWorld>(true).With<OptimizedSkeletonState,
-                                                                                                                                         OptimizedBoneTransform>(false).Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<InterpolateOptimizedSkeletonTag, TickedOptimizedSkeletonState, TickedOptimizedBoneTransform>(true)
+                      .With<OptimizedSkeletonHierarchyBlobReference, DependentSkinnedMesh, Unity.Transforms.LocalToWorld>(true).With<OptimizedSkeletonState,
+                                                                                                                                     OptimizedBoneTransform>(false).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             var job = new Job
             {
                 boneTransformHandle = GetBufferTypeHandle<OptimizedBoneTransform>(false),
@@ -170,19 +155,19 @@ namespace Latios.Kinemation.Systems
                 tickedBonesHandle   = GetBufferTypeHandle<TickedOptimizedBoneTransform>(true),
                 tickedStateHandle   = GetComponentTypeHandle<TickedOptimizedSkeletonState>(true),
                 transformHandle     = GetComponentTypeHandle<Unity.Transforms.LocalToWorld>(true),
-            };
+            }.Inject(api);
             state.Dependency = job.ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<TickedOptimizedSkeletonState> tickedStateHandle;
-            [ReadOnly] public BufferTypeHandle<TickedOptimizedBoneTransform> tickedBonesHandle;
-            [ReadOnly] public ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> hierarchyHandle;
-            [ReadOnly] public ComponentTypeHandle<Unity.Transforms.LocalToWorld> transformHandle;
-            public ComponentTypeHandle<OptimizedSkeletonState> stateHandle;
-            public BufferTypeHandle<OptimizedBoneTransform> boneTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedOptimizedSkeletonState> tickedStateHandle;
+            [ReadOnly, Inject] BufferTypeHandle<TickedOptimizedBoneTransform> tickedBonesHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference> hierarchyHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<Unity.Transforms.LocalToWorld> transformHandle;
+            [Inject] ComponentTypeHandle<OptimizedSkeletonState> stateHandle;
+            [Inject] BufferTypeHandle<OptimizedBoneTransform> boneTransformHandle;
             public float factor;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)

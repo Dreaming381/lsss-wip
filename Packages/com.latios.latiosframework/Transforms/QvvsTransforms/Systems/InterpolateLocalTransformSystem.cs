@@ -5,59 +5,46 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Transforms.Systems
 {
     [UpdateInGroup(typeof(Latios.Systems.TickedInterpolateSuperSystem))]
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct InterpolateLocalTransformSystem : ISystem
+    public partial struct InterpolateLocalTransformSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_query;
+        EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<InterpolateLocalTransformTag, TickedWorldTransform, TickedPreviousTransform>(true).With<WorldTransform>(false).Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<InterpolateLocalTransformTag, TickedWorldTransform, TickedPreviousTransform>(true).With<WorldTransform>(false).Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             var job = new Job
             {
-                factor                    = latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>().finalTickFraction,
-                previousTickedLocalHandle = GetComponentTypeHandle<TickedPreviousLocalTransformCache>(true),
-                previousTickedWorldHandle = GetComponentTypeHandle<TickedPreviousTransform>(true),
-                previousTickedWorldLookup = GetComponentLookup<TickedPreviousTransform>(true),
-                tickedWorldLookup         = GetComponentLookup<TickedWorldTransform>(true),
-                tickedWorldHandle         = GetComponentTypeHandle<TickedWorldTransform>(true),
-                transformHandle           = new TransformAspectParallelChunkHandle(GetComponentLookup<WorldTransform>(false),
-                                                                                   GetComponentTypeHandle<RootReference>(true),
-                                                                                   GetBufferLookup<EntityInHierarchy>(       true),
-                                                                                   GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                                                   GetEntityStorageInfoLookup(),
-                                                                                   ref state)
-            };
-            var jh           = job.transformHandle.ScheduleChunkCaptureForQuery(m_query, state.Dependency);
-            jh               = job.transformHandle.ScheduleChunkGrouping(jh);
+                factor = api.worldBlackboardEntity.GetComponentData<TickingState>().finalTickFraction,
+            }.Inject(api);
+            var jh           = job.transformAspectHandleAccess.ScheduleChunkCaptureForQuery(m_query, state.Dependency);
+            jh               = job.transformAspectHandleAccess.ScheduleChunkGrouping(jh);
             state.Dependency = job.GetTransformsScheduler().ScheduleParallel(jh);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk, IJobChunkParallelTransform
+        partial struct Job : IJobChunk, IJobChunkParallelTransform, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<TickedWorldTransform>              tickedWorldHandle;
-            [ReadOnly] public ComponentLookup<TickedWorldTransform>                  tickedWorldLookup;
-            [ReadOnly] public ComponentTypeHandle<TickedPreviousTransform>           previousTickedWorldHandle;
-            [ReadOnly] public ComponentLookup<TickedPreviousTransform>               previousTickedWorldLookup;
-            [ReadOnly] public ComponentTypeHandle<TickedPreviousLocalTransformCache> previousTickedLocalHandle;
-            public TransformAspectParallelChunkHandle                                transformHandle;
-            public float                                                             factor;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform>              tickedWorldHandle;
+            [ReadOnly, Inject] ComponentLookup<TickedWorldTransform>                  tickedWorldLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedPreviousTransform>           previousTickedWorldHandle;
+            [ReadOnly, Inject] ComponentLookup<TickedPreviousTransform>               previousTickedWorldLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedPreviousLocalTransformCache> previousTickedLocalHandle;
+            [Inject] TransformAspectParallelChunkHandle                               transformHandle;
+            public float                                                              factor;
 
             public ref TransformAspectParallelChunkHandle transformAspectHandleAccess => ref transformHandle.RefAccess();
 

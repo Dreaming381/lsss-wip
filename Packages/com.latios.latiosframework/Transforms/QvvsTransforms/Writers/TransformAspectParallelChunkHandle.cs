@@ -57,7 +57,7 @@ namespace Latios.Transforms
     /// The second phase groups the chunks together that share hierarchy members. The last phase
     /// is when TransformAspects can be safely iterated and processed.
     /// </summary>
-    public unsafe struct TransformAspectParallelChunkHandle
+    public unsafe struct TransformAspectParallelChunkHandle : ILatiosApiGettable
     {
         /* Construct Snippet
            new TransformAspectParallelChunkHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
@@ -105,6 +105,20 @@ namespace Latios.Transforms
             cache                     = null;
             hierarchyChecker          = default;
             cleanupChecker            = default;
+        }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state)
+        {
+            transformLookup     = state.GetComponentLookup<WorldTransform>();
+            rootReferenceHandle = state.GetComponentTypeHandle<RootReference>(true);
+            hierarchyLookup     = state.GetBufferLookup<EntityInHierarchy>(true);
+            cleanupLookup       = state.GetBufferLookup<EntityInHierarchyCleanup>(true);
+            esil                = state.GetEntityStorageInfoLookup();
+        }
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state)
+        {
+            this = new TransformAspectParallelChunkHandle(transformLookup.lookup, rootReferenceHandle, hierarchyLookup, cleanupLookup, esil, ref state);
         }
 
         /// <summary>

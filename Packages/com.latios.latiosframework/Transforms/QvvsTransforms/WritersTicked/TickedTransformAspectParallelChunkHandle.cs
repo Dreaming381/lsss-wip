@@ -58,7 +58,7 @@ namespace Latios.Transforms
     /// The second phase groups the chunks together that share hierarchy members. The last phase
     /// is when TickedTransformAspects can be safely iterated and processed.
     /// </summary>
-    public unsafe struct TickedTransformAspectParallelChunkHandle
+    public unsafe struct TickedTransformAspectParallelChunkHandle : ILatiosApiGettable
     {
         /* Construct Snippet
            new TickedTransformAspectParallelChunkHandle(SystemAPI.GetComponentLookup<TickedWorldTransform>(false),
@@ -106,6 +106,20 @@ namespace Latios.Transforms
             cache                     = null;
             hierarchyChecker          = default;
             cleanupChecker            = default;
+        }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state)
+        {
+            transformLookup     = state.GetComponentLookup<TickedWorldTransform>();
+            rootReferenceHandle = state.GetComponentTypeHandle<RootReference>(true);
+            hierarchyLookup     = state.GetBufferLookup<EntityInHierarchy>(true);
+            cleanupLookup       = state.GetBufferLookup<EntityInHierarchyCleanup>(true);
+            esil                = state.GetEntityStorageInfoLookup();
+        }
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state)
+        {
+            this = new TickedTransformAspectParallelChunkHandle(transformLookup.lookup, rootReferenceHandle, hierarchyLookup, cleanupLookup, esil, ref state);
         }
 
         /// <summary>

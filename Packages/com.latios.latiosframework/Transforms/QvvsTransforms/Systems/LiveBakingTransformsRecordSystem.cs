@@ -17,20 +17,19 @@ namespace Latios.Transforms.Systems
     [UpdateInGroup(typeof(BeforeLiveBakingSuperSystem))]
     [DisableAutoCreation]
     [BurstCompile]
-    public unsafe partial struct LiveBakingTransformsRecordSystem : ISystem
+    public unsafe partial struct LiveBakingTransformsRecordSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_rootsQuery;
-        EntityQuery          m_childrenQuery;
-        EntityQuery          m_worldTransformsQuery;
-        EntityQuery          m_tickedTransformsQuery;
-        EntityQuery          m_dynamicParentQuery;
-        bool                 m_firstUpdate;
+        EntityQuery m_rootsQuery;
+        EntityQuery m_childrenQuery;
+        EntityQuery m_worldTransformsQuery;
+        EntityQuery m_tickedTransformsQuery;
+        EntityQuery m_dynamicParentQuery;
+        bool        m_firstUpdate;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             m_rootsQuery           = state.Fluent().With<LiveBakedTag, EntityInHierarchy>(true).IncludePrefabs().IncludeDisabledEntities().Build();
             m_childrenQuery        = state.Fluent().With<LiveBakedTag, RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
@@ -41,7 +40,7 @@ namespace Latios.Transforms.Systems
                                                                                              RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
             m_dynamicParentQuery = state.Fluent().WithAnyEnabled<LiveAddedParentTag, LiveRemovedParentTag>(true).Build();
 
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new LiveTransformCapture());
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new LiveTransformCapture());
 
             m_firstUpdate = true;
         }
@@ -49,6 +48,7 @@ namespace Latios.Transforms.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api                              = this.GetApi(ref state);
             var rootsOrderVersion                = state.EntityManager.GetComponentOrderVersion<EntityInHierarchy>();
             var childrenOrderVersion             = state.EntityManager.GetComponentOrderVersion<RootReference>();
             var worldTransformOrderVersion       = state.EntityManager.GetComponentOrderVersion<WorldTransform>();
@@ -65,35 +65,23 @@ namespace Latios.Transforms.Systems
 
             state.Dependency = new RootsJob
             {
-                roots                      = roots,
-                chunkStartIndices          = rootStartIndices,
-                worldTransformHandle       = GetComponentTypeHandle<WorldTransform>(true),
-                tickedWorldTransformHandle = GetComponentTypeHandle<TickedWorldTransform>(true),
-                hierarchyHandle            = GetBufferTypeHandle<EntityInHierarchy>(true),
-                allocator                  = state.WorldUpdateAllocator,
-            }.ScheduleParallel(m_rootsQuery, state.Dependency);
+                roots             = roots,
+                chunkStartIndices = rootStartIndices,
+                allocator         = state.WorldUpdateAllocator,
+            }.Inject(api).ScheduleParallel(m_rootsQuery, state.Dependency);
 
             state.Dependency = new ChildrenJob
             {
-                children                       = children,
-                chunkStartIndices              = childrenStartIndices,
-                entityHandle                   = GetEntityTypeHandle(),
-                rootReferenceHandle            = GetComponentTypeHandle<RootReference>(true),
-                worldTransformHandle           = GetComponentTypeHandle<WorldTransform>(true),
-                tickedWorldTransformHandle     = GetComponentTypeHandle<TickedWorldTransform>(true),
-                entityInHierarchyLookup        = GetBufferLookup<EntityInHierarchy>(true),
-                entityInHierarchyCleanupLookup = GetBufferLookup<EntityInHierarchyCleanup>(true),
-                esil                           = GetEntityStorageInfoLookup(),
-                worldTransformLookup           = GetComponentLookup<WorldTransform>(true),
-                tickedWorldTransformLookup     = GetComponentLookup<TickedWorldTransform>(true),
-            }.ScheduleParallel(m_childrenQuery, state.Dependency);
+                children          = children,
+                chunkStartIndices = childrenStartIndices,
+            }.Inject(api).ScheduleParallel(m_childrenQuery, state.Dependency);
 
             bool editorWorld       = (state.WorldUnmanaged.Flags & WorldFlags.Editor) == WorldFlags.Editor;
             bool hasDynamicParents = !m_dynamicParentQuery.IsEmptyIgnoreFilter;
             bool somethingChanged  = !m_firstUpdate;
             if (somethingChanged)
             {
-                var  capture                             = latiosWorld.worldBlackboardEntity.GetCollectionComponent<LiveTransformCapture>(false);
+                var  capture                             = api.worldBlackboardEntity.GetCollectionComponent<LiveTransformCapture>(false);
                 bool rootsChangedStructurally            = rootsOrderVersion != capture.rootsOrderVersion;
                 bool childrenChangedStructurally         = childrenOrderVersion != capture.childrenOrderVersion;
                 bool worldTransformsChangedStructurally  = worldTransformOrderVersion != capture.worldTransformOrderVersion;
@@ -119,7 +107,7 @@ namespace Latios.Transforms.Systems
 
                 m_firstUpdate = false;
             }
-            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new LiveTransformCapture
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new LiveTransformCapture
             {
                 roots                            = roots,
                 children                         = children,
@@ -133,13 +121,13 @@ namespace Latios.Transforms.Systems
         }
 
         [BurstCompile]
-        struct RootsJob : IJobChunk
+        partial struct RootsJob : IJobChunk, IInjectable
         {
             [NativeDisableParallelForRestriction] public NativeArray<LiveTransformCapture.Root> roots;
             [ReadOnly] public NativeArray<int>                                                  chunkStartIndices;
-            [ReadOnly] public ComponentTypeHandle<WorldTransform>                               worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<TickedWorldTransform>                         tickedWorldTransformHandle;
-            [ReadOnly] public BufferTypeHandle<EntityInHierarchy>                               hierarchyHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldTransform>                              worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform>                        tickedWorldTransformHandle;
+            [ReadOnly, Inject] BufferTypeHandle<EntityInHierarchy>                              hierarchyHandle;
 
             public AllocatorManager.AllocatorHandle allocator;
 
@@ -185,19 +173,19 @@ namespace Latios.Transforms.Systems
         }
 
         [BurstCompile]
-        struct ChildrenJob : IJobChunk
+        partial struct ChildrenJob : IJobChunk, IInjectable
         {
             [NativeDisableParallelForRestriction] public NativeArray<LiveTransformCapture.Child> children;
             [ReadOnly] public NativeArray<int>                                                   chunkStartIndices;
-            [ReadOnly] public EntityTypeHandle                                                   entityHandle;
-            [ReadOnly] public ComponentTypeHandle<RootReference>                                 rootReferenceHandle;
-            [ReadOnly] public ComponentTypeHandle<WorldTransform>                                worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<TickedWorldTransform>                          tickedWorldTransformHandle;
-            [ReadOnly] public BufferLookup<EntityInHierarchy>                                    entityInHierarchyLookup;
-            [ReadOnly] public BufferLookup<EntityInHierarchyCleanup>                             entityInHierarchyCleanupLookup;
-            [ReadOnly] public EntityStorageInfoLookup                                            esil;
-            [ReadOnly] public ComponentLookup<WorldTransform>                                    worldTransformLookup;
-            [ReadOnly] public ComponentLookup<TickedWorldTransform>                              tickedWorldTransformLookup;
+            [ReadOnly, Inject] EntityTypeHandle                                                  entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<RootReference>                                rootReferenceHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldTransform>                               worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform>                         tickedWorldTransformHandle;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchy>                                   entityInHierarchyLookup;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchyCleanup>                            entityInHierarchyCleanupLookup;
+            [ReadOnly, Inject] EntityStorageInfoLookup                                           esil;
+            [ReadOnly, Inject] ComponentLookup<WorldTransform>                                   worldTransformLookup;
+            [ReadOnly, Inject] ComponentLookup<TickedWorldTransform>                             tickedWorldTransformLookup;
 
             HasChecker<LiveAddedParentTag> liveAddedParentChecker;
 

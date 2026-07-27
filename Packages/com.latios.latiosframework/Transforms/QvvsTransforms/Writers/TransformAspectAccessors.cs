@@ -12,7 +12,7 @@ namespace Latios.Transforms
     /// A struct which should be a field of a (single-threaded if not read-only) job.
     /// It can provide TransformAspect and TransformReadAspect instances for the context of such a job.
     /// </summary>
-    public unsafe struct TransformAspectLookup
+    public unsafe struct TransformAspectLookup : ILatiosApiGettableBool
     {
         /* RW Construct Snippet
            new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
@@ -208,6 +208,24 @@ namespace Latios.Transforms
         /// Access to the internal EntityStorageInfoLookup for convenience
         /// </summary>
         public EntityStorageInfoLookup entityStorageInfoLookup => esil;
+
+        void ILatiosApiGettableBool.CreateForApi(ref SystemState state, bool b)
+        {
+            this = new TransformAspectLookup(state.GetComponentLookup<WorldTransform>(b),
+                                             state.GetComponentLookup<RootReference>(true),
+                                             state.GetBufferLookup<EntityInHierarchy>(true),
+                                             state.GetBufferLookup<EntityInHierarchyCleanup>(true),
+                                             state.GetEntityStorageInfoLookup());
+        }
+
+        void ILatiosApiGettableBool.UpdateForApi(ref SystemState state)
+        {
+            transformLookup.Update(ref state);
+            rootRefLookup.Update(ref state);
+            eihLookup.Update(ref state);
+            cleanupLookup.Update(ref state);
+            esil.Update(ref state);
+        }
     }
 
     /// <summary>
@@ -216,7 +234,7 @@ namespace Latios.Transforms
     /// For each chunk, call SetupChunk(). Then use the indexer with the index of the entity within the chunk to get the TransformAspect.
     /// If used in an IJobEntity, make sure to include WorldTransform in your query!
     /// </summary>
-    public unsafe struct TransformAspectRootHandle
+    public unsafe struct TransformAspectRootHandle : ILatiosApiGettable
     {
         /* Construct Snippet
            new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
@@ -333,6 +351,22 @@ namespace Latios.Transforms
         /// Access to the internal EntityStorageInfoLookup for convenience
         /// </summary>
         public EntityStorageInfoLookup entityStorageInfoLookup => esil;
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state)
+        {
+            this = new TransformAspectRootHandle(state.GetComponentLookup<WorldTransform>(false),
+                                                 state.GetBufferTypeHandle<EntityInHierarchy>(true),
+                                                 state.GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
+                                                 state.GetEntityStorageInfoLookup());
+        }
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state)
+        {
+            transformLookup.Update(ref state);
+            hierarchyHandle.Update(ref state);
+            cleanupHandle.Update(ref state);
+            esil.Update(ref state);
+        }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckInit()

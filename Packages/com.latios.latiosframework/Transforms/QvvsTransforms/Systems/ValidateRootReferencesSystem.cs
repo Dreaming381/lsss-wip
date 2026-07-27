@@ -3,42 +3,36 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Transforms.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct ValidateRootReferencesSystem : ISystem
+    public partial struct ValidateRootReferencesSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_query;
+        EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-            m_query     = state.Fluent().With<RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
             m_query.SetOrderVersionFilter();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            new Job
-            {
-                hierarchyLookup = GetBufferLookup<EntityInHierarchy>(true),
-                cleanupLookup   = GetBufferLookup<EntityInHierarchyCleanup>(true),
-            }.ScheduleParallel(m_query);
+            var api = this.GetApi(ref state);
+            new Job().Inject(api).ScheduleParallel(m_query);
         }
 
         [BurstCompile]
         [WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities)]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IInjectable
         {
-            [ReadOnly] public BufferLookup<EntityInHierarchy>        hierarchyLookup;
-            [ReadOnly] public BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
+            [ReadOnly, Inject] public BufferLookup<EntityInHierarchy>        hierarchyLookup;
+            [ReadOnly, Inject] public BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
 
             public void Execute(Entity entity, in RootReference rootReference)
             {

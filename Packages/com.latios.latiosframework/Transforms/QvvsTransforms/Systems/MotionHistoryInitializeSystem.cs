@@ -6,19 +6,18 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Transforms.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct MotionHistoryInitializeSystem : ISystem
+    public partial struct MotionHistoryInitializeSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<WorldTransform>(true).With<PreviousTransform>(false).IncludeDisabledEntities().Build();
             m_query.SetOrderVersionFilter();
         }
@@ -26,20 +25,16 @@ namespace Latios.Transforms.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new Job
-            {
-                worldTransformHandle    = GetComponentTypeHandle<WorldTransform>(true),
-                previousTransformHandle = GetComponentTypeHandle<PreviousTransform>(false),
-                twoAgoTransformHandle   = GetComponentTypeHandle<TwoAgoTransform>(false),
-            }.ScheduleParallel(m_query, state.Dependency);
+            var api          = this.GetApi(ref state);
+            state.Dependency = new Job().Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<WorldTransform> worldTransformHandle;
-            public ComponentTypeHandle<PreviousTransform>         previousTransformHandle;
-            public ComponentTypeHandle<TwoAgoTransform>           twoAgoTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldTransform> worldTransformHandle;
+            [Inject] ComponentTypeHandle<PreviousTransform>        previousTransformHandle;
+            [Inject] ComponentTypeHandle<TwoAgoTransform>          twoAgoTransformHandle;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

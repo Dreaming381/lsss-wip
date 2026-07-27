@@ -6,42 +6,39 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 // Todo: Need to skip for multiple updates per frame.
 namespace Latios.Transforms.Systems
 {
     [DisableAutoCreation]
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
-    public partial struct MotionHistoryUpdateSystem : ISystem
+    public partial struct MotionHistoryUpdateSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
         public void OnCreate(ref SystemState state)
         {
+            this.OnCreateForLatios(ref state);
             m_query = state.Fluent().With<WorldTransform>(true).With<PreviousTransform>(false).IncludeDisabledEntities().Build();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api          = this.GetApi(ref state);
             state.Dependency = new Job
             {
-                worldTransformHandle    = GetComponentTypeHandle<WorldTransform>(true),
-                previousTransformHandle = GetComponentTypeHandle<PreviousTransform>(false),
-                twoAgoTransformHandle   = GetComponentTypeHandle<TwoAgoTransform>(false),
-                lastSystemVersion       = state.LastSystemVersion
-            }.ScheduleParallel(m_query, state.Dependency);
+                lastSystemVersion = state.LastSystemVersion
+            }.Inject(api).ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        struct Job : IJobChunk
+        partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<WorldTransform> worldTransformHandle;
-            public ComponentTypeHandle<PreviousTransform>         previousTransformHandle;
-            public ComponentTypeHandle<TwoAgoTransform>           twoAgoTransformHandle;
-            public uint                                           lastSystemVersion;
+            [ReadOnly, Inject] ComponentTypeHandle<WorldTransform> worldTransformHandle;
+            [Inject] ComponentTypeHandle<PreviousTransform>        previousTransformHandle;
+            [Inject] ComponentTypeHandle<TwoAgoTransform>          twoAgoTransformHandle;
+            public uint                                            lastSystemVersion;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

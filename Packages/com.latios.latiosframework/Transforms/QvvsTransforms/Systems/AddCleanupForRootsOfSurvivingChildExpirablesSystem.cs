@@ -13,20 +13,19 @@ namespace Latios.Transforms.Systems
     [UpdateAfter(typeof(AutoDestroyExpirablesSystem))]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct AddCleanupForRootsOfSurvivingChildExpirablesSystem : ISystem
+    public partial struct AddCleanupForRootsOfSurvivingChildExpirablesSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var journal = latiosWorld.worldBlackboardEntity.GetCollectionComponent<AutoDestroyExpirationJournal>(true);
+            var api     = this.GetApi(ref state);
+            var journal = api.worldBlackboardEntity.GetCollectionComponent<AutoDestroyExpirationJournal>(true);
             state.CompleteDependency();
             if (!journal.removedFromLinkedEntityGroupStream.IsCreated || journal.removedFromLinkedEntityGroupStream.IsEmpty())
                 return;

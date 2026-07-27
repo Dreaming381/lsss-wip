@@ -13,21 +13,20 @@ namespace Latios.Transforms.Systems
     [UpdateInGroup(typeof(AfterLiveBakingSuperSystem))]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct LiveBakingTransformsFixupSystem : ISystem
+    public partial struct LiveBakingTransformsFixupSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-        EntityQuery          m_rootsQuery;
-        EntityQuery          m_childrenQuery;
-        EntityQuery          m_worldTransformsQuery;
-        EntityQuery          m_tickedTransformsQuery;
-        EntityQuery          m_liveBakedQuery;
+        EntityQuery m_rootsQuery;
+        EntityQuery m_childrenQuery;
+        EntityQuery m_worldTransformsQuery;
+        EntityQuery m_tickedTransformsQuery;
+        EntityQuery m_liveBakedQuery;
 
         bool m_editorWorldCorrupted;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld            = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
             m_rootsQuery           = state.Fluent().With<LiveBakedTag, EntityInHierarchy>(true).IncludePrefabs().IncludeDisabledEntities().Build();
             m_childrenQuery        = state.Fluent().With<LiveBakedTag, RootReference>(true).IncludePrefabs().IncludeDisabledEntities().Build();
             m_worldTransformsQuery =
@@ -43,15 +42,16 @@ namespace Latios.Transforms.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api                              = this.GetApi(ref state);
             var rootsOrderVersion                = state.EntityManager.GetComponentOrderVersion<EntityInHierarchy>();
             var childrenOrderVersion             = state.EntityManager.GetComponentOrderVersion<RootReference>();
             var worldTransformOrderVersion       = state.EntityManager.GetComponentOrderVersion<WorldTransform>();
             var tickedWorldTransformOrderVersion = state.EntityManager.GetComponentOrderVersion<TickedWorldTransform>();
 
-            var capture = latiosWorld.worldBlackboardEntity.GetCollectionComponent<LiveTransformCapture>(false);
+            var capture = api.worldBlackboardEntity.GetCollectionComponent<LiveTransformCapture>(false);
 
             // Uses WorldUpdateAllocator so Dispose doesn't do anything and does not invalidate our current capture.
-            latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new LiveTransformCapture
+            api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new LiveTransformCapture
             {
                 changeVersion                    = state.GlobalSystemVersion,
                 rootsOrderVersion                = rootsOrderVersion,

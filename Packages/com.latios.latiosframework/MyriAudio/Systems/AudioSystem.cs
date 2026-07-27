@@ -1,6 +1,5 @@
 ﻿using Latios.Transforms;
 using Latios.Transforms.Abstract;
-using static Unity.Entities.SystemAPI;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -14,10 +13,8 @@ namespace Latios.Myri.Systems
     [DisableAutoCreation]
     [UpdateInGroup(typeof(Latios.Systems.PreSyncPointGroup))]
     [BurstCompile]
-    public partial struct AudioSystem : ISystem, ISystemShouldUpdate
+    public partial struct AudioSystem : ISystem, ILatiosApi, ISystemShouldUpdate
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         bool               m_initialized;
         RootOutputInstance m_rootOutputInstance;
         BlobRetainer       m_blobRetainer;
@@ -30,24 +27,20 @@ namespace Latios.Myri.Systems
         EntityQuery m_changedListenersQuery;
         EntityQuery m_aliveListenersQuery;
 
-        WorldTransformReadOnlyAspect.TypeHandle m_worldTransformHandle;
-
         int m_previousConsumedCommandId;
         int m_twoAgoConsumedCommandId;
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             m_sourcesQuery          = state.Fluent().With<AudioSourceVolume>(true).With<AudioSourceClip>(false).Build();
             m_changedListenersQuery = state.Fluent().WithAnyEnabled<AudioListener, TrackedListener>(true).Build();
             m_aliveListenersQuery   = state.Fluent().With<AudioListener>(true).WithWorldTransformReadOnly().Build();
 
-            m_worldTransformHandle = new WorldTransformReadOnlyAspect.TypeHandle(ref state);
+            api.worldBlackboardEntity.AddComponentDataIfMissing(AudioSettings.kDefault);
 
-            latiosWorld.worldBlackboardEntity.AddComponentDataIfMissing(AudioSettings.kDefault);
-
-            var carrier = latiosWorld.worldBlackboardEntity.GetManagedStructComponent<AudioEcsBootstrapCarrier>();
+            var carrier = api.worldBlackboardEntity.GetManagedStructComponent<AudioEcsBootstrapCarrier>();
             if (!carrier.bootstrap.ShouldWaitForMyriSourceOrListenerBeforeStarting())
             {
                 Initialize(ref state, carrier.bootstrap);
@@ -65,14 +58,16 @@ namespace Latios.Myri.Systems
             if (m_sourcesQuery.IsEmptyIgnoreFilter)
                 return false;
 
-            var carrier = latiosWorld.worldBlackboardEntity.GetManagedStructComponent<AudioEcsBootstrapCarrier>();
+            var api     = this.GetApi(ref state);
+            var carrier = api.worldBlackboardEntity.GetManagedStructComponent<AudioEcsBootstrapCarrier>();
             Initialize(ref state, carrier.bootstrap);
             return true;
         }
 
         void Initialize(ref SystemState state, IAudioEcsBootstrap bootstrap)
         {
-            m_rootOutputInstance = MyriBootstrap.CreateCustomAudioEcsRuntime(bootstrap, latiosWorld, ControlContext.builtIn);
+            var api              = this.GetApi(ref state);
+            m_rootOutputInstance = MyriBootstrap.CreateCustomAudioEcsRuntime(bootstrap, api.latiosWorld, ControlContext.builtIn);
             m_blobRetainer       = new BlobRetainer();
             m_blobRetainer.Init();
 
@@ -106,14 +101,13 @@ namespace Latios.Myri.Systems
         [BurstCompile]
         public unsafe void OnUpdate(ref SystemState state)
         {
-            var atomicIds   = latiosWorld.worldBlackboardEntity.GetComponentData<AudioEcsAtomicFeedbackIds>();
-            var commandPipe = latiosWorld.GetCollectionComponent<AudioEcsCommandPipe>(latiosWorld.worldBlackboardEntity, out var commandPipeJh, true);
+            var api         = this.GetApi(ref state);
+            var atomicIds   = api.worldBlackboardEntity.GetComponentData<AudioEcsAtomicFeedbackIds>();
+            var commandPipe = api.latiosWorld.GetCollectionComponent<AudioEcsCommandPipe>(api.worldBlackboardEntity, out var commandPipeJh, true);
             // Complete writes to this handle, just in case a user declares the dependency wrong.
             commandPipeJh.Complete();
 
             var ecsJh = state.Dependency;
-
-            m_worldTransformHandle.Update(ref state);
 
             var listenerCount            = m_aliveListenersQuery.CalculateEntityCountWithoutFiltering();
             var listenersWithTransforms  = new NativeList<ListenerWithTransform>(listenerCount, state.WorldUpdateAllocator);
@@ -128,54 +122,36 @@ namespace Latios.Myri.Systems
 
             var changedListenersJh = new InitUpdateDestroy.UpdateChangedListenersJob
             {
-                channelGuidHandle = GetBufferTypeHandle<AudioListenerChannelID>(true),
                 commandPipe       = commandPipe,
-                ecb               = latiosWorld.syncPoint.CreateEntityCommandBuffer(),
-                entityHandle      = GetEntityTypeHandle(),
+                ecb               = api.syncPoint.CreateEntityCommandBuffer(),
                 lastSystemVersion = state.LastSystemVersion,
-                listenerHandle    = GetComponentTypeHandle<AudioListener>(true),
-            }.Schedule(m_changedListenersQuery, ecsJh);
+            }.Inject(api).Schedule(m_changedListenersQuery, ecsJh);
 
             var captureListenersJh = new InitUpdateDestroy.CaptureListenersForSamplingJob
             {
                 channelCount             = channelCount,
-                channelGuidHandle        = GetBufferTypeHandle<AudioListenerChannelID>(true),
                 culledListeners          = culledListeners,
-                entityHandle             = GetEntityTypeHandle(),
-                listenerHandle           = GetComponentTypeHandle<AudioListener>(true),
                 listenersChannelIDs      = listenersChannelIDs,
                 listenersWithPresampling = listenersWithPresampling,
                 listenersWithTransforms  = listenersWithTransforms,
                 sourceChunkChannelCount  = chunkChannelCount,
                 sourceChunkCount         = sourcesChunkCount,
-                worldTransformHandle     = m_worldTransformHandle,
-            }.Schedule(m_aliveListenersQuery, ecsJh);
+            }.Inject(api).Schedule(m_aliveListenersQuery, ecsJh);
 
             var captureFrameJh = new InitUpdateDestroy.CaptureIldFrameJob
             {
                 audioFrameHistory     = m_audioFrameHistory,
-                audioSettingsLookup   = GetComponentLookup<AudioSettings>(true),
-                atomicLookup          = GetComponentLookup<AudioEcsAtomicFeedbackIds>(true),
                 capturedFrameState    = m_capturedFrameState,
-                formatLookup          = GetComponentLookup<AudioEcsFormat>(true),
-                worldBlackboardEntity = latiosWorld.worldBlackboardEntity
-            }.Schedule(ecsJh);
+                worldBlackboardEntity = api.worldBlackboardEntity
+            }.Inject(api).Schedule(ecsJh);
 
             var sourcesInputJh  = JobHandle.CombineDependencies(captureFrameJh, captureListenersJh);
             var updateSourcesJh = new InitUpdateDestroy.UpdateClipAudioSourcesJob
             {
-                capturedFrameState         = m_capturedFrameState,
-                channelIDHandle            = GetComponentTypeHandle<AudioSourceChannelID>(true),
-                clipHandle                 = GetComponentTypeHandle<AudioSourceClip>(false),
-                commandPipe                = commandPipe,
-                distanceFalloffHandle      = GetComponentTypeHandle<AudioSourceDistanceFalloff>(true),
-                emitterConeHandle          = GetComponentTypeHandle<AudioSourceEmitterCone>(true),
-                expireHandle               = GetComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished>(false),
-                sampleRateMultiplierHandle = GetComponentTypeHandle<AudioSourceSampleRateMultiplier>(true),
-                stream                     = capturedSourcesStream.AsWriter(),
-                volumeHandle               = GetComponentTypeHandle<AudioSourceVolume>(true),
-                worldTransformHandle       = m_worldTransformHandle,
-            }.ScheduleParallel(m_sourcesQuery, sourcesInputJh);
+                capturedFrameState = m_capturedFrameState,
+                commandPipe        = commandPipe,
+                stream             = capturedSourcesStream.AsWriter(),
+            }.Inject(api).ScheduleParallel(m_sourcesQuery, sourcesInputJh);
 
             // Clean up buffers now before we optionally add a new one.
             {
@@ -278,7 +254,7 @@ namespace Latios.Myri.Systems
                 backgroundJh = JobHandle.CombineDependencies(backgroundJh, allocateJh);
             }
 
-            latiosWorld.UpdateCollectionComponentDependency<AudioEcsCommandPipe>(latiosWorld.worldBlackboardEntity, backgroundJh, true);
+            api.latiosWorld.UpdateCollectionComponentDependency<AudioEcsCommandPipe>(api.worldBlackboardEntity, backgroundJh, true);
         }
 
         struct OwnedSampleMegaBuffer

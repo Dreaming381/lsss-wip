@@ -12,18 +12,18 @@ using Unity.Mathematics;
 
 namespace Latios.Myri
 {
-    internal static class InitUpdateDestroy
+    internal static partial class InitUpdateDestroy
     {
         [BurstCompile]
-        public struct CaptureIldFrameJob : IJob
+        public partial struct CaptureIldFrameJob : IJob, IInjectable
         {
             public NativeReference<CapturedFrameState> capturedFrameState;
 
-            public NativeQueue<AudioFrameBufferHistoryElement>           audioFrameHistory;
-            [ReadOnly] public ComponentLookup<AudioSettings>             audioSettingsLookup;
-            [ReadOnly] public ComponentLookup<AudioEcsAtomicFeedbackIds> atomicLookup;
-            [ReadOnly] public ComponentLookup<AudioEcsFormat>            formatLookup;
-            public Entity                                                worldBlackboardEntity;
+            public NativeQueue<AudioFrameBufferHistoryElement>            audioFrameHistory;
+            [ReadOnly, Inject] ComponentLookup<AudioSettings>             audioSettingsLookup;
+            [ReadOnly, Inject] ComponentLookup<AudioEcsAtomicFeedbackIds> atomicLookup;
+            [ReadOnly, Inject] ComponentLookup<AudioEcsFormat>            formatLookup;
+            public Entity                                                 worldBlackboardEntity;
 
             public unsafe void Execute()
             {
@@ -58,19 +58,19 @@ namespace Latios.Myri
 
         // Single
         [BurstCompile]
-        public struct CaptureListenersForSamplingJob : IJobChunk
+        public partial struct CaptureListenersForSamplingJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                         entityHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioListener>       listenerHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle  worldTransformHandle;
-            [ReadOnly] public BufferTypeHandle<AudioListenerChannelID> channelGuidHandle;
-            public NativeList<ListenerWithTransform>                   listenersWithTransforms;
-            public NativeList<ListenerWithPresampling>                 listenersWithPresampling;
-            public NativeList<AudioSourceChannelID>                    listenersChannelIDs;
-            public NativeList<ListenerWithPresampling>                 culledListeners;
-            public NativeArray<int>                                    channelCount;
-            public NativeArray<int>                                    sourceChunkChannelCount;
-            public int                                                 sourceChunkCount;
+            [ReadOnly, Inject] EntityTypeHandle                         entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioListener>       listenerHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle  worldTransformHandle;
+            [ReadOnly, Inject] BufferTypeHandle<AudioListenerChannelID> channelGuidHandle;
+            public NativeList<ListenerWithTransform>                    listenersWithTransforms;
+            public NativeList<ListenerWithPresampling>                  listenersWithPresampling;
+            public NativeList<AudioSourceChannelID>                     listenersChannelIDs;
+            public NativeList<ListenerWithPresampling>                  culledListeners;
+            public NativeArray<int>                                     channelCount;
+            public NativeArray<int>                                     sourceChunkChannelCount;
+            public int                                                  sourceChunkCount;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -122,14 +122,14 @@ namespace Latios.Myri
 
         // Schedule single
         [BurstCompile]
-        public struct UpdateChangedListenersJob : IJobChunk
+        public partial struct UpdateChangedListenersJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                         entityHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioListener>       listenerHandle;
-            [ReadOnly] public BufferTypeHandle<AudioListenerChannelID> channelGuidHandle;
-            [ReadOnly] public AudioEcsCommandPipe                      commandPipe;
-            public EntityCommandBuffer                                 ecb;
-            public uint                                                lastSystemVersion;
+            [ReadOnly, Inject] EntityTypeHandle                         entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioListener>       listenerHandle;
+            [ReadOnly, Inject] BufferTypeHandle<AudioListenerChannelID> channelGuidHandle;
+            [ReadOnly] public AudioEcsCommandPipe                       commandPipe;
+            public EntityCommandBuffer                                  ecb;
+            public uint                                                 lastSystemVersion;
 
             WorldTransformReadOnlyAspect.HasChecker worldTransformChecker;
             HasChecker<TrackedListener>             trackedListenerChecker;
@@ -185,19 +185,19 @@ namespace Latios.Myri
         }
 
         [BurstCompile]
-        public struct UpdateClipAudioSourcesJob : IJobChunk
+        public partial struct UpdateClipAudioSourcesJob : IJobChunk, IInjectable
         {
-            public NativeStream.Writer                                             stream;
-            public ComponentTypeHandle<AudioSourceClip>                            clipHandle;
-            public ComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished>      expireHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceVolume>               volumeHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceSampleRateMultiplier> sampleRateMultiplierHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceDistanceFalloff>      distanceFalloffHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceEmitterCone>          emitterConeHandle;
-            [ReadOnly] public ComponentTypeHandle<AudioSourceChannelID>            channelIDHandle;
-            [ReadOnly] public WorldTransformReadOnlyAspect.TypeHandle              worldTransformHandle;
-            [ReadOnly] public NativeReference<CapturedFrameState>                  capturedFrameState;
-            [ReadOnly] public AudioEcsCommandPipe                                  commandPipe;
+            public NativeStream.Writer                                              stream;
+            [Inject] ComponentTypeHandle<AudioSourceClip>                           clipHandle;
+            [Inject] ComponentTypeHandle<AudioSourceDestroyOneShotWhenFinished>     expireHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioSourceVolume>               volumeHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioSourceSampleRateMultiplier> sampleRateMultiplierHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioSourceDistanceFalloff>      distanceFalloffHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioSourceEmitterCone>          emitterConeHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<AudioSourceChannelID>            channelIDHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle              worldTransformHandle;
+            [ReadOnly] public NativeReference<CapturedFrameState>                   capturedFrameState;
+            [ReadOnly] public AudioEcsCommandPipe                                   commandPipe;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

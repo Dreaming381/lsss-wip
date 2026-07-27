@@ -7,18 +7,14 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Transforms.Systems
 {
     [UpdateInGroup(typeof(Latios.Systems.TickedUpdateHistorySuperSystem))]
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct TickedMotionHistorySystem : ISystem
+    public partial struct TickedMotionHistorySystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_newRootsJobQuery;
         EntityQuery m_newChildrenJobQuery;
         EntityQuery m_allQuery;
@@ -26,7 +22,7 @@ namespace Latios.Transforms.Systems
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_newRootsJobQuery = state.Fluent().With<TickedWorldTransform, TickedPreviousTransform, EntityInHierarchy>(true).Build();
             m_newRootsJobQuery.AddChangedVersionFilter(ComponentType.ReadOnly<TickedWorldTransform>());
@@ -44,7 +40,8 @@ namespace Latios.Transforms.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var tickingState = latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>();
+            var api          = this.GetApi(ref state);
+            var tickingState = api.worldBlackboardEntity.GetComponentData<TickingState>();
             if (tickingState.discardPreviousTick)
             {
                 // Revert
@@ -52,60 +49,27 @@ namespace Latios.Transforms.Systems
                 var rootsSet  = new NativeParallelHashSet<Entity>(rootCount, state.WorldUpdateAllocator);
                 var jh        = new DetectNewRootsJob
                 {
-                    entityHandle            = GetEntityTypeHandle(),
-                    previousTransformHandle = GetComponentTypeHandle<TickedPreviousTransform>(),
-                    rootsSet                = rootsSet.AsParallelWriter()
-                }.ScheduleParallel(m_newRootsJobQuery, state.Dependency);
+                    rootsSet = rootsSet.AsParallelWriter()
+                }.Inject(api).ScheduleParallel(m_newRootsJobQuery, state.Dependency);
                 var childChunkCount = m_newChildrenJobQuery.CalculateChunkCountWithoutFiltering();
                 var stream          = new NativeStream(childChunkCount, state.WorldUpdateAllocator);
                 jh                  = new CaptureNewChildrenJob
                 {
-                    entityInHierarchyCleanupLookup = GetBufferLookup<EntityInHierarchyCleanup>(true),
-                    entityInHierarchyLookup        = GetBufferLookup<EntityInHierarchy>(true),
-                    esil                           = GetEntityStorageInfoLookup(),
-                    previousTransformHandle        = GetComponentTypeHandle<TickedPreviousTransform>(true),
-                    previousTransformLookup        = GetComponentLookup<TickedPreviousTransform>(true),
-                    rootReferenceHandle            = GetComponentTypeHandle<RootReference>(true),
-                    rootsSet                       = rootsSet,
-                    stream                         = stream.AsWriter(),
-                    worldTransformHandle           = GetComponentTypeHandle<TickedWorldTransform>(true),
-                    worldTransformLookup           = GetComponentLookup<TickedWorldTransform>(true),
-                }.ScheduleParallel(m_newRootsJobQuery, jh);
+                    rootsSet = rootsSet,
+                    stream   = stream.AsWriter(),
+                }.Inject(api).ScheduleParallel(m_newRootsJobQuery, jh);
                 m_allQuery.ResetFilter();
                 m_allQuery.AddChangedVersionFilter(ComponentType.ReadOnly<TickedWorldTransform>());
-                jh = new RestoreExistingFromHistoryJob
-                {
-                    entityInHierarchyCleanupLookup    = GetBufferLookup<EntityInHierarchyCleanup>(true),
-                    entityInHierarchyLookup           = GetBufferLookup<EntityInHierarchy>(true),
-                    previousLocalTransformCacheHandle = GetComponentTypeHandle<TickedPreviousLocalTransformCache>(true),
-                    previousTransformHandle           = GetComponentTypeHandle<TickedPreviousTransform>(true),
-                    rootReferenceHandle               = GetComponentTypeHandle<RootReference>(true),
-                    worldTransformHandle              = GetComponentTypeHandle<TickedWorldTransform>(false),
-                }.ScheduleParallel(m_allQuery, jh);
+                jh = new RestoreExistingFromHistoryJob().Inject(api).ScheduleParallel(m_allQuery, jh);
                 jh = new PropoagateNewChildrenAfterExistingRestoreJob
                 {
-                    entityHandle          = GetEntityTypeHandle(),
-                    stream                = stream.AsReader(),
-                    transformAspectLookup = new TickedTransformAspectLookup(GetComponentLookup<TickedWorldTransform>(false),
-                                                                            GetComponentLookup<RootReference>(true),
-                                                                            GetBufferLookup<EntityInHierarchy>(       true),
-                                                                            GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                                            GetEntityStorageInfoLookup())
-                }.Schedule(jh);
+                    stream = stream.AsReader(),
+                }.Inject(api).Schedule(jh);
                 m_allQuery.ResetFilter();
                 m_allQuery.AddChangedVersionFilter(ComponentType.ReadOnly<TickedWorldTransform>());
                 m_allQuery.AddChangedVersionFilter(ComponentType.ReadOnly<TickedPreviousTransform>());
                 m_allQuery.AddOrderVersionFilter();
-                state.Dependency = new InitUninitializedHistoryAfterRestoreJob
-                {
-                    entityInHierarchyCleanupLookup    = GetBufferLookup<EntityInHierarchyCleanup>(true),
-                    entityInHierarchyLookup           = GetBufferLookup<EntityInHierarchy>(true),
-                    previousLocalTransformCacheHandle = GetComponentTypeHandle<TickedPreviousLocalTransformCache>(false),
-                    previousTransformHandle           = GetComponentTypeHandle<TickedPreviousTransform>(false),
-                    rootReferenceHandle               = GetComponentTypeHandle<RootReference>(true),
-                    twoAgoTransformHandle             = GetComponentTypeHandle<TickedTwoAgoTransform>(false),
-                    worldTransformHandle              = GetComponentTypeHandle<TickedWorldTransform>(true),
-                }.ScheduleParallel(m_allQuery, jh);
+                state.Dependency = new InitUninitializedHistoryAfterRestoreJob().Inject(api).ScheduleParallel(m_allQuery, jh);
             }
             else
             {
@@ -113,15 +77,8 @@ namespace Latios.Transforms.Systems
                 m_allQuery.ResetFilter();
                 state.Dependency = new AdvanceHistoryJob
                 {
-                    entityInHierarchyCleanupLookup    = GetBufferLookup<EntityInHierarchyCleanup>(true),
-                    entityInHierarchyLookup           = GetBufferLookup<EntityInHierarchy>(true),
-                    lastSystemVersion                 = state.LastSystemVersion,
-                    previousLocalTransformCacheHandle = GetComponentTypeHandle<TickedPreviousLocalTransformCache>(false),
-                    previousTransformHandle           = GetComponentTypeHandle<TickedPreviousTransform>(false),
-                    rootReferenceHandle               = GetComponentTypeHandle<RootReference>(true),
-                    twoAgoTransformHandle             = GetComponentTypeHandle<TickedTwoAgoTransform>(false),
-                    worldTransformHandle              = GetComponentTypeHandle<TickedWorldTransform>(true),
-                }.ScheduleParallel(m_allQuery, state.Dependency);
+                    lastSystemVersion = state.LastSystemVersion,
+                }.Inject(api).ScheduleParallel(m_allQuery, state.Dependency);
             }
         }
 
@@ -141,11 +98,11 @@ namespace Latios.Transforms.Systems
 
         // Requires change version on TickedWorldTransform, change version on TickedPreviousTransform, and order version
         [BurstCompile]
-        struct DetectNewRootsJob : IJobChunk
+        partial struct DetectNewRootsJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                             entityHandle;
-            [ReadOnly] public ComponentTypeHandle<TickedPreviousTransform> previousTransformHandle;
-            public NativeParallelHashSet<Entity>.ParallelWriter            rootsSet;
+            [ReadOnly, Inject] EntityTypeHandle                             entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedPreviousTransform> previousTransformHandle;
+            public NativeParallelHashSet<Entity>.ParallelWriter             rootsSet;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -161,18 +118,18 @@ namespace Latios.Transforms.Systems
 
         // Requires change version on TickedWorldTransform, change version on TickedPreviousTransform, and order version
         [BurstCompile]
-        struct CaptureNewChildrenJob : IJobChunk
+        partial struct CaptureNewChildrenJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<RootReference>           rootReferenceHandle;
-            [ReadOnly] public BufferLookup<EntityInHierarchy>              entityInHierarchyLookup;
-            [ReadOnly] public BufferLookup<EntityInHierarchyCleanup>       entityInHierarchyCleanupLookup;
-            [ReadOnly] public ComponentTypeHandle<TickedWorldTransform>    worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<TickedPreviousTransform> previousTransformHandle;
-            [ReadOnly] public ComponentLookup<TickedWorldTransform>        worldTransformLookup;
-            [ReadOnly] public ComponentLookup<TickedPreviousTransform>     previousTransformLookup;
-            [ReadOnly] public EntityStorageInfoLookup                      esil;
-            [ReadOnly] public NativeParallelHashSet<Entity>                rootsSet;
-            public NativeStream.Writer                                     stream;
+            [ReadOnly, Inject] ComponentTypeHandle<RootReference>           rootReferenceHandle;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchy>              entityInHierarchyLookup;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchyCleanup>       entityInHierarchyCleanupLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform>    worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedPreviousTransform> previousTransformHandle;
+            [ReadOnly, Inject] ComponentLookup<TickedWorldTransform>        worldTransformLookup;
+            [ReadOnly, Inject] ComponentLookup<TickedPreviousTransform>     previousTransformLookup;
+            [ReadOnly, Inject] EntityStorageInfoLookup                      esil;
+            [ReadOnly] public NativeParallelHashSet<Entity>                 rootsSet;
+            public NativeStream.Writer                                      stream;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -238,14 +195,14 @@ namespace Latios.Transforms.Systems
 
         // Requires change version on TickedWorldTransform
         [BurstCompile]
-        struct RestoreExistingFromHistoryJob : IJobChunk
+        partial struct RestoreExistingFromHistoryJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<RootReference>                     rootReferenceHandle;
-            [ReadOnly] public BufferLookup<EntityInHierarchy>                        entityInHierarchyLookup;
-            [ReadOnly] public BufferLookup<EntityInHierarchyCleanup>                 entityInHierarchyCleanupLookup;
-            [ReadOnly] public ComponentTypeHandle<TickedPreviousTransform>           previousTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<TickedPreviousLocalTransformCache> previousLocalTransformCacheHandle;
-            public ComponentTypeHandle<TickedWorldTransform>                         worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<RootReference>                     rootReferenceHandle;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchy>                        entityInHierarchyLookup;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchyCleanup>                 entityInHierarchyCleanupLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedPreviousTransform>           previousTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedPreviousLocalTransformCache> previousLocalTransformCacheHandle;
+            [Inject] ComponentTypeHandle<TickedWorldTransform>                        worldTransformHandle;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -275,11 +232,11 @@ namespace Latios.Transforms.Systems
         }
 
         [BurstCompile]
-        struct PropoagateNewChildrenAfterExistingRestoreJob : IJob
+        partial struct PropoagateNewChildrenAfterExistingRestoreJob : IJob, IInjectable
         {
             [ReadOnly] public NativeStream.Reader stream;
-            [ReadOnly] public EntityTypeHandle    entityHandle;
-            public TickedTransformAspectLookup    transformAspectLookup;
+            [ReadOnly, Inject] EntityTypeHandle   entityHandle;
+            [Inject] TickedTransformAspectLookup  transformAspectLookup;
 
             public unsafe void Execute()
             {
@@ -314,15 +271,15 @@ namespace Latios.Transforms.Systems
 
         // Requires change version on TickedWorldTransform, change version on TickedPreviousTransform, and order version
         [BurstCompile]
-        struct InitUninitializedHistoryAfterRestoreJob : IJobChunk
+        partial struct InitUninitializedHistoryAfterRestoreJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<RootReference>          rootReferenceHandle;
-            [ReadOnly] public BufferLookup<EntityInHierarchy>             entityInHierarchyLookup;
-            [ReadOnly] public BufferLookup<EntityInHierarchyCleanup>      entityInHierarchyCleanupLookup;
-            [ReadOnly] public ComponentTypeHandle<TickedWorldTransform>   worldTransformHandle;
-            public ComponentTypeHandle<TickedPreviousTransform>           previousTransformHandle;
-            public ComponentTypeHandle<TickedPreviousLocalTransformCache> previousLocalTransformCacheHandle;
-            public ComponentTypeHandle<TickedTwoAgoTransform>             twoAgoTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<RootReference>           rootReferenceHandle;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchy>              entityInHierarchyLookup;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchyCleanup>       entityInHierarchyCleanupLookup;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform>    worldTransformHandle;
+            [Inject] ComponentTypeHandle<TickedPreviousTransform>           previousTransformHandle;
+            [Inject] ComponentTypeHandle<TickedPreviousLocalTransformCache> previousLocalTransformCacheHandle;
+            [Inject] ComponentTypeHandle<TickedTwoAgoTransform>             twoAgoTransformHandle;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -387,16 +344,16 @@ namespace Latios.Transforms.Systems
         #endregion
 
         [BurstCompile]
-        struct AdvanceHistoryJob : IJobChunk
+        partial struct AdvanceHistoryJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public ComponentTypeHandle<TickedWorldTransform>   worldTransformHandle;
-            [ReadOnly] public ComponentTypeHandle<RootReference>          rootReferenceHandle;
-            [ReadOnly] public BufferLookup<EntityInHierarchy>             entityInHierarchyLookup;
-            [ReadOnly] public BufferLookup<EntityInHierarchyCleanup>      entityInHierarchyCleanupLookup;
-            public ComponentTypeHandle<TickedPreviousTransform>           previousTransformHandle;
-            public ComponentTypeHandle<TickedPreviousLocalTransformCache> previousLocalTransformCacheHandle;
-            public ComponentTypeHandle<TickedTwoAgoTransform>             twoAgoTransformHandle;
-            public uint                                                   lastSystemVersion;
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform>    worldTransformHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<RootReference>           rootReferenceHandle;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchy>              entityInHierarchyLookup;
+            [ReadOnly, Inject] BufferLookup<EntityInHierarchyCleanup>       entityInHierarchyCleanupLookup;
+            [Inject] ComponentTypeHandle<TickedPreviousTransform>           previousTransformHandle;
+            [Inject] ComponentTypeHandle<TickedPreviousLocalTransformCache> previousLocalTransformCacheHandle;
+            [Inject] ComponentTypeHandle<TickedTwoAgoTransform>             twoAgoTransformHandle;
+            public uint                                                     lastSystemVersion;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {

@@ -51,7 +51,7 @@ namespace Latios.Transforms.Abstract
         /// Constructed from an system state via its constructor.
         /// </summary>
         /// <remarks> Using this in an IJobEntity is not supported. </remarks>
-        public struct Lookup
+        public struct Lookup : ILatiosApiGettable
         {
             [Unity.Collections.ReadOnly]
             ComponentLookup<TransformComponent> transformLookup;
@@ -81,6 +81,10 @@ namespace Latios.Transforms.Abstract
             /// <param name="entity">The entity to create the aspect struct from.</param>
             /// <returns>Instance of the aspect struct pointing at a specific entity's components data.</returns>
             public WorldTransformReadOnlyAspect this[Entity entity] => new WorldTransformReadOnlyAspect(transformLookup.GetRefRO(entity));
+
+            void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = new Lookup(ref state);
+
+            void ILatiosApiGettable.UpdateForApi(ref SystemState state) => Update(ref state);
         }
 
         /// <summary>

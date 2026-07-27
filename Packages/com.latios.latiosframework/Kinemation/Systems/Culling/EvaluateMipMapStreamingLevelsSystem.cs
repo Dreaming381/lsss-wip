@@ -18,7 +18,7 @@ namespace Latios.Kinemation
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct EvaluateMipMapStreamingLevelsSystem : ISystem, ILatiosApi
+    public unsafe partial struct EvaluateMipMapStreamingLevelsSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
 
@@ -91,13 +91,14 @@ namespace Latios.Kinemation
                 newArrays[i] = new UnmanagedStreamingMipMapArray(sharedValue, meta);
             }
 
-            DoOnUpdateBurst(ref this, ref state, ref newArrays);
+            fixed (EvaluateMipMapStreamingLevelsSystem* ptr = &this)
+            DoOnUpdateBurst(ptr, ref state, ref newArrays);
         }
 
         [BurstCompile]
-        static void DoOnUpdateBurst(ref EvaluateMipMapStreamingLevelsSystem system, ref SystemState state, ref NativeArray<UnmanagedStreamingMipMapArray> newArrays)
+        static void DoOnUpdateBurst(EvaluateMipMapStreamingLevelsSystem* system, ref SystemState state, ref NativeArray<UnmanagedStreamingMipMapArray> newArrays)
         {
-            system.OnUpdateBurst(ref state, ref newArrays);
+            system->OnUpdateBurst(ref state, ref newArrays);
         }
 
         void OnUpdateBurst(ref SystemState state, ref NativeArray<UnmanagedStreamingMipMapArray> newArrays)

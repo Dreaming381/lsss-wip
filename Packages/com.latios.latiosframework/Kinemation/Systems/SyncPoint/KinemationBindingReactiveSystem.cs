@@ -11,14 +11,12 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
     [DisableAutoCreation]
-    public partial struct KinemationBindingReactiveSystem : ISystem
+    public partial struct KinemationBindingReactiveSystem : ISystem, ILatiosApi
     {
         EntityQuery m_newMeshesQuery;
         EntityQuery m_deadMeshesQuery;
@@ -48,8 +46,6 @@ namespace Latios.Kinemation.Systems
 
         Entity m_failedSkeletonMeshBindingEntity;
 
-        LatiosWorldUnmanaged latiosWorld;
-
 #if LATIOS_TRANSFORMS_UNITY
         // Dummy for Unity Transforms
         struct PreviousTransform : IComponentData
@@ -59,7 +55,7 @@ namespace Latios.Kinemation.Systems
 
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            var api = this.OnCreateForLatios(ref state);
 
             m_newMeshesQuery                    = state.Fluent().With<MaterialMeshInfo>(true).Without<ChunkPerFrameCullingMask>(true).Build();
             m_deadMeshesQuery                   = state.Fluent().With<ChunkPerFrameCullingMask>(false, true).Without<MaterialMeshInfo>().Build();
@@ -93,7 +89,7 @@ namespace Latios.Kinemation.Systems
             m_deadOptimizedSkeletonsQuery2  = state.Fluent().With<OptimizedSkeletonTag>(true).Without<SkeletonRootTag>().Build();
             m_cullableExposedBonesQuery     = state.Fluent().With<BoneCullingIndex>().Build();
 
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MeshGpuManager
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new MeshGpuManager
             {
                 blobIndexMap        = new NativeHashMap<BlobAssetReference<MeshDeformDataBlob>, int>(128, Allocator.Persistent),
                 entries             = new NativeList<MeshGpuEntry>(Allocator.Persistent),
@@ -106,7 +102,7 @@ namespace Latios.Kinemation.Systems
                 uploadCommands      = new NativeList<MeshGpuUploadCommand>(Allocator.Persistent)
             });
 
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new BoneOffsetsGpuManager
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new BoneOffsetsGpuManager
             {
                 entries            = new NativeList<BoneOffsetsEntry>(Allocator.Persistent),
                 indexFreeList      = new NativeList<int>(Allocator.Persistent),
@@ -117,7 +113,7 @@ namespace Latios.Kinemation.Systems
                 pathPairToEntryMap = new NativeHashMap<PathMappingPair, int>(128, Allocator.Persistent)
             });
 
-            latiosWorld.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new ExposedCullingIndexManager
+            api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new ExposedCullingIndexManager
             {
                 skeletonToCullingIndexMap = new NativeHashMap<Entity, int>(128, Allocator.Persistent),
                 indexFreeList             = new NativeList<int>(Allocator.Persistent),
@@ -129,6 +125,7 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var  api                               = this.GetApi(ref state);
             bool haveNewMeshes                     = !m_newMeshesQuery.IsEmptyIgnoreFilter;
             bool haveDeadMeshes                    = !m_deadMeshesQuery.IsEmptyIgnoreFilter;
             bool haveNewPreviousPostProcessMatrix  = !m_newPreviousPostProcessMatrixQuery.IsEmptyIgnoreFilter;
@@ -184,9 +181,9 @@ namespace Latios.Kinemation.Systems
             ExposedCullingIndexManager cullingIndicesManager = default;
             if (requiresManagers)
             {
-                meshGpuManager        = latiosWorld.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(false);
-                boneOffsetsGpuManager = latiosWorld.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(false);
-                cullingIndicesManager = latiosWorld.worldBlackboardEntity.GetCollectionComponent<ExposedCullingIndexManager>(false);
+                meshGpuManager        = api.worldBlackboardEntity.GetCollectionComponent<MeshGpuManager>(false);
+                boneOffsetsGpuManager = api.worldBlackboardEntity.GetCollectionComponent<BoneOffsetsGpuManager>(false);
+                cullingIndicesManager = api.worldBlackboardEntity.GetCollectionComponent<ExposedCullingIndexManager>(false);
             }
 
             JobHandle                                        cullingJH             = default;
@@ -202,45 +199,27 @@ namespace Latios.Kinemation.Systems
 
             if (haveDeadSkeletons)
             {
-                state.Dependency = new FindDeadSkeletonsJob
-                {
-                    dependentsHandle = GetBufferTypeHandle<DependentSkinnedMesh>(true),
-                    meshStateLookup  = GetComponentLookup<SkeletonDependent>(false)
-                }.ScheduleParallel(m_deadSkeletonsQuery, state.Dependency);
+                state.Dependency = new FindDeadSkeletonsJob().Inject(api).ScheduleParallel(m_deadSkeletonsQuery, state.Dependency);
             }
             if (haveDeadDeformMeshes)
             {
                 state.Dependency = new FindDeadDeformMeshesJob
                 {
-                    entityHandle                  = GetEntityTypeHandle(),
-                    boundMeshHandle               = GetComponentTypeHandle<BoundMesh>(true),
-                    depsHandle                    = GetComponentTypeHandle<SkeletonDependent>(true),
                     bindingOpsBlockList           = bindingOpsBlockList,
                     meshRemoveOpsBlockList        = meshRemoveOpsBlockList,
                     skinnedMeshRemoveOpsBlockList = skinnedMeshRemoveOpsBlockList
-                }.ScheduleParallel(m_deadDeformMeshesQuery, state.Dependency);
+                }.Inject(api).ScheduleParallel(m_deadDeformMeshesQuery, state.Dependency);
             }
 
             if (haveNewDeformMeshes || haveBindableMeshes)
             {
                 var newMeshJob = new FindNewDeformMeshesJob
                 {
-                    allocator                         = allocator,
-                    bindingOpsBlockList               = bindingOpsBlockList,
-                    bindSkeletonRootLookup            = GetComponentLookup<BindSkeletonRoot>(true),
-                    boneOwningSkeletonReferenceLookup = GetComponentLookup<BoneOwningSkeletonReference>(true),
-                    entityHandle                      = GetEntityTypeHandle(),
-                    meshAddOpsBlockList               = meshAddOpsBlockList,
-                    skinnedMeshAddOpsBlockList        = skinnedMeshAddOpsBlockList,
-                    overrideBonesHandle               = GetBufferTypeHandle<OverrideSkinningBoneIndex>(true),
-                    pathBindingsBlobRefHandle         = GetComponentTypeHandle<MeshBindingPathsBlobReference>(true),
-                    skeletonBindingPathsBlobRefLookup = GetComponentLookup<SkeletonBindingPathsBlobReference>(true),
-                    skeletonRootTagLookup             = GetComponentLookup<SkeletonRootTag>(true),
-                    meshBlobRefHandle                 = GetComponentTypeHandle<MeshDeformDataBlobReference>(true),
-                    rootRefHandle                     = GetComponentTypeHandle<BindSkeletonRoot>(true),
-                    prefabLookup                      = GetComponentLookup<Prefab>(true),
-                    disabledLookup                    = GetComponentLookup<Disabled>(true)
-                };
+                    allocator                  = allocator,
+                    bindingOpsBlockList        = bindingOpsBlockList,
+                    meshAddOpsBlockList        = meshAddOpsBlockList,
+                    skinnedMeshAddOpsBlockList = skinnedMeshAddOpsBlockList,
+                }.Inject(api);
 
                 if (haveNewDeformMeshes)
                 {
@@ -250,14 +229,11 @@ namespace Latios.Kinemation.Systems
                 {
                     state.Dependency = new FindRebindMeshesJob
                     {
-                        boundMeshHandle               = GetComponentTypeHandle<BoundMesh>(false),
-                        depsHandle                    = GetComponentTypeHandle<SkeletonDependent>(false),
                         lastSystemVersion             = lastSystemVersion,
                         meshRemoveOpsBlockList        = meshRemoveOpsBlockList,
                         skinnedMeshRemoveOpsBlockList = skinnedMeshRemoveOpsBlockList,
-                        needsBindingHandle            = GetComponentTypeHandle<NeedsBindingFlag>(false),
                         newMeshesJob                  = newMeshJob,
-                    }.ScheduleParallel(m_bindableMeshesQuery, state.Dependency);
+                    }.Inject(api).ScheduleParallel(m_bindableMeshesQuery, state.Dependency);
                 }
             }
 
@@ -335,7 +311,7 @@ namespace Latios.Kinemation.Systems
                 JobHandle.ScheduleBatchedJobs();
 
                 // If we remove this component right away, we'll end up with motion vector artifacts. So we defer it by one frame.
-                latiosWorld.syncPoint.CreateEntityCommandBuffer().RemoveComponent<PreviousPostProcessMatrix>(m_deadPreviousPostProcessMatrixQuery.ToEntityArray(Allocator.Temp));
+                api.syncPoint.CreateEntityCommandBuffer().RemoveComponent<PreviousPostProcessMatrix>(m_deadPreviousPostProcessMatrixQuery.ToEntityArray(Allocator.Temp));
 
                 state.CompleteDependency();
 
@@ -451,28 +427,19 @@ namespace Latios.Kinemation.Systems
 
                 state.Dependency = new ProcessMeshStateOpsJob
                 {
-                    ops         = meshBindingStatesToWrite.AsDeferredJobArray(),
-                    stateLookup = GetComponentLookup<BoundMesh>(false)
-                }.Schedule(meshBindingStatesToWrite, 16, state.Dependency);
+                    ops = meshBindingStatesToWrite.AsDeferredJobArray(),
+                }.Inject(api).Schedule(meshBindingStatesToWrite, 16, state.Dependency);
             }
 
             if (haveNewDeformMeshes | haveBindableMeshes | haveDeadDeformMeshes)
             {
                 state.Dependency = new ProcessBindingOpsJob
                 {
-                    boneBoundsLookup        = GetComponentLookup<BoneBounds>(false),
-                    boneOffsetsGpuManager   = boneOffsetsGpuManager,
-                    boneRefsLookup          = GetBufferLookup<BoneReference>(true),
-                    boneTransformLookup     = GetBufferLookup<OptimizedBoneTransform>(true),
-                    boundMeshLookup         = GetComponentLookup<BoundMesh>(true),
-                    dependentsLookup        = GetBufferLookup<DependentSkinnedMesh>(false),
-                    hierarchyLookup         = GetComponentLookup<OptimizedSkeletonHierarchyBlobReference>(true),
-                    meshGpuManager          = meshGpuManager,
-                    skeletonDependentLookup = GetComponentLookup<SkeletonDependent>(false),
-                    operations              = skeletonBindingOps.AsDeferredJobArray(),
-                    optimizedBoundsLookup   = GetBufferLookup<OptimizedBoneBounds>(false),
-                    startsAndCounts         = skeletonBindingOpsStartsAndCounts.AsDeferredJobArray(),
-                }.Schedule(skeletonBindingOpsStartsAndCounts, 1, state.Dependency);
+                    boneOffsetsGpuManager = boneOffsetsGpuManager,
+                    meshGpuManager        = meshGpuManager,
+                    operations            = skeletonBindingOps.AsDeferredJobArray(),
+                    startsAndCounts       = skeletonBindingOpsStartsAndCounts.AsDeferredJobArray(),
+                }.Inject(api).Schedule(skeletonBindingOpsStartsAndCounts, 1, state.Dependency);
             }
 
             if (haveSyncableExposedSkeletons && haveCullableExposedBones)
@@ -489,41 +456,28 @@ namespace Latios.Kinemation.Systems
 
                 state.Dependency = new FindExposedSkeletonsToUpdateJob
                 {
-                    dirtyFlagHandle   = GetComponentTypeHandle<BoneReferenceIsDirtyFlag>(false),
-                    entityHandle      = GetEntityTypeHandle(),
                     indicesToClear    = cullingIndicesToClear,
                     lastSystemVersion = lastSystemVersion,
                     manager           = cullingIndicesManager,
                     operations        = cullingOps
-                }.Schedule(m_syncableExposedSkeletonsQuery, state.Dependency);
+                }.Inject(api).Schedule(m_syncableExposedSkeletonsQuery, state.Dependency);
             }
 
             if ((haveSyncableExposedSkeletons | haveNewExposedSkeletons | haveDeadExposedSkeletons | haveDeadExposedSkeletons2) && haveCullableExposedBones)
             {
                 state.Dependency = new ResetExposedBonesJob
                 {
-                    indexHandle    = GetComponentTypeHandle<BoneCullingIndex>(false),
                     indicesToClear = cullingIndicesToClear
-                }.ScheduleParallel(m_cullableExposedBonesQuery, state.Dependency);
+                }.Inject(api).ScheduleParallel(m_cullableExposedBonesQuery, state.Dependency);
             }
 
             if (haveSyncableExposedSkeletons | haveNewExposedSkeletons)
             {
                 state.Dependency = new SetExposedSkeletonCullingIndicesJob
                 {
-                    boneCullingIndexLookup     = GetComponentLookup<BoneCullingIndex>(false),
-                    boneIndexLookup            = GetComponentLookup<BoneIndex>(false),
-                    boneRefsLookup             = GetBufferLookup<BoneReference>(true),
-                    operations                 = cullingOps.AsDeferredJobArray(),
-                    skeletonCullingIndexLookup = GetComponentLookup<ExposedSkeletonCullingIndex>(false),
-                    skeletonReferenceLookup    = GetComponentLookup<BoneOwningSkeletonReference>(false)
-                }.Schedule(cullingOps, 1, state.Dependency);
+                    operations = cullingOps.AsDeferredJobArray(),
+                }.Inject(api).Schedule(cullingOps, 1, state.Dependency);
             }
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
         }
 
         #region Types
@@ -610,11 +564,11 @@ namespace Latios.Kinemation.Systems
 
         #region PreSync Jobs
         [BurstCompile]
-        struct FindDeadSkeletonsJob : IJobChunk
+        partial struct FindDeadSkeletonsJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public BufferTypeHandle<DependentSkinnedMesh> dependentsHandle;
+            [ReadOnly, Inject] BufferTypeHandle<DependentSkinnedMesh> dependentsHandle;
 
-            [NativeDisableParallelForRestriction] public ComponentLookup<SkeletonDependent> meshStateLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<SkeletonDependent> meshStateLookup;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -635,11 +589,11 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct FindDeadDeformMeshesJob : IJobChunk
+        partial struct FindDeadDeformMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                       entityHandle;
-            [ReadOnly] public ComponentTypeHandle<BoundMesh>         boundMeshHandle;
-            [ReadOnly] public ComponentTypeHandle<SkeletonDependent> depsHandle;
+            [ReadOnly, Inject] EntityTypeHandle                       entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>         boundMeshHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<SkeletonDependent> depsHandle;
 
             public UnsafeParallelBlockList<BindUnbindOperation>        bindingOpsBlockList;
             public UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList;
@@ -695,22 +649,22 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct FindNewDeformMeshesJob : IJobChunk
+        partial struct FindNewDeformMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly] public EntityTypeHandle                                 entityHandle;
-            [ReadOnly] public ComponentTypeHandle<MeshDeformDataBlobReference> meshBlobRefHandle;
+            [ReadOnly, Inject] public EntityTypeHandle                                 entityHandle;
+            [ReadOnly, Inject] public ComponentTypeHandle<MeshDeformDataBlobReference> meshBlobRefHandle;
 
-            [ReadOnly] public ComponentLookup<SkeletonRootTag>                   skeletonRootTagLookup;
-            [ReadOnly] public ComponentLookup<BindSkeletonRoot>                  bindSkeletonRootLookup;
-            [ReadOnly] public ComponentLookup<BoneOwningSkeletonReference>       boneOwningSkeletonReferenceLookup;
-            [ReadOnly] public ComponentLookup<SkeletonBindingPathsBlobReference> skeletonBindingPathsBlobRefLookup;
-            [ReadOnly] public ComponentLookup<Prefab>                            prefabLookup;
-            [ReadOnly] public ComponentLookup<Disabled>                          disabledLookup;
+            [ReadOnly, Inject] ComponentLookup<SkeletonRootTag>                   skeletonRootTagLookup;
+            [ReadOnly, Inject] ComponentLookup<BindSkeletonRoot>                  bindSkeletonRootLookup;
+            [ReadOnly, Inject] ComponentLookup<BoneOwningSkeletonReference>       boneOwningSkeletonReferenceLookup;
+            [ReadOnly, Inject] ComponentLookup<SkeletonBindingPathsBlobReference> skeletonBindingPathsBlobRefLookup;
+            [ReadOnly, Inject] ComponentLookup<Prefab>                            prefabLookup;
+            [ReadOnly, Inject] ComponentLookup<Disabled>                          disabledLookup;
 
             // Optional
-            [ReadOnly] public ComponentTypeHandle<BindSkeletonRoot>              rootRefHandle;
-            [ReadOnly] public ComponentTypeHandle<MeshBindingPathsBlobReference> pathBindingsBlobRefHandle;
-            [ReadOnly] public BufferTypeHandle<OverrideSkinningBoneIndex>        overrideBonesHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BindSkeletonRoot>              rootRefHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<MeshBindingPathsBlobReference> pathBindingsBlobRefHandle;
+            [ReadOnly, Inject] BufferTypeHandle<OverrideSkinningBoneIndex>        overrideBonesHandle;
 
             public UnsafeParallelBlockList<BindUnbindOperation>     bindingOpsBlockList;
             public UnsafeParallelBlockList<MeshAddOperation>        meshAddOpsBlockList;
@@ -929,12 +883,12 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct FindRebindMeshesJob : IJobChunk
+        partial struct FindRebindMeshesJob : IJobChunk, IInjectable
         {
-            public FindNewDeformMeshesJob                 newMeshesJob;
-            public ComponentTypeHandle<BoundMesh>         boundMeshHandle;
-            public ComponentTypeHandle<SkeletonDependent> depsHandle;
-            public ComponentTypeHandle<NeedsBindingFlag>  needsBindingHandle;
+            public FindNewDeformMeshesJob                   newMeshesJob;
+            [Inject] ComponentTypeHandle<BoundMesh>         boundMeshHandle;
+            [Inject] ComponentTypeHandle<SkeletonDependent> depsHandle;
+            [Inject] ComponentTypeHandle<NeedsBindingFlag>  needsBindingHandle;
 
             public UnsafeParallelBlockList<MeshRemoveOperation>        meshRemoveOpsBlockList;
             public UnsafeParallelBlockList<SkinnedMeshRemoveOperation> skinnedMeshRemoveOpsBlockList;
@@ -1630,10 +1584,10 @@ namespace Latios.Kinemation.Systems
 
         #region Post Sync Jobs
         [BurstCompile]
-        struct ProcessMeshStateOpsJob : IJobParallelForDefer
+        partial struct ProcessMeshStateOpsJob : IJobParallelForDefer, IInjectable
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<BoundMesh> stateLookup;
-            [ReadOnly] public NativeArray<MeshWriteStateOperation>                  ops;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<BoundMesh> stateLookup;
+            [ReadOnly] public NativeArray<MeshWriteStateOperation>                   ops;
 
             public void Execute(int index)
             {
@@ -1644,11 +1598,11 @@ namespace Latios.Kinemation.Systems
 
 #if LATIOS_TRANSFORMS_UNITY
         [BurstCompile]
-        struct ProcessSkinnedMeshStateOpsJob : IJobParallelForDefer
+        partial struct ProcessSkinnedMeshStateOpsJob : IJobParallelForDefer, IInjectable
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<SkeletonDependent> stateLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<Unity.Transforms.Parent> parentLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<Unity.Transforms.LocalTransform> localTransformLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<SkeletonDependent> stateLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<Unity.Transforms.Parent> parentLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<Unity.Transforms.LocalTransform> localTransformLookup;
             [ReadOnly] public NativeArray<SkinnedMeshWriteStateOperation> ops;
             public Entity failedBindingEntity;
 
@@ -1668,21 +1622,21 @@ namespace Latios.Kinemation.Systems
 #endif
 
         [BurstCompile]
-        struct ProcessBindingOpsJob : IJobParallelForDefer
+        partial struct ProcessBindingOpsJob : IJobParallelForDefer, IInjectable
         {
-            [ReadOnly] public NativeArray<BindUnbindOperation>                         operations;
-            [ReadOnly] public NativeArray<int2>                                        startsAndCounts;
-            [ReadOnly] public BufferLookup<OptimizedBoneTransform>                     boneTransformLookup;
-            [ReadOnly] public BufferLookup<BoneReference>                              boneRefsLookup;
-            [ReadOnly] public ComponentLookup<BoundMesh>                               boundMeshLookup;
-            [ReadOnly] public ComponentLookup<OptimizedSkeletonHierarchyBlobReference> hierarchyLookup;
-            [ReadOnly] public MeshGpuManager                                           meshGpuManager;
-            [ReadOnly] public BoneOffsetsGpuManager                                    boneOffsetsGpuManager;
+            [ReadOnly] public NativeArray<BindUnbindOperation>                          operations;
+            [ReadOnly] public NativeArray<int2>                                         startsAndCounts;
+            [ReadOnly, Inject] BufferLookup<OptimizedBoneTransform>                     boneTransformLookup;
+            [ReadOnly, Inject] BufferLookup<BoneReference>                              boneRefsLookup;
+            [ReadOnly, Inject] ComponentLookup<BoundMesh>                               boundMeshLookup;
+            [ReadOnly, Inject] ComponentLookup<OptimizedSkeletonHierarchyBlobReference> hierarchyLookup;
+            [ReadOnly] public MeshGpuManager                                            meshGpuManager;
+            [ReadOnly] public BoneOffsetsGpuManager                                     boneOffsetsGpuManager;
 
-            [NativeDisableParallelForRestriction] public BufferLookup<DependentSkinnedMesh> dependentsLookup;
-            [NativeDisableParallelForRestriction] public BufferLookup<OptimizedBoneBounds>  optimizedBoundsLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<BoneBounds>        boneBoundsLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<SkeletonDependent> skeletonDependentLookup;
+            [NativeDisableParallelForRestriction, Inject] BufferLookup<DependentSkinnedMesh> dependentsLookup;
+            [NativeDisableParallelForRestriction, Inject] BufferLookup<OptimizedBoneBounds>  optimizedBoundsLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<BoneBounds>        boneBoundsLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<SkeletonDependent> skeletonDependentLookup;
 
             [NativeDisableContainerSafetyRestriction, NoAlias] NativeList<float> boundsCache;
 
@@ -1927,14 +1881,14 @@ namespace Latios.Kinemation.Systems
 
         // Schedule single
         [BurstCompile]
-        struct FindExposedSkeletonsToUpdateJob : IJobChunk
+        partial struct FindExposedSkeletonsToUpdateJob : IJobChunk, IInjectable
         {
             public NativeList<ExposedSkeletonCullingIndexOperation> operations;
             public ExposedCullingIndexManager                       manager;
             public NativeReference<UnsafeBitArray>                  indicesToClear;
 
-            [ReadOnly] public EntityTypeHandle                   entityHandle;
-            public ComponentTypeHandle<BoneReferenceIsDirtyFlag> dirtyFlagHandle;
+            [ReadOnly, Inject] EntityTypeHandle                    entityHandle;
+            [Inject] ComponentTypeHandle<BoneReferenceIsDirtyFlag> dirtyFlagHandle;
 
             public uint lastSystemVersion;
 
@@ -1958,10 +1912,10 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct ResetExposedBonesJob : IJobChunk
+        partial struct ResetExposedBonesJob : IJobChunk, IInjectable
         {
             [ReadOnly] public NativeReference<UnsafeBitArray> indicesToClear;
-            public ComponentTypeHandle<BoneCullingIndex>      indexHandle;
+            [Inject] ComponentTypeHandle<BoneCullingIndex>    indexHandle;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -1975,14 +1929,14 @@ namespace Latios.Kinemation.Systems
         }
 
         [BurstCompile]
-        struct SetExposedSkeletonCullingIndicesJob : IJobParallelForDefer
+        partial struct SetExposedSkeletonCullingIndicesJob : IJobParallelForDefer, IInjectable
         {
-            [ReadOnly] public NativeArray<ExposedSkeletonCullingIndexOperation>                       operations;
-            [ReadOnly] public BufferLookup<BoneReference>                                             boneRefsLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<ExposedSkeletonCullingIndex> skeletonCullingIndexLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<BoneCullingIndex>            boneCullingIndexLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<BoneIndex>                   boneIndexLookup;
-            [NativeDisableParallelForRestriction] public ComponentLookup<BoneOwningSkeletonReference> skeletonReferenceLookup;
+            [ReadOnly] public NativeArray<ExposedSkeletonCullingIndexOperation>                        operations;
+            [ReadOnly, Inject] BufferLookup<BoneReference>                                             boneRefsLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<ExposedSkeletonCullingIndex> skeletonCullingIndexLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<BoneCullingIndex>            boneCullingIndexLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<BoneIndex>                   boneIndexLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<BoneOwningSkeletonReference> skeletonReferenceLookup;
 
             public void Execute(int index)
             {
