@@ -20,7 +20,6 @@ namespace Latios.Calligraphics.Systems
             public NativeStream.Writer                                       missingGlyphsStream;
             [NativeDisableParallelForRestriction] public NativeStream.Writer glyphOTFStream;
             [ReadOnly] public NativeStream.Reader                            xmlTagStream;
-            [ReadOnly] public NativeArray<int>                               firstEntityIndexInChunk;
 
             [ReadOnly] public FontTable                                  fontTable;
             [ReadOnly] public GlyphTable                                 glyphTable;
@@ -32,6 +31,7 @@ namespace Latios.Calligraphics.Systems
             UnsafeHashSet<GlyphTable.Key> chunkMissingGlyphsSet;
             UnsafeText                    cleanedString;
             UnsafeList<XMLTag>            xmlTags;
+            UnsafeList<GlyphOTF>          outputGlyphString;
 
             [NativeSetThreadIndex]
             int threadIndex;
@@ -47,12 +47,14 @@ namespace Latios.Calligraphics.Systems
                     chunkMissingGlyphsSet = new UnsafeHashSet<GlyphTable.Key>(128, Allocator.Temp);
                     cleanedString         = new UnsafeText(1024, Allocator.Temp);
                     xmlTags               = new UnsafeList<XMLTag>(64, Allocator.Temp);
+                    outputGlyphString     = new UnsafeList<GlyphOTF>(1024, Allocator.Temp);
                 }
                 chunkMissingGlyphsSet.Clear();
                 cleanedString.Clear();
 
-                var firstEntityIndex = firstEntityIndexInChunk[unfilteredChunkIndex];
                 missingGlyphsStream.BeginForEachIndex(unfilteredChunkIndex);
+                glyphOTFStream.BeginForEachIndex(unfilteredChunkIndex);
+                bool hasTags = xmlTagStream.BeginForEachIndex(unfilteredChunkIndex) != 0;
 
                 //Debug.Log("Shape job");
                 var calliBytesBuffers      = chunk.GetBufferAccessor(ref calliByteHandle);
@@ -70,14 +72,10 @@ namespace Latios.Calligraphics.Systems
 
                 for (int indexInChunk = 0; indexInChunk < chunk.Count; indexInChunk++)
                 {
-                    int entityIndex = firstEntityIndex + indexInChunk;
-                    glyphOTFStream.BeginForEachIndex(entityIndex);
-
-                    var xmlTagCount = xmlTagStream.BeginForEachIndex(entityIndex);
+                    var xmlTagCount = hasTags ? xmlTagStream.Read<XMLTagStreamHeader>().tagCount : 0;
                     xmlTags.Resize(xmlTagCount);
                     for (int i = 0; i < xmlTagCount; i++)
                         xmlTags[i] = xmlTagStream.Read<XMLTag>();
-                    xmlTagStream.EndForEachIndex();
 
                     var calliBytesBuffer      = calliBytesBuffers[indexInChunk].Reinterpret<byte>();
                     var textBaseConfiguration = textBaseConfigurations[indexInChunk];
@@ -89,7 +87,7 @@ namespace Latios.Calligraphics.Systems
                     var calliString        = new CalliString(calliBytesBuffer);
                     cleanedString.Capacity = calliString.Capacity;
 
-                    if (xmlTagStream.Count() == 0)
+                    if (xmlTagCount == 0)
                         ShapeNoRichText(calliString,
                                         ref layoutConfig,
                                         ref cleanedString,
@@ -99,7 +97,7 @@ namespace Latios.Calligraphics.Systems
                                         ref textBaseConfiguration,
                                         ref language,
                                         ref buffer,
-                                        ref glyphOTFStream);
+                                        ref outputGlyphString);
                     else
                         ShapeRichText(calliString,
                                       ref layoutConfig,
@@ -110,13 +108,35 @@ namespace Latios.Calligraphics.Systems
                                       ref textBaseConfiguration,
                                       ref language,
                                       ref buffer,
-                                      ref glyphOTFStream,
+                                      ref outputGlyphString,
                                       ref xmlTags);
 
+                    // Word-wrap and output
+                    ref var header = ref glyphOTFStream.Allocate<GlyphOTFStreamHeader>();
+                    header         = default;
+                    ApplyWordWrapAndLayout(ref outputGlyphString, ref cleanedString, ref xmlTags, in textBaseConfiguration, ref layoutConfig, ref header);
+
+                    // Write out glyphs to stream, and detect missing glyphs
+                    foreach (var glyphOTF in outputGlyphString)
+                    {
+                        if (!glyphTable.glyphHashToIdMap.ContainsKey(glyphOTF.glyphKey))
+                        {
+                            // We use the hashset to avoid redundantly adding the same glyph for this chunk.
+                            // The missingGlyphsStream may still have redundancies between chunks, but this reduces
+                            // some of the work while still maintaining determinism.
+                            if (chunkMissingGlyphsSet.Add(glyphOTF.glyphKey))
+                                missingGlyphsStream.Write(glyphOTF.glyphKey);
+                        }
+                        glyphOTFStream.Write(glyphOTF);
+                    }
+                    header.glyphCount = outputGlyphString.Length;
+
                     cleanedString.Clear();
-                    glyphOTFStream.EndForEachIndex();
+                    outputGlyphString.Clear();
                 }
                 //add missing glyphs identifed in chunks processed by this thread to missingGlyphs
+                glyphOTFStream.EndForEachIndex();
+                xmlTagStream.EndForEachIndex();
                 missingGlyphsStream.EndForEachIndex();
                 buffer.Dispose();
             }
@@ -139,7 +159,7 @@ namespace Latios.Calligraphics.Systems
                                  ref TextBaseConfiguration textBaseConfiguration,
                                  ref Language language,
                                  ref Buffer buffer,
-                                 ref NativeStream.Writer glyphOTFStream)
+                                 ref UnsafeList<GlyphOTF>  outputString)
             {
                 var rawCharacters = calliString.GetEnumerator();
                 //copy text into buffer used for shaping, convert case while doing so
@@ -159,7 +179,7 @@ namespace Latios.Calligraphics.Systems
                       fontConfig.m_faceIndex,
                       fontConfig.m_namedVariationIndex,
                       openTypeFeatures.values,
-                      ref glyphOTFStream);
+                      ref outputGlyphString);
             }
 
             void ShapeRichText(CalliString calliString,
@@ -171,7 +191,7 @@ namespace Latios.Calligraphics.Systems
                                ref TextBaseConfiguration textBaseConfiguration,
                                ref Language language,
                                ref Buffer buffer,
-                               ref NativeStream.Writer glyphOTFStream,
+                               ref UnsafeList<GlyphOTF>  outputString,
                                ref UnsafeList<XMLTag>    xmlTags)
             {
                 //text has richtext tags. Search segments where font, language, script and direction does does not change (To-Do: use ICU for that),
@@ -193,7 +213,7 @@ namespace Latios.Calligraphics.Systems
                         currentTag = xmlTags[tagsCounter];
                         rawCharacters.GotoByteIndex(currentTag.endID);  // go to ">'
                         keepGoing = rawCharacters.MoveNext();  // go to char after '>'
-                        layoutConfig.Update(ref currentTag);
+                        layoutConfig.Update(ref currentTag, textBaseConfiguration);
                         currentRune = rawCharacters.Current;
                         tagsCounter++;
                         nextTagPosition = tagsCounter < xmlTags.Length ? xmlTags[tagsCounter].startID : calliString.Length;
@@ -233,7 +253,7 @@ namespace Latios.Calligraphics.Systems
                               currentFaceIndex,
                               currentNamedVariationIndex,
                               openTypeFeatures.values,
-                              ref glyphOTFStream);
+                              ref outputGlyphString);
                     currentFaceIndex           = fontConfig.m_faceIndex;
                     currentNamedVariationIndex = fontConfig.m_namedVariationIndex;
                     cleanedStart               = cleanedEnd;
@@ -251,8 +271,8 @@ namespace Latios.Calligraphics.Systems
                        ref FontConfig fontConfig,
                        int faceIndex,
                        int namedVariationIndex,
-                       NativeList<Feature>     features,
-                       ref NativeStream.Writer glyphOTFStream)
+                       NativeList<Feature>      features,
+                       ref UnsafeList<GlyphOTF> outputString)
             {
                 if (startIndex + length == text.Length && text.Length > 0 && text[^ 1] == 0)
                     length--; //last byte of CalliBytes buffer appears to be always '0', which should not be shaped.
@@ -317,15 +337,7 @@ namespace Latios.Calligraphics.Systems
                         xOffset  = glyphPosition.xOffset,
                         yOffset  = glyphPosition.yOffset,
                     };
-                    if (!glyphTable.glyphHashToIdMap.ContainsKey(glyphOTF.glyphKey))
-                    {
-                        // We use the hashset to avoid redundantly adding the same glyph for this chunk.
-                        // The missingGlyphsStream may still have redundancies between chunks, but this reduces
-                        // some of the work while still maintaining determinism.
-                        if (chunkMissingGlyphsSet.Add(glyphOTF.glyphKey))
-                            missingGlyphsStream.Write(glyphOTF.glyphKey);
-                    }
-                    glyphOTFStream.Write(glyphOTF);
+                    outputString.Add(in glyphOTF);
                 }
                 buffer.ClearContent();
                 features.Clear();

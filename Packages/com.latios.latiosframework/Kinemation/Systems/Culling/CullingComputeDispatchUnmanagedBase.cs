@@ -76,7 +76,15 @@ namespace Latios.Kinemation
             var activeState = worldBlackboardEntity.GetComponentData<CullingComputeDispatchActiveState>();
             if (activeState.state != nextExpectedState)
             {
-                UnityEngine.Debug.LogError("The CullingComputeDispatch expected state does not match the current state. Behavior may not be correct.");
+                FixedString128Bytes skipMessage    = "Skipping execution until the state aligns.";
+                FixedString128Bytes forwardMessage = "Resetting everything to the Collect stage.";
+                var                 message        = activeState.state == CullingComputeDispatchState.Collect ? forwardMessage : skipMessage;
+                UnityEngine.Debug.LogError(
+                    $"The CullingComputeDispatch expected state does not match the current state. This is typically because an exception was thrown from inside the system. {message}");
+                collected         = default;
+                written           = default;
+                nextExpectedState = CullingComputeDispatchState.Collect;
+                return;
             }
 #if LATIOS_BL_FORK
             previousUpdateJH.Complete();

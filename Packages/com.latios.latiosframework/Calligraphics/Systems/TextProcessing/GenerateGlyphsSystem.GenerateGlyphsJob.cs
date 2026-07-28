@@ -22,7 +22,6 @@ namespace Latios.Calligraphics.Systems
 
             [ReadOnly] public NativeStream.Reader glyphOTFStream;
             [ReadOnly] public NativeStream.Reader xmlTagStream;
-            [ReadOnly] public NativeArray<int>    firstEntityIndexInChunk;
 
             [ReadOnly] public BufferTypeHandle<CalliByte>                calliByteHandle;
             [ReadOnly] public ComponentTypeHandle<TextBaseConfiguration> textBaseConfigurationHandle;
@@ -41,7 +40,6 @@ namespace Latios.Calligraphics.Systems
                       chunk.DidChange(ref textBaseConfigurationHandle, lastSystemVersion)))
                     return;
 
-                var firstEntityIndex = firstEntityIndexInChunk[unfilteredChunkIndex];
                 //Debug.Log("Generate glyphs job");
                 var calliBytesBuffers          = chunk.GetBufferAccessor(ref calliByteHandle);
                 var renderGlyphBuffers         = chunk.GetBufferAccessor(ref renderGlyphHandle);
@@ -51,14 +49,19 @@ namespace Latios.Calligraphics.Systems
                 TextColorGradientArray textColorGradientArray = default;
                 textColorGradientArray.Initialize(textColorGradientEntity, textColorGradientLookup);
 
-                for (int indexInChunk = 0; indexInChunk < chunk.Count; indexInChunk++)
+                xmlTagStream.BeginForEachIndex(unfilteredChunkIndex);
+                bool hasAnyGlyphs = glyphOTFStream.BeginForEachIndex(unfilteredChunkIndex) != 0;
+
+                for (int indexInChunk = 0; indexInChunk < chunk.Count && hasAnyGlyphs; indexInChunk++)
                 {
-                    int entityIndex = firstEntityIndex + indexInChunk;
-                    var xmlTagCount = xmlTagStream.BeginForEachIndex(entityIndex);
+                    var xmlTagCount = xmlTagStream.Read<XMLTagStreamHeader>().tagCount;
                     var xmlTags     = new NativeArray<XMLTag>(xmlTagCount, Allocator.Temp);
                     for (int i = 0; i < xmlTagCount; i++)
                         xmlTags[i] = xmlTagStream.Read<XMLTag>();
-                    xmlTagStream.EndForEachIndex();
+
+                    var header = glyphOTFStream.Read<GlyphOTFStreamHeader>();
+                    if (header.glyphCount == 0)
+                        continue;
 
                     var calliBytes                = calliBytesBuffers[indexInChunk];
                     var renderGlyphs              = renderGlyphBuffers[indexInChunk];
@@ -67,20 +70,20 @@ namespace Latios.Calligraphics.Systems
 
                     renderGlyphs.Clear();
                     previousRenderGlyphBuffer.Clear();
-                    var glyphCount = glyphOTFStream.BeginForEachIndex(entityIndex);
-                    if (glyphCount == 0)
-                        continue;
 
-                    previousRenderGlyphBuffer.Capacity = glyphCount;  //allocating here make this job 2x slower but UpdateChangedGlyphsJob 10x faster
+                    previousRenderGlyphBuffer.Capacity = header.glyphCount;  //allocating here make this job 2x slower but UpdateChangedGlyphsJob 10x faster
                     //renderGlyphs.Capacity = glyphCount; //not needed when done via single threaded pre-allocationjob
                     CreateRenderGlyphs(ref renderGlyphs,
                                        in calliBytes,
                                        ref glyphOTFStream,
                                        ref xmlTags,
                                        in textBaseConfiguration,
-                                       ref textColorGradientArray);
-                    glyphOTFStream.EndForEachIndex();
+                                       ref textColorGradientArray,
+                                       header);
                 }
+
+                glyphOTFStream.EndForEachIndex();
+                xmlTagStream.EndForEachIndex();
             }
 
             unsafe void CreateRenderGlyphs(ref DynamicBuffer<RenderGlyph> renderGlyphs,
@@ -88,14 +91,14 @@ namespace Latios.Calligraphics.Systems
                                            ref NativeStream.Reader glyphOTFStream,
                                            ref NativeArray<XMLTag>        xmlTags,
                                            in TextBaseConfiguration textBaseConfiguration,
-                                           ref TextColorGradientArray textColorGradientArray)
+                                           ref TextColorGradientArray textColorGradientArray,
+                                           GlyphOTFStreamHeader header)
             {
                 //Debug.Log("CreateRenderGlyphs");
                 var calliString = new CalliString(calliBytesBuffer);
                 var characters  = calliString.GetEnumerator();
 
-                var fontLookupKeys = fontTable.fontLookupKeys;
-                var layoutConfig   = new LayoutConfig(in textBaseConfiguration);
+                var layoutConfig = new LayoutConfig(in textBaseConfiguration);
 
                 XMLTag currentTag                   = default;
                 int    tagsCounter                  = 0;
@@ -105,16 +108,7 @@ namespace Latios.Calligraphics.Systems
                 int    nextTagPositionInCleanedText = cleanedSegmentLength;
                 //Debug.Log($"{currentTag.tagType} {cleanedSegmentLength} {nextTagPositionInCleanedText}");
 
-                int                    lastWordStartCharacterGlyphIndex                = 0;
-                FixedList512Bytes<int> characterGlyphIndicesWithPreceedingSpacesInLine = default;
-                int                    startOfLineGlyphIndex                           = 0;
-                int                    lastCommittedStartOfLineGlyphIndex              = -1;
-                bool                   isFirstLine                                     = true;
-                bool                   isLineStart                                     = true;
-                float                  currentLineHeight                               = 0f;
-                float                  accumulatedVerticalOffset                       = 0f;
-                float                  maxLineAscender                                 = float.MinValue;
-                float                  maxLineDescender                                = float.MaxValue;
+                float2 pen = header.penStart;
 
                 //var glyphOTF = glyphOTFBuffer[0];
                 var glyphOTF   = glyphOTFStream.Peek<GlyphOTF>();
@@ -131,25 +125,12 @@ namespace Latios.Calligraphics.Systems
                 var currentFontWeigth            = currentFont.GetStyleTag(StyleTag.WEIGHT);
                 var currentFontIsItalic          = (byte)currentFont.GetStyleTag(StyleTag.ITALIC) == 1;
                 currentFont.SetScale(currentFontSamplingPointSize, currentFontSamplingPointSize);
-                // Todo: Don't hardcode these when line-wrapping is moved to shaping
-                currentFont.UpdateMetaData(Direction.LTR, Script.LATIN, Language.English);
+                currentFont.GetMetrics(MetricTag.CAP_HEIGHT, out var currentFontCapHeight);  // Needed for italics
 
-                // Calculate the scale of the font based on selected font size and sampling point size.
-                // baseScale is calculated using the font asset assigned to the text object.
-                float baseScale           = textBaseConfiguration.fontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
-                float currentElementScale = baseScale;
-                float currentEmScale      = textBaseConfiguration.fontSize * 0.01f * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
-
-                float topAnchor    = GetTopAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
-                float bottomAnchor = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
-
-                Unicode.Rune currentRune, previousRune = Unicode.BadRune;  //input text unicode
-                //for (int k = 0, length = glyphOTFBuffer.Length; k < length; k++)
-                int k = 0;
-                while (glyphOTFStream.RemainingItemCount > 0)
+                Unicode.Rune currentRune;  //input text unicode
+                for (int i = 0; i < header.glyphCount; i++)
                 {
-                    glyphOTF = glyphOTFStream.Read<GlyphOTF>();
-                    //glyphOTF = glyphOTFBuffer[k];
+                    glyphOTF   = glyphOTFStream.Read<GlyphOTF>();
                     glyphID    = glyphTable.glyphHashToIdMap[glyphOTF.glyphKey];
                     glyphEntry = glyphTable.GetEntry(glyphID);
 
@@ -169,8 +150,7 @@ namespace Latios.Calligraphics.Systems
                         currentFontWeigth            = currentFont.GetStyleTag(StyleTag.WEIGHT);
                         currentFontIsItalic          = (byte)currentFont.GetStyleTag(StyleTag.ITALIC) == 1;
                         currentFont.SetScale(currentFontSamplingPointSize, currentFontSamplingPointSize);
-                        // Todo: Don't hardcode these when line-wrapping is moved to shaping
-                        currentFont.UpdateMetaData(Direction.LTR, Script.LATIN, Language.English);
+                        currentFont.GetMetrics(MetricTag.CAP_HEIGHT, out currentFontCapHeight);  // Needed for italics
                     }
 
                     while (cluster >= nextTagPositionInCleanedText)
@@ -198,10 +178,6 @@ namespace Latios.Calligraphics.Systems
                     //else
                     //    Debug.Log($"char: {(char)currentRune.value} glyphIndex {glyphEntry.key.glyphIndex} cliprect {glyphEntry.ClipRect} glyphOTF {glyphOTF} faceIndex: {currentFaceIndex} ({currentFace.GetName(NameID.FONT_FAMILY, Language.English)}, {currentFace.GetName(NameID.FONT_SUBFAMILY, Language.English)})");
 
-                    if (isFirstLine)
-                        topAnchor = GetTopAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale, topAnchor);
-                    bottomAnchor  = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale, bottomAnchor);
-
                     #region Look up Character Data
                     //Debug.Log($"Render Glyph {glyphEntry.key.glyphIndex} from face {currentFaceIndex} using rect {glyphEntry.x} {glyphEntry.y} {glyphEntry.width} {glyphEntry.height} ({glyphEntry.PaddedWidth} {glyphEntry.PaddedHeight})");
                     // review how to handle glyphOTF.codepoint = 0 (not defined glyph) which is retured for example for tab stop (9)
@@ -215,9 +191,7 @@ namespace Latios.Calligraphics.Systems
                     int glyphWidth  = glyphEntry.width;
                     int padding     = glyphEntry.padding;
 
-                    float adjustedScale      = layoutConfig.m_currentFontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
-                    float elementAscentLine  = currentFont.fontExtents.ascender;
-                    float elementDescentLine = currentFont.fontExtents.descender;
+                    float adjustedScale = layoutConfig.m_currentFontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
 
                     //synthesize superscript and subscript redundant to opentype feature set during shaping.
                     //only purpose is to simulate missing subscript glyphs, but unclear how to determine this
@@ -235,34 +209,23 @@ namespace Latios.Calligraphics.Systems
                     //    m_SubAndSupscriptOffset = currentFont.superScriptEmYOffset * adjustedScale;
                     //}
 
-                    currentElementScale  = adjustedScale * fontScaleMultiplier;
-                    float baselineOffset = currentFont.baseLine * adjustedScale * fontScaleMultiplier;
+                    float currentElementScale = adjustedScale * fontScaleMultiplier;
+                    float baselineOffset      = glyphOTF.baseline * adjustedScale * fontScaleMultiplier;
                     #endregion
 
-                    // Optimization to avoid calling this more than once per character.
-                    bool isWhiteSpace = currentRune.value <= 0xFFFF && currentRune.IsWhiteSpace();
-
-                    // Handle Mono Spacing
+                    // Handle Mono Spacing. This is just to center the glyph quad within the fixed-width character space area.
                     #region Handle Mono Spacing
                     float monoAdvance = 0;
                     if (layoutConfig.m_monoSpacing != 0)
                     {
-                        monoAdvance =
-                            (layoutConfig.m_monoSpacing / 2 - (glyphWidth / 2 + x_bearing) * currentElementScale);  // * (1 - charWidthAdjDelta);
-                        layoutConfig.m_xAdvance += monoAdvance;
+                        monoAdvance = (layoutConfig.m_monoSpacing / 2 - (glyphWidth / 2 + x_bearing) * currentElementScale);  // * (1 - charWidthAdjDelta);
                     }
                     #endregion
 
                     // Set Padding based on selected font style
                     #region Handle Style Padding
-                    float boldSpacingAdjustment = 0;
                     //if bold is requested and current font is not bold (=it has not been found), then simulate bold
-                    bool simulateBold = (layoutConfig.fontWeight >= FontWeight.Bold.Value() && currentFontWeigth < FontWeight.Bold.Value());
-                    if (simulateBold)
-                    {
-                        //Debug.Log($"Simulate Bold (current: {currentFontWeigth})");
-                        boldSpacingAdjustment = 7;  //this is not a property of font so might as well just set it here
-                    }
+                    bool simulateBold = layoutConfig.fontWeight >= FontWeight.Bold.Value() && currentFontWeigth < FontWeight.Bold.Value();
                     #endregion Handle Style Padding
 
                     var renderGlyph          = new RenderGlyph();
@@ -273,8 +236,8 @@ namespace Latios.Calligraphics.Systems
 
                     // top left is used to position the bottom left and top right
                     float2 topLeft;
-                    topLeft.x = layoutConfig.m_xAdvance + (x_bearing * layoutConfig.m_fxScale - padding + glyphOTF.xOffset) * currentElementScale;
-                    topLeft.y = baselineOffset + (y_bearing + padding + glyphOTF.yOffset) * currentElementScale + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset;
+                    topLeft.x = pen.x + monoAdvance + (x_bearing * layoutConfig.m_fxScale - padding + glyphOTF.xOffset) * currentElementScale;
+                    topLeft.y = pen.y + baselineOffset + (y_bearing + padding + glyphOTF.yOffset) * currentElementScale + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset;
 
                     float2 bottomLeft;
                     bottomLeft.x = topLeft.x;
@@ -340,7 +303,6 @@ namespace Latios.Calligraphics.Systems
 
                     // Check if we need to Shear the rectangles for Italic styles
                     #region Handle Italic & Shearing
-                    float bottomShear = 0f;
                     //if italic is requested and current font is not italic (=it has not been found), then simulate italic
                     bool simulateItalic = (layoutConfig.m_fontStyles & FontStyles.Italic) == FontStyles.Italic && !currentFontIsItalic;
                     if (simulateItalic)
@@ -349,10 +311,10 @@ namespace Latios.Calligraphics.Systems
                         // Shift Top vertices forward by half (Shear Value * height of character) and Bottom vertices back by same amount.
                         var   italicsStyleSlant = 35;  //this is not a property of font so might as well just set it here
                         float shear_value       = italicsStyleSlant * 0.01f;
-                        float midPoint          = ((currentFont.capHeight - (currentFont.baseLine + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset)) / 2) *
+                        float midPoint          = ((currentFontCapHeight - (glyphOTF.baseline + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset)) / 2) *
                                                   fontScaleMultiplier;
-                        float topShear = shear_value * ((y_bearing + padding - midPoint) * currentElementScale);
-                        bottomShear    = shear_value * ((y_bearing - glyphHeight - padding - midPoint) * currentElementScale);
+                        float topShear    = shear_value * ((y_bearing + padding - midPoint) * currentElementScale);
+                        float bottomShear = shear_value * ((y_bearing - glyphHeight - padding - midPoint) * currentElementScale);
 
                         topLeft.x     += topShear;
                         bottomLeft.x  += bottomShear;
@@ -389,196 +351,8 @@ namespace Latios.Calligraphics.Systems
                     }
                     #endregion
 
-                    // Compute text metrics
-                    #region Compute Ascender & Descender values
-                    // Element Ascender in line space
-                    float elementAscender = elementAscentLine * currentElementScale + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset;
-
-                    // Element Descender in line space
-                    float elementDescender = elementDescentLine * currentElementScale + layoutConfig.m_baselineOffset + m_subAndSupscriptOffset;
-
-                    float adjustedAscender  = elementAscender;
-                    float adjustedDescender = elementDescender;
-
-                    // Max line ascender and descender in line space
-                    if (isLineStart || isWhiteSpace == false)
-                    {
-                        // Special handling for Superscript and Subscript where we use the unadjusted line ascender and descender
-                        if (m_subAndSupscriptOffset != 0)  //To-Do: review (also voffset affecting m_baselineOffset), effect not clear.
-                        {
-                            adjustedAscender  = math.max((elementAscender - m_subAndSupscriptOffset) / fontScaleMultiplier, adjustedAscender);
-                            adjustedDescender = math.min((elementDescender - m_subAndSupscriptOffset) / fontScaleMultiplier, adjustedDescender);
-                        }
-                        maxLineAscender  = math.max(adjustedAscender, maxLineAscender);
-                        maxLineDescender = math.min(adjustedDescender, maxLineDescender);
-                    }
-                    #endregion
-
-                    #region XAdvance, Tabulation & Stops
-                    if (currentRune.value == 9)
-                    {
-                        float tabSize           = currentFont.TabAdvance() * currentElementScale;
-                        float tabs              = math.ceil(layoutConfig.m_xAdvance / tabSize) * tabSize;
-                        layoutConfig.m_xAdvance = tabs > layoutConfig.m_xAdvance ? tabs : layoutConfig.m_xAdvance + tabSize;
-                    }
-                    else if (layoutConfig.m_monoSpacing != 0)
-                    {
-                        float monoAdjustment     = layoutConfig.m_monoSpacing - monoAdvance;
-                        layoutConfig.m_xAdvance += (monoAdjustment + layoutConfig.m_cSpacing);
-                        if (isWhiteSpace || currentRune.value == 0x200B)
-                            layoutConfig.m_xAdvance += textBaseConfiguration.wordSpacing * currentEmScale;
-                    }
-                    else
-                    {
-                        layoutConfig.m_xAdvance += (glyphOTF.xAdvance * layoutConfig.m_fxScale) * currentElementScale +
-                                                   boldSpacingAdjustment * currentEmScale + layoutConfig.m_cSpacing;
-
-                        if (isWhiteSpace || currentRune.value == 0x200B)
-                            layoutConfig.m_xAdvance += textBaseConfiguration.wordSpacing * currentEmScale;
-                    }
-                    #endregion XAdvance, Tabulation & Stops
-
-                    #region Check for Line Feed and Last Character
-                    if (isLineStart)
-                        isLineStart     = false;
-                    currentLineHeight   = (currentFont.fontExtents.ascender - currentFont.fontExtents.descender) * baseScale;
-                    var ascentLineDelta = maxLineAscender - currentFont.fontExtents.ascender * baseScale;
-                    var decentLineDelta = currentFont.fontExtents.descender * baseScale - maxLineDescender;
-                    //if (currentRune.value == 10 || currentRune.value == 11 || currentRune.value == 0x03 || currentRune.value == 0x2028 ||
-                    //    currentRune.value == 0x2029 || textConfiguration.m_characterCount == calliString.Length - 1)
-                    if (currentRune.value == 10)
-                    {
-                        var renderGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
-                        var overrideMode     = layoutConfig.m_lineJustification;
-                        if (overrideMode == HorizontalAlignmentOptions.Justified)
-                        {
-                            // Don't perform justified spacing for the last line in the paragraph.
-                            overrideMode = HorizontalAlignmentOptions.Left;
-                        }
-                        ApplyHorizontalAlignmentToGlyphs(ref renderGlyphsLine,
-                                                         ref characterGlyphIndicesWithPreceedingSpacesInLine,
-                                                         textBaseConfiguration.maxLineWidth,
-                                                         overrideMode);
-                        startOfLineGlyphIndex = renderGlyphs.Length;
-                        if (!isFirstLine)
-                        {
-                            accumulatedVerticalOffset += currentLineHeight + ascentLineDelta;
-                            if (lastCommittedStartOfLineGlyphIndex != startOfLineGlyphIndex)
-                            {
-                                ApplyVerticalOffsetToGlyphs(ref renderGlyphsLine, accumulatedVerticalOffset);
-                                lastCommittedStartOfLineGlyphIndex = startOfLineGlyphIndex;
-                            }
-                        }
-                        accumulatedVerticalOffset += decentLineDelta;
-                        //apply user configurable line and paragraph spacing
-                        accumulatedVerticalOffset +=
-                            (textBaseConfiguration.lineSpacing +
-                             (currentRune.value == 10 || currentRune.value == 0x2029 ? textBaseConfiguration.paragraphSpacing : 0)) * currentEmScale;
-
-                        //reset line status
-                        maxLineAscender  = float.MinValue;
-                        maxLineDescender = float.MaxValue;
-
-                        isFirstLine  = false;
-                        isLineStart  = true;
-                        bottomAnchor = GetBottomAnchorForConfig(ref currentFont, textBaseConfiguration.verticalAlignment, baseScale);
-
-                        layoutConfig.m_xAdvance = layoutConfig.m_tagIndent;
-                        previousRune            = currentRune;
-                        continue;
-                    }
-                    #endregion
-
-                    #region Word Wrapping
-                    // Handle word wrap
-                    if (textBaseConfiguration.maxLineWidth < float.MaxValue &&
-                        textBaseConfiguration.maxLineWidth > 0 &&
-                        layoutConfig.m_xAdvance > textBaseConfiguration.maxLineWidth)
-                    {
-                        bool dropSpace = false;
-
-                        if (currentRune.value == 32 && previousRune.value != 32)
-                        {
-                            // What pushed us past the line width was a space character.
-                            // The previous character was not a space, and we don't
-                            // want to render this character at the start of the next line.
-                            // We drop this space character instead and allow the next
-                            // character to line-wrap, space or not.
-                            dropSpace = true;
-                        }
-
-                        var yOffsetChange = 0f;  //font.lineHeight * currentElementScale;
-                                                 // TODO this line should be later replaced with renderGlyphs
-                        var xOffsetChange = renderGlyphs[lastWordStartCharacterGlyphIndex].blPosition.x - bottomShear - layoutConfig.m_tagIndent;
-                        if (xOffsetChange > 0 && !dropSpace)  // Always allow one visible character
-                        {
-                            // Finish line based on alignment
-                            var renderGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, lastWordStartCharacterGlyphIndex - startOfLineGlyphIndex);
-                            ApplyHorizontalAlignmentToGlyphs(ref renderGlyphsLine,
-                                                             ref characterGlyphIndicesWithPreceedingSpacesInLine,
-                                                             textBaseConfiguration.maxLineWidth,
-                                                             layoutConfig.m_lineJustification);
-
-                            if (!isFirstLine)
-                            {
-                                accumulatedVerticalOffset += currentLineHeight + ascentLineDelta;
-                                ApplyVerticalOffsetToGlyphs(ref renderGlyphsLine, accumulatedVerticalOffset);
-                                lastCommittedStartOfLineGlyphIndex = startOfLineGlyphIndex;
-                            }
-                            accumulatedVerticalOffset += decentLineDelta;  // Todo: Delta should be computed per glyph
-                                                                           //apply user configurable line and paragraph spacing
-                            accumulatedVerticalOffset += textBaseConfiguration.lineSpacing * currentEmScale;
-
-                            //reset line status
-                            maxLineAscender  = float.MinValue;
-                            maxLineDescender = float.MaxValue;
-
-                            startOfLineGlyphIndex = lastWordStartCharacterGlyphIndex;
-                            isLineStart           = true;
-                            isFirstLine           = false;
-
-                            layoutConfig.m_xAdvance -= xOffsetChange;
-
-                            // Adjust the vertices of the previous render glyphs in the word
-                            ApplyOffsetChange(ref renderGlyphs, lastWordStartCharacterGlyphIndex, xOffsetChange, yOffsetChange);
-                        }
-                    }
-                    //Detect start of word
-                    if (currentRune.value == 32 ||  //Space
-                        currentRune.value == 9 ||  //Tab
-                        currentRune.value == 45 ||  //Hyphen Minus
-                        currentRune.value == 173 ||  //Soft hyphen
-                        currentRune.value == 8203 ||  //Zero width space
-                        currentRune.value == 8204 ||  //Zero width non-joiner
-                        currentRune.value == 8205)  //Zero width joiner
-                    {
-                        lastWordStartCharacterGlyphIndex = renderGlyphs.Length;
-                    }
-                    #endregion
-                    previousRune = currentRune;
-                    k++;
+                    pen += new float2(glyphOTF.xAdvance, glyphOTF.yAdvance);
                 }
-
-                var finalRenderGlyphsLine = renderGlyphs.AsNativeArray().GetSubArray(startOfLineGlyphIndex, renderGlyphs.Length - startOfLineGlyphIndex);
-                {
-                    var overrideMode = layoutConfig.m_lineJustification;
-                    if (overrideMode == HorizontalAlignmentOptions.Justified)
-                    {
-                        // Don't perform justified spacing for the last line.
-                        overrideMode = HorizontalAlignmentOptions.Left;
-                    }
-                    ApplyHorizontalAlignmentToGlyphs(ref finalRenderGlyphsLine,
-                                                     ref characterGlyphIndicesWithPreceedingSpacesInLine,
-                                                     textBaseConfiguration.maxLineWidth,
-                                                     overrideMode);
-                    if (!isFirstLine)
-                    {
-                        accumulatedVerticalOffset += currentLineHeight;
-                        ApplyVerticalOffsetToGlyphs(ref finalRenderGlyphsLine, accumulatedVerticalOffset);
-                    }
-                }
-                isFirstLine = false;
-                ApplyVerticalAlignmentToGlyphs(ref renderGlyphs, topAnchor, bottomAnchor, accumulatedVerticalOffset, textBaseConfiguration.verticalAlignment);
 
                 // Remove all zero-sized glyphs since we don't rasterize those.
                 {

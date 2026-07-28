@@ -129,8 +129,11 @@ namespace Latios.Kinemation.Systems
             var groupedSkinningRequestsStartsAndCounts   = new NativeList<int2>(state.WorldUpdateAllocator);
             var groupedSkinningRequests                  = new NativeList<MeshSkinningRequest>(state.WorldUpdateAllocator);
             var skeletonEntityToSkinningRequestsGroupMap = new NativeHashMap<Entity, int>(1, state.WorldUpdateAllocator);
-            var bufferLayouts                            = new NativeReference<BufferLayouts>(state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
-            var deformClassificationMap                  = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true);
+            // If the jobs throw an exception, BufferLayouts could be left in a really bad state, that causes us to make bad allocation attempts against the GPU.
+            // Some graphics drivers completely crap out because of this. Unity doesn't always have safeguards either. So we need to protect the drivers.
+            // Thus we clear memory here rather than leave it uninitialized.
+            var bufferLayouts           = new NativeReference<BufferLayouts>(state.WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
+            var deformClassificationMap = api.worldBlackboardEntity.GetCollectionComponent<DeformClassificationMap>(true);
 
             var collectJh = new FindMeshChunksNeedingSkinningJob
             {
@@ -182,8 +185,11 @@ namespace Latios.Kinemation.Systems
         public WriteState Write(ref SystemState state, ref CollectState collectState)
         {
             var layouts = collectState.layouts.Value;
-            if (layouts.requiredUploadTransforms == 0)
+            if (!layouts.isValid || layouts.requiredUploadTransforms == 0)
             {
+                if (!layouts.isValid)
+                    UnityEngine.Debug.LogError("An exception was thrown in a skinning job. Therefore, skinning will not be applied this dispatch pass.");
+
                 // skip rest of loop.
                 return default;
             }
@@ -464,6 +470,8 @@ namespace Latios.Kinemation.Systems
             public uint batchSkinningHeadersCount;
             public uint expansionHeadersCount;
             public uint meshSkinningCommandsCount;
+
+            public bool isValid;
         }
         #endregion
 
@@ -1906,6 +1914,8 @@ namespace Latios.Kinemation.Systems
                     batchSkinningHeadersCount = running.batchSkinningHeadersCount,
                     expansionHeadersCount     = running.expansionHeadersCount,
                     meshSkinningCommandsCount = running.meshSkinningCommandsCount,
+
+                    isValid = true
                 };
                 maxData.ValueRW.maxRequiredBoneTransformsForVertexSkinning += running.meshSkinningExtraBoneTransformsCount;
             }

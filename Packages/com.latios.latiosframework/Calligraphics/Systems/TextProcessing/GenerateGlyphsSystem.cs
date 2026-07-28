@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
 using Unity.Profiling;
 
 namespace Latios.Calligraphics.Systems
@@ -47,42 +48,39 @@ namespace Latios.Calligraphics.Systems
 
             var glyphTable = latiosWorld.worldBlackboardEntity.GetCollectionComponent<GlyphTable>(false);
 
-            int entityCount        = m_query.CalculateEntityCountWithoutFiltering();
             var chunkCount         = m_query.CalculateChunkCountWithoutFiltering();
             var missingGlyphStream = new NativeStream(chunkCount, state.WorldUpdateAllocator);
-            var glyphOTFStream     = new NativeStream(entityCount, state.WorldUpdateAllocator);
-            var xmlTagStream       = new NativeStream(entityCount, state.WorldUpdateAllocator);
+            var glyphOTFStream     = new NativeStream(chunkCount, state.WorldUpdateAllocator);
+            var xmlTagStream       = new NativeStream(chunkCount, state.WorldUpdateAllocator);
 
-            var firstEntityIndexInChunk = m_query.CalculateBaseEntityIndexArrayAsync(state.WorldUpdateAllocator, state.Dependency, out JobHandle firstEntityJH);
+            var inputJh = state.Dependency;
 
             //optional single threaded job to pre-allcoate RenderGlyphbuffer...pays off when spawning a lot of new TextRenderer
-            var allocateJH = new AllocateRenderGlyphsJob
+            var allocateBuffersJh = new AllocateRenderGlyphsJob
             {
                 calliByteHandle   = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
                 renderGlyphHandle = SystemAPI.GetBufferTypeHandle<RenderGlyph>(false),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.Schedule(m_query, state.Dependency);
+            }.Schedule(m_query, inputJh);
 
-            state.Dependency = new ExtractTagsJob
+            var tagsJh = new ExtractTagsJob
             {
-                firstEntityIndexInChunk     = firstEntityIndexInChunk,
                 xmlTagStream                = xmlTagStream.AsWriter(),
                 calliByteHandle             = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
                 textBaseConfigurationHandle = SystemAPI.GetComponentTypeHandle<TextBaseConfiguration>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.ScheduleParallel(m_query, firstEntityJH);
+            }.ScheduleParallel(m_query, inputJh);
 
-            state.Dependency = new ShapeJob
+            var shapeJh = new ShapeJob
             {
                 shapeMarker  = sShapeMarker,
                 bufferMarker = sBufferMarker,
 
-                firstEntityIndexInChunk = firstEntityIndexInChunk,
-                glyphOTFStream          = glyphOTFStream.AsWriter(),
-                missingGlyphsStream     = missingGlyphStream.AsWriter(),
-                xmlTagStream            = xmlTagStream.AsReader(),
+                glyphOTFStream      = glyphOTFStream.AsWriter(),
+                missingGlyphsStream = missingGlyphStream.AsWriter(),
+                xmlTagStream        = xmlTagStream.AsReader(),
 
                 glyphTable                  = glyphTable,
                 fontTable                   = fontTable,
@@ -90,18 +88,18 @@ namespace Latios.Calligraphics.Systems
                 calliByteHandle             = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.ScheduleParallel(m_query, tagsJh);
 
-            var missingGlyphsToAdd = new NativeList<GlyphTable.Key>(state.WorldUpdateAllocator);
-            state.Dependency       = new AllocateNewGlyphsJob
+            var missingGlyphsToAdd  = new NativeList<GlyphTable.Key>(state.WorldUpdateAllocator);
+            var allocateNewGlyphsJh = new AllocateNewGlyphsJob
             {
                 fontTable           = fontTable,
                 glyphTable          = glyphTable,
                 missingGlyphsStream = missingGlyphStream.AsReader(),
                 missingGlyphsToAdd  = missingGlyphsToAdd
-            }.Schedule(state.Dependency);
+            }.Schedule(shapeJh);
 
-            // Todo: As of harfbuzz 12.0.0, a Face object contains various table accerators for each glyph type.
+            // Todo: As of harfbuzz 12.0.0, a Face object contains various table accelerators for each glyph type.
             // For example, true-type outlines have a separate accelerator than COLR. Each accelerator contains
             // a scratch buffer which is acquired by mutex. And fetching the glyph extents locks this mutex.
             // Based on this, the most likely way to parallelize capturing glyph extents would be to group new
@@ -113,15 +111,14 @@ namespace Latios.Calligraphics.Systems
             // first one is done, the CPU runs into some kind of thrashing situation. This requires more
             // investigation and testing to characterize what operations are actually parallelizable. In the
             // meantime, we run this job single-threaded.
-            state.Dependency = new PopulateNewGlyphsJob
+            var populateJh = new PopulateNewGlyphsJob
             {
                 fontTable     = fontTable,
                 glyphEntries  = glyphTable.entries.AsDeferredJobArray(),
                 missingGlyphs = missingGlyphsToAdd.AsDeferredJobArray()
                                 //}.Schedule(missingGlyphsToAdd, 4, state.Dependency);
-            }.Schedule(state.Dependency);
+            }.Schedule(allocateNewGlyphsJh);
 
-            state.Dependency = JobHandle.CombineDependencies(state.Dependency, allocateJH);
             state.Dependency = new GenerateRenderGlyphsJob
             {
                 renderGlyphHandle         = SystemAPI.GetBufferTypeHandle<RenderGlyph>(false),
@@ -130,9 +127,8 @@ namespace Latios.Calligraphics.Systems
                 fontTable  = fontTable,
                 glyphTable = glyphTable,
 
-                glyphOTFStream          = glyphOTFStream.AsReader(),
-                xmlTagStream            = xmlTagStream.AsReader(),
-                firstEntityIndexInChunk = firstEntityIndexInChunk,
+                glyphOTFStream = glyphOTFStream.AsReader(),
+                xmlTagStream   = xmlTagStream.AsReader(),
 
                 calliByteHandle             = SystemAPI.GetBufferTypeHandle<CalliByte>(true),
                 textBaseConfigurationHandle = SystemAPI.GetComponentTypeHandle<TextBaseConfiguration>(true),
@@ -141,7 +137,18 @@ namespace Latios.Calligraphics.Systems
                 textColorGradientLookup = SystemAPI.GetBufferLookup<TextColorGradient>(true),
 
                 lastSystemVersion = m_skipChangeFilter ? 0 : state.LastSystemVersion,
-            }.ScheduleParallel(m_query, state.Dependency);
+            }.ScheduleParallel(m_query, JobHandle.CombineDependencies(populateJh, allocateBuffersJh));
+        }
+
+        internal struct XMLTagStreamHeader
+        {
+            public int tagCount;
+        }
+
+        internal struct GlyphOTFStreamHeader
+        {
+            public float2 penStart;
+            public int    glyphCount;
         }
     }
 }

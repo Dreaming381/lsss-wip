@@ -275,21 +275,84 @@ namespace Latios.Calligraphics.Systems
                 }
             }
 
-            // Use LayoutConfig to change case prior to hb-shape. Works only for latin text
+            // Use LayoutConfig to change case prior to hb-shape (works only for latin text), and to track
+            // the subset of rich-text-driven layout state needed to make word-wrap / line-break / vertical-
+            // layout decisions during shaping: font size, char/mono spacing, indent, line-justification, and
+            // baseline offset. Purely visual state (colors, gradients, FX rotation/scale, underline/
+            // strikethrough) stays in GenerateRenderGlyphsJob's own (larger) LayoutConfig.
             // Should this use cases really be in scope of Latios.Calligraphics?
             struct LayoutConfig
             {
                 public FontStyles m_fontStyles;
 
+                public float                     m_currentFontSize;
+                public FixedStack512Bytes<float> m_sizeStack;
+
+                public float m_cSpacing;
+                public float m_monoSpacing;
+                public float m_xAdvance;
+
+                public float                     m_tagLineIndent;
+                public float                     m_tagIndent;
+                public FixedStack512Bytes<float> m_indentStack;
+
+                public HorizontalAlignmentOptions                     m_lineJustification;
+                public FixedStack512Bytes<HorizontalAlignmentOptions> m_lineJustificationStack;
+
+                public float                     m_baselineOffset;
+                public FixedStack512Bytes<float> m_baselineOffsetStack;
+
                 public LayoutConfig(in TextBaseConfiguration textBaseConfiguration)
                 {
                     m_fontStyles = textBaseConfiguration.fontStyles;
+
+                    m_currentFontSize = textBaseConfiguration.fontSize;
+                    m_sizeStack       = default;
+                    m_sizeStack.Add(m_currentFontSize);
+
+                    m_cSpacing    = 0;
+                    m_monoSpacing = 0;
+                    m_xAdvance    = 0;
+
+                    m_tagLineIndent = 0;
+                    m_tagIndent     = 0;
+                    m_indentStack   = default;
+                    m_indentStack.Add(m_tagIndent);
+
+                    m_lineJustification      = textBaseConfiguration.lineJustification;
+                    m_lineJustificationStack = default;
+                    m_lineJustificationStack.Add(m_lineJustification);
+
+                    m_baselineOffset      = 0;
+                    m_baselineOffsetStack = default;
+                    m_baselineOffsetStack.Add(m_baselineOffset);
                 }
                 public void Reset(in TextBaseConfiguration textBaseConfiguration)
                 {
                     m_fontStyles = textBaseConfiguration.fontStyles;
+
+                    m_currentFontSize = textBaseConfiguration.fontSize;
+                    m_sizeStack.Clear();
+                    m_sizeStack.Add(m_currentFontSize);
+
+                    m_cSpacing    = 0;
+                    m_monoSpacing = 0;
+                    m_xAdvance    = 0;
+
+                    m_tagLineIndent = 0;
+                    m_tagIndent     = 0;
+                    m_indentStack.Clear();
+                    m_indentStack.Add(m_tagIndent);
+
+                    m_lineJustification = textBaseConfiguration.lineJustification;
+                    m_lineJustificationStack.Clear();
+                    m_lineJustificationStack.Add(m_lineJustification);
+
+                    m_baselineOffset = 0;
+                    m_baselineOffsetStack.Clear();
+                    m_baselineOffsetStack.Add(0);
                 }
-                public void Update(ref XMLTag tag)
+                public void Update(ref XMLTag tag, in TextBaseConfiguration textBaseConfiguration)
                 {
                     switch (tag.tagType)
                     {
@@ -310,6 +373,160 @@ namespace Latios.Calligraphics.Systems
                                 m_fontStyles |= FontStyles.LowerCase;
                         }
                         break;
+                        case TagType.Size:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.unit)
+                                {
+                                    case TagUnitType.Pixels:
+                                        m_currentFontSize = tag.value.NumericalValue;
+                                        m_sizeStack.Add(m_currentFontSize);
+                                        return;
+                                    case TagUnitType.FontUnits:
+                                        m_currentFontSize = textBaseConfiguration.fontSize * tag.value.NumericalValue;
+                                        m_sizeStack.Add(m_currentFontSize);
+                                        return;
+                                    case TagUnitType.Percentage:
+                                        m_currentFontSize = textBaseConfiguration.fontSize * tag.value.NumericalValue / 100;
+                                        m_sizeStack.Add(m_currentFontSize);
+                                        return;
+                                }
+                            }
+                            else
+                                m_currentFontSize = m_sizeStack.RemoveExceptRoot();
+                            return;
+                        case TagType.Space:
+                            switch (tag.value.unit)
+                            {
+                                case TagUnitType.Pixels:
+                                    m_xAdvance += (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * tag.value.NumericalValue;
+                                    return;
+                                case TagUnitType.FontUnits:
+                                    m_xAdvance += (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * m_currentFontSize * tag.value.NumericalValue;
+                                    return;
+                                case TagUnitType.Percentage:
+                                    // Not applicable
+                                    return;
+                            }
+                            return;
+                        case TagType.Align:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.stringValue)
+                                {
+                                    case StringValue.left:  // <align=left>
+                                        m_lineJustification = HorizontalAlignmentOptions.Left;
+                                        break;
+                                    case StringValue.right:  // <align=right>
+                                        m_lineJustification = HorizontalAlignmentOptions.Right;
+                                        break;
+                                    case StringValue.center:  // <align=center>
+                                        m_lineJustification = HorizontalAlignmentOptions.Center;
+                                        break;
+                                    case StringValue.justified:  // <align=justified>
+                                        m_lineJustification = HorizontalAlignmentOptions.Justified;
+                                        break;
+                                }
+                                m_lineJustificationStack.Add(m_lineJustification);
+                                return;
+                            }
+                            else
+                                m_lineJustification = m_lineJustificationStack.RemoveExceptRoot();
+                            return;
+                        case TagType.CSpace:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.unit)
+                                {
+                                    case TagUnitType.Pixels:
+                                        m_cSpacing = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * tag.value.NumericalValue;
+                                        return;
+                                    case TagUnitType.FontUnits:
+                                        m_cSpacing = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * m_currentFontSize * tag.value.NumericalValue;
+                                        return;
+                                    case TagUnitType.Percentage:
+                                        return;
+                                }
+                            }
+                            else
+                                m_cSpacing = 0;
+                            return;
+                        case TagType.Mspace:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.unit)
+                                {
+                                    case TagUnitType.Pixels:
+                                        m_monoSpacing = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * tag.value.NumericalValue;
+                                        return;
+                                    case TagUnitType.FontUnits:
+                                        m_monoSpacing = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * m_currentFontSize * tag.value.NumericalValue;
+                                        return;
+                                    case TagUnitType.Percentage:
+                                        return;
+                                }
+                            }
+                            else
+                                m_monoSpacing = 0;
+                            return;
+                        case TagType.Indent:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.unit)
+                                {
+                                    case TagUnitType.Pixels:
+                                        m_tagIndent = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * tag.value.NumericalValue;
+                                        break;
+                                    case TagUnitType.FontUnits:
+                                        m_tagIndent = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * m_currentFontSize * tag.value.NumericalValue;
+                                        break;
+                                    case TagUnitType.Percentage:
+                                        break;
+                                }
+                                m_indentStack.Add(m_tagIndent);
+                                m_xAdvance = m_tagIndent;
+                            }
+                            else
+                                m_tagIndent = m_indentStack.RemoveExceptRoot();
+                            return;
+                        case TagType.LineIndent:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.unit)
+                                {
+                                    case TagUnitType.Pixels:
+                                        m_tagLineIndent = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * tag.value.NumericalValue;
+                                        break;
+                                    case TagUnitType.FontUnits:
+                                        m_tagLineIndent = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * m_currentFontSize * tag.value.NumericalValue;
+                                        break;
+                                    case TagUnitType.Percentage:
+                                        break;
+                                }
+                                m_xAdvance += m_tagLineIndent;
+                            }
+                            else
+                                m_tagLineIndent = 0;
+                            return;
+                        case TagType.VOffset:
+                            if (!tag.isClosing)
+                            {
+                                switch (tag.value.unit)
+                                {
+                                    case TagUnitType.Pixels:
+                                        m_baselineOffset = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * tag.value.NumericalValue;
+                                        break;
+                                    case TagUnitType.FontUnits:
+                                        m_baselineOffset = (textBaseConfiguration.isOrthographic ? 1 : 0.1f) * m_currentFontSize * tag.value.NumericalValue;
+                                        break;
+                                    case TagUnitType.Percentage:
+                                        break;
+                                }
+                                m_baselineOffsetStack.Add(m_baselineOffset);
+                            }
+                            else
+                                m_baselineOffset = m_baselineOffsetStack.RemoveExceptRoot();
+                            return;
                     }
                 }
             }

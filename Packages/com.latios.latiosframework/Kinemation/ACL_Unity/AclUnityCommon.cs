@@ -102,7 +102,11 @@ namespace AclUnity
             return dllName;
         }
 
-        internal const string dllName    = "AclUnity";
+#if UNITY_IOS && !UNITY_EDITOR
+        internal const string dllName = "__Internal";
+#else
+        internal const string dllName = "AclUnity";
+#endif
         internal const string dllNameAVX = "AclUnity_AVX";
 
         static class NoExtensions

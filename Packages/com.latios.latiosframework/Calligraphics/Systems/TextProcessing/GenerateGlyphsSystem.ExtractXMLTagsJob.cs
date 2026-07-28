@@ -13,7 +13,6 @@ namespace Latios.Calligraphics.Systems
         internal partial struct ExtractTagsJob : IJobChunk
         {
             [NativeDisableParallelForRestriction] public NativeStream.Writer xmlTagStream;
-            [ReadOnly] public NativeArray<int>                               firstEntityIndexInChunk;
             [ReadOnly] public BufferTypeHandle<CalliByte>                    calliByteHandle;
             [ReadOnly] public ComponentTypeHandle<TextBaseConfiguration>     textBaseConfigurationHandle;
 
@@ -25,15 +24,15 @@ namespace Latios.Calligraphics.Systems
                 if (!chunk.DidChange(ref calliByteHandle, lastSystemVersion) && !chunk.DidChange(ref textBaseConfigurationHandle, lastSystemVersion))
                     return;
 
-                var firstEntityIndex = firstEntityIndexInChunk[unfilteredChunkIndex];
+                xmlTagStream.BeginForEachIndex(unfilteredChunkIndex);
                 //Debug.Log("Extract text segments job");
                 var calliBytesBuffers = chunk.GetBufferAccessor(ref calliByteHandle);
 
                 var m_htmlTag = new FixedString128Bytes();
                 for (int indexInChunk = 0; indexInChunk < chunk.Count; indexInChunk++)
                 {
-                    int entityIndex = firstEntityIndex + indexInChunk;
-                    xmlTagStream.BeginForEachIndex(entityIndex);
+                    ref var header  = ref xmlTagStream.Allocate<XMLTagStreamHeader>();
+                    header.tagCount = 0;
 
                     var calliBytesBuffer = calliBytesBuffers[indexInChunk];
 
@@ -45,7 +44,7 @@ namespace Latios.Calligraphics.Systems
                         var currentRune = rawCharacters.Current;
                         if (currentRune == '<')  // '<'
                         {
-                            if (RichTextParser.GetTag(in calliString, ref rawCharacters, previousRuneStartPosition, ref xmlTagStream, ref m_htmlTag))
+                            if (RichTextParser.GetTag(in calliString, ref rawCharacters, previousRuneStartPosition, ref xmlTagStream, ref header.tagCount, ref m_htmlTag))
                             {
                                 previousRuneStartPosition = rawCharacters.NextRuneByteIndex;
                                 continue;
@@ -55,8 +54,8 @@ namespace Latios.Calligraphics.Systems
                         }
                         previousRuneStartPosition = rawCharacters.NextRuneByteIndex;
                     }
-                    xmlTagStream.EndForEachIndex();
                 }
+                xmlTagStream.EndForEachIndex();
             }
             public struct TextHelperStruct
             {
