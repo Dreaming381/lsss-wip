@@ -9,8 +9,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Profiling;
 
-using static Unity.Entities.SystemAPI;
-
 //The IFindPairsProcessors only force safeToSpawn from true to false.
 //Because of this, it is safe to use the Unsafe parallel schedulers.
 //However, if the logic is ever modified, this decision needs to be re-evaluated.
@@ -19,52 +17,39 @@ namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
-    public partial struct CheckSpawnPointIsSafeSystem : ISystem
+    public partial struct CheckSpawnPointIsSafeSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api = this.GetApi(ref state);
             new SpawnPointResetFlagsJob().ScheduleParallel();
 
-            var processor = new SpawnPointIsNotSafeProcessor
-            {
-                safeToSpawnLookup = GetComponentLookup<SafeToSpawn>()
-            };
+            var processor      = new SpawnPointIsNotSafeProcessor().Inject(api);
+            var closeProcessor = new SpawnPointsAreTooCloseProcessor().Inject(api);
 
-            var closeProcessor = new SpawnPointsAreTooCloseProcessor
-            {
-                safeToSpawnLookup = processor.safeToSpawnLookup
-            };
-
-            var spawnLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
+            var spawnLayer   = api.sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
             state.Dependency = Physics.FindPairs(spawnLayer, closeProcessor).ScheduleParallelUnsafe(state.Dependency);
 
-            var wallLayer    = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var wallLayer    = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             state.Dependency = Physics.FindPairs(spawnLayer, wallLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            var bulletLayer  = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var bulletLayer  = api.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             state.Dependency = Physics.FindPairs(spawnLayer, bulletLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            var explosionLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            var explosionLayer = api.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
             state.Dependency   = Physics.FindPairs(spawnLayer, explosionLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            var wormholeLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            var wormholeLayer = api.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             state.Dependency  = Physics.FindPairs(spawnLayer, wormholeLayer, processor).ScheduleParallelUnsafe(state.Dependency);
 
-            var shipLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var shipLayer = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
 
             state.Dependency = Physics.FindPairs(spawnLayer, shipLayer, processor).ScheduleParallelUnsafe(state.Dependency);
         }
@@ -76,9 +61,9 @@ namespace Lsss
         }
 
         //Assumes A is SpawnPoint
-        struct SpawnPointIsNotSafeProcessor : IFindPairsProcessor
+        partial struct SpawnPointIsNotSafeProcessor : IFindPairsProcessor, IInjectable
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<SafeToSpawn> safeToSpawnLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<SafeToSpawn> safeToSpawnLookup;
 
             public void Execute(in FindPairsResult result)
             {
@@ -87,9 +72,9 @@ namespace Lsss
             }
         }
 
-        struct SpawnPointsAreTooCloseProcessor : IFindPairsProcessor
+        partial struct SpawnPointsAreTooCloseProcessor : IFindPairsProcessor, IInjectable
         {
-            [NativeDisableParallelForRestriction] public ComponentLookup<SafeToSpawn> safeToSpawnLookup;
+            [NativeDisableParallelForRestriction, Inject] ComponentLookup<SafeToSpawn> safeToSpawnLookup;
 
             public void Execute(in FindPairsResult result)
             {
@@ -100,38 +85,31 @@ namespace Lsss
     }
 
     [BurstCompile]
-    public partial struct CheckSpawnPointIsSafeSystem2 : ISystem
+    public partial struct CheckSpawnPointIsSafeSystem2 : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         EntityQuery m_spawnerQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
 
             m_spawnerQuery = state.Fluent().With<SafeToSpawn>().With<SpawnTimes>(true).PatchQueryForBuildingCollisionLayer().Build();
             state.RequireForUpdate(m_spawnerQuery);
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
-        }
-
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var spawnLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
+            var api        = this.GetApi(ref state);
+            var spawnLayer = api.sceneBlackboardEntity.GetCollectionComponent<SpawnPointCollisionLayer>(true).layer;
 
             var hits         = CollectionHelper.CreateNativeArray<bool>(spawnLayer.count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
             state.Dependency = new InitHitsArrayJob
             {
                 hitArray   = hits,
                 spawnLayer = spawnLayer,
-                lookup     = GetComponentLookup<SpawnTimes>(true)
-            }.ScheduleParallel(hits.Length, 32, state.Dependency);
+            }.Inject(api).ScheduleParallel(hits.Length, 32, state.Dependency);
 
             //state.Dependency = new LogInitialCandidatesJob { hitArray = hits }.Schedule(state.Dependency);
 
@@ -146,21 +124,21 @@ namespace Lsss
                 spawnPointLayer = spawnLayer
             };
 
-            queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            queryJob.otherLayer = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
-            queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            queryJob.otherLayer = api.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
             state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
-            queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
+            queryJob.otherLayer = api.sceneBlackboardEntity.GetCollectionComponent<WormholeCollisionLayer>(true).layer;
             state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
-            queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            queryJob.otherLayer = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
             state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
             //state.Dependency = new LogPreBulletsCandidatesJob { hitArray = hits }.Schedule(state.Dependency);
 
-            queryJob.otherLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            queryJob.otherLayer = api.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
             state.Dependency    = queryJob.ScheduleParallelByRef(hits.Length, 1, state.Dependency);
 
             //state.Dependency = new LogFinalCandidatesJob { hitArray = hits }.Schedule(state.Dependency);
@@ -169,16 +147,15 @@ namespace Lsss
             {
                 hitArray        = hits,
                 spawnPointLayer = spawnLayer,
-                lookup          = GetComponentLookup<SafeToSpawn>(false)
-            }.ScheduleParallel(hits.Length, 32, state.Dependency);
+            }.Inject(api).ScheduleParallel(hits.Length, 32, state.Dependency);
         }
 
         [BurstCompile]
-        partial struct InitHitsArrayJob : IJobFor
+        partial struct InitHitsArrayJob : IJobFor, IInjectable
         {
-            [ReadOnly] public ComponentLookup<SpawnTimes> lookup;
-            [ReadOnly] public CollisionLayer              spawnLayer;
-            public NativeArray<bool>                      hitArray;
+            [ReadOnly, Inject] ComponentLookup<SpawnTimes> lookup;
+            [ReadOnly] public CollisionLayer               spawnLayer;
+            public NativeArray<bool>                       hitArray;
             public void Execute(int index) => hitArray[index] = lookup[spawnLayer.colliderBodies[index].entity].pauseTime > 0f;
         }
 
@@ -221,11 +198,11 @@ namespace Lsss
         }
 
         [BurstCompile]
-        struct WriteSpawnPointStatusesJob : IJobFor
+        partial struct WriteSpawnPointStatusesJob : IJobFor, IInjectable
         {
-            [ReadOnly] public NativeArray<bool>                                       hitArray;
-            [ReadOnly] public CollisionLayer                                          spawnPointLayer;
-            [NativeDisableParallelForRestriction] public ComponentLookup<SafeToSpawn> lookup;
+            [ReadOnly] public NativeArray<bool>                                               hitArray;
+            [ReadOnly] public CollisionLayer                                                  spawnPointLayer;
+            [NativeDisableParallelForRestriction, Inject] public ComponentLookup<SafeToSpawn> lookup;
 
             public void Execute(int index)
             {

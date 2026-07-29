@@ -6,33 +6,25 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct BulletVsWallSystem : ISystem
+    public partial struct BulletVsWallSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var api = this.GetApi(ref state);
+            var dcb = api.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
-            var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
-            var wallLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var bulletLayer = api.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var wallLayer   = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
             var processor = new DestroyBulletsThatHitWallsProcessor { dcb = dcb };
 

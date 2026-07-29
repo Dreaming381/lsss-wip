@@ -6,46 +6,34 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct ShipVsExplosionDamageSystem : ISystem
+    public partial struct ShipVsExplosionDamageSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var shipLayer      = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
-            var explosionLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
+            var api            = this.GetApi(ref state);
+            var shipLayer      = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var explosionLayer = api.sceneBlackboardEntity.GetCollectionComponent<ExplosionCollisionLayer>(true).layer;
 
-            var processor = new DamageHitShipsProcessor
-            {
-                explosionDamageLookup = GetComponentLookup<Damage>(true),
-                shipHealthLookup      = GetComponentLookup<ShipHealth>(),
-            };
+            var processor = new DamageHitShipsProcessor().Inject(api);
 
             state.Dependency = Physics.FindPairs(explosionLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
         }
 
         //Assumes A is explosion and B is ship.
-        struct DamageHitShipsProcessor : IFindPairsProcessor
+        partial struct DamageHitShipsProcessor : IFindPairsProcessor, IInjectable
         {
-            public PhysicsComponentLookup<ShipHealth> shipHealthLookup;
-            [ReadOnly] public ComponentLookup<Damage> explosionDamageLookup;
+            [Inject] PhysicsComponentLookup<ShipHealth> shipHealthLookup;
+            [ReadOnly, Inject] ComponentLookup<Damage>  explosionDamageLookup;
 
             public void Execute(in FindPairsResult result)
             {

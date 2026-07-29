@@ -32,6 +32,7 @@ namespace Latios.Calligraphics.Systems
             UnsafeText                    cleanedString;
             UnsafeList<XMLTag>            xmlTags;
             UnsafeList<GlyphOTF>          outputGlyphString;
+            UnsafeList<ShapeSpan>         shapeSpans;
 
             [NativeSetThreadIndex]
             int threadIndex;
@@ -48,6 +49,7 @@ namespace Latios.Calligraphics.Systems
                     cleanedString         = new UnsafeText(1024, Allocator.Temp);
                     xmlTags               = new UnsafeList<XMLTag>(64, Allocator.Temp);
                     outputGlyphString     = new UnsafeList<GlyphOTF>(1024, Allocator.Temp);
+                    shapeSpans            = new UnsafeList<ShapeSpan>(16, Allocator.Temp);
                 }
                 chunkMissingGlyphsSet.Clear();
                 cleanedString.Clear();
@@ -114,7 +116,7 @@ namespace Latios.Calligraphics.Systems
                     // Word-wrap and output
                     ref var header = ref glyphOTFStream.Allocate<GlyphOTFStreamHeader>();
                     header         = default;
-                    ApplyWordWrapAndLayout(ref outputGlyphString, ref cleanedString, ref xmlTags, in textBaseConfiguration, ref layoutConfig, ref header);
+                    ApplyWordWrapAndLayout(ref outputGlyphString, ref cleanedString, ref xmlTags, in shapeSpans, in textBaseConfiguration, ref layoutConfig, ref header);
 
                     // Write out glyphs to stream, and detect missing glyphs
                     foreach (var glyphOTF in outputGlyphString)
@@ -133,6 +135,7 @@ namespace Latios.Calligraphics.Systems
 
                     cleanedString.Clear();
                     outputGlyphString.Clear();
+                    shapeSpans.Clear();
                 }
                 //add missing glyphs identifed in chunks processed by this thread to missingGlyphs
                 glyphOTFStream.EndForEachIndex();
@@ -279,6 +282,15 @@ namespace Latios.Calligraphics.Systems
                 buffer.AddText(text, (uint)startIndex, length);
                 buffer.Language = language;
                 buffer.GuessSegmentProperties();
+
+                buffer.GetSegmentProperties(out var segmentProperties);
+                shapeSpans.Add(new ShapeSpan
+                {
+                    clusterStart = startIndex,
+                    direction    = segmentProperties.direction,
+                    script       = segmentProperties.script,
+                    language     = segmentProperties.language,
+                });
 
                 //a number of white spaces are regretably not replaced by "space" (needs to be handled in GenerateGlyphJob)
                 //https://github.com/harfbuzz/harfbuzz/commit/81ef4f407d9c7bd98cf62cef951dc538b13442eb#commitcomment-9469767

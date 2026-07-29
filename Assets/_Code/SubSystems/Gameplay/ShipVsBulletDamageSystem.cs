@@ -8,43 +8,35 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct ShipVsBulletDamageSystem : ISystem
+    public partial struct ShipVsBulletDamageSystem : ISystem, ILatiosApi
     {
         int m_frameId;
-
-        LatiosWorldUnmanaged latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var shipLayer   = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
-            var bulletLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
+            var api         = this.GetApi(ref state);
+            var shipLayer   = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var bulletLayer = api.sceneBlackboardEntity.GetCollectionComponent<BulletCollisionLayer>(true).layer;
 
-            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
+            var icb = api.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
 
             new BulletFirerJob { frameId = m_frameId, lastSystemVersion = state.LastSystemVersion }.ScheduleParallel();
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
-                bulletDamageLookup        = GetComponentLookup<Damage>(true),
-                bulletFirerLookup         = GetComponentLookup<BulletFirer>(),
-                timeToLiveLookup          = GetComponentLookup<TimeToLive>(false),
-                shipHealthLookup          = GetComponentLookup<ShipHealth>(),
-                shipHitEffectPrefabLookup = GetComponentLookup<ShipHitEffectPrefab>(true),
-                icb                       = icb,
-                frameId                   = m_frameId
-            };
+                icb     = icb,
+                frameId = m_frameId
+            }.Inject(api);
 
             state.Dependency = Physics.FindPairs(bulletLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
 
@@ -77,14 +69,14 @@ namespace Lsss
         }
 
         //Assumes A is bullet and B is ship.
-        struct DamageHitShipsAndDestroyBulletProcessor : IFindPairsProcessor
+        partial struct DamageHitShipsAndDestroyBulletProcessor : IFindPairsProcessor, IInjectable
         {
-            public PhysicsComponentLookup<ShipHealth>              shipHealthLookup;
-            public PhysicsComponentLookup<BulletFirer>             bulletFirerLookup;
-            public PhysicsComponentLookup<TimeToLive>              timeToLiveLookup;
-            [ReadOnly] public ComponentLookup<Damage>              bulletDamageLookup;
-            [ReadOnly] public ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabLookup;
-            public int                                             frameId;
+            [Inject] PhysicsComponentLookup<ShipHealth>             shipHealthLookup;
+            [Inject] PhysicsComponentLookup<BulletFirer>            bulletFirerLookup;
+            [Inject] PhysicsComponentLookup<TimeToLive>             timeToLiveLookup;
+            [ReadOnly, Inject] ComponentLookup<Damage>              bulletDamageLookup;
+            [ReadOnly, Inject] ComponentLookup<ShipHitEffectPrefab> shipHitEffectPrefabLookup;
+            public int                                              frameId;
 
             public InstantiateCommandBufferCommand1<WorldTransformCommand>.ParallelWriter icb;
 

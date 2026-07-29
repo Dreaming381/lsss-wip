@@ -5,33 +5,24 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct UpdateTimeToLiveSystem : ISystem
+    public partial struct UpdateTimeToLiveSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var   dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
-            float dt  = Time.DeltaTime;
+            var api = this.GetApi(ref state);
+            var dcb = api.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
-            new Job { dcb = dcb, dt = dt }.ScheduleParallel();
+            new Job { dcb = dcb, dt = api.deltaTime }.ScheduleParallel();
         }
 
         [BurstCompile]

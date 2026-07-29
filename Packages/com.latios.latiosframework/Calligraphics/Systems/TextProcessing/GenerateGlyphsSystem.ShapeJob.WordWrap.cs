@@ -18,7 +18,7 @@ namespace Latios.Calligraphics.Systems
             // vertical alignment for one entity's fully-shaped GlyphOTF sequence.
             //
             // Results are baked straight into outputString's xAdvance/yAdvance fields (reinterpreted as
-            // fully-resolved, already-scaled pen-space deltas — see GlyphOTF) plus a per-entity starting
+            // fully-resolved, already-scaled pen-space deltas - see GlyphOTF) plus a per-entity starting
             // pen position. GenerateRenderGlyphsJob then only needs a cumulative sum over these to place
             // every glyph.
             //
@@ -29,6 +29,7 @@ namespace Latios.Calligraphics.Systems
             unsafe void ApplyWordWrapAndLayout(ref UnsafeList<GlyphOTF> outputString,
                                                ref UnsafeText cleanedString,
                                                ref UnsafeList<XMLTag>   xmlTags,
+                                               in UnsafeList<ShapeSpan> shapeSpans,
                                                in TextBaseConfiguration textBaseConfiguration,
                                                ref LayoutConfig layoutConfig,
                                                ref GlyphOTFStreamHeader header)
@@ -49,13 +50,16 @@ namespace Latios.Calligraphics.Systems
 
                 float currentEmScale = textBaseConfiguration.fontSize * 0.01f * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
 
+                int shapeSpanIndex     = 0;
+                var currentShapeSpan   = shapeSpans[0];
+                int nextShapeSpanStart = shapeSpanIndex + 1 < shapeSpans.Length ? shapeSpans[shapeSpanIndex + 1].clusterStart : int.MaxValue;
+
                 var glyphOTF0                    = outputString[0];
                 var currentFaceIndex             = glyphOTF0.glyphKey.faceIndex;
                 var currentFont                  = fontTable.GetOrCreateFont(currentFaceIndex, threadIndex);
                 var currentFontSamplingPointSize = glyphOTF0.glyphKey.GetSamplingSize();
                 currentFont.SetScale(currentFontSamplingPointSize, currentFontSamplingPointSize);
-                // Todo: Collect and pass in shape span data here instead of hardcoding.
-                currentFont.UpdateMetaData(Direction.LTR, Script.LATIN, Language.English);
+                currentFont.UpdateMetaData(currentShapeSpan.direction, currentShapeSpan.script, currentShapeSpan.language);
 
                 float baseScale = textBaseConfiguration.fontSize / currentFontSamplingPointSize * (textBaseConfiguration.isOrthographic ? 1 : 0.1f);
 
@@ -94,13 +98,27 @@ namespace Latios.Calligraphics.Systems
                     var glyphOTF = outputString[glyphIndex];
                     int cluster  = (int)glyphOTF.cluster;
 
+                    bool shapeSpanChanged = false;
+                    while (cluster >= nextShapeSpanStart)
+                    {
+                        shapeSpanIndex++;
+                        currentShapeSpan   = shapeSpans[shapeSpanIndex];
+                        nextShapeSpanStart = shapeSpanIndex + 1 < shapeSpans.Length ? shapeSpans[shapeSpanIndex + 1].clusterStart : int.MaxValue;
+                        shapeSpanChanged   = true;
+                    }
+
                     if (currentFaceIndex != glyphOTF.glyphKey.faceIndex || currentFontSamplingPointSize != glyphOTF.glyphKey.GetSamplingSize())
                     {
                         currentFaceIndex             = glyphOTF.glyphKey.faceIndex;
                         currentFont                  = fontTable.GetOrCreateFont(currentFaceIndex, threadIndex);
                         currentFontSamplingPointSize = glyphOTF.glyphKey.GetSamplingSize();
                         currentFont.SetScale(currentFontSamplingPointSize, currentFontSamplingPointSize);
-                        currentFont.UpdateMetaData(Direction.LTR, Script.LATIN, Language.English);
+                        currentFont.UpdateMetaData(currentShapeSpan.direction, currentShapeSpan.script, currentShapeSpan.language);
+                    }
+                    else if (shapeSpanChanged)
+                    {
+                        // Same font face, but direction/script/language changed.
+                        currentFont.UpdateMetaData(currentShapeSpan.direction, currentShapeSpan.script, currentShapeSpan.language);
                     }
                     glyphOTF.baseline        = currentFont.baseLine;
                     outputString[glyphIndex] = glyphOTF;
@@ -227,7 +245,7 @@ namespace Latios.Calligraphics.Systems
                             float xOffsetChange  = unalignedXOffsetChange + shiftJustApplied;
 
                             // Uses previousLineDecentLineDelta (the PREVIOUS line's own descent), not
-                            // decentLineDelta (this line's own, about to be closed) — see
+                            // decentLineDelta (this line's own, about to be closed) ï¿½ see
                             // previousLineDecentLineDelta's declaration.
                             float verticalDrop = previousLineDecentLineDelta + textBaseConfiguration.lineSpacing * currentEmScale;
                             if (!isFirstLine)
@@ -254,7 +272,7 @@ namespace Latios.Calligraphics.Systems
                         }
                     }
 
-                    if (IsBreakOpportunity(currentRune) && IsSafeClusterBoundary(ref outputString, glyphIndex))
+                    if (!layoutConfig.m_isNoBreak && IsBreakOpportunity(currentRune) && IsSafeClusterBoundary(ref outputString, glyphIndex))
                     {
                         lastWordStartGlyphIndex         = glyphIndex + 1;
                         accumulatedLineWidthAtWordStart = accumulatedLineWidth;
@@ -267,13 +285,7 @@ namespace Latios.Calligraphics.Systems
                     previousRune = currentRune;
                 }
 
-                // Finalize the last (still-open) line — it never went through a closing event inside the
-                // loop, so it still needs its own alignment shift and vertical drop applied here. Note this intentionally only adds currentLineHeight, not
-                // currentLineHeight + ascentLineDelta like the in-loop closures do — matches the original
-                // implementation's asymmetry for the final line, not replicated further than that. The very
-                // last line of a text block is never justified (nothing to stretch against — there's no
-                // following line to prove the paragraph "continues"), matching standard typographic practice
-                // and the hard-LF-closed-line rule above.
+                // Finalize the last line. Matches the linefeed logic.
                 var finalLineJustification = layoutConfig.m_lineJustification == HorizontalAlignmentOptions.Justified ?
                                              HorizontalAlignmentOptions.Left : layoutConfig.m_lineJustification;
                 penX += ApplyHorizontalAlignmentShift(ref outputString, ref lineSpaceGlyphIndices, lineStartBreakGlyphIndex,
@@ -320,7 +332,7 @@ namespace Latios.Calligraphics.Systems
             // final line, where there's no such boundary space to exclude.
             // lineSpaceGlyphIndices is always cleared before returning, once this line is fully resolved.
             //
-            // Returns the total shift applied (0 if none) — callers MUST add this to their local penX,
+            // Returns the total shift applied (0 if none). Callers MUST add this to their local penX,
             // so that they can compute the correct offset to apply to start a new line.
             static float ApplyHorizontalAlignmentShift(ref UnsafeList<GlyphOTF>   outputString,
                                                        ref FixedList512Bytes<int> lineSpaceGlyphIndices,

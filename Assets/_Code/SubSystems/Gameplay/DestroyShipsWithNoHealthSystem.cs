@@ -7,31 +7,23 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct DestroyShipsWithNoHealthSystem : ISystem
+    public partial struct DestroyShipsWithNoHealthSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var icb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
-            var dcb = latiosWorld.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
+            var api = this.GetApi(ref state);
+            var icb = api.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
+            var dcb = api.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
             new Job { dcb = dcb, icb = icb }.ScheduleParallel();
         }

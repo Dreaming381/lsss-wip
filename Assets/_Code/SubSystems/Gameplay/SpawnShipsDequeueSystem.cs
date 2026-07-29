@@ -7,13 +7,11 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
-    public partial struct SpawnShipsDequeueSystem : ISystem, ISystemNewScene
+    public partial struct SpawnShipsDequeueSystem : ISystem, ILatiosApi, ISystemNewScene
     {
         struct NextSpawnCounter : IComponentData
         {
@@ -21,40 +19,37 @@ namespace Lsss
             public Random random;
         }
 
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
-        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddComponentData(new NextSpawnCounter { index = 0, random = new Random(57108) });
+        public void OnNewScene(ref SystemState state) => this.GetApi(ref state).sceneBlackboardEntity.AddComponentData(new NextSpawnCounter
+        {
+            index  = 0,
+            random = new Random(57108)
+        });
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt               = Time.DeltaTime;
-            new SpawnTimesJob { dt = dt }.Schedule();
+            var api                = this.GetApi(ref state);
+            new SpawnTimesJob { dt = api.deltaTime }.Schedule();
 
-            var    spawnQueues  = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
-            int    initialIndex = latiosWorld.sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
-            Entity nscEntity    = latiosWorld.sceneBlackboardEntity;
-            var    icb          = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>();
+            var    spawnQueues  = api.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
+            int    initialIndex = api.sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
+            Entity nscEntity    = api.sceneBlackboardEntity;
+            var    icb          = api.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>();
 
             var job = new SpawnDequeueJob
             {
-                icb             = icb,
-                initialIndex    = initialIndex,
-                useBeforeIndex  = true,
-                nscEntity       = nscEntity,
-                spawnQueues     = spawnQueues,
-                nscLookup       = GetComponentLookup<NextSpawnCounter>(),
-                transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
-                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
-                                                                SystemAPI.GetEntityStorageInfoLookup()),
-            };
+                icb            = icb,
+                initialIndex   = initialIndex,
+                useBeforeIndex = true,
+                nscEntity      = nscEntity,
+                spawnQueues    = spawnQueues,
+            }.Inject(api);
             job.Schedule();
             job.useBeforeIndex = false;
             job.Schedule();
@@ -78,16 +73,16 @@ namespace Lsss
 
         [WithAll(typeof(SpawnPointTag), typeof(WorldTransform))]
         [BurstCompile]
-        partial struct SpawnDequeueJob : IJobEntity, IJobEntityChunkBeginEnd
+        partial struct SpawnDequeueJob : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
         {
             public int  initialIndex;
             public bool useBeforeIndex;
 
-            public TransformAspectRootHandle                       transformHandle;
+            [Inject] TransformAspectRootHandle                     transformHandle;
             public SpawnQueues                                     spawnQueues;
             public Entity                                          nscEntity;
             public InstantiateCommandBufferCommand1<ParentCommand> icb;
-            public ComponentLookup<NextSpawnCounter>               nscLookup;
+            [Inject] ComponentLookup<NextSpawnCounter>             nscLookup;
 
             public void Execute(Entity entity,
                                 [EntityIndexInQuery] int indexInQuery,

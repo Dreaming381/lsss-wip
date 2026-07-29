@@ -51,8 +51,6 @@ namespace Latios.Calligraphics.Systems
                 public FixedStack512Bytes<float> m_indentStack;
                 public bool                      m_tagNoParsing;
 
-                public bool m_isNonBreakingSpace;
-
                 public short m_fxRotationAngleCCW_degree;
                 public float m_fxScale;
 
@@ -108,8 +106,6 @@ namespace Latios.Calligraphics.Systems
                     m_indentStack   = default;
                     m_indentStack.Add(m_tagIndent);
                     m_tagNoParsing = false;
-
-                    m_isNonBreakingSpace = false;
 
                     m_fxRotationAngleCCW_degree = 0;
                     m_fxScale                   = 1;
@@ -167,8 +163,6 @@ namespace Latios.Calligraphics.Systems
                     m_indentStack.Add(m_tagIndent);
                     m_tagNoParsing = false;
 
-                    m_isNonBreakingSpace = false;
-
                     m_fxRotationAngleCCW_degree = 0;
                     m_fxScale                   = 1;
                 }
@@ -220,12 +214,6 @@ namespace Latios.Calligraphics.Systems
                             }
                             else
                                 fontWidth = fontWidthStack.RemoveExceptRoot();
-                            return;
-                        case TagType.NoBr:
-                            if (!tag.isClosing)
-                                m_isNonBreakingSpace = true;
-                            else
-                                m_isNonBreakingSpace = false;
                             return;
                         case TagType.Size:
                             if (!tag.isClosing)

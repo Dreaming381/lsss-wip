@@ -8,25 +8,19 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct SpawnShipsPrioritizeSystem : ISystem
+    public partial struct SpawnShipsPrioritizeSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
-        }
-
-        [BurstCompile]
-        public void OnDestroy(ref SystemState state)
-        {
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var spawnQueues = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>(false);
+            var api         = this.GetApi(ref state);
+            var spawnQueues = api.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>(false);
 
             state.Dependency = new Job { spawnQueues = spawnQueues }.Schedule();
         }

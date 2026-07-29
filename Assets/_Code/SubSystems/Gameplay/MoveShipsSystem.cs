@@ -8,46 +8,38 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
     [RequireMatchingQueriesForUpdate]
-    public partial struct MoveShipsSystem : ISystem
+    public partial struct MoveShipsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var dt          = Time.DeltaTime;
-            var arenaRadius = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
+            var api         = this.GetApi(ref state);
+            var arenaRadius = api.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
 
             new Job
             {
-                transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
-                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
-                                                                SystemAPI.GetEntityStorageInfoLookup()),
-                dt          = dt,
+                dt          = api.deltaTime,
                 arenaRadius = arenaRadius,
-            }.ScheduleParallel();
+            }.Inject(api).ScheduleParallel();
         }
 
         [BurstCompile]
         [WithAll(typeof(ShipTag), typeof(WorldTransform))]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
         {
-            public TransformAspectRootHandle transformHandle;
-            public float                     dt;
-            public float                     arenaRadius;
+            [Inject] TransformAspectRootHandle transformHandle;
+            public float                       dt;
+            public float                       arenaRadius;
 
             public void Execute([EntityIndexInChunk] int indexInChunk,
                                 ref Speed speed,

@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Latios;
+﻿using Latios;
 using Latios.Psyshock;
 using Unity.Burst;
 using Unity.Collections;
@@ -7,38 +6,31 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct ShipVsShipDamageSystem : ISystem
+    public partial struct ShipVsShipDamageSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var shipLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var api       = this.GetApi(ref state);
+            var shipLayer = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
 
-            var processor = new DamageCollidingShipsProcessor
-            {
-                shipHealthLookup = GetComponentLookup<ShipHealth>(),
-                shipDamageLookup = GetComponentLookup<Damage>(true)
-            };
+            var processor    = new DamageCollidingShipsProcessor().Inject(api);
             state.Dependency = Physics.FindPairs(shipLayer, processor).ScheduleParallel(state.Dependency);
         }
 
-        struct DamageCollidingShipsProcessor : IFindPairsProcessor
+        partial struct DamageCollidingShipsProcessor : IFindPairsProcessor, IInjectable
         {
-            public PhysicsComponentLookup<ShipHealth> shipHealthLookup;
-            [ReadOnly] public ComponentLookup<Damage> shipDamageLookup;
+            [Inject] PhysicsComponentLookup<ShipHealth> shipHealthLookup;
+            [ReadOnly, Inject] ComponentLookup<Damage>  shipDamageLookup;
 
             public void Execute(in FindPairsResult result)
             {

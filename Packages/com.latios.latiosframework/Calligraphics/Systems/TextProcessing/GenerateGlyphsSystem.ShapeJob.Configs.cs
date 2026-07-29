@@ -119,6 +119,14 @@ namespace Latios.Calligraphics.Systems
                 }
             }
 
+            struct ShapeSpan
+            {
+                public int       clusterStart;
+                public Direction direction;
+                public Script    script;
+                public Language  language;
+            }
+
             struct FontConfig
             {
                 public int m_faceIndex;
@@ -167,10 +175,10 @@ namespace Latios.Calligraphics.Systems
                         //so switch default font family to the family at faceIndex 0,
                         //leave everything else the same (weight, width etc), and search matching faceIndex
                         //Debug.Log($"Could not find FontLookupKey: {FontLookupKey}");
-                        defaultFaceIndex        = 0;
+                        defaultFaceIndex         = 0;
                         var defaultFontLookupKey = fontTable.fontLookupKeys[defaultFaceIndex];
-                        m_fontFamilyHash        = defaultFontLookupKey.familyHash;
-                        defaultFaceIndex        = fontTable.GetFaceIndex(FontLookupKey);
+                        m_fontFamilyHash         = defaultFontLookupKey.familyHash;
+                        defaultFaceIndex         = fontTable.GetFaceIndex(FontLookupKey);
 
                         //var face = fontTable.faces[defaultFaceIndex];
                         //var language = Language.English();
@@ -296,6 +304,9 @@ namespace Latios.Calligraphics.Systems
                 public float                     m_tagIndent;
                 public FixedStack512Bytes<float> m_indentStack;
 
+                // <nobr>: suppresses word-wrap break-opportunity recording
+                public bool m_isNoBreak;
+
                 public HorizontalAlignmentOptions                     m_lineJustification;
                 public FixedStack512Bytes<HorizontalAlignmentOptions> m_lineJustificationStack;
 
@@ -318,6 +329,8 @@ namespace Latios.Calligraphics.Systems
                     m_tagIndent     = 0;
                     m_indentStack   = default;
                     m_indentStack.Add(m_tagIndent);
+
+                    m_isNoBreak = false;
 
                     m_lineJustification      = textBaseConfiguration.lineJustification;
                     m_lineJustificationStack = default;
@@ -343,6 +356,8 @@ namespace Latios.Calligraphics.Systems
                     m_tagIndent     = 0;
                     m_indentStack.Clear();
                     m_indentStack.Add(m_tagIndent);
+
+                    m_isNoBreak = false;
 
                     m_lineJustification = textBaseConfiguration.lineJustification;
                     m_lineJustificationStack.Clear();
@@ -373,6 +388,9 @@ namespace Latios.Calligraphics.Systems
                                 m_fontStyles |= FontStyles.LowerCase;
                         }
                         break;
+                        case TagType.NoBr:
+                            m_isNoBreak = !tag.isClosing;
+                            return;
                         case TagType.Size:
                             if (!tag.isClosing)
                             {

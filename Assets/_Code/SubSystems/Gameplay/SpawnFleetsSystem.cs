@@ -6,7 +6,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using Debug = UnityEngine.Debug;
 using static Unity.Entities.SystemAPI;
 
 namespace Lsss

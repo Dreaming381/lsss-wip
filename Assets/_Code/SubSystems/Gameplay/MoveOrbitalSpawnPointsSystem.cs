@@ -7,33 +7,33 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct MoveOrbitalSpawnPointsSystem : ISystem
+    public partial struct MoveOrbitalSpawnPointsSystem : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            float dt = Time.DeltaTime;
+            var api = this.GetApi(ref state);
             new Job
             {
-                transformHandle = new TransformAspectRootHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchy>(true),
-                                                                SystemAPI.GetBufferTypeHandle<EntityInHierarchyCleanup>(true),
-                                                                SystemAPI.GetEntityStorageInfoLookup()),
-                dt = dt
-            }.ScheduleParallel();
+                dt = api.deltaTime
+            }.Inject(api).ScheduleParallel();
         }
 
         [BurstCompile]
         [WithAll(typeof(SpawnPointTag), typeof(WorldTransform))]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
         {
-            public TransformAspectRootHandle transformHandle;
-            public float                     dt;
+            [Inject] TransformAspectRootHandle transformHandle;
+            public float                       dt;
 
             public void Execute([EntityIndexInChunk] int indexInChunk, in SpawnPointOrbitalPath path, in SpawnTimes pauseTime)
             {

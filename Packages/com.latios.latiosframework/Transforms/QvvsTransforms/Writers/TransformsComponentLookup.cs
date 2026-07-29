@@ -69,7 +69,7 @@ namespace Latios.Transforms
     /// You can implicitly cast a ComponentLookup<typeparamref name="T"/> to this type.
     /// </summary>
     /// <typeparam name="T">A type implementing IComponentData</typeparam>
-    public struct TransformsComponentLookup<T> where T : unmanaged, IComponentData
+    public struct TransformsComponentLookup<T> : ILatiosApiGettable where T : unmanaged, IComponentData
     {
         [NativeDisableParallelForRestriction]
         internal ComponentLookup<T> lookup;
@@ -270,6 +270,10 @@ namespace Latios.Transforms
         {
             lookup.Update(system);
         }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = state.GetComponentLookup<T>(false);
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state) => lookup.Update(ref state);
     }
 
     /// <summary>
@@ -278,7 +282,7 @@ namespace Latios.Transforms
     /// You can implicitly cast a BufferLookup<typeparamref name="T"/> to this type.
     /// </summary>
     /// <typeparam name="T">A type implementing IBufferElementData</typeparam>
-    public struct TransformsBufferLookup<T> where T : unmanaged, IBufferElementData
+    public struct TransformsBufferLookup<T> : ILatiosApiGettable where T : unmanaged, IBufferElementData
     {
         [NativeDisableParallelForRestriction]
         internal BufferLookup<T> lookup;
@@ -445,6 +449,10 @@ namespace Latios.Transforms
         {
             lookup.Update(system);
         }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = state.GetBufferLookup<T>(false);
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state) => lookup.Update(ref state);
     }
 
     public static class TransformsKeyExtensions

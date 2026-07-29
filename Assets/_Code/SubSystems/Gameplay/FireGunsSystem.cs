@@ -6,49 +6,42 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct FireGunsSystem : ISystem
+    public partial struct FireGunsSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var   bulletIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<BulletFirer, WorldTransformCommand>().AsParallelWriter();
-            var   effectIcb = latiosWorld.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>().AsParallelWriter();
-            float dt        = Time.DeltaTime;
+            var api       = this.GetApi(ref state);
+            var bulletIcb = api.syncPoint.CreateInstantiateCommandBuffer<BulletFirer, WorldTransformCommand>().AsParallelWriter();
+            var effectIcb = api.syncPoint.CreateInstantiateCommandBuffer<ParentCommand>().AsParallelWriter();
 
-            var job = new Job
+            new Job
             {
-                bulletIcb            = bulletIcb,
-                effectIcb            = effectIcb,
-                dt                   = dt,
-                worldTransformLookup = GetComponentLookup<WorldTransform>(true),
-                colliderLookup       = GetComponentLookup<BulletCollider>(true)
-            };
-            job.ScheduleParallel();
+                bulletIcb = bulletIcb,
+                effectIcb = effectIcb,
+                dt        = api.deltaTime,
+            }.Inject(api).ScheduleParallel();
         }
 
         [WithAll(typeof(ShipTag))]
         [BurstCompile]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IInjectable
         {
             public InstantiateCommandBufferCommand1<BulletFirer, WorldTransformCommand>.ParallelWriter bulletIcb;
             public InstantiateCommandBufferCommand1<ParentCommand>.ParallelWriter                      effectIcb;
             public float                                                                               dt;
 
-            [ReadOnly] public ComponentLookup<WorldTransform> worldTransformLookup;
-            [ReadOnly] public ComponentLookup<BulletCollider> colliderLookup;
+            [ReadOnly, Inject] ComponentLookup<WorldTransform> worldTransformLookup;
+            [ReadOnly, Inject] ComponentLookup<BulletCollider> colliderLookup;
 
             public void Execute(Entity entity,
                                 [ChunkIndexInQuery] int chunkIndexInQuery,

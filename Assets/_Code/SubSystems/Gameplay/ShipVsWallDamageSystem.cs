@@ -6,41 +6,34 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct ShipVsWallDamageSystem : ISystem
+    public partial struct ShipVsWallDamageSystem : ISystem, ILatiosApi
     {
-        LatiosWorldUnmanaged latiosWorld;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var shipLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
-            var wallLayer = latiosWorld.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
+            var api       = this.GetApi(ref state);
+            var shipLayer = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
+            var wallLayer = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
 
-            var processor = new DamageHitShipsProcessor
-            {
-                wallDamageLookup = GetComponentLookup<Damage>(true),
-                shipHealthLookup = GetComponentLookup<ShipHealth>(),
-            };
+            var processor = new DamageHitShipsProcessor().Inject(api);
 
             state.Dependency = Physics.FindPairs(wallLayer, shipLayer, processor).ScheduleParallel(state.Dependency);
         }
 
         //Assumes A is wall and B is ship.
-        struct DamageHitShipsProcessor : IFindPairsProcessor
+        partial struct DamageHitShipsProcessor : IFindPairsProcessor, IInjectable
         {
-            public PhysicsComponentLookup<ShipHealth> shipHealthLookup;
-            [ReadOnly] public ComponentLookup<Damage> wallDamageLookup;
+            [Inject] PhysicsComponentLookup<ShipHealth> shipHealthLookup;
+            [ReadOnly, Inject] ComponentLookup<Damage>  wallDamageLookup;
 
             public void Execute(in FindPairsResult result)
             {

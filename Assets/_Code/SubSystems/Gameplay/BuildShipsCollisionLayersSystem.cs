@@ -7,43 +7,37 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct BuildShipsCollisionLayersSystem : ISystem, ISystemNewScene
+    public partial struct BuildShipsCollisionLayersSystem : ISystem, ILatiosApi, ISystemNewScene
     {
-        private EntityQuery                    m_query;
-        private BuildCollisionLayerTypeHandles m_typeHandles;
-
-        LatiosWorldUnmanaged latiosWorld;
+        private EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_query       = state.Fluent().With<ShipTag>(true).With<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
-            m_typeHandles = new BuildCollisionLayerTypeHandles(ref state);
-
-            latiosWorld = state.GetLatiosWorldUnmanaged();
+            this.OnCreateForLatios(ref state);
+            m_query = state.Fluent().With<ShipTag>(true).With<FactionMember>().PatchQueryForBuildingCollisionLayer().Build();
         }
 
-        public void OnNewScene(ref SystemState state) => latiosWorld.sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new ShipsCollisionLayer());
+        public void OnNewScene(ref SystemState state) => this.GetApi(ref state).sceneBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new ShipsCollisionLayer());
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            m_typeHandles.Update(ref state);
+            var api = this.GetApi(ref state);
 
             CollisionLayerSettings settings;
-            if (latiosWorld.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
-                settings = latiosWorld.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
+            if (api.sceneBlackboardEntity.HasComponent<ArenaCollisionSettings>())
+                settings = api.sceneBlackboardEntity.GetComponentData<ArenaCollisionSettings>().settings;
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            state.Dependency = Physics.BuildCollisionLayer(m_query, in m_typeHandles).WithSettings(settings)
+            var typeHandles  = api.Get<BuildCollisionLayerTypeHandles>();
+            state.Dependency = Physics.BuildCollisionLayer(m_query, in typeHandles).WithSettings(settings)
                                .ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
-            latiosWorld.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(new ShipsCollisionLayer { layer = layer });
+            api.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(new ShipsCollisionLayer { layer = layer });
         }
     }
 

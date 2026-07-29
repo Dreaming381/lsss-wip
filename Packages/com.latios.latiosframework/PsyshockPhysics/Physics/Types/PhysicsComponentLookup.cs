@@ -64,7 +64,7 @@ namespace Latios.Psyshock
     /// You can implicitly cast a ComponentLookup<typeparamref name="T"/> to this type.
     /// </summary>
     /// <typeparam name="T">A type implementing IComponentData</typeparam>
-    public struct PhysicsComponentLookup<T> where T : unmanaged, IComponentData
+    public struct PhysicsComponentLookup<T> : ILatiosApiGettable where T : unmanaged, IComponentData
     {
         [NativeDisableParallelForRestriction]
         internal ComponentLookup<T> lookup;
@@ -184,6 +184,10 @@ namespace Latios.Psyshock
             }
 #endif
         }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = state.GetComponentLookup<T>(false);
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state) => lookup.Update(ref state);
     }
 
     /// <summary>
@@ -192,7 +196,7 @@ namespace Latios.Psyshock
     /// You can implicitly cast a BufferLookup<typeparamref name="T"/> to this type.
     /// </summary>
     /// <typeparam name="T">A type implementing IBufferElementData</typeparam>
-    public struct PhysicsBufferLookup<T> where T : unmanaged, IBufferElementData
+    public struct PhysicsBufferLookup<T> : ILatiosApiGettable where T : unmanaged, IBufferElementData
     {
         [NativeDisableParallelForRestriction]
         internal BufferLookup<T> lookup;
@@ -294,6 +298,10 @@ namespace Latios.Psyshock
             }
 #endif
         }
+
+        void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = state.GetBufferLookup<T>(false);
+
+        void ILatiosApiGettable.UpdateForApi(ref SystemState state) => lookup.Update(ref state);
     }
 
     public static class ComponentBrokerPhysicsExtensions
