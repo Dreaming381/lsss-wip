@@ -9,24 +9,26 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct FaceCameraSystem : ISystem
+    public partial struct FaceCameraSystem : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var foundCamera = new NativeReference<float3>(state.WorldUnmanaged.UpdateAllocator.ToAllocator);
+            var api         = this.GetApi(ref state);
+            var foundCamera = new NativeReference<float3>(state.WorldUpdateAllocator);
 
             new JobA { foundCamera = foundCamera }.Schedule();
             new JobB
             {
-                foundCamera     = foundCamera,
-                transformLookup = new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                            SystemAPI.GetComponentLookup<RootReference>(true),
-                                                            SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
-                                                            SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                            SystemAPI.GetEntityStorageInfoLookup())
-            }.Schedule();
-            // .ScheduleParallel(); // Can't make parallel with TransformAspectLookup yet.
+                foundCamera = foundCamera,
+            }.Inject(api).Schedule();
+            // .ScheduleParallel(); // Todo: Switch to parallel handle type when this becomes a bottleneck
         }
 
         [BurstCompile]
@@ -43,10 +45,10 @@ namespace Lsss
 
         [BurstCompile]
         [WithAll(typeof(FaceCameraTag), typeof(WorldTransform))]
-        partial struct JobB : IJobEntity
+        partial struct JobB : IJobEntity, IInjectable
         {
             [ReadOnly] public NativeReference<float3> foundCamera;
-            public TransformAspectLookup              transformLookup;
+            [Inject] TransformAspectLookup            transformLookup;
 
             public void Execute(Entity entity)
             {

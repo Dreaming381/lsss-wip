@@ -10,29 +10,26 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct SpawnPointAnimationSystem : ISystem
+    public partial struct SpawnPointAnimationSystem : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            //new Job().ScheduleParallel();
-            var job = new Job
-            {
-                transformLookup = new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                            SystemAPI.GetComponentLookup<RootReference>(true),
-                                                            SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
-                                                            SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                            SystemAPI.GetEntityStorageInfoLookup())
-            };
-            job.Schedule();
-            job.ScheduleByRef();
+            var api = this.GetApi(ref state);
+            new Job().Inject(api).Schedule();
         }
 
         [WithAll(typeof(WorldTransform))]
         [BurstCompile]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEntity, IInjectable
         {
-            public TransformAspectLookup transformLookup;
+            [Inject] TransformAspectLookup transformLookup;
 
             public void Execute(Entity entity, in TimeToLive timeToLive, in SpawnPointAnimationData data)
             {
@@ -55,30 +52,29 @@ namespace Lsss
 
     [RequireMatchingQueriesForUpdate]
     [BurstCompile]
-    public partial struct SpawnPointAnimationSystem2 : ISystem
+    public partial struct SpawnPointAnimationSystem2 : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var job = new Job
-            {
-                transformHandle = new TransformAspectParallelChunkHandle(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                                         SystemAPI.GetComponentTypeHandle<RootReference>(true),
-                                                                         SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
-                                                                         SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                                         SystemAPI.GetEntityStorageInfoLookup(),
-                                                                         ref state)
-            };
+            var api = this.GetApi(ref state);
+            var job = new Job().Inject(api);
             job.ScheduleByRef();
-            state.Dependency = job.transformHandle.ScheduleChunkGrouping(state.Dependency);
+            state.Dependency = job.transformAspectHandleAccess.ScheduleChunkGrouping(state.Dependency);
             state.Dependency = job.GetTransformsScheduler().ScheduleParallel(state.Dependency);
         }
 
         [WithAll(typeof(WorldTransform))]
         [BurstCompile]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd, IJobChunkParallelTransform
+        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd, IJobChunkParallelTransform, IInjectable
         {
-            public TransformAspectParallelChunkHandle transformHandle;
+            [Inject] TransformAspectParallelChunkHandle transformHandle;
 
             public ref TransformAspectParallelChunkHandle transformAspectHandleAccess => ref transformHandle.RefAccess();
 

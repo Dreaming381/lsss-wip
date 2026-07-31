@@ -118,6 +118,11 @@ namespace Latios.Transforms
 
         void ILatiosApiGettable.UpdateForApi(ref SystemState state)
         {
+            transformLookup.Update(ref state);
+            rootReferenceHandle.Update(ref state);
+            hierarchyLookup.Update(ref state);
+            cleanupLookup.Update(ref state);
+            esil.Update(ref state);
             this = new TransformAspectParallelChunkHandle(transformLookup.lookup, rootReferenceHandle, hierarchyLookup, cleanupLookup, esil, ref state);
         }
 

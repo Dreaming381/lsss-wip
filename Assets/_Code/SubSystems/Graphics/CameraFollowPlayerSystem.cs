@@ -6,42 +6,41 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-using static Unity.Entities.SystemAPI;
-
 // Todo: Change to use parenting.
 
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct CameraFollowPlayerSystem : ISystem
+    public partial struct CameraFollowPlayerSystem : ISystem, ILatiosApi
     {
+        [BurstCompile]
+        public void OnCreate(ref SystemState state)
+        {
+            this.OnCreateForLatios(ref state);
+        }
+
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var api            = this.GetApi(ref state);
             var mountTransform = new NativeReference<TransformQvvs>(state.WorldUnmanaged.UpdateAllocator.ToAllocator, NativeArrayOptions.ClearMemory);
 
             new JobA
             {
-                mountTransform  = mountTransform,
-                transformLookup = GetComponentLookup<WorldTransform>(true)
-            }.Schedule();
+                mountTransform = mountTransform,
+            }.Inject(api).Schedule();
             new JobB
             {
-                mountTransform  = mountTransform,
-                transformLookup = new TransformAspectLookup(SystemAPI.GetComponentLookup<WorldTransform>(false),
-                                                            SystemAPI.GetComponentLookup<RootReference>(true),
-                                                            SystemAPI.GetBufferLookup<EntityInHierarchy>(true),
-                                                            SystemAPI.GetBufferLookup<EntityInHierarchyCleanup>(true),
-                                                            SystemAPI.GetEntityStorageInfoLookup())
-            }.Schedule();
+                mountTransform = mountTransform,
+            }.Inject(api).Schedule();
         }
 
         [BurstCompile]
         [WithAll(typeof(PlayerTag))]
-        partial struct JobA : IJobEntity
+        partial struct JobA : IJobEntity, IInjectable
         {
-            public NativeReference<TransformQvvs>             mountTransform;
-            [ReadOnly] public ComponentLookup<WorldTransform> transformLookup;
+            public NativeReference<TransformQvvs>              mountTransform;
+            [ReadOnly, Inject] ComponentLookup<WorldTransform> transformLookup;
 
             public void Execute(in CameraMountPoint mount)
             {
@@ -52,10 +51,10 @@ namespace Lsss
         [BurstCompile]
         [WithAll(typeof(CameraManager.ExistComponent))]
         [WithAll(typeof(WorldTransform))]
-        partial struct JobB : IJobEntity
+        partial struct JobB : IJobEntity, IInjectable
         {
             public NativeReference<TransformQvvs> mountTransform;
-            public TransformAspectLookup          transformLookup;
+            [Inject] TransformAspectLookup        transformLookup;
 
             public void Execute(Entity entity)
             {
