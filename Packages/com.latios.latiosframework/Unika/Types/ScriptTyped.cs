@@ -7,9 +7,10 @@ using Unity.Mathematics;
 namespace Latios.Unika
 {
     /// <summary>
-    /// A resolved strongly-typed script which can be operated on
+    /// A resolved strongly-typed script which can be operated on.
+    /// WARNING: CompareTo is NOT deterministic for scripts belonging to different entities!
     /// </summary>
-    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="T">The type of the script</typeparam>
     public unsafe struct Script<T> : IScriptTypedExtensionsApi,
                                      IEquatable<Script<T> >, IEquatable<Script>, IEquatable<ScriptRef<T> >, IEquatable<ScriptRef>,
                                      IComparable<Script<T> >, IComparable<Script>, IComparable<ScriptRef<T> >, IComparable<ScriptRef>

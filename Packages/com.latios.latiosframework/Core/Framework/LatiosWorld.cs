@@ -5,10 +5,6 @@ using Latios.Systems;
 using Unity.Collections;
 using Unity.Entities;
 
-#if !ENTITY_STORE_V1
-#error The Latios Framework requires the scripting define ENTITY_STORE_V1 for your safety and wellbeing.
-#endif
-
 namespace Latios
 {
     /// <summary>

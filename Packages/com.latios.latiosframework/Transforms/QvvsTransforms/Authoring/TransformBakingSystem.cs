@@ -128,6 +128,7 @@ namespace Latios.Transforms.Authoring.Systems
             {
                 hierarchy                         = m_hierarchy,
                 dirtyRoots                        = dirtyRootsList.AsArray(),
+                dirtyRootsHasChildrenList         = dirtyRootHasChildrenList,
                 transformAuthoringLookup          = GetComponentLookup<TransformAuthoring>(true),
                 inheritanceFlagsLookup            = GetComponentLookup<MergedInheritanceFlags>(true),
                 bakedLocalTransformOverrideLookup = GetComponentLookup<BakedLocalTransformOverride>(true),
@@ -203,7 +204,7 @@ namespace Latios.Transforms.Authoring.Systems
                 {
                     foreach (var child in node.children)
                     {
-                        ChangeParent(entity, -1, Entity.Null, ref dirtyRoots);
+                        ChangeParent(child, -1, Entity.Null, ref dirtyRoots);
                     }
                     node.children.Dispose();
                 }
@@ -249,7 +250,7 @@ namespace Latios.Transforms.Authoring.Systems
                 }
             }
 
-            void FindAndDirtyRoot(Entity searchStart, ref NativeHashSet<Entity> dirtyRoots)
+            public Entity FindRoot(Entity searchStart)
             {
                 var search         = searchStart;
                 var previousSearch = search;
@@ -258,8 +259,10 @@ namespace Latios.Transforms.Authoring.Systems
                     previousSearch = search;
                     search         = nodes[entityToNodeIndexMap[search]].parent;
                 }
-                dirtyRoots.Add(previousSearch);
+                return previousSearch;
             }
+
+            void FindAndDirtyRoot(Entity searchStart, ref NativeHashSet<Entity> dirtyRoots) => dirtyRoots.Add(FindRoot(searchStart));
         }
 
         struct EntityHierarchyChange
@@ -545,10 +548,17 @@ namespace Latios.Transforms.Authoring.Systems
                     entityHierarchyChangeStream.EndForEachIndex();
                 }
 
-                var dirtyRootsToSort = new NativeArray<EntityAndNodeIndex>(dirtyRootsSet.Count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                // The changes above are applied in stream order. When a child's parent change is applied before its parent (such as in a new hierarchy),
+                // FindAndDirtyRoot() walks up a hierarchy that is only partially rebuilt and marks a mid-hierarchy entity as a root. Now that all the
+                // hierarchies are complete, we can re-resolve the real roots using the speculative roots as clues.
+                var resolvedRoots = new UnsafeHashSet<Entity>(dirtyRootsSet.Count, Allocator.Temp);
+                foreach (var candidate in dirtyRootsSet)
+                    resolvedRoots.Add(hierarchy.FindRoot(candidate));
+
+                var dirtyRootsToSort = new NativeArray<EntityAndNodeIndex>(resolvedRoots.Count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
                 {
                     int i = 0;
-                    foreach (var root in dirtyRootsSet)
+                    foreach (var root in resolvedRoots)
                     {
                         dirtyRootsToSort[i] = new EntityAndNodeIndex { entity = root, index = hierarchy.GetDeterministicIndex(root) };
                         i++;
@@ -561,9 +571,9 @@ namespace Latios.Transforms.Authoring.Systems
                     int i = 0;
                     foreach (var root in dirtyRootsToSort)
                     {
+                        dirtyRootsList.Add(root.entity);
                         if (hierarchy.HasChildren(root.entity))
                         {
-                            dirtyRootsList.Add(root.entity);
                             dirtyRootHasChildrenList.Set(i, true);
                         }
                         i++;
@@ -585,6 +595,7 @@ namespace Latios.Transforms.Authoring.Systems
         {
             [ReadOnly] public Hierarchy                                                  hierarchy;
             [ReadOnly] public NativeArray<Entity>                                        dirtyRoots;
+            [ReadOnly] public NativeBitArray                                             dirtyRootsHasChildrenList;
             [ReadOnly] public ComponentLookup<TransformAuthoring>                        transformAuthoringLookup;
             [ReadOnly] public ComponentLookup<MergedInheritanceFlags>                    inheritanceFlagsLookup;
             [ReadOnly] public ComponentLookup<BakedLocalTransformOverride>               bakedLocalTransformOverrideLookup;
@@ -598,6 +609,9 @@ namespace Latios.Transforms.Authoring.Systems
 
             public void Execute(int index)
             {
+                if (!dirtyRootsHasChildrenList.IsSet(index))
+                    return;
+
                 if (!queue.IsCreated)
                 {
                     queue              = new UnsafeQueue<EnqueuedChild>(Allocator.Temp);

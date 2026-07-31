@@ -7,6 +7,7 @@ namespace Latios.Unika
 {
     /// <summary>
     /// An untyped reference to another script, which must be resolved before use.
+    /// WARNING: CompareTo is NOT deterministic for scripts belonging to different entities!
     /// </summary>
     public unsafe struct ScriptRef : IEquatable<ScriptRef>, IComparable<ScriptRef>
     {

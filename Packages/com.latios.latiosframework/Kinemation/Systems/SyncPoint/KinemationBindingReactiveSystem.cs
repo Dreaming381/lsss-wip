@@ -219,6 +219,7 @@ namespace Latios.Kinemation.Systems
                     bindingOpsBlockList        = bindingOpsBlockList,
                     meshAddOpsBlockList        = meshAddOpsBlockList,
                     skinnedMeshAddOpsBlockList = skinnedMeshAddOpsBlockList,
+                    jobCounterBit              = 0,
                 }.Inject(api);
 
                 if (haveNewDeformMeshes)
@@ -227,7 +228,8 @@ namespace Latios.Kinemation.Systems
                 }
                 if (haveBindableMeshes)
                 {
-                    state.Dependency = new FindRebindMeshesJob
+                    newMeshJob.jobCounterBit = 1;
+                    state.Dependency         = new FindRebindMeshesJob
                     {
                         lastSystemVersion             = lastSystemVersion,
                         meshRemoveOpsBlockList        = meshRemoveOpsBlockList,
@@ -485,16 +487,19 @@ namespace Latios.Kinemation.Systems
         {
             public Entity                                 meshEntity;
             public BlobAssetReference<MeshDeformDataBlob> meshBlob;
+            // Packed (unfilteredChunkIndex << 8) | (indexInChunk << 1) | jobCounterBit for determinism
+            public int sortKey;
 
-            public int CompareTo(MeshAddOperation other) => meshEntity.CompareTo(other.meshEntity);
+            public int CompareTo(MeshAddOperation other) => sortKey.CompareTo(other.sortKey);
         }
 
         struct MeshRemoveOperation : IComparable<MeshRemoveOperation>
         {
             public Entity    meshEntity;
             public BoundMesh oldBoundMeshState;
+            public int       sortKey;
 
-            public int CompareTo(MeshRemoveOperation other) => meshEntity.CompareTo(other.meshEntity);
+            public int CompareTo(MeshRemoveOperation other) => sortKey.CompareTo(other.sortKey);
         }
 
         struct MeshWriteStateOperation
@@ -519,17 +524,15 @@ namespace Latios.Kinemation.Systems
 
             public Entity targetEntity;
             public Entity meshEntity;
+            // There are only two jobs for each bind or unbind role, so 1 bit is still sufficient.
+            public int    sortKey;
             public OpType opType;
 
             public int CompareTo(BindUnbindOperation other)
             {
-                var compare = targetEntity.CompareTo(other.targetEntity);
+                var compare = ((byte)opType).CompareTo((byte)other.opType);
                 if (compare == 0)
-                {
-                    compare = ((byte)opType).CompareTo((byte)other.opType);
-                    if (compare == 0)
-                        compare = meshEntity.CompareTo(other.meshEntity);
-                }
+                    compare = sortKey.CompareTo(other.sortKey);
                 return compare;
             }
         }
@@ -542,8 +545,9 @@ namespace Latios.Kinemation.Systems
             public BlobAssetReference<MeshBindingPathsBlob>     meshBindingPathsBlob;
             public BlobAssetReference<SkeletonBindingPathsBlob> skeletonBindingPathsBlob;
             public UnsafeList<short>                            overrideBoneBindings;
+            public int                                          sortKey;
 
-            public int CompareTo(SkinnedMeshAddOperation other) => meshEntity.CompareTo(other.meshEntity);
+            public int CompareTo(SkinnedMeshAddOperation other) => sortKey.CompareTo(other.sortKey);
         }
 
         struct SkinnedMeshRemoveOperation : IComparable<SkinnedMeshRemoveOperation>
@@ -551,8 +555,9 @@ namespace Latios.Kinemation.Systems
             public Entity            meshEntity;
             public BoundMesh         oldBoundMeshState;
             public SkeletonDependent oldDependentState;
+            public int               sortKey;
 
-            public int CompareTo(SkinnedMeshRemoveOperation other) => meshEntity.CompareTo(other.meshEntity);
+            public int CompareTo(SkinnedMeshRemoveOperation other) => sortKey.CompareTo(other.sortKey);
         }
 
         struct ExposedSkeletonCullingIndexOperation
@@ -605,13 +610,16 @@ namespace Latios.Kinemation.Systems
                 var entities = chunk.GetNativeArray(entityHandle);
                 var meshes   = chunk.GetNativeArray(ref boundMeshHandle);
 
+                const int counterBit = 0;
+
                 // This accounts for both skinned boundMeshes and blend shape boundMeshes.
                 for (int i = 0; i < chunk.Count; i++)
                 {
                     // If the mesh is in a valid state, this is not null.
                     if (meshes[i].meshBlob != BlobAssetReference<MeshDeformDataBlob>.Null)
                     {
-                        meshRemoveOpsBlockList.Write(new MeshRemoveOperation { meshEntity = entities[i], oldBoundMeshState = meshes[i] }, m_nativeThreadIndex);
+                        int sortKey                                                       = (unfilteredChunkIndex << 8) | (i << 1) | counterBit;
+                        meshRemoveOpsBlockList.Write(new MeshRemoveOperation { meshEntity = entities[i], oldBoundMeshState = meshes[i], sortKey = sortKey }, m_nativeThreadIndex);
                     }
                 }
 
@@ -625,6 +633,8 @@ namespace Latios.Kinemation.Systems
                         // If the mesh is in a valid state, this is not null.
                         if (meshes[i].meshBlob != BlobAssetReference<MeshDeformDataBlob>.Null)
                         {
+                            int sortKey = (unfilteredChunkIndex << 8) | (i << 1) | counterBit;
+
                             // However, the mesh could still have an invalid skeleton if the skeleton died.
                             var target = deps[i].root;
                             if (target != Entity.Null)
@@ -633,14 +643,16 @@ namespace Latios.Kinemation.Systems
                                 {
                                     targetEntity = target,
                                     meshEntity   = entities[i],
-                                    opType       = BindUnbindOperation.OpType.Unbind
+                                    opType       = BindUnbindOperation.OpType.Unbind,
+                                    sortKey      = sortKey
                                 }, m_nativeThreadIndex);
                             }
                             skinnedMeshRemoveOpsBlockList.Write(new SkinnedMeshRemoveOperation
                             {
                                 meshEntity        = entities[i],
                                 oldBoundMeshState = meshes[i],
-                                oldDependentState = deps[i]
+                                oldDependentState = deps[i],
+                                sortKey           = sortKey
                             }, m_nativeThreadIndex);
                         }
                     }
@@ -672,6 +684,7 @@ namespace Latios.Kinemation.Systems
             [NativeSetThreadIndex] int                              m_nativeThreadIndex;
 
             public Allocator allocator;
+            public byte      jobCounterBit;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -701,7 +714,8 @@ namespace Latios.Kinemation.Systems
                     meshAddOpsBlockList.Write(new MeshAddOperation
                     {
                         meshEntity = entity,
-                        meshBlob   = meshBlob
+                        meshBlob   = meshBlob,
+                        sortKey    = (unfilteredChunkIndex << 8) | (i << 1) | jobCounterBit
                     }, m_nativeThreadIndex);
                 }
 
@@ -861,6 +875,8 @@ namespace Latios.Kinemation.Systems
                             bonesList.AddRangeNoResize(bonesBuffer.GetUnsafeReadOnlyPtr(), numPoses);
                         }
 
+                        int sortKey = (unfilteredChunkIndex << 8) | (i << 1) | jobCounterBit;
+
                         skinnedMeshAddOpsBlockList.Write(new SkinnedMeshAddOperation
                         {
                             meshEntity               = entity,
@@ -869,13 +885,15 @@ namespace Latios.Kinemation.Systems
                             meshBindingPathsBlob     = pathsBlob,
                             overrideBoneBindings     = bonesList,
                             skeletonBindingPathsBlob = skeletonPathsBlob,
+                            sortKey                  = sortKey
                         }, m_nativeThreadIndex);
 
                         bindingOpsBlockList.Write(new BindUnbindOperation
                         {
                             meshEntity   = entity,
                             targetEntity = root,
-                            opType       = BindUnbindOperation.OpType.Bind
+                            opType       = BindUnbindOperation.OpType.Bind,
+                            sortKey      = sortKey
                         }, m_nativeThreadIndex);
                     }
                 }
@@ -932,6 +950,8 @@ namespace Latios.Kinemation.Systems
                         bool reinit = needsReinint && boundMeshes[i].meshBlob != targetMeshes[i].blob;
                         if (rebind || reinit)
                         {
+                            int sortKey = (unfilteredChunkIndex << 8) | (i << 1) | 1;
+
                             if (isSkinnedMesh)
                             {
                                 // However, the mesh could still have an invalid skeleton if the skeleton died.
@@ -942,14 +962,16 @@ namespace Latios.Kinemation.Systems
                                     {
                                         targetEntity = target,
                                         meshEntity   = entities[i],
-                                        opType       = BindUnbindOperation.OpType.Unbind
+                                        opType       = BindUnbindOperation.OpType.Unbind,
+                                        sortKey      = sortKey
                                     }, m_nativeThreadIndex);
                                 }
                                 skinnedMeshRemoveOpsBlockList.Write(new SkinnedMeshRemoveOperation
                                 {
                                     meshEntity        = entities[i],
                                     oldBoundMeshState = boundMeshes[i],
-                                    oldDependentState = deps[i]
+                                    oldDependentState = deps[i],
+                                    sortKey           = sortKey
                                 }, m_nativeThreadIndex);
 
                                 // We need to wipe our state clean in case the rebinding fails.
@@ -958,7 +980,8 @@ namespace Latios.Kinemation.Systems
                             meshRemoveOpsBlockList.Write(new MeshRemoveOperation
                             {
                                 meshEntity        = entities[i],
-                                oldBoundMeshState = boundMeshes[i]
+                                oldBoundMeshState = boundMeshes[i],
+                                sortKey           = sortKey
                             }, m_nativeThreadIndex);
 
                             if (reinit)
@@ -1057,25 +1080,59 @@ namespace Latios.Kinemation.Systems
 
             public void Execute()
             {
-                var count = bindingsBlockList.Count();
-                operations.ResizeUninitialized(count);
-                bindingsBlockList.GetElementValues(operations.AsArray());
-                operations.Sort();
-                Entity  lastEntity        = Entity.Null;
-                int2    nullCounts        = default;
-                ref var currentStartCount = ref nullCounts;
+                var count  = bindingsBlockList.Count();
+                var rawOps = new NativeArray<BindUnbindOperation>(count, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                bindingsBlockList.GetElementValues(rawOps);
+                rawOps.Sort();
+
+                // Group by binding target entity deterministically
+                var targetGroups           = new UnsafeList<BindingTargetGroup>(count, Allocator.Temp);
+                var targetEntityToIndexMap = new UnsafeHashMap<Entity, int>(count, Allocator.Temp);
                 for (int i = 0; i < count; i++)
                 {
-                    if (operations[i].targetEntity != lastEntity)
-                    {
-                        startsAndCounts.Add(new int2(i, 1));
-                        currentStartCount = ref startsAndCounts.ElementAt(startsAndCounts.Length - 1);
-                        lastEntity        = operations[i].targetEntity;
-                    }
+                    var targetEntity = rawOps[i].targetEntity;
+                    if (targetEntityToIndexMap.TryGetValue(targetEntity, out var groupIndex))
+                        targetGroups.ElementAt(groupIndex).count++;
                     else
-                        currentStartCount.y++;
+                    {
+                        targetEntityToIndexMap.Add(targetEntity, targetGroups.Length);
+                        targetGroups.AddNoResize(new BindingTargetGroup { targetEntity = targetEntity, count = 1 });
+                    }
                 }
+                // Prefix sum
+                int running = 0;
+                for (int i = 0; i < targetGroups.Length; i++)
+                {
+                    ref var g  = ref targetGroups.ElementAt(i);
+                    g.start    = running;
+                    running   += g.count;
+                    g.count    = 0;
+                }
+                // Assign final ordering
+                operations.ResizeUninitialized(count);
+                for (int i = 0; i < count; i++)
+                {
+                    var     op                    = rawOps[i];
+                    ref var g                     = ref targetGroups.ElementAt(targetEntityToIndexMap[op.targetEntity]);
+                    operations[g.start + g.count] = op;
+                    g.count++;
+                }
+                // Assign ranges
+                startsAndCounts.ResizeUninitialized(targetGroups.Length);
+                for (int i = 0; i < targetGroups.Length; i++)
+                {
+                    var g              = targetGroups[i];
+                    startsAndCounts[i] = new int2(g.start, g.count);
+                }
+
                 bindingsBlockList.Dispose();
+            }
+
+            struct BindingTargetGroup
+            {
+                public Entity targetEntity;
+                public int    start;
+                public int    count;
             }
         }
 

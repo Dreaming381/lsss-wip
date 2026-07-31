@@ -7,6 +7,7 @@ namespace Latios.Unika
 {
     /// <summary>
     /// A typed reference to another script, which must be resolved before use.
+    /// WARNING: CompareTo is NOT deterministic for scripts belonging to different entities!
     /// </summary>
     /// <typeparam name="T">The type of script referenced</typeparam>
     public unsafe struct ScriptRef<T> : IScriptRefTypedExtensionsApi,

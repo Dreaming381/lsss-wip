@@ -7,7 +7,8 @@ using Unity.Mathematics;
 namespace Latios.Unika
 {
     /// <summary>
-    /// A resolved untyped script which can be operated on
+    /// A resolved untyped script which can be operated on.
+    /// WARNING: CompareTo is NOT deterministic for scripts belonging to different entities!
     /// </summary>
     public unsafe struct Script : IScriptExtensionsApi, IEquatable<Script>, IComparable<Script>, IEquatable<ScriptRef>, IComparable<ScriptRef>
     {

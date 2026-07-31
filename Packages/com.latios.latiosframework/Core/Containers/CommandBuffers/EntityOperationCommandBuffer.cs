@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Collections;
@@ -180,11 +181,15 @@ namespace Latios
             return entities;
         }
 
+#if ENTITY_STORE_V1
         /// <summary>
         /// Returns an array of entities stored in the EntityOperationCommandBuffer ordered by Entity and then by SortKey.
         /// </summary>
         /// <param name="allocator">The allocator to use for the returned NativeArray</param>
         /// <returns>The array of entities stored in the EntityOperationCommandBuffer ordered by Entity and then by SortKey</returns>
+        [Obsolete(
+            "This method depends on ENTITY_STORE_V1 for deterministic Entity ordering and will be removed when Entity Store V2 becomes the only supported mode in Unity versions > 6.3 LTS."
+            )]
         public NativeArray<Entity> GetEntitiesSortedByEntity(Allocator allocator)
         {
             CheckReadAccess();
@@ -195,6 +200,7 @@ namespace Latios
 
             return entities;
         }
+#endif
 
         /// <summary>
         /// Fills the native list with entities stored in the EntityOperationCommandBuffer sorted by SortKey
@@ -301,6 +307,7 @@ namespace Latios
             }
         }
 
+#if ENTITY_STORE_V1
         private void GetEntitiesSorted(NativeArray<Entity> entities)
         {
             var tempEntitiesWithOperation = new NativeArray<EntityWithOperation>(entities.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
@@ -317,6 +324,7 @@ namespace Latios
                 entities[i] = tempEntitiesWithOperation[ranks[i]].entity;
             }
         }
+#endif
 
         private int GetLinkedEntitiesCount(BufferLookup<LinkedEntityGroup> linkedLookup, NativeArray<Entity> roots)
         {

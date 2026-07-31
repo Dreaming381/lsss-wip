@@ -19,6 +19,12 @@ namespace Latios
         #region Structure
         private EntityOperationCommandBuffer m_entityOperationCommandBuffer;
         private NativeReference<bool>        m_playedBack;
+
+        private struct UniquePrefab
+        {
+            public Entity prefab;
+            public int    count;
+        }
         #endregion
 
         #region CreateDestroy
@@ -109,20 +115,33 @@ namespace Latios
             [BurstCompile]
             public static unsafe void Playback(InstantiateCommandBuffer* icb, EntityManager* em)
             {
-                var prefabs = icb->m_entityOperationCommandBuffer.GetEntitiesSortedByEntity(Allocator.Temp);
-                int i       = 0;
-                while (i < prefabs.Length)
+                // Get prefabs in write-deterministic order
+                var prefabs = icb->m_entityOperationCommandBuffer.GetEntities(Allocator.Temp);
+
+                // Count unique prefabs, oredered deterministically
+                var uniquePrefabs   = new UnsafeList<UniquePrefab>(prefabs.Length, Allocator.Temp);
+                var uniquePrefabMap = new UnsafeHashMap<Entity, int>(prefabs.Length, Allocator.Temp);
+                for (int i = 0; i < prefabs.Length; i++)
                 {
-                    var prefab = prefabs[i];
-                    i++;
-                    int count = 1;
-                    while (i < prefabs.Length && prefab == prefabs[i])
+                    var entity = prefabs[i];
+                    if (uniquePrefabMap.TryGetValue(entity, out var uniqueIndex))
                     {
-                        i++;
-                        count++;
+                        uniquePrefabs.ElementAt(uniqueIndex).count++;
                     }
-                    em->Instantiate(prefab, count, Allocator.Temp);
+                    else
+                    {
+                        uniquePrefabMap.Add(entity, uniquePrefabs.Length);
+                        uniquePrefabs.AddNoResize(new UniquePrefab { prefab = entity, count = 1 });
+                    }
                 }
+
+                // Instantiate prefabs
+                for (int i = 0; i < uniquePrefabs.Length; i++)
+                {
+                    var unique = uniquePrefabs[i];
+                    em->Instantiate(unique.prefab, unique.count, Allocator.Temp);
+                }
+
                 icb->m_playedBack.Value = true;
             }
         }
