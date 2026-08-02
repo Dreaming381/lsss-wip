@@ -140,6 +140,12 @@ namespace Latios.Kinemation.Systems
                 latiosWorld.GetCollectionComponent<BrgCullingContext>(worldBlackboardEntity, out var finalHandle);
                 worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(finalHandle, false);
                 m_cullingCallbackFinalJobHandles.Add(finalHandle);
+                if (m_cullPassIndexThisFrame == 0)
+                {
+                    var     wu     = latiosWorld.unityWorldUnmanaged;
+                    ref var system = ref wu.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(wu.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>());
+                    system.UpdateInstanceBuffer(latiosWorld);
+                }
                 m_cullPassIndexThisFrame++;
                 return finalHandle;
             }

@@ -66,6 +66,15 @@ namespace Latios
             }
         }
 
+        public WorldUnmanaged unityWorldUnmanaged
+        {
+            get
+            {
+                CheckHandleIsValid();
+                return m_impl->m_worldUnmanaged;
+            }
+        }
+
         /// <summary>
         /// True if live baking occurred for this update frame. This is set and cleared right after Unity's live baking systems update.
         /// This should always be false in builds.

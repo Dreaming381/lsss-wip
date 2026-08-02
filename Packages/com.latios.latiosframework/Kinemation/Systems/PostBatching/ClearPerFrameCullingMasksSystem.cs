@@ -24,7 +24,7 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var api           = this.GetApi(ref state);
+            var api          = this.GetApi(ref state);
             state.Dependency = new ClearRenderJob
             {
                 lastSystemVersion = state.LastSystemVersion
@@ -34,6 +34,12 @@ namespace Latios.Kinemation.Systems
             {
                 state.Dependency = new ClearSkeletonsJob().Inject(api).ScheduleParallel(m_skeletonMetaQuery, state.Dependency);
             }
+
+            //{
+            //    var     wu     = api.latiosWorld.unityWorldUnmanaged;
+            //    ref var system = ref wu.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(wu.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>());
+            //    system.UpdateInstanceBuffer(api.latiosWorld);
+            //}
         }
 
         [BurstCompile]
@@ -41,7 +47,7 @@ namespace Latios.Kinemation.Systems
         {
             [Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>    frameHandle;
             [Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> dispatchHandle;
-            public uint                                             lastSystemVersion;
+            public uint                                               lastSystemVersion;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -70,3 +76,4 @@ namespace Latios.Kinemation.Systems
         }
     }
 }
+
