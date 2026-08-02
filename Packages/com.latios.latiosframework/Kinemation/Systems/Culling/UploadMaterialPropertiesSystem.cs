@@ -19,6 +19,9 @@ namespace Latios.Kinemation.Systems
     {
         EntityQuery m_metaQuery;
 
+        static GraphicsBufferBroker.StaticID s_instanceBufferId = GraphicsBufferBroker.ReservePersistentBuffer();
+        GraphicsBufferBroker.StaticID        m_instanceBufferId;
+
         private GraphicsBufferUnmanaged           m_GPUPersistentInstanceData;
         internal UnityEngine.GraphicsBufferHandle m_GPUPersistentInstanceBufferHandle;
         private LatiosSparseUploader              m_GPUUploader;
@@ -54,46 +57,19 @@ namespace Latios.Kinemation.Systems
 
             m_metaQuery = state.Fluent().With<EntitiesGraphicsChunkInfo>(false).With<ChunkHeader>(true).With<ChunkPerDispatchCullingMask>(true).Build();
 
+            m_instanceBufferId           = s_instanceBufferId;
             m_persistentInstanceDataSize = kGPUBufferSizeInitial;
-
-            m_GPUPersistentInstanceData = new GraphicsBufferUnmanaged(
-                UnityEngine.GraphicsBuffer.Target.Raw,
-                UnityEngine.GraphicsBuffer.UsageFlags.None,
-                (int)m_persistentInstanceDataSize / 4,
-                4);
-            m_GPUPersistentInstanceBufferHandle = m_GPUPersistentInstanceData.ToManaged().bufferHandle;
+            var broker                   = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+            broker.InitializePersistentBuffer(m_instanceBufferId, (uint)(m_persistentInstanceDataSize / 4), 4, UnityEngine.GraphicsBuffer.Target.Raw, null);
+            m_GPUPersistentInstanceData         = broker.GetPersistentBufferNoResize(m_instanceBufferId);
+            m_GPUPersistentInstanceBufferHandle = m_GPUPersistentInstanceData.bufferHandle;
             m_GPUUploader                       = new LatiosSparseUploader(api.latiosWorld.latiosWorld, m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
-        }
-
-        // Todo: Get rid of the hard system dependencies.
-        internal bool SetBufferSize(long requiredPersistentBufferSize, out UnityEngine.GraphicsBufferHandle newHandle)
-        {
-            if (requiredPersistentBufferSize != m_persistentInstanceDataSize)
-            {
-                m_persistentInstanceDataSize = requiredPersistentBufferSize;
-
-                var newBuffer = new GraphicsBufferUnmanaged(
-                    UnityEngine.GraphicsBuffer.Target.Raw,
-                    UnityEngine.GraphicsBuffer.UsageFlags.None,
-                    (int)(m_persistentInstanceDataSize / 4),
-                    4);
-                m_GPUUploader.ReplaceBuffer(newBuffer, true);
-                m_GPUPersistentInstanceBufferHandle = newBuffer.bufferHandle;
-                newHandle                           = m_GPUPersistentInstanceBufferHandle;
-
-                if (m_GPUPersistentInstanceData.IsValid())
-                    m_GPUPersistentInstanceData.Dispose();
-                m_GPUPersistentInstanceData = newBuffer;
-                return true;
-            }
-            newHandle = default;
-            return false;
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var api           = this.GetApi(ref state);
+            var api          = this.GetApi(ref state);
             var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
@@ -107,7 +83,7 @@ namespace Latios.Kinemation.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            var api                    = this.GetApi(ref state);
+            var api                   = this.GetApi(ref state);
             var context               = api.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(true);
             var materialPropertyTypes = api.worldBlackboardEntity.GetBuffer<MaterialPropertyComponentType>(true);
             var dispatchContext       = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
@@ -127,12 +103,12 @@ namespace Latios.Kinemation.Systems
             m_burstCompatibleTypeArray.Update(ref state);
             var collectJh = new ComputeOperationsJob
             {
-                ChunkProperties                   = context.chunkProperties,
-                ComponentTypes                    = m_burstCompatibleTypeArray,
-                GpuUploadOperations               = gpuUploadOperations,
-                NumGpuUploadOperations            = numGpuUploadOperations,
-                PreviousTransformPreviousType     = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousMI_Tag>(),
-                WorldTransformInverseType         = TypeManager.GetTypeIndex<WorldToLocal_Tag>(),
+                ChunkProperties               = context.chunkProperties,
+                ComponentTypes                = m_burstCompatibleTypeArray,
+                GpuUploadOperations           = gpuUploadOperations,
+                NumGpuUploadOperations        = numGpuUploadOperations,
+                PreviousTransformPreviousType = TypeManager.GetTypeIndex<BuiltinMaterialPropertyUnity_MatrixPreviousMI_Tag>(),
+                WorldTransformInverseType     = TypeManager.GetTypeIndex<WorldToLocal_Tag>(),
 #if !LATIOS_TRANSFORMS_UNITY
                 WorldTransformType    = TypeManager.GetTypeIndex<WorldTransform>(),
                 PreviousTransformType = TypeManager.GetTypeIndex<PreviousTransform>(),
@@ -186,16 +162,22 @@ namespace Latios.Kinemation.Systems
             // Also, this time we write to it.
             var context = api.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(false);
             // Since we have it, now is as good of a time as any to dispatch a resize if needed.
-            //if (context.requiredPersistentInstanceDataSize > m_persistentInstanceDataSize)
-            //{
-            //    SetBufferSize(context.requiredPersistentInstanceDataSize, out m_GPUPersistentInstanceBufferHandle);
-            //    // Todo: Schedule a job for this?
-            //    foreach (var id in context.existingBatchIndices)
-            //        context.threadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)id }, m_GPUPersistentInstanceBufferHandle);
-            //    context.gpuPersistentInstanceBufferHandle                           = m_GPUPersistentInstanceBufferHandle;
-            //    latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(context);
-            //    UnityEngine.Debug.Log("Resized buffer during first OnFinishedCulling");
-            //}
+            if (context.requiredPersistentInstanceDataSize > m_persistentInstanceDataSize)
+            {
+                m_persistentInstanceDataSize = context.requiredPersistentInstanceDataSize;
+                var broker                   = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+                var newBuffer                = broker.GetPersistentBuffer(m_instanceBufferId, (uint)(m_persistentInstanceDataSize / 4));
+                m_GPUUploader.ReplaceBuffer(newBuffer, true);
+                m_GPUPersistentInstanceBufferHandle = newBuffer.bufferHandle;
+                m_GPUPersistentInstanceData         = newBuffer;
+
+                // Todo: Schedule a job for this?
+                foreach (var id in context.existingBatchIndices)
+                    context.threadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)id }, m_GPUPersistentInstanceBufferHandle);
+
+                context.gpuPersistentInstanceBufferHandle = m_GPUPersistentInstanceBufferHandle;
+                api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(context);
+            }
 
             var writeJh = new ExecuteGpuUploads
             {
@@ -241,7 +223,6 @@ namespace Latios.Kinemation.Systems
         public void OnDestroy(ref SystemState state)
         {
             m_GPUUploader.Dispose();
-            m_GPUPersistentInstanceData.Dispose();
             m_burstCompatibleTypeArray.Dispose(default);
         }
 
@@ -249,7 +230,7 @@ namespace Latios.Kinemation.Systems
         partial struct ComputeOperationsJob : IJobChunk, IInjectable
         {
             [ReadOnly, Inject] ComponentTypeHandle<EntitiesGraphicsChunkInfo>   EntitiesGraphicsChunkInfo;
-            [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>         chunkPropertyDirtyMaskHandle;
+            [Inject] ComponentTypeHandle<ChunkMaterialPropertyDirtyMask>        chunkPropertyDirtyMaskHandle;
             [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask> chunkPerDispatchCullingMaskHandle;
             [ReadOnly, Inject] ComponentTypeHandle<ChunkHeader>                 ChunkHeader;
             [ReadOnly, Inject] ComponentTypeHandle<PostProcessMatrix>           postProcessMatrixHandle;

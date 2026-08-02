@@ -122,14 +122,13 @@ namespace Latios.Kinemation.Systems
                 JobHandle inputDeps = state.Dependency;
 
                 latiosWorld.worldBlackboardEntity.UpdateJobDependency<BrgCullingContext>(default, false);
-                //var materialsContext = latiosWorld.GetCollectionComponent<MaterialPropertiesUploadContext>(latiosWorld.worldBlackboardEntity, out var jh, false);
-                latiosWorld.GetCollectionComponent<MaterialPropertiesUploadContext>(latiosWorld.worldBlackboardEntity, out var jh, false);
+                var materialsContext = latiosWorld.GetCollectionComponent<MaterialPropertiesUploadContext>(latiosWorld.worldBlackboardEntity, out var jh, false);
                 jh.Complete();
 
-                m_cullPassIndexThisFrame       = 0;
-                m_dispatchPassIndexThisFrame   = 1;
-                m_cullPassIndexForLastDispatch = -1;
-                //m_GPUPersistentInstanceBufferHandle = materialsContext.gpuPersistentInstanceBufferHandle;
+                m_cullPassIndexThisFrame            = 0;
+                m_dispatchPassIndexThisFrame        = 1;
+                m_cullPassIndexForLastDispatch      = -1;
+                m_GPUPersistentInstanceBufferHandle = materialsContext.gpuPersistentInstanceBufferHandle;
 
                 latiosWorld.worldBlackboardEntity.SetComponentData(new DispatchContext
                 {
@@ -747,33 +746,15 @@ namespace Latios.Kinemation.Systems
                         m_PersistentInstanceDataSize *= 2;
                     }
 
-                    if (m_PersistentInstanceDataSize > kGPUBufferSizeMax)
+                    if (m_PersistentInstanceDataSize > GraphicsBufferBroker.kMaxBufferSize)
                     {
-                        m_PersistentInstanceDataSize = kGPUBufferSizeMax;  // Some backends fails at loading 1024 MiB, but 1023 is fine... This should ideally be a device cap.
+                        m_PersistentInstanceDataSize = GraphicsBufferBroker.kMaxBufferSize;  // Some backends fails at loading 1024 MiB, but 1023 is fine... This should ideally be a device cap.
                     }
 
-                    if (persistentBytes > kGPUBufferSizeMax)
+                    if (persistentBytes > GraphicsBufferBroker.kMaxBufferSize)
                         Debug.LogError(
                             "Entities Graphics: Current loaded scenes need more than 1GiB of persistent GPU memory. This is more than some GPU backends can allocate. Try to reduce amount of loaded data.");
-
-                    // Todo: We can't move this yet, because Unity has a bug/behavior issue that prevents us from updating the batch handles in OnFinishedCulling.
-                    ref var uploadSystem = ref state.WorldUnmanaged.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(
-                        state.WorldUnmanaged.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>());
-                    if (uploadSystem.SetBufferSize(m_PersistentInstanceDataSize, out var newHandle))
-                    {
-                        m_GPUPersistentInstanceBufferHandle = newHandle;
-                        UpdateBatchBufferHandles();
-                    }
                 }
-            }
-
-            private void UpdateBatchBufferHandles()
-            {
-                foreach (var b in m_ExistingBatchIndices)
-                {
-                    m_ThreadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)b }, m_GPUPersistentInstanceBufferHandle);
-                }
-                //UnityEngine.Debug.Log("Resized buffer before culling.");
             }
         }
     }

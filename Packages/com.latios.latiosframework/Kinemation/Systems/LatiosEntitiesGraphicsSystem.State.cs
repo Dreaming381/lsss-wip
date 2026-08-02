@@ -89,7 +89,6 @@ namespace Latios.Kinemation.Systems
             const int   kMaxChunkMetadata      = 1 * 1024 * 1024;
             const ulong kMaxGPUAllocatorMemory = 1024 * 1024 * 1024;  // 1GiB of potential memory space
             const long  kGPUBufferSizeInitial  = 32 * 1024 * 1024;
-            const long  kGPUBufferSizeMax      = 1023 * 1024 * 1024;
 
             private JobHandle            m_UpdateJobDependency;
             private ThreadedBatchContext m_ThreadedBatchContext;

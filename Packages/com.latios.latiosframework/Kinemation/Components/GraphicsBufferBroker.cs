@@ -117,6 +117,8 @@ namespace Latios.Kinemation
     public struct GraphicsBufferBroker : IDisposable, IComponentData
     {
         #region API
+        public const uint kMaxBufferSize = 1024 * 1024 * 1023;  // According to Unity, some GPUs can't allocate 1024 MB, but 1023 is fine.
+
         /// <summary>
         /// A runtime static handle to a particular persistent growable buffer or upload buffer pool.
         /// </summary>
@@ -271,7 +273,7 @@ namespace Latios.Kinemation
                                     UnityObjectRef<ComputeShader>          copyShader,
                                     NativeList<BufferQueuedForDestruction> destructionQueue)
             {
-                if (initialSize * stride > 1024 * 1024 * 1024)
+                if (initialSize * stride > kMaxBufferSize)
                 {
                     Debug.LogWarning("Attempted to allocate a persistent graphics buffer over 1 GB. Rendering artifacts may occur.");
                     initialSize = 1024 * 1024 * 1024 / stride;
@@ -301,12 +303,12 @@ namespace Latios.Kinemation
                 if (requiredSize <= m_currentSize)
                     return m_currentBuffer;
 
-                if (requiredSize * m_stride > 1024 * 1024 * 1024)
+                if (requiredSize * m_stride > kMaxBufferSize)
                 {
                     Debug.LogWarning("Attempted to allocate a persistent graphics buffer over 1 GB. Rendering artifacts may occur.");
                     requiredSize = m_currentSize;
                 }
-                ulong size       = math.ceilpow2(requiredSize);
+                ulong size       = math.select(math.ceilpow2(requiredSize), kMaxBufferSize / m_stride, requiredSize * m_stride == kMaxBufferSize);
                 var   prevBuffer = m_currentBuffer;
                 m_currentBuffer  = new GraphicsBufferUnmanaged(m_bindingTarget, GraphicsBuffer.UsageFlags.None, (int)size, (int)m_stride);
                 if (m_copyShader.IsValid())
@@ -363,10 +365,10 @@ namespace Latios.Kinemation
 
             public GraphicsBufferUnmanaged GetBuffer(ulong requiredSize, uint frameId)
             {
-                if (requiredSize * m_stride > 1024 * 1024 * 1024)
+                if (requiredSize * m_stride > kMaxBufferSize)
                 {
                     Debug.LogWarning("Attempted to allocate a persistent graphics buffer over 1 GB. Rendering artifacts may occur.");
-                    requiredSize = 1024 * 1024 * 1024 / m_stride;
+                    requiredSize = kMaxBufferSize / m_stride;
                 }
 
                 for (int i = 0; i < m_buffersInPool.Length; i++)
