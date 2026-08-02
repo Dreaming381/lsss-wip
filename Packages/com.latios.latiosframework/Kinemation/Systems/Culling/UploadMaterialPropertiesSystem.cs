@@ -151,13 +151,6 @@ namespace Latios.Kinemation.Systems
             }
 #endif
 
-            // Todo: Once blits are removed in newer Entities versions, we can add early-out checks here.
-            var sizeRequirements  = collectState.uploadSizeRequirements.Value;
-            m_ThreadedGPUUploader = m_GPUUploader.Begin(sizeRequirements.totalUploadBytes,
-                                                        sizeRequirements.biggestUploadBytes,
-                                                        sizeRequirements.numOperations,
-                                                        collectState.globalSystemVersionOfLatiosEntitiesGraphics);
-
             // This is a different update, so we need to resecure this collection component.
             // Also, this time we write to it.
             var context = api.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(false);
@@ -177,7 +170,15 @@ namespace Latios.Kinemation.Systems
 
                 context.gpuPersistentInstanceBufferHandle = m_GPUPersistentInstanceBufferHandle;
                 api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(context);
+                UnityEngine.Debug.Log("Replaced buffer");
             }
+
+            // Todo: Once blits are removed in newer Entities versions, we can add early-out checks here.
+            var sizeRequirements  = collectState.uploadSizeRequirements.Value;
+            m_ThreadedGPUUploader = m_GPUUploader.Begin(sizeRequirements.totalUploadBytes,
+                                                        sizeRequirements.biggestUploadBytes,
+                                                        sizeRequirements.numOperations,
+                                                        collectState.globalSystemVersionOfLatiosEntitiesGraphics);
 
             var writeJh = new ExecuteGpuUploads
             {

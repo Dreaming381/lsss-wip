@@ -730,7 +730,7 @@ namespace Latios.Kinemation.SparseUpload
             {
                 // Since we have no code such as Graphics.CopyBuffer(dst, src) currently
                 // we have to do this ourselves in a compute shader
-                var srcSize = m_DestinationBuffer.count * m_DestinationBuffer.stride;
+                var srcSizeInBytes = (ulong)m_DestinationBuffer.count * (ulong)m_DestinationBuffer.stride;
                 //m_SparseUploaderShader.SetBuffer(m_ReplaceKernelIndex, m_SrcBufferID, m_DestinationBuffer);
                 //m_SparseUploaderShader.SetBuffer(m_ReplaceKernelIndex, m_DstBufferID, buffer);
                 //m_SparseUploaderShader.SetInt(m_ReplaceOperationSize, srcSize);
@@ -739,10 +739,14 @@ namespace Latios.Kinemation.SparseUpload
 
                 m_copyBytesShader.SetBuffer(0, m_dst, buffer);
                 m_copyBytesShader.SetBuffer(0, m_src, m_DestinationBuffer);
-                uint threadGroupSize = 64;
-                for (uint dispatchesRemaining = ((uint)srcSize / 4 + threadGroupSize - 1) / threadGroupSize, start = 0; dispatchesRemaining > 0;)
+                uint threadGroupSize    = 64;
+                var  threadsRequired    = srcSizeInBytes / 4;
+                var  dispatchesRequired = threadsRequired / threadGroupSize;
+                if (threadsRequired % threadGroupSize != 0)
+                    dispatchesRequired++;
+                for (ulong dispatchesRemaining = dispatchesRequired, start = 0; dispatchesRemaining > 0;)
                 {
-                    uint dispatchCount = math.min(dispatchesRemaining, 65535);
+                    var dispatchCount = math.min(dispatchesRemaining, 65535);
                     m_copyBytesShader.SetInt(m_start, (int)(start * threadGroupSize));
                     m_copyBytesShader.Dispatch(0, (int)dispatchCount, 1, 1);
                     dispatchesRemaining -= dispatchCount;
