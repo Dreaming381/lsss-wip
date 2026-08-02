@@ -24,6 +24,7 @@ namespace Latios.Unika
             ScriptTypeInfoManager.InitializeStatics();
             ScriptVTable.InitializeStatics();
             ScriptStructuralChangeInternal.InitializeStatics();
+            ContextNeedsManager.InitializeStatics();
 
 #if UNITY_EDITOR
             var interfaceTypes = UnityEditor.TypeCache.GetTypesDerivedFrom<IUnikaInterface>();
@@ -75,6 +76,7 @@ namespace Latios.Unika
 
             ScriptVTable.DisposeStatics();
             ScriptTypeInfoManager.DisposeStatics();
+            ContextNeedsManager.DisposeStatics();
             loadedAssemblies.Clear();
             initialized = false;
         }
@@ -155,6 +157,7 @@ namespace Latios.Unika
             }
             var invokable = method.CreateDelegate(typeof(InitializeDelegate)) as InitializeDelegate;
             invokable();
+            ContextNeedsManager.ProcessScriptType(scriptType);
         }
     }
 }

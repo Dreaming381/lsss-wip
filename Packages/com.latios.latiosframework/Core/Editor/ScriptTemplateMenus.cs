@@ -68,6 +68,12 @@ internal class ScriptTemplateMenus
         CreateScriptFromTemplate("UnikaScript.txt", "NewUnikaScript.cs");
     }
 
+    [MenuItem("Assets/Create/Latios/UnikaScript - Auto Authoring")]
+    public static void CreateUnikaAutoScript()
+    {
+        CreateScriptFromTemplate("UnikaAutoScript.txt", "NewUnikaScript.cs");
+    }
+
 #if NETCODE_PROJECT
     [MenuItem("Assets/Create/Latios/Bootstrap/NetCode Standard - Injection Workflow")]
     public static void CreateNetCodeStandardInjectionBootstrap()

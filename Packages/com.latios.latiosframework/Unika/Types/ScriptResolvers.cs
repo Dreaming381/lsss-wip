@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Latios.Transforms;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -124,15 +125,10 @@ namespace Latios.Unika
     /// <typeparam name="T">The type of base script resolver to wrap</typeparam>
     public unsafe struct Cached<T> : ICachedScriptResolver where T : unmanaged, IScriptResolver, IDisposable
     {
-        T                                              br;
+        internal T                                     br;
         UnsafeHashMap<Entity, EntityScriptCollection>* map;
         EntityScriptCollection                         lastAccessed;
         AllocatorManager.AllocatorHandle               allocatorHandle;
-
-        /// <summary>
-        /// Gets the base resolver instance used by this cached wrapper
-        /// </summary>
-        public T baseResolver => br;
 
         /// <summary>
         /// Creates a cached wrapper resolver using the base resolver
@@ -203,5 +199,60 @@ namespace Latios.Unika
                 throw new InvalidOperationException("Cached script resolver is uninitialized.");
         }
     }
+
+    public static class CachedExtensions
+    {
+        /// <summary>
+        /// Gets the underlying resolver
+        /// </summary>
+        public static ref T GetBaseResolver<T>(ref this Cached<T> cachedResolver) where T : unmanaged, IScriptResolver, IDisposable
+        {
+            return ref cachedResolver.br;
+        }
+    }
+
+#if !LATIOS_TRANSFORMS_UNITY
+    /// <summary>
+    /// A script resolver that allows resolving scripts belonging to the same transform hierarchy in parallel.
+    /// This type stores pointers and should be created as a local variable only.
+    /// </summary>
+    public unsafe struct HierarchyScriptResolver : IScriptResolver
+    {
+        TransformsBufferLookup<UnikaScripts>* lookup;
+        TransformsKey*                        key;
+
+        public HierarchyScriptResolver(ref TransformsBufferLookup<UnikaScripts> lookup, ref TransformsKey key)
+        {
+            this.lookup               = (TransformsBufferLookup<UnikaScripts>*)UnsafeUtility.AddressOf(ref lookup);
+            fixed (TransformsKey* ptr = &key)
+            this.key                  = ptr;
+        }
+
+        public bool TryGet(Entity entity, out EntityScriptCollection allScripts, bool throwSafetyErrorIfNotFound = false)
+        {
+            CheckKey();
+            if (throwSafetyErrorIfNotFound)
+            {
+                var result = (*lookup)[entity, *key];
+                allScripts = result.AllScripts(entity);
+                return true;
+            }
+            if (lookup->TryGetComponent(entity, *key, out var buffer))
+            {
+                allScripts = buffer.AllScripts(entity);
+                return true;
+            }
+            allScripts = default;
+            return false;
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        public void CheckKey()
+        {
+            if (key == null)
+                throw new InvalidOperationException("TransformsKey not set.");
+        }
+    }
+#endif
 }
 

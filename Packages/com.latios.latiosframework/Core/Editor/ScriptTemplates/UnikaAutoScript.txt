@@ -1,0 +1,26 @@
+using Latios.Authoring;
+using Latios.Transforms;
+using Latios.Unika;
+using Latios.Unika.Authoring;
+using Unity.Entities;
+using Unity.Mathematics;
+using Unity.Collections;
+
+#ROOTNAMESPACEBEGIN#
+    namespace Authoring
+    {
+        public partial class #SCRIPTNAME# : UnikaAutoScriptAuthoring<Scripts.#SCRIPTNAME#>
+        {
+            #NOTRIM#
+
+        }
+    }
+
+    namespace Scripts
+    {
+        public partial struct #SCRIPTNAME# : IUnikaScript
+        {
+            #NOTRIM#
+        }
+    }
+#ROOTNAMESPACEEND#

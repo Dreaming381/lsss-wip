@@ -3,6 +3,7 @@
     "rootNamespace": "Latios.Unika",
     "references": [
         "Latios.Core",
+        "Latios.Transforms",
         "Latios.Calci",
         "Unity.Burst",
         "Unity.Collections",
