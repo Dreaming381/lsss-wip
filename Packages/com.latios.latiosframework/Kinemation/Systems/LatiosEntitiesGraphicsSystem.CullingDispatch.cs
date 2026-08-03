@@ -83,6 +83,10 @@ namespace Latios.Kinemation.Systems
         {
             public void OnBeginRendering()
             {
+                var features = latiosWorld.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
+                if (features.materialProperties)
+                    return;
+
                 var     wu     = latiosWorld.unityWorldUnmanaged;
                 ref var system = ref wu.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(wu.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>());
                 system.UpdateInstanceBuffer(latiosWorld);

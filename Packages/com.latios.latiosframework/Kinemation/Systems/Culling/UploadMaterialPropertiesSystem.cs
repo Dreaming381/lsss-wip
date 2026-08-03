@@ -189,24 +189,29 @@ namespace Latios.Kinemation.Systems
             // This is a different update, so we need to resecure this collection component.
             // Also, this time we write to it.
             var context = api.worldBlackboardEntity.GetCollectionComponent<MaterialPropertiesUploadContext>(false);
-            // Since we have it, now is as good of a time as any to dispatch a resize if needed.
-            //if (context.requiredPersistentInstanceDataSize > m_persistentInstanceDataSize)
-            //{
-            //    m_persistentInstanceDataSize = context.requiredPersistentInstanceDataSize;
-            //    var broker                   = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
-            //    var newBuffer                = broker.GetPersistentBuffer(m_instanceBufferId, (uint)(m_persistentInstanceDataSize / 4));
-            //    m_GPUUploader.ReplaceBuffer(newBuffer, true);
-            //    m_GPUPersistentInstanceBufferHandle = newBuffer.bufferHandle;
-            //    m_GPUPersistentInstanceData         = newBuffer;
-            //
-            //    // Todo: Schedule a job for this?
-            //    foreach (var id in context.existingBatchIndices)
-            //        context.threadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)id }, m_GPUPersistentInstanceBufferHandle);
-            //
-            //    context.gpuPersistentInstanceBufferHandle = m_GPUPersistentInstanceBufferHandle;
-            //    api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(context);
-            //    UnityEngine.Debug.Log("Replaced buffer");
-            //}
+            // If we are in a custom graphics pass, we need to do resize handling early.
+            if (api.worldBlackboardEntity.GetComponentData<DispatchContext>().isCustomGraphicsDispatch)
+            {
+                api.latiosWorld.GetCollectionComponent<MaterialPropertiesUploadContext>(api.worldBlackboardEntity, out var toComplete, false);
+                toComplete.Complete();
+                if (context.requiredPersistentInstanceDataSize > m_persistentInstanceDataSize)
+                {
+                    m_persistentInstanceDataSize = context.requiredPersistentInstanceDataSize;
+                    var broker                   = api.worldBlackboardEntity.GetComponentData<GraphicsBufferBroker>();
+                    var newBuffer                = broker.GetPersistentBuffer(m_instanceBufferId, (uint)(m_persistentInstanceDataSize / 4));
+                    m_GPUUploader.ReplaceBuffer(newBuffer, true);
+                    m_GPUPersistentInstanceBufferHandle = newBuffer.bufferHandle;
+                    m_GPUPersistentInstanceData         = newBuffer;
+
+                    // Todo: Schedule a job for this?
+                    foreach (var id in context.existingBatchIndices)
+                        context.threadedBatchContext.SetBatchBuffer(new BatchID { value = (uint)id }, m_GPUPersistentInstanceBufferHandle);
+
+                    context.gpuPersistentInstanceBufferHandle = m_GPUPersistentInstanceBufferHandle;
+                    api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(context);
+                    //UnityEngine.Debug.Log("Replaced buffer");
+                }
+            }
 
             // Todo: Once blits are removed in newer Entities versions, we can add early-out checks here.
             var sizeRequirements  = collectState.uploadSizeRequirements.Value;
