@@ -10,7 +10,7 @@ namespace Latios.Unika.Authoring
     /// and override OnAutoBake() to add custom baking logic.
     /// </summary>
     /// <typeparam name="T">The type of script this authoring component generates</typeparam>
-    public abstract class UnikaAutoScriptAuthoring<T> : UnikaScriptAuthoring<T> where T : unmanaged, IUnikaScript, IUnikaScriptGen
+    public abstract class UnikaScriptAutoAuthoring<T> : UnikaScriptAuthoring<T> where T : unmanaged, IUnikaScript, IUnikaScriptGen
     {
         /// <summary>
         /// Returns true by default. Override this if your authoring component's validity depends on

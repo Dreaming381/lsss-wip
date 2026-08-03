@@ -9,7 +9,7 @@ using Unity.Collections;
 #ROOTNAMESPACEBEGIN#
     namespace Authoring
     {
-        public partial class #SCRIPTNAME# : UnikaAutoScriptAuthoring<Scripts.#SCRIPTNAME#>
+        public partial class #SCRIPTNAME# : UnikaScriptAutoAuthoring<Scripts.#SCRIPTNAME#>
         {
             #NOTRIM#
 
