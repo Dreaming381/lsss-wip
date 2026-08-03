@@ -648,7 +648,6 @@ namespace Latios.Kinemation.SparseUpload
 
         uint m_frameIndex;
         bool m_firstUpdate;
-        bool m_firstUpdateThisFrame;
 
         /// <summary>
         /// Constructs a new sparse uploader with the specified buffer as the target.
@@ -693,9 +692,8 @@ namespace Latios.Kinemation.SparseUpload
             m_RequestedUploadBufferPoolMaxSizeBytes = 0;
             m_PruneUploadBufferPool                 = false;
 
-            m_frameIndex           = 0;
-            m_firstUpdate          = true;
-            m_firstUpdateThisFrame = false;
+            m_frameIndex  = 0;
+            m_firstUpdate = true;
         }
 
         /// <summary>
@@ -857,7 +855,6 @@ namespace Latios.Kinemation.SparseUpload
             if (m_firstUpdate || frameID != m_frameIndex)
             {
                 RecoverBuffers();
-                m_firstUpdateThisFrame = true;
             }
             m_firstUpdate = false;
             m_frameIndex  = frameID;
@@ -946,10 +943,7 @@ namespace Latios.Kinemation.SparseUpload
                 return;
 
             FrameData frameData = default;
-            if (m_firstUpdateThisFrame)
-                frameData = (!m_FreeFrameData.IsEmpty) ? m_FreeFrameData.Pop() : new FrameData(Allocator.Persistent);
-            else
-                frameData = m_FrameData[m_FrameData.Length - 1];
+            frameData           = (!m_FreeFrameData.IsEmpty) ? m_FreeFrameData.Pop() : new FrameData(Allocator.Persistent);
             for (int iBuf = 0; iBuf < numBuffers; ++iBuf)
             {
                 var mappedBuffer = m_MappedBuffers[iBuf];
@@ -973,8 +967,7 @@ namespace Latios.Kinemation.SparseUpload
                 }
             }
 
-            if (m_firstUpdateThisFrame)
-                m_FrameData.Add(frameData);
+            m_FrameData.Add(frameData);
 
             if (m_MappedBuffers.IsCreated)
                 m_MappedBuffers.Dispose();

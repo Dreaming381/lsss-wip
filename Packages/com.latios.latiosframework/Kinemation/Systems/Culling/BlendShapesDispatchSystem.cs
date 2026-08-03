@@ -11,8 +11,8 @@ namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
-    public partial struct BlendShapesDispatchSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<BlendShapesDispatchSystem.CollectState,
-                                                                                                         BlendShapesDispatchSystem.WriteState>
+    public partial struct BlendShapesDispatchSystem : ISystem, ILatiosApi, ISystemShouldUpdate, ICullingComputeDispatchSystem<BlendShapesDispatchSystem.CollectState,
+                                                                                                                              BlendShapesDispatchSystem.WriteState>
     {
         UnityObjectRef<ComputeShader>                        m_dispatchShader;
         EntityQuery                                          m_query;
@@ -50,20 +50,28 @@ namespace Latios.Kinemation.Systems
             _PreviousFrameDeformedMeshData = Shader.PropertyToID("_PreviousFrameDeformedMeshData");
         }
 
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public unsafe bool ShouldUpdateSystem(ref SystemState state)
         {
-            var api          = this.GetApi(ref state);
+            fixed (BlendShapesDispatchSystem* system = &this)
+            return ShouldUpdate(ref state, system);
+        }
+
+        [BurstCompile]
+        static unsafe bool ShouldUpdate(ref SystemState state, BlendShapesDispatchSystem* system)
+        {
+            var api          = system->GetApi(ref state);
             var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
                 var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
-                if (!features.blendShapes)
-                    return;
+                if (!features.materialProperties)
+                    return false;
             }
-
-            m_data.DoUpdate(ref state, ref this);
+            return true;
         }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state) => m_data.DoUpdate(ref state, ref this);
 
         public CollectState Collect(ref SystemState state)
         {

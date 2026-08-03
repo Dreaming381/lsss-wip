@@ -129,7 +129,7 @@ namespace Latios.Kinemation.Systems
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct CopyDeformCustomSystem : ISystem, ILatiosApi
+    public partial struct CopyDeformCustomSystem : ISystem, ILatiosApi, ISystemShouldUpdate
     {
         EntityQuery m_metaQuery;
 
@@ -141,17 +141,30 @@ namespace Latios.Kinemation.Systems
                           .With<ChunkPerDispatchCullingMask>(false).UseWriteGroups().Build();
         }
 
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public unsafe bool ShouldUpdateSystem(ref SystemState state)
         {
-            var api             = this.GetApi(ref state);
-            var dispatchContext = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
-            if (dispatchContext.isCustomGraphicsDispatch)
+            fixed (CopyDeformCustomSystem* system = &this)
+            return ShouldUpdate(ref state, system);
+        }
+
+        [BurstCompile]
+        static unsafe bool ShouldUpdate(ref SystemState state, CopyDeformCustomSystem* system)
+        {
+            var api          = system->GetApi(ref state);
+            var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
+            if (dispatchData.isCustomGraphicsDispatch)
             {
                 var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.dynamicMeshes && !features.blendShapes && !features.skinning)
-                    return;
+                    return false;
             }
+            return true;
+        }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state)
+        {
+            var api = this.GetApi(ref state);
 
             var chunkList = new NativeList<ArchetypeChunk>(m_metaQuery.CalculateEntityCountWithoutFiltering(), state.WorldUpdateAllocator);
 

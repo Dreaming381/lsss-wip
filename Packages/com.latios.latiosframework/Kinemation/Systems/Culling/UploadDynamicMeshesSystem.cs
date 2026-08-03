@@ -11,7 +11,8 @@ namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
-    public partial struct UploadDynamicMeshesSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<UploadDynamicMeshesSystem.CollectState, UploadDynamicMeshesSystem.WriteState>
+    public partial struct UploadDynamicMeshesSystem : ISystem, ILatiosApi, ISystemShouldUpdate, ICullingComputeDispatchSystem<UploadDynamicMeshesSystem.CollectState,
+                                                                                                                              UploadDynamicMeshesSystem.WriteState>
     {
         UnityObjectRef<ComputeShader>                        m_uploadShader;
         EntityQuery                                          m_query;
@@ -45,20 +46,28 @@ namespace Latios.Kinemation.Systems
             _PreviousFrameDeformedMeshData = Shader.PropertyToID("_PreviousFrameDeformedMeshData");
         }
 
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public unsafe bool ShouldUpdateSystem(ref SystemState state)
         {
-            var api           = this.GetApi(ref state);
+            fixed (UploadDynamicMeshesSystem* system = &this)
+            return ShouldUpdate(ref state, system);
+        }
+
+        [BurstCompile]
+        static unsafe bool ShouldUpdate(ref SystemState state, UploadDynamicMeshesSystem* system)
+        {
+            var api          = system->GetApi(ref state);
             var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
                 var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.dynamicMeshes)
-                    return;
+                    return false;
             }
-
-            m_data.DoUpdate(ref state, ref this);
+            return true;
         }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state) => m_data.DoUpdate(ref state, ref this);
 
         public void OnDestroy(ref SystemState state)
         {
@@ -70,7 +79,7 @@ namespace Latios.Kinemation.Systems
 
         public CollectState Collect(ref SystemState state)
         {
-            var api                = this.GetApi(ref state);
+            var api               = this.GetApi(ref state);
             var streamCount       = CollectionHelper.CreateNativeArray<int>(1, state.WorldUpdateAllocator);
             streamCount[0]        = m_query.CalculateChunkCountWithoutFiltering();
             var streamConstructJh = NativeStream.ScheduleConstruct(out var stream, streamCount, default, state.WorldUpdateAllocator);
@@ -137,7 +146,7 @@ namespace Latios.Kinemation.Systems
             if (!writeState.broker.isCreated)
                 return;
 
-            var api                       = this.GetApi(ref state);
+            var api                      = this.GetApi(ref state);
             var broker                   = writeState.broker;
             var uploadBuffer             = writeState.uploadBuffer;
             var metaBuffer               = writeState.metaBuffer;
@@ -193,17 +202,17 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         partial struct GatherUploadOperationsJob : IJobChunk, IInjectable
         {
-            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask>            perDispatchMaskHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>               perFrameMaskHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<DynamicMeshState>                       stateHandle;
-            [ReadOnly, Inject] BufferTypeHandle<DynamicMeshVertex>                         verticesHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                              blobHandle;
-            [ReadOnly, Inject] EntityTypeHandle                                            entityHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<CurrentDeformShaderIndex>               currentDeformShaderIndexHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<PreviousDeformShaderIndex>              previousDeformShaderIndexHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<TwoAgoDeformShaderIndex>                twoAgoDeformShaderIndexHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<LegacyComputeDeformShaderIndex>         legacyComputeDeformShaderIndexHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>      legacyDotsDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerDispatchCullingMask>           perDispatchMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<ChunkPerFrameCullingMask>              perFrameMaskHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<DynamicMeshState>                      stateHandle;
+            [ReadOnly, Inject] BufferTypeHandle<DynamicMeshVertex>                        verticesHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<BoundMesh>                             blobHandle;
+            [ReadOnly, Inject] EntityTypeHandle                                           entityHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<CurrentDeformShaderIndex>              currentDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<PreviousDeformShaderIndex>             previousDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TwoAgoDeformShaderIndex>               twoAgoDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LegacyComputeDeformShaderIndex>        legacyComputeDeformShaderIndexHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<LegacyDotsDeformParamsShaderIndex>     legacyDotsDeformShaderIndexHandle;
             [ReadOnly] public NativeParallelHashMap<ArchetypeChunk, DeformClassification> deformClassificationMap;
 
             [NativeDisableParallelForRestriction] public NativeStream.Writer streamWriter;

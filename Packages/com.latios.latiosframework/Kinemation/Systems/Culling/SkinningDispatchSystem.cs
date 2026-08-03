@@ -15,7 +15,8 @@ using Unity.Mathematics;
 namespace Latios.Kinemation.Systems
 {
     [DisableAutoCreation]
-    public partial struct SkinningDispatchSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<SkinningDispatchSystem.CollectState, SkinningDispatchSystem.WriteState>
+    public partial struct SkinningDispatchSystem : ISystem, ILatiosApi, ISystemShouldUpdate, ICullingComputeDispatchSystem<SkinningDispatchSystem.CollectState,
+                                                                                                                           SkinningDispatchSystem.WriteState>
     {
 #if UNITY_ANDROID
         // Android devices often have buggy drivers that struggle with groupshared memory.
@@ -99,20 +100,28 @@ namespace Latios.Kinemation.Systems
             _SkinMatrices                  = UnityEngine.Shader.PropertyToID("_SkinMatrices");
         }
 
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public unsafe bool ShouldUpdateSystem(ref SystemState state)
         {
-            var api          = this.GetApi(ref state);
+            fixed (SkinningDispatchSystem* system = &this)
+            return ShouldUpdate(ref state, system);
+        }
+
+        [BurstCompile]
+        static unsafe bool ShouldUpdate(ref SystemState state, SkinningDispatchSystem* system)
+        {
+            var api          = system->GetApi(ref state);
             var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
                 var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.skinning)
-                    return;
+                    return false;
             }
-
-            m_data.DoUpdate(ref state, ref this);
+            return true;
         }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state) => m_data.DoUpdate(ref state, ref this);
 
         public CollectState Collect(ref SystemState state)
         {

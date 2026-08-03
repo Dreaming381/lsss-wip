@@ -83,10 +83,12 @@ namespace Latios.Kinemation.Systems
             m_cullingSuperSystem               = World.GetOrCreateSystemManaged<KinemationCullingSuperSystem>();
 
             m_unmanaged.OnCreate(ref CheckedStateRef, m_BatchRendererGroup);
+            UnityEngine.Application.onBeforeRender += OnBeginRendering;
         }
 
         protected override void OnDestroy()
         {
+            UnityEngine.Application.onBeforeRender -= OnBeginRendering;
             m_unmanaged.OnDestroy();
             if (ErrorShaderEnabled)
                 Material.DestroyImmediate(m_ErrorMaterial);

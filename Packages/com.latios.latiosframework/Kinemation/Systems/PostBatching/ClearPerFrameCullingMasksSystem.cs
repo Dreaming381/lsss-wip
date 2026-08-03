@@ -34,12 +34,6 @@ namespace Latios.Kinemation.Systems
             {
                 state.Dependency = new ClearSkeletonsJob().Inject(api).ScheduleParallel(m_skeletonMetaQuery, state.Dependency);
             }
-
-            //{
-            //    var     wu     = api.latiosWorld.unityWorldUnmanaged;
-            //    ref var system = ref wu.GetUnsafeSystemRef<UploadMaterialPropertiesSystem>(wu.GetExistingUnmanagedSystem<UploadMaterialPropertiesSystem>());
-            //    system.UpdateInstanceBuffer(api.latiosWorld);
-            //}
         }
 
         [BurstCompile]

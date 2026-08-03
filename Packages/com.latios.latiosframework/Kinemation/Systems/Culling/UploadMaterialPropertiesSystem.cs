@@ -14,8 +14,8 @@ namespace Latios.Kinemation.Systems
 {
     [RequireMatchingQueriesForUpdate]
     [DisableAutoCreation]
-    public partial struct UploadMaterialPropertiesSystem : ISystem, ILatiosApi, ICullingComputeDispatchSystem<UploadMaterialPropertiesSystem.CollectState,
-                                                                                                              UploadMaterialPropertiesSystem.WriteState>
+    public partial struct UploadMaterialPropertiesSystem : ISystem, ILatiosApi, ISystemShouldUpdate, ICullingComputeDispatchSystem<UploadMaterialPropertiesSystem.CollectState,
+                                                                                                                                   UploadMaterialPropertiesSystem.WriteState>
     {
         EntityQuery m_metaQuery;
 
@@ -39,6 +39,8 @@ namespace Latios.Kinemation.Systems
 #if DEBUG_LOG_MEMORY_USAGE
         private static ulong PrevUsedSpace = 0;
 #endif
+
+        bool m_updateLate;
 
         /// <summary>
         /// Prune sparse uploader gpu buffer pool.
@@ -64,6 +66,7 @@ namespace Latios.Kinemation.Systems
             m_GPUPersistentInstanceData         = broker.GetPersistentBufferNoResize(m_instanceBufferId);
             m_GPUPersistentInstanceBufferHandle = m_GPUPersistentInstanceData.bufferHandle;
             m_GPUUploader                       = new LatiosSparseUploader(api.latiosWorld.latiosWorld, m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
+            m_updateLate                        = false;
         }
 
         internal void UpdateInstanceBuffer(LatiosWorldUnmanaged latiosWorld)
@@ -85,25 +88,33 @@ namespace Latios.Kinemation.Systems
 
                 context.gpuPersistentInstanceBufferHandle = m_GPUPersistentInstanceBufferHandle;
                 latiosWorld.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(context);
-                UnityEngine.Debug.Log("Replaced buffer");
+                //UnityEngine.Debug.Log("Replaced buffer");
             }
             latiosWorld.UpdateCollectionComponentMainThreadAccess<MaterialPropertiesUploadContext>(latiosWorld.worldBlackboardEntity, false);
         }
 
-        [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public unsafe bool ShouldUpdateSystem(ref SystemState state)
         {
-            var api          = this.GetApi(ref state);
+            fixed (UploadMaterialPropertiesSystem* system = &this)
+            return ShouldUpdate(ref state, system);
+        }
+
+        [BurstCompile]
+        static unsafe bool ShouldUpdate(ref SystemState state, UploadMaterialPropertiesSystem* system)
+        {
+            var api          = system->GetApi(ref state);
             var dispatchData = api.worldBlackboardEntity.GetComponentData<DispatchContext>();
             if (dispatchData.isCustomGraphicsDispatch)
             {
                 var features = api.worldBlackboardEntity.GetComponentData<EnableUpdatingInCustomGraphics>();
                 if (!features.materialProperties)
-                    return;
+                    return false;
             }
-
-            m_data.DoUpdate(ref state, ref this);
+            return true;
         }
+
+        [BurstCompile]
+        public void OnUpdate(ref SystemState state) => m_data.DoUpdate(ref state, ref this);
 
         public CollectState Collect(ref SystemState state)
         {

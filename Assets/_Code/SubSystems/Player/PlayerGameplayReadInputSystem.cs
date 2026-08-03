@@ -27,7 +27,7 @@ namespace Lsss
 
                     bool  accelDown    = gamepad.aButton.isPressed;
                     bool  brakeDown    = gamepad.bButton.isPressed;
-                    float stickGas     = -1f;  // gamepad.rightStick.ReadValue().y;
+                    float stickGas     = gamepad.rightStick.ReadValue().y;
                     float accel        = math.select(0f, 1f, accelDown);
                     float brake        = math.select(0f, -1f, brakeDown);
                     desiredActions.gas = math.clamp(stickGas + accel + brake,
