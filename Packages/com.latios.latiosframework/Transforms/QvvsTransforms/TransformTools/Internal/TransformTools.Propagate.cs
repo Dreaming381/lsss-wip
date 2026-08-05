@@ -17,25 +17,29 @@ namespace Latios.Transforms
                 {
                     LocalPositionSet,
                     LocalRotationSet,
+                    LocalPositionRotationSet,
                     LocalScaleSet,
                     LocalTransformSet,
                     StretchSet,
                     LocalTransformQvvsSet,
                     WorldPositionSet,
                     WorldRotationSet,
+                    WorldPositionRotationSet,
                     WorldScaleSet,
                     WorldTransformSet,
                     LocalPositionDelta,
                     LocalRotationDelta,
+                    LocalPositionRotationDelta,
                     LocalTransformDelta,
                     LocalInverseTransformDelta,
                     ScaleDelta,
                     StretchDelta,
                     WorldPositionDelta,
                     WorldRotationDelta,
+                    WorldPositionRotationDelta,
                     WorldTransformDelta,
                     WorldInverseTransformDelta,
-                    CopyParentParentChanged
+                    CopyParentParentChanged,
                 }
                 public int       indexInHierarchy;
                 public WriteType writeType;
@@ -277,6 +281,11 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.WorldRotationSet:
                         transform.rotation = writeData.rotation;
                         break;
+                    case WriteCommand.WriteType.LocalPositionRotationSet:
+                    case WriteCommand.WriteType.WorldPositionRotationSet:
+                        transform.position = writeData.position;
+                        transform.rotation = writeData.rotation;
+                        break;
                     case WriteCommand.WriteType.LocalScaleSet:
                     case WriteCommand.WriteType.WorldScaleSet:
                         transform.scale = writeData.scale;
@@ -300,6 +309,11 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.LocalRotationDelta:
                     case WriteCommand.WriteType.WorldRotationDelta:
                         transform.rotation = math.normalize(math.mul(writeData.rotation, transform.rotation));
+                        break;
+                    case WriteCommand.WriteType.LocalPositionRotationDelta:
+                    case WriteCommand.WriteType.WorldPositionRotationDelta:
+                        transform.position += writeData.position;
+                        transform.rotation  = math.normalize(math.mul(writeData.rotation, transform.rotation));
                         break;
                     case WriteCommand.WriteType.ScaleDelta:
                         transform.scale *= writeData.scale;
@@ -344,6 +358,13 @@ namespace Latios.Transforms
                         WorldLocalOps.SetLocalRotation(writeData.rotation, in parentTransform, ref transform);
                         break;
                     }
+                    case WriteCommand.WriteType.LocalPositionRotationSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetLocalPosition(writeData.position, in parentTransform, ref transform, handle, transformLookup.isTicked);
+                        WorldLocalOps.SetLocalRotation(writeData.rotation, in parentTransform, ref transform);
+                        break;
+                    }
                     case WriteCommand.WriteType.LocalScaleSet:
                     {
                         var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
@@ -382,6 +403,13 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.WorldRotationSet:
                         WorldLocalOps.SetWorldRotation(writeData.rotation, ref transform);
                         break;
+                    case WriteCommand.WriteType.WorldPositionRotationSet:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.SetWorldPosition(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        WorldLocalOps.SetWorldRotation(writeData.rotation, ref transform);
+                        break;
+                    }
                     case WriteCommand.WriteType.WorldScaleSet:
                     {
                         var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
@@ -403,6 +431,13 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.LocalRotationDelta:
                     {
                         var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.RotateLocal(writeData.rotation, in parentTransform, ref transform);
+                        break;
+                    }
+                    case WriteCommand.WriteType.LocalPositionRotationDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out var parentHandle);
+                        WorldLocalOps.TranslateLocal(writeData.position, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         WorldLocalOps.RotateLocal(writeData.rotation, in parentTransform, ref transform);
                         break;
                     }
@@ -430,6 +465,13 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.WorldRotationDelta:
                         WorldLocalOps.RotateWorld(writeData.rotation, ref transform);
                         break;
+                    case WriteCommand.WriteType.WorldPositionRotationDelta:
+                    {
+                        var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
+                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        WorldLocalOps.RotateWorld(writeData.rotation, ref transform);
+                        break;
+                    }
                     case WriteCommand.WriteType.ScaleDelta:
                         WorldLocalOps.ScaleScale(writeData.scale, ref transform, in handle, transformLookup.isTicked);
                         break;
@@ -474,6 +516,10 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.LocalRotationSet:
                         WorldLocalOps.SetLocalRotation(writeData.rotation, in parentTransform, ref transform);
                         break;
+                    case WriteCommand.WriteType.LocalPositionRotationSet:
+                        WorldLocalOps.SetLocalPosition(writeData.position, in parentTransform, ref transform, handle, transformLookup.isTicked);
+                        WorldLocalOps.SetLocalRotation(writeData.rotation, in parentTransform, ref transform);
+                        break;
                     case WriteCommand.WriteType.LocalScaleSet:
                         WorldLocalOps.SetLocalScale(writeData.scale, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
@@ -493,6 +539,10 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.WorldRotationSet:
                         WorldLocalOps.SetWorldRotation(writeData.rotation, ref transform);
                         break;
+                    case WriteCommand.WriteType.WorldPositionRotationSet:
+                        WorldLocalOps.SetWorldPosition(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        WorldLocalOps.SetWorldRotation(writeData.rotation, ref transform);
+                        break;
                     case WriteCommand.WriteType.WorldScaleSet:
                         WorldLocalOps.SetWorldScale(writeData.scale, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
@@ -503,6 +553,10 @@ namespace Latios.Transforms
                         WorldLocalOps.TranslateLocal(writeData.position, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.LocalRotationDelta:
+                        WorldLocalOps.RotateLocal(writeData.rotation, in parentTransform, ref transform);
+                        break;
+                    case WriteCommand.WriteType.LocalPositionRotationDelta:
+                        WorldLocalOps.TranslateLocal(writeData.position, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         WorldLocalOps.RotateLocal(writeData.rotation, in parentTransform, ref transform);
                         break;
                     case WriteCommand.WriteType.LocalTransformDelta:
@@ -518,6 +572,10 @@ namespace Latios.Transforms
                         WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.WorldRotationDelta:
+                        WorldLocalOps.RotateWorld(writeData.rotation, ref transform);
+                        break;
+                    case WriteCommand.WriteType.WorldPositionRotationDelta:
+                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         WorldLocalOps.RotateWorld(writeData.rotation, ref transform);
                         break;
                     case WriteCommand.WriteType.ScaleDelta:

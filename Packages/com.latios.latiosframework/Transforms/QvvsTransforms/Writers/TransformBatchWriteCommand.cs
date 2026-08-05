@@ -92,6 +92,26 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Creates a command that sets the world position and rotation
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="worldPosition">The new world position to apply</param>
+        /// <param name="worldRotation">The new world rotation to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand SetWorldPositionAndRotation(TransformAspect transform, float3 worldPosition, quaternion worldRotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = worldPosition;
+            data.rotation = worldRotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldPositionRotationSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
         /// Creates a command that sets the local transform including stretch and context32
         /// </summary>
         /// <param name="transform">The TransformAspect the command should apply to</param>
@@ -155,6 +175,26 @@ namespace Latios.Transforms
             {
                 aspect    = transform,
                 writeType = WriteCommand.WriteType.LocalRotationSet,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a command that sets the local position and rotation
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="localPosition">The new local position to apply</param>
+        /// <param name="localRotation">The new local rotation to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand SetLocalPositionAndRotation(TransformAspect transform, float3 localPosition, quaternion localRotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = localPosition;
+            data.rotation = localRotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.LocalPositionRotationSet,
                 writeData = data
             };
         }
@@ -232,6 +272,26 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Creates a commands that applies position and rotation deltas in world-space
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="translation">The position delta to apply</param>
+        /// <param name="rotation">The rotation delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand TranslateRotateWorld(TransformAspect transform, float3 translation, quaternion rotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = translation;
+            data.rotation = rotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.WorldPositionRotationDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
         /// Creates a commands that applies a uniform scale delta
         /// </summary>
         /// <param name="transform">The TransformAspect the command should apply to</param>
@@ -281,6 +341,26 @@ namespace Latios.Transforms
             {
                 aspect    = transform,
                 writeType = WriteCommand.WriteType.LocalRotationDelta,
+                writeData = data
+            };
+        }
+
+        /// <summary>
+        /// Creates a commands that applies position and rotation deltas in local-space
+        /// </summary>
+        /// <param name="transform">The TransformAspect the command should apply to</param>
+        /// <param name="translation">The position delta to apply</param>
+        /// <param name="rotation">The rotation delta to apply</param>
+        /// <returns>The resulting command that can be applied later</returns>
+        public static TransformBatchWriteCommand TranslateRotateLocal(TransformAspect transform, float3 translation, quaternion rotation)
+        {
+            var data      = TransformQvvs.identity;
+            data.position = translation;
+            data.rotation = rotation;
+            return new TransformBatchWriteCommand
+            {
+                aspect    = transform,
+                writeType = WriteCommand.WriteType.LocalPositionRotationDelta,
                 writeData = data
             };
         }
@@ -512,6 +592,11 @@ namespace Latios.Transforms
                     transform.rotation = command.writeData.rotation;
                     transform.scale    = command.writeData.scale;
                     break;
+                case WriteCommand.WriteType.LocalPositionRotationSet:
+                case WriteCommand.WriteType.WorldPositionRotationSet:
+                    transform.position = command.writeData.position;
+                    transform.rotation = command.writeData.rotation;
+                    break;
                 case WriteCommand.WriteType.LocalTransformQvvsSet:
                 case WriteCommand.WriteType.WorldTransformSet:
                     transform = command.writeData;
@@ -523,6 +608,11 @@ namespace Latios.Transforms
                 case WriteCommand.WriteType.LocalRotationDelta:
                 case WriteCommand.WriteType.WorldRotationDelta:
                     transform.rotation = math.normalize(math.mul(command.writeData.rotation, transform.rotation));
+                    break;
+                case WriteCommand.WriteType.LocalPositionRotationDelta:
+                case WriteCommand.WriteType.WorldPositionRotationDelta:
+                    transform.position += command.writeData.position;
+                    transform.rotation  = math.normalize(math.mul(command.writeData.rotation, transform.rotation));
                     break;
                 case WriteCommand.WriteType.ScaleDelta:
                     transform.scale *= command.writeData.scale;

@@ -393,6 +393,67 @@ namespace Latios.Transforms
         }
 
         /// <summary>
+        /// Sets both the world-space position and rotation of the entity in a single operation.
+        /// If the entity has a parent, the localTransform and worldTransform are synchronized using the parent's WorldTransform.
+        /// </summary>
+        /// <param name="worldPosition">The new world-space position to apply</param>
+        /// <param name="worldRotation">The new world-space rotation to apply</param>
+        public void SetWorldPositionAndRotation(float3 worldPosition, quaternion worldRotation)
+        {
+            if (transform.entityInHierarchyHandle.isNull)
+                transform.SetWorldPositionAndRotation(worldPosition, worldRotation);
+            else
+                commands.Add(TickedTransformBatchWriteCommand.SetWorldPositionAndRotation(transform, worldPosition, worldRotation));
+        }
+
+        /// <summary>
+        /// Sets both the local-space position and rotation of the entity relative to its parent in a single operation.
+        /// If the entity has a parent, the localTransform and worldTransform are synchronized using the parent's WorldTransform.
+        /// If the entity does not have a parent, this is equivalent to SetWorldPositionAndRotation().
+        /// </summary>
+        /// <param name="localPosition">The new local-space position to apply</param>
+        /// <param name="localRotation">The new local-space rotation to apply</param>
+        public void SetLocalPositionAndRotation(float3 localPosition, quaternion localRotation)
+        {
+            if (transform.entityInHierarchyHandle.isNull)
+                transform.SetLocalPositionAndRotation(localPosition, localRotation);
+            else
+                commands.Add(TickedTransformBatchWriteCommand.SetLocalPositionAndRotation(transform, localPosition, localRotation));
+        }
+
+        /// <summary>
+        /// Moves and rotates the entity by the specified deltas in a single operation, where both the translation and the
+        /// axis of rotation are defined in world-space. This is equivalent to calling TranslateWorld() and RotateWorld()
+        /// separately, but propagates to children only once instead of twice.
+        /// If the entity has a parent, the localTransform and worldTransform are synchronized using the parent's WorldTransform.
+        /// </summary>
+        /// <param name="translation">The world-space x, y, and z signed amounts to move the entity</param>
+        /// <param name="rotation">The amount to rotate by, where the innate axis of rotation of the quaternion is specified relative to world-space.</param>
+        public void TranslateRotateWorld(float3 translation, quaternion rotation)
+        {
+            if (transform.entityInHierarchyHandle.isNull)
+                transform.TranslateRotateWorld(translation, rotation);
+            else
+                commands.Add(TickedTransformBatchWriteCommand.TranslateRotateWorld(transform, translation, rotation));
+        }
+
+        /// <summary>
+        /// Moves and rotates the entity by the specified deltas in a single operation, where both the translation and the
+        /// axis of rotation are defined in the entity's local-space axes relative to its parent. This is equivalent to calling
+        /// TranslateLocal() and RotateLocal() separately, but propagates to children only once instead of twice.
+        /// If the entity does not have a parent, this is equivalent to TranslateRotateWorld().
+        /// </summary>
+        /// <param name="translation">The local-space x, y, and z signed amounts to move the entity</param>
+        /// <param name="rotation">The amount to rotate by, where the innate axis of rotation of the quaternion is specified in the entity's local space relative to its parent.</param>
+        public void TranslateRotateLocal(float3 translation, quaternion rotation)
+        {
+            if (transform.entityInHierarchyHandle.isNull)
+                transform.TranslateRotateLocal(translation, rotation);
+            else
+                commands.Add(TickedTransformBatchWriteCommand.TranslateRotateLocal(transform, translation, rotation));
+        }
+
+        /// <summary>
         /// Computes the rotation so that the forward vector points to the target.
         /// The up vector is assumed to be world up.
         ///</summary>
