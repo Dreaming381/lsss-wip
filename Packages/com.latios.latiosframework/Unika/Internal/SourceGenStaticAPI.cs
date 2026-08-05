@@ -6,6 +6,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Mathematics;
+using Unity.Properties;
 
 namespace Latios.Unika.InternalSourceGen
 {
@@ -78,10 +79,11 @@ namespace Latios.Unika.InternalSourceGen
 
         public struct InterfaceRefData
         {
-            internal ScriptRef scriptRef;
+            [CreateProperty] internal ScriptRef scriptRef;
 
             public Entity entity => scriptRef.entity;
             public ScriptRef ToScriptRef() => scriptRef;
+            internal int instanceId => scriptRef.m_instanceId;
         }
         #endregion
 

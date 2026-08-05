@@ -93,6 +93,13 @@ namespace Latios.Unika
         /// </summary>
         public Enumerator GetEnumerator() => new Enumerator(this);
 
+        /// <summary>
+        /// A view of the scripts, lazily boxed. This is intended for IDE debuggers and editor tooling.
+        /// Writing to this view mutates the actual scripts.
+        /// </summary>
+        [System.Diagnostics.DebuggerBrowsable(System.Diagnostics.DebuggerBrowsableState.RootHidden)]
+        public ManagedScriptCollectionView managedView => new ManagedScriptCollectionView(this);
+
         bool IScriptResolverBase.TryGet(Entity entity, out EntityScriptCollection allScripts, bool throwSafetyErrorIfNotFound)
         {
             // Defer all validation to the next stage, since the error messages will be identical.

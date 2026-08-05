@@ -2,6 +2,7 @@ using System;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Properties;
 
 namespace Latios.Unika
 {
@@ -15,9 +16,9 @@ namespace Latios.Unika
                                         IComparable<ScriptRef<T> >, IComparable<ScriptRef>
         where T : unmanaged, IUnikaScript, IUnikaScriptGen
     {
-        internal Entity m_entity;
-        internal int    m_instanceId;
-        internal int    m_cachedHeaderIndex;
+        [CreateProperty] internal Entity m_entity;
+        [CreateProperty] internal int    m_instanceId;
+        internal int                     m_cachedHeaderIndex;
 
         #region Main API
         /// <summary>

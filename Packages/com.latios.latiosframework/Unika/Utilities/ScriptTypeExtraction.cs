@@ -66,10 +66,16 @@ namespace Latios.Unika
             return false;
         }
 
+        /// <summary>
+        /// Returns the System.Type for the script's real type
+        /// </summary>
+        public static System.Type GetScriptType(Script script) => extractors[script.m_headerRO.scriptType].type;
+
         internal abstract class ExtractorBase
         {
             public abstract void Extract<TReceiver>(Script script, ref TReceiver receiver) where TReceiver : IReceiver;
             public abstract void ExtractType<TTypeReceiver>(ref TTypeReceiver receiver) where TTypeReceiver : ITypeReceiver;
+            public abstract System.Type type { get; }
         }
 
         internal class Extractor<T> : ExtractorBase where T : unmanaged, IUnikaScript, IUnikaScriptGen
@@ -84,6 +90,8 @@ namespace Latios.Unika
             {
                 receiver.Receive<T>();
             }
+
+            public override System.Type type => typeof(T);
         }
 
         internal static List<ExtractorBase> extractors = new List<ExtractorBase>()

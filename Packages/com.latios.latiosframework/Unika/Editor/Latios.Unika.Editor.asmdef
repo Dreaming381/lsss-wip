@@ -1,0 +1,24 @@
+{
+    "name": "Latios.Unika.Editor",
+    "rootNamespace": "Latios.Unika.Editor",
+    "references": [
+        "Latios.Unika",
+        "Unity.Entities",
+        "Unity.Entities.Editor",
+        "Unity.Entities.UI",
+        "Unity.Entities.UI.Editor",
+        "Unity.Collections",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
