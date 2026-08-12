@@ -3,6 +3,7 @@ using Unity.Entities;
 using Unity.Entities.LowLevel.Unsafe;
 using Unity.Entities.Serialization;
 using Unity.Mathematics;
+using Unity.Properties;
 
 namespace Latios.Unika
 {
@@ -56,8 +57,8 @@ namespace Latios.Unika
     [InternalBufferCapacity(0)]
     public struct UnikaSerializedEntityReference : IBufferElementData
     {
-        internal Entity entity;
-        internal int    byteOffset;
+        [CreateProperty(ReadOnly = true)] internal Entity entity;
+        [CreateProperty(ReadOnly = true)] internal int    byteOffset;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -8,6 +9,25 @@ namespace Latios.Unika.Authoring
     public interface IUnikaInterfaceAuthoring<T> where T : unmanaged, Unika.InternalSourceGen.StaticAPI.IInterfaceRefData
     {
         T GetInterfaceRef(IBaker baker, TransformUsageFlags transformUsageFlags = TransformUsageFlags.None);
+    }
+
+    [Serializable]
+    public struct InterfaceAuthoring<T> where T : unmanaged, Unika.InternalSourceGen.StaticAPI.IInterfaceRefData
+    {
+        [UnityEngine.SerializeField, UnityEngine.HideInInspector]
+        UnikaScriptAuthoringBase authoringReference;
+
+        public IUnikaInterfaceAuthoring<T> authoringInterface => authoringReference as IUnikaInterfaceAuthoring<T>;
+
+        public InterfaceAuthoring(UnikaScriptAuthoringBase authoringBase)
+        {
+            authoringReference = authoringBase;
+        }
+
+        public InterfaceAuthoring(IUnikaInterfaceAuthoring<T> authoringInterface)
+        {
+            authoringReference = authoringInterface as UnikaScriptAuthoringBase;
+        }
     }
 
     internal interface IUnikaAuthoringScriptCounter

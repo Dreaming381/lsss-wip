@@ -876,7 +876,7 @@ namespace Latios
         public ref Systems.TickedSyncPointPlaybackSystem GetTickedSyncPoint()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-            if (m_syncPointPlaybackSystem == null)
+            if (m_tickedSyncPointPlaybackSystem == null)
                 throw new System.InvalidOperationException("No TickedSyncPointPlaybackSystem exists in the LatiosWorld. You may need to install ticking in the bootstrap.");
 #endif
             return ref *m_tickedSyncPointPlaybackSystem;

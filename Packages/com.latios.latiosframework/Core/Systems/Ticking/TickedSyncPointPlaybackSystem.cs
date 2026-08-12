@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
@@ -25,7 +26,7 @@ namespace Latios.Systems
 
         protected override void OnUpdate()
         {
-            ref var playbackSystemRef = ref World.Unmanaged.GetUnsafeSystemRef<SyncPointPlaybackSystem>(m_syncPointPlaybackSystem);
+            ref var playbackSystemRef = ref World.Unmanaged.GetUnsafeSystemRef<TickedSyncPointPlaybackSystem>(m_syncPointPlaybackSystem);
             var     unmanaged         = World.Unmanaged.GetLatiosWorldUnmanaged();
             do
             {
@@ -62,6 +63,7 @@ namespace Latios.Systems
             InstantiateUntyped,
             AddComponentsNoData,
             AddComponentsUntyped,
+            CustomUntyped,
         }
 
         struct PlaybackInstance
@@ -78,6 +80,7 @@ namespace Latios.Systems
         NativeList<InstantiateCommandBufferUntyped>   m_instantiateCommandBuffersUntyped;
         NativeList<AddComponentsCommandBuffer>        m_addComponentsCommandBuffersWithoutData;
         NativeList<AddComponentsCommandBufferUntyped> m_addComponentsCommandBuffersUntyped;
+        NativeList<CustomCommandBufferUntyped>        m_customCommandBuffersUntyped;
 
         NativeList<JobHandle>                m_jobHandles;
         NativeList<PlaybackInstance>         m_playbackInstances;
@@ -101,6 +104,7 @@ namespace Latios.Systems
         int m_instantiateUntypedIndex;
         int m_addComponentsNoDataIndex;
         int m_addComponentsUntypedIndex;
+        int m_customUntypedIndex;
 
         internal NativeText.ReadOnly m_requestSystemNameForCurrentBuffer;
         internal FixedString64Bytes  m_currentBufferTypeName;
@@ -129,6 +133,7 @@ namespace Latios.Systems
             m_instantiateCommandBuffersUntyped       = new NativeList<InstantiateCommandBufferUntyped>(Allocator.Persistent);
             m_addComponentsCommandBuffersWithoutData = new NativeList<AddComponentsCommandBuffer>(Allocator.Persistent);
             m_addComponentsCommandBuffersUntyped     = new NativeList<AddComponentsCommandBufferUntyped>(Allocator.Persistent);
+            m_customCommandBuffersUntyped            = new NativeList<CustomCommandBufferUntyped>(Allocator.Persistent);
 
             m_jobHandles = new NativeList<JobHandle>(Allocator.Persistent);
 
@@ -158,6 +163,7 @@ namespace Latios.Systems
             m_instantiateCommandBuffersUntyped.Dispose();
             m_addComponentsCommandBuffersWithoutData.Dispose();
             m_addComponentsCommandBuffersUntyped.Dispose();
+            m_customCommandBuffersUntyped.Dispose();
 
             m_externalSourceText.Dispose();
         }
@@ -196,6 +202,7 @@ namespace Latios.Systems
                     case PlaybackType.InstantiateUntyped: m_currentBufferTypeName   = "InstantiateCommandBuffer"; break;
                     case PlaybackType.AddComponentsNoData: m_currentBufferTypeName  = "AddComponenstCommandBuffer"; break;
                     case PlaybackType.AddComponentsUntyped: m_currentBufferTypeName = "AddComponentsCommandBuffer"; break;
+                    case PlaybackType.CustomUntyped: m_currentBufferTypeName        = "CustomCommandBuffer"; break;
                 }
                 if (state.WorldUnmanaged.IsSystemValid(instance.requestingSystem))
                     m_requestSystemNameForCurrentBuffer = state.WorldUnmanaged.ResolveSystemStateRef(instance.requestingSystem).DebugName;
@@ -266,6 +273,13 @@ namespace Latios.Systems
                         accb.Playback(state.EntityManager);
                         break;
                     }
+                    case PlaybackType.CustomUntyped:
+                    {
+                        var ccb = m_customCommandBuffersUntyped[m_customUntypedIndex];
+                        m_customUntypedIndex++;
+                        ccb.Playback(state.EntityManager);
+                        break;
+                    }
                 }
 #if ENABLE_PROFILER
                 m_currentMarker.End();
@@ -295,6 +309,7 @@ namespace Latios.Systems
             m_instantiateCommandBuffersUntyped.Clear();
             m_addComponentsCommandBuffersWithoutData.Clear();
             m_addComponentsCommandBuffersUntyped.Clear();
+            m_customCommandBuffersUntyped.Clear();
 
             m_entityIndex               = 0;
             m_enableIndex               = 0;
@@ -304,6 +319,7 @@ namespace Latios.Systems
             m_instantiateUntypedIndex   = 0;
             m_addComponentsNoDataIndex  = 0;
             m_addComponentsUntypedIndex = 0;
+            m_customUntypedIndex        = 0;
 
             m_commandBufferAllocator.Allocator.Rewind();
         }
@@ -330,6 +346,18 @@ namespace Latios.Systems
             };
             m_playbackInstances.Add(instance);
             m_addComponentsCommandBuffersUntyped.Add(accb);
+        }
+
+        internal void AddCustomCommandBufferUntyped(CustomCommandBufferUntyped ccb)
+        {
+            m_hasPendingJobHandlesToAcquire = true;
+            var instance                    = new PlaybackInstance
+            {
+                type             = PlaybackType.CustomUntyped,
+                requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
+            };
+            m_playbackInstances.Add(instance);
+            m_customCommandBuffersUntyped.Add(ccb);
         }
 
         #endregion
@@ -739,5 +767,28 @@ namespace Latios
             return icb;
         }
     }
-}
 
+    public static class TickedSyncPointsCustomCommandExtensions
+    {
+        /// <summary>
+        /// Creates a new CustomCommandBuffer that will be played back by this system.
+        /// </summary>
+        public static CustomCommandBuffer<T0> CreateCustomCommandBuffer<T0>(this Systems.TickedSyncPointPlaybackSystem syncPoint) where T0 : unmanaged, ICustomCommand
+        {
+            var ccb = new CustomCommandBuffer<T0>(syncPoint.allocator);
+            syncPoint.AddCustomCommandBufferUntyped(ccb.m_customCommandBufferUntyped);
+            return ccb;
+        }
+
+        /// <summary>
+        /// Creates a new CustomCommandBuffer that will be played back by this system.
+        /// </summary>
+        public static CustomCommandBuffer<T0, T1> CreateCustomCommandBuffer<T0, T1>(this Systems.TickedSyncPointPlaybackSystem syncPoint) where T0 : unmanaged, ICustomCommand
+            where T1 : unmanaged, ICustomCommand
+        {
+            var ccb = new CustomCommandBuffer<T0, T1>(syncPoint.allocator);
+            syncPoint.AddCustomCommandBufferUntyped(ccb.m_customCommandBufferUntyped);
+            return ccb;
+        }
+    }
+}

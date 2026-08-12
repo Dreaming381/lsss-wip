@@ -762,9 +762,9 @@ namespace Latios.Transforms
                             sets[treeNodeA] = sets[treeNodeB];
                             break;
                         }
-                        var temp        = treeNodeA;
+                        var temp        = sets[treeNodeA];
                         sets[treeNodeA] = sets[treeNodeB];
-                        treeNodeA       = sets[temp];
+                        treeNodeA       = temp;
                     }
                     else
                     {
@@ -773,9 +773,9 @@ namespace Latios.Transforms
                             sets[treeNodeB] = sets[treeNodeA];
                             break;
                         }
-                        var temp        = treeNodeB;
+                        var temp        = sets[treeNodeB];
                         sets[treeNodeB] = sets[treeNodeA];
-                        treeNodeB       = sets[temp];
+                        treeNodeB       = temp;
                     }
                 }
             }
