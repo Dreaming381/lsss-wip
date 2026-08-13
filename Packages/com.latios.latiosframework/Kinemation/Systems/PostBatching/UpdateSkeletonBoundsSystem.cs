@@ -365,13 +365,16 @@ namespace Latios.Kinemation.Systems
 
                 var boundsOffsets = (SkeletonWorldBoundsOffsetsFromPosition*)chunk.GetRequiredComponentDataPtrRW(ref skeletonBoundsHandle);
                 var transforms    = worldTransformHandle.Resolve(in chunk);
-                var enumerator    = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                while (enumerator.NextEntityIndex(out int i))
+                var enumerator    = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    var position               = transforms[i].position;
-                    var bounds                 = boundsArray[indices[i].cullingIndex];
-                    boundsOffsets[i].minOffset = bounds.min - position;
-                    boundsOffsets[i].maxOffset = bounds.max - position;
+                    for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                    {
+                        var position               = transforms[i].position;
+                        var bounds                 = boundsArray[indices[i].cullingIndex];
+                        boundsOffsets[i].minOffset = bounds.min - position;
+                        boundsOffsets[i].maxOffset = bounds.max - position;
+                    }
                 }
             }
         }

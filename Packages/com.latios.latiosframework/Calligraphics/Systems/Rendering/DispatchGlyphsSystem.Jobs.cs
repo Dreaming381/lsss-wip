@@ -77,27 +77,30 @@ namespace Latios.Calligraphics.Systems
                     materialMask.upper.Value |= materialPropertyMaskUpper;
                 }
 
-                var enumerator = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
-                while (enumerator.NextEntityIndex(out var entityIndex))
+                var enumerator = new ChunkEntityBatchEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    gpuStateMask[entityIndex] = false;
-                    bool resident             = gpuStates[entityIndex].state == GpuState.State.DynamicPromoteToResident ||
-                                                gpuStates[entityIndex].state == GpuState.State.ResidentUncommitted;
-                    gpuStates[entityIndex].state = resident ? GpuState.State.Resident : GpuState.State.Dynamic;
-                    var glyphs                   = glyphBuffers[entityIndex];
-                    renderGlyphCapturesStream.Write(new RenderGlyphCapture
+                    for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
                     {
-                        glyphBuffer        = glyphs.Length != 0 ? (RenderGlyph*)glyphs.GetUnsafeReadOnlyPtr() : null,
-                        glyphCount         = glyphs.Length,
-                        makeResident       = resident,
-                        residentRangePtr   = residentPtr + entityIndex,
-                        textShaderIndexPtr = shaderPtr != null ? shaderPtr + entityIndex : null,
-                    });
-                    foreach (var glyph in glyphs)
-                    {
-                        var entry = glyphTable.GetEntry(glyph.glyph.glyphEntryId);
-                        if (!entry.isInAtlas)
-                            glyphEntryIDsToRasterizeSet.Add(glyph.glyph.glyphEntryId);
+                        gpuStateMask[entityIndex] = false;
+                        bool resident             = gpuStates[entityIndex].state == GpuState.State.DynamicPromoteToResident ||
+                                                    gpuStates[entityIndex].state == GpuState.State.ResidentUncommitted;
+                        gpuStates[entityIndex].state = resident ? GpuState.State.Resident : GpuState.State.Dynamic;
+                        var glyphs                   = glyphBuffers[entityIndex];
+                        renderGlyphCapturesStream.Write(new RenderGlyphCapture
+                        {
+                            glyphBuffer        = glyphs.Length != 0 ? (RenderGlyph*)glyphs.GetUnsafeReadOnlyPtr() : null,
+                            glyphCount         = glyphs.Length,
+                            makeResident       = resident,
+                            residentRangePtr   = residentPtr + entityIndex,
+                            textShaderIndexPtr = shaderPtr != null ? shaderPtr + entityIndex : null,
+                        });
+                        foreach (var glyph in glyphs)
+                        {
+                            var entry = glyphTable.GetEntry(glyph.glyph.glyphEntryId);
+                            if (!entry.isInAtlas)
+                                glyphEntryIDsToRasterizeSet.Add(glyph.glyph.glyphEntryId);
+                        }
                     }
                 }
 

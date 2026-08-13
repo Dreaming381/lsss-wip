@@ -7,12 +7,14 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
+    [IJobEach.ParameterHandle(typeof(TickedTransformAspectParameterHandle), IJobEach.ScheduleModeMask.All)]
+    [IJobEach.ParameterHandle(typeof(TickedTransformAspectRootHandle), IJobEach.ScheduleModeMask.All, typeof(RootOnlyAttribute))]
     [NativeContainer]
-    public unsafe struct TickedTransformAspect
+    public unsafe struct TickedTransformAspect : IJobEach.IParameter
     {
         internal RefRW<TickedWorldTransform> m_worldTransform;
         internal EntityInHierarchyHandle     m_handle;
-        internal void*                       m_access;
+        internal void*                       m_access;  // Stores Entity* if solo entity
         internal EntityStorageInfoLookup     m_esil;
         internal enum AccessType
         {
@@ -418,6 +420,22 @@ namespace Latios.Transforms
         public EntityInHierarchyHandle entityInHierarchyHandle => m_handle;
 
         /// <summary>
+        /// Retrieves a TransformsKey for the hierarchy this transform belongs to (or this entity).
+        /// </summary>
+        public TransformsKey transformsKey
+        {
+            get
+            {
+                Entity entity;
+                if (!entityInHierarchyHandle.isNull)
+                    entity = entityInHierarchyHandle.root.entity;
+                else
+                    entity = *(Entity*)m_access;
+                return TransformsKey.CreateFromExclusivelyAccessedRoot(entity, m_esil);
+            }
+        }
+
+        /// <summary>
         /// Retrieves the read-only form of this TickedTransformAspect. The read-only form can be used in
         /// methods that require it, or to read other transforms in the hierarchy without dirtying
         /// change filters.
@@ -757,7 +775,9 @@ namespace Latios.Transforms
                         break;
                     case AccessType.ComponentBrokerKeyed:
                         var key = TransformsKey.CreateFromExclusivelyAccessedRoot(m_handle.root.entity, m_esil);
-                        TransformTools.SetTickedWorldPositionAndRotation(m_handle, worldPosition, worldRotation, key,                                             ref *(ComponentBroker*)m_access);
+                        TransformTools.SetTickedWorldPositionAndRotation(m_handle, worldPosition, worldRotation, key,
+                                                                         ref *(
+                                                                             ComponentBroker*)m_access);
                         break;
                     case AccessType.ComponentLookup:
                         TransformTools.SetTickedWorldPositionAndRotation(m_handle, worldPosition, worldRotation, ref *(ComponentLookup<TickedWorldTransform>*)m_access, ref m_esil);
@@ -793,7 +813,9 @@ namespace Latios.Transforms
                         break;
                     case AccessType.ComponentBrokerKeyed:
                         var key = TransformsKey.CreateFromExclusivelyAccessedRoot(m_handle.root.entity, m_esil);
-                        TransformTools.SetTickedLocalPositionAndRotation(m_handle, localPosition, localRotation, key,                                             ref *(ComponentBroker*)m_access);
+                        TransformTools.SetTickedLocalPositionAndRotation(m_handle, localPosition, localRotation, key,
+                                                                         ref *(
+                                                                             ComponentBroker*)m_access);
                         break;
                     case AccessType.ComponentLookup:
                         TransformTools.SetTickedLocalPositionAndRotation(m_handle, localPosition, localRotation, ref *(ComponentLookup<TickedWorldTransform>*)m_access, ref m_esil);
@@ -814,7 +836,7 @@ namespace Latios.Transforms
         {
             if (m_handle.isNull)
             {
-                ref var t  = ref m_worldTransform.ValueRW.worldTransform;
+                ref var t   = ref m_worldTransform.ValueRW.worldTransform;
                 t.position += translation;
                 t.rotation  = math.normalize(math.mul(rotation, t.rotation));
             }
@@ -830,7 +852,11 @@ namespace Latios.Transforms
                         break;
                     case AccessType.ComponentBrokerKeyed:
                         var key = TransformsKey.CreateFromExclusivelyAccessedRoot(m_handle.root.entity, m_esil);
-                        TransformTools.TranslateRotateTickedWorld(m_handle, translation, rotation, key,                                             ref *(ComponentBroker*)m_access);
+                        TransformTools.TranslateRotateTickedWorld(m_handle,
+                                                                  translation,
+                                                                  rotation,
+                                                                  key,
+                                                                  ref *(ComponentBroker*)m_access);
                         break;
                     case AccessType.ComponentLookup:
                         TransformTools.TranslateRotateTickedWorld(m_handle, translation, rotation, ref *(ComponentLookup<TickedWorldTransform>*)m_access, ref m_esil);
@@ -851,7 +877,7 @@ namespace Latios.Transforms
         {
             if (m_handle.isNull)
             {
-                ref var t  = ref m_worldTransform.ValueRW.worldTransform;
+                ref var t   = ref m_worldTransform.ValueRW.worldTransform;
                 t.position += translation;
                 t.rotation  = math.normalize(math.mul(rotation, t.rotation));
             }
@@ -867,7 +893,11 @@ namespace Latios.Transforms
                         break;
                     case AccessType.ComponentBrokerKeyed:
                         var key = TransformsKey.CreateFromExclusivelyAccessedRoot(m_handle.root.entity, m_esil);
-                        TransformTools.TranslateRotateTickedLocal(m_handle, translation, rotation, key,                                             ref *(ComponentBroker*)m_access);
+                        TransformTools.TranslateRotateTickedLocal(m_handle,
+                                                                  translation,
+                                                                  rotation,
+                                                                  key,
+                                                                  ref *(ComponentBroker*)m_access);
                         break;
                     case AccessType.ComponentLookup:
                         TransformTools.TranslateRotateTickedLocal(m_handle, translation, rotation, ref *(ComponentLookup<TickedWorldTransform>*)m_access, ref m_esil);

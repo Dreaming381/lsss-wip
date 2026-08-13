@@ -9,7 +9,9 @@ namespace Latios.Transforms
     /// A representation of a transform in which reading is immediate, but writing may be deferred if the entity belongs to a hierarchy.
     /// Otherwise, writing is also applied immediately.
     /// </summary>
-    public unsafe struct TransformDeferableAspect
+    [IJobEach.ParameterHandle(typeof(TransformDeferableAspectParameterHandle), IJobEach.ScheduleModeMask.ScheduleParallel)]
+    [IJobEach.ParameterHandle(typeof(TransformAspectRootHandle), IJobEach.ScheduleModeMask.All, typeof(RootOnlyAttribute))]
+    public unsafe struct TransformDeferableAspect : IJobEach.IParameter
     {
         internal TransformAspect                        transform;
         internal NativeList<TransformBatchWriteCommand> commands;

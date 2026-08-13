@@ -278,30 +278,33 @@ namespace Latios.LifeFX.Systems
                     var mask       = chunk.chunk.GetEnabledMask(ref trackedTransformHandle);
                     var transforms = worldTransformHandle.Resolve(in chunk.chunk);
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
-                    while (enumerator.NextEntityIndex(out var i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        mask[i] = true;
-
-                        var transform = transforms[i].worldTransformQvvs;
-                        var worldmask = 3;
-                        Bits.SetBits(ref transform.context32, 30, 2, worldmask);
-
-                        if (freelist.IsEmpty)
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
                         {
-                            indices[i] = trackedEntities.Length;
-                            trackedEntities.Add(entities[i]);
-                            trackedTransforms.Add(transform);
+                            mask[i] = true;
+
+                            var transform = transforms[i].worldTransformQvvs;
+                            var worldmask = 3;
+                            Bits.SetBits(ref transform.context32, 30, 2, worldmask);
+
+                            if (freelist.IsEmpty)
+                            {
+                                indices[i] = trackedEntities.Length;
+                                trackedEntities.Add(entities[i]);
+                                trackedTransforms.Add(transform);
+                            }
+                            else
+                            {
+                                var dst = freelist[freelist.Length - 1];
+                                freelist.Length--;
+                                indices[i]             = dst;
+                                trackedEntities[dst]   = entities[i];
+                                trackedTransforms[dst] = transform;
+                            }
+                            uploadIndices.Write(indices[i], threadIndex);
                         }
-                        else
-                        {
-                            var dst = freelist[freelist.Length - 1];
-                            freelist.Length--;
-                            indices[i]             = dst;
-                            trackedEntities[dst]   = entities[i];
-                            trackedTransforms[dst] = transform;
-                        }
-                        uploadIndices.Write(indices[i], threadIndex);
                     }
                 }
 

@@ -1,4 +1,5 @@
 #if !LATIOS_TRANSFORMS_UNITY
+using System;
 using System.Diagnostics;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -7,12 +8,14 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
+    [IJobEach.ParameterHandle(typeof(TransformAspectParameterHandle), IJobEach.ScheduleModeMask.All)]
+    [IJobEach.ParameterHandle(typeof(TransformAspectRootHandle), IJobEach.ScheduleModeMask.All, typeof(RootOnlyAttribute))]
     [NativeContainer]
-    public unsafe struct TransformAspect
+    public unsafe struct TransformAspect : IJobEach.IParameter
     {
         internal RefRW<WorldTransform>   m_worldTransform;
         internal EntityInHierarchyHandle m_handle;
-        internal void*                   m_access;
+        internal void*                   m_access;  // Stores Entity* if solo entity
         internal EntityStorageInfoLookup m_esil;
         internal enum AccessType
         {
@@ -417,6 +420,22 @@ namespace Latios.Transforms
         public EntityInHierarchyHandle entityInHierarchyHandle => m_handle;
 
         /// <summary>
+        /// Retrieves a TransformsKey for the hierarchy this transform belongs to (or this entity).
+        /// </summary>
+        public TransformsKey transformsKey
+        {
+            get
+            {
+                Entity entity;
+                if (!entityInHierarchyHandle.isNull)
+                    entity = entityInHierarchyHandle.root.entity;
+                else
+                    entity = *(Entity*)m_access;
+                return TransformsKey.CreateFromExclusivelyAccessedRoot(entity, m_esil);
+            }
+        }
+
+        /// <summary>
         /// Retrieves the read-only form of this TransformAspect. The read-only form can be used in
         /// methods that require it, or to read other transforms in the hierarchy without dirtying
         /// change filters.
@@ -756,7 +775,11 @@ namespace Latios.Transforms
                         break;
                     case AccessType.ComponentBrokerKeyed:
                         var key = TransformsKey.CreateFromExclusivelyAccessedRoot(m_handle.root.entity, m_esil);
-                        TransformTools.SetWorldPositionAndRotation(m_handle, worldPosition, worldRotation, key,                                             ref *(ComponentBroker*)m_access);
+                        TransformTools.SetWorldPositionAndRotation(m_handle,
+                                                                   worldPosition,
+                                                                   worldRotation,
+                                                                   key,
+                                                                   ref *(ComponentBroker*)m_access);
                         break;
                     case AccessType.ComponentLookup:
                         TransformTools.SetWorldPositionAndRotation(m_handle, worldPosition, worldRotation, ref *(ComponentLookup<WorldTransform>*)m_access, ref m_esil);
@@ -792,7 +815,11 @@ namespace Latios.Transforms
                         break;
                     case AccessType.ComponentBrokerKeyed:
                         var key = TransformsKey.CreateFromExclusivelyAccessedRoot(m_handle.root.entity, m_esil);
-                        TransformTools.SetLocalPositionAndRotation(m_handle, localPosition, localRotation, key,                                             ref *(ComponentBroker*)m_access);
+                        TransformTools.SetLocalPositionAndRotation(m_handle,
+                                                                   localPosition,
+                                                                   localRotation,
+                                                                   key,
+                                                                   ref *(ComponentBroker*)m_access);
                         break;
                     case AccessType.ComponentLookup:
                         TransformTools.SetLocalPositionAndRotation(m_handle, localPosition, localRotation, ref *(ComponentLookup<WorldTransform>*)m_access, ref m_esil);
@@ -813,7 +840,7 @@ namespace Latios.Transforms
         {
             if (m_handle.isNull)
             {
-                ref var t  = ref m_worldTransform.ValueRW.worldTransform;
+                ref var t   = ref m_worldTransform.ValueRW.worldTransform;
                 t.position += translation;
                 t.rotation  = math.normalize(math.mul(rotation, t.rotation));
             }
@@ -850,7 +877,7 @@ namespace Latios.Transforms
         {
             if (m_handle.isNull)
             {
-                ref var t  = ref m_worldTransform.ValueRW.worldTransform;
+                ref var t   = ref m_worldTransform.ValueRW.worldTransform;
                 t.position += translation;
                 t.rotation  = math.normalize(math.mul(rotation, t.rotation));
             }
@@ -969,16 +996,25 @@ namespace Latios.Transforms
         void CheckBelongsToSameHierarchy(in EntityInHierarchyHandle otherHandle)
         {
             if (m_handle.isNull || otherHandle.isNull || m_handle.m_hierarchy != otherHandle.m_hierarchy)
-                throw new System.ArgumentException("The EntityInHierarchyHandle does not belong to the same hierarchy as this TransformAspect.");
+                throw new ArgumentException("The EntityInHierarchyHandle does not belong to the same hierarchy as this TransformAspect.");
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckWorldTransformIsValid(in RefRW<WorldTransform> transform)
         {
             if (!transform.IsValid)
-                throw new System.ArgumentException("The Entity did not have a WorldTransform, either because it is ticking only or because it is no longer alive.");
+                throw new ArgumentException("The Entity did not have a WorldTransform, either because it is ticking only or because it is no longer alive.");
         }
         #endregion
+    }
+
+    /// <summary>
+    /// Add to a TransformAspect, TransformDeferableAspect, TickedTransformAspect, or TickedTransformDeferableAspect
+    /// parameter inside an IJobEach to only query for entities which are solo or root entities in a hierarchy.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter)]
+    public class RootOnlyAttribute : Attribute
+    {
     }
 }
 #endif

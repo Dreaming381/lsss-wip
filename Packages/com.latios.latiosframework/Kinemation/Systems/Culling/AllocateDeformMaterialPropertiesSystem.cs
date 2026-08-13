@@ -104,29 +104,32 @@ namespace Latios.Kinemation.Systems
 
                 var                   meshArray  = chunk.GetNativeArray(ref meshHandle);
                 ChunkDeformPrefixSums counts     = default;
-                var                   enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                while (enumerator.NextEntityIndex(out int i))
+                var                   enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    ref var blob = ref meshArray[i].meshBlob.Value;
-                    if ((classification & (DeformClassification.CurrentVertexMatrix | DeformClassification.LegacyLbs)) != DeformClassification.None)
-                        counts.currentMatrix += (uint)blob.skinningData.bindPoses.Length;
-                    if ((classification & DeformClassification.PreviousVertexMatrix) != DeformClassification.None)
-                        counts.previousMatrix += (uint)blob.skinningData.bindPoses.Length;
-                    if ((classification & DeformClassification.TwoAgoVertexMatrix) != DeformClassification.None)
-                        counts.twoAgoMatrix += (uint)blob.skinningData.bindPoses.Length;
-                    if ((classification & DeformClassification.CurrentVertexDqs) != DeformClassification.None)
-                        counts.currentDqs += (uint)blob.skinningData.bindPosesDQ.Length;
-                    if ((classification & DeformClassification.PreviousVertexDqs) != DeformClassification.None)
-                        counts.previousDqs += (uint)blob.skinningData.bindPosesDQ.Length;
-                    if ((classification & DeformClassification.TwoAgoVertexDqs) != DeformClassification.None)
-                        counts.twoAgoDqs += (uint)blob.skinningData.bindPosesDQ.Length;
+                    for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                    {
+                        ref var blob = ref meshArray[i].meshBlob.Value;
+                        if ((classification & (DeformClassification.CurrentVertexMatrix | DeformClassification.LegacyLbs)) != DeformClassification.None)
+                            counts.currentMatrix += (uint)blob.skinningData.bindPoses.Length;
+                        if ((classification & DeformClassification.PreviousVertexMatrix) != DeformClassification.None)
+                            counts.previousMatrix += (uint)blob.skinningData.bindPoses.Length;
+                        if ((classification & DeformClassification.TwoAgoVertexMatrix) != DeformClassification.None)
+                            counts.twoAgoMatrix += (uint)blob.skinningData.bindPoses.Length;
+                        if ((classification & DeformClassification.CurrentVertexDqs) != DeformClassification.None)
+                            counts.currentDqs += (uint)blob.skinningData.bindPosesDQ.Length;
+                        if ((classification & DeformClassification.PreviousVertexDqs) != DeformClassification.None)
+                            counts.previousDqs += (uint)blob.skinningData.bindPosesDQ.Length;
+                        if ((classification & DeformClassification.TwoAgoVertexDqs) != DeformClassification.None)
+                            counts.twoAgoDqs += (uint)blob.skinningData.bindPosesDQ.Length;
 
-                    if ((classification & DeformClassification.AnyCurrentDeform) != DeformClassification.None)
-                        counts.currentDeform += (uint)blob.undeformedVertices.Length;
-                    if ((classification & DeformClassification.AnyPreviousDeform) != DeformClassification.None)
-                        counts.previousDeform += (uint)blob.undeformedVertices.Length;
-                    if ((classification & DeformClassification.TwoAgoDeform) != DeformClassification.None)
-                        counts.twoAgoDeform += (uint)blob.undeformedVertices.Length;
+                        if ((classification & DeformClassification.AnyCurrentDeform) != DeformClassification.None)
+                            counts.currentDeform += (uint)blob.undeformedVertices.Length;
+                        if ((classification & DeformClassification.AnyPreviousDeform) != DeformClassification.None)
+                            counts.previousDeform += (uint)blob.undeformedVertices.Length;
+                        if ((classification & DeformClassification.TwoAgoDeform) != DeformClassification.None)
+                            counts.twoAgoDeform += (uint)blob.undeformedVertices.Length;
+                    }
                 }
                 chunk.SetChunkComponentData(ref metaHandle, counts);
             }
@@ -235,14 +238,17 @@ namespace Latios.Kinemation.Systems
                     NativeArray<uint> current = hasCurrent ? chunk.GetNativeArray(ref currentMatrixVertexHandle).Reinterpret<uint>() : default;
                     NativeArray<uint> legacy  = hasLegacy ? chunk.GetNativeArray(ref legacyLbsHandle).Reinterpret<uint>() : default;
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        if (hasCurrent)
-                            current[i] = prefixSums.currentMatrix;
-                        if (hasLegacy)
-                            legacy[i]             = prefixSums.currentMatrix;
-                        prefixSums.currentMatrix += (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            if (hasCurrent)
+                                current[i] = prefixSums.currentMatrix;
+                            if (hasLegacy)
+                                legacy[i]             = prefixSums.currentMatrix;
+                            prefixSums.currentMatrix += (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                        }
                     }
                 }
 
@@ -250,11 +256,14 @@ namespace Latios.Kinemation.Systems
                 {
                     NativeArray<uint> indices = chunk.GetNativeArray(ref previousMatrixVertexHandle).Reinterpret<uint>();
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        indices[i]                 = prefixSums.previousMatrix;
-                        prefixSums.previousMatrix += (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            indices[i]                 = prefixSums.previousMatrix;
+                            prefixSums.previousMatrix += (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                        }
                     }
                 }
 
@@ -262,11 +271,14 @@ namespace Latios.Kinemation.Systems
                 {
                     NativeArray<uint> indices = chunk.GetNativeArray(ref twoAgoMatrixVertexHandle).Reinterpret<uint>();
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        indices[i]               = prefixSums.twoAgoMatrix;
-                        prefixSums.twoAgoMatrix += (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            indices[i]               = prefixSums.twoAgoMatrix;
+                            prefixSums.twoAgoMatrix += (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                        }
                     }
                 }
 
@@ -274,12 +286,15 @@ namespace Latios.Kinemation.Systems
                 {
                     NativeArray<uint2> indices = chunk.GetNativeArray(ref currentDqsVertexHandle).Reinterpret<uint2>();
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        uint bindposeDq        = meshGpuEnties[meshArray[i].meshEntryIndex].bindPosesStart + (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
-                        indices[i]             = new uint2(prefixSums.currentDqs, bindposeDq);
-                        prefixSums.currentDqs += (uint)meshArray[i].meshBlob.Value.skinningData.bindPosesDQ.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            uint bindposeDq        = meshGpuEnties[meshArray[i].meshEntryIndex].bindPosesStart + (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                            indices[i]             = new uint2(prefixSums.currentDqs, bindposeDq);
+                            prefixSums.currentDqs += (uint)meshArray[i].meshBlob.Value.skinningData.bindPosesDQ.Length;
+                        }
                     }
                 }
 
@@ -287,12 +302,15 @@ namespace Latios.Kinemation.Systems
                 {
                     NativeArray<uint2> indices = chunk.GetNativeArray(ref previousDqsVertexHandle).Reinterpret<uint2>();
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        uint bindposeDq         = meshGpuEnties[meshArray[i].meshEntryIndex].bindPosesStart + (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
-                        indices[i]              = new uint2(prefixSums.previousDqs, bindposeDq);
-                        prefixSums.previousDqs += (uint)meshArray[i].meshBlob.Value.skinningData.bindPosesDQ.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            uint bindposeDq         = meshGpuEnties[meshArray[i].meshEntryIndex].bindPosesStart + (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                            indices[i]              = new uint2(prefixSums.previousDqs, bindposeDq);
+                            prefixSums.previousDqs += (uint)meshArray[i].meshBlob.Value.skinningData.bindPosesDQ.Length;
+                        }
                     }
                 }
 
@@ -300,12 +318,15 @@ namespace Latios.Kinemation.Systems
                 {
                     NativeArray<uint2> indices = chunk.GetNativeArray(ref twoAgoDqsVertexHandle).Reinterpret<uint2>();
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        uint bindposeDq       = meshGpuEnties[meshArray[i].meshEntryIndex].bindPosesStart + (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
-                        indices[i]            = new uint2(prefixSums.twoAgoDqs, bindposeDq);
-                        prefixSums.twoAgoDqs += (uint)meshArray[i].meshBlob.Value.skinningData.bindPosesDQ.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            uint bindposeDq       = meshGpuEnties[meshArray[i].meshEntryIndex].bindPosesStart + (uint)meshArray[i].meshBlob.Value.skinningData.bindPoses.Length;
+                            indices[i]            = new uint2(prefixSums.twoAgoDqs, bindposeDq);
+                            prefixSums.twoAgoDqs += (uint)meshArray[i].meshBlob.Value.skinningData.bindPosesDQ.Length;
+                        }
                     }
                 }
 
@@ -319,16 +340,19 @@ namespace Latios.Kinemation.Systems
                     NativeArray<uint>  legacyCompute = hasLegacyCompute ? chunk.GetNativeArray(ref legacyComputeDeformHandle).Reinterpret<uint>() : default;
                     NativeArray<uint4> legacyDots    = hasLegacyDots ? chunk.GetNativeArray(ref legacyDotsDeformHandle).Reinterpret<uint4>() : default;
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        if (hasCurrent)
-                            current[i] = prefixSums.currentDeform;
-                        if (hasLegacyCompute)
-                            legacyCompute[i] = prefixSums.currentDeform;
-                        if (hasLegacyDots)
-                            legacyDots[i]         = new uint4(prefixSums.currentDeform, 0, 0, 0);
-                        prefixSums.currentDeform += (uint)meshArray[i].meshBlob.Value.undeformedVertices.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            if (hasCurrent)
+                                current[i] = prefixSums.currentDeform;
+                            if (hasLegacyCompute)
+                                legacyCompute[i] = prefixSums.currentDeform;
+                            if (hasLegacyDots)
+                                legacyDots[i]         = new uint4(prefixSums.currentDeform, 0, 0, 0);
+                            prefixSums.currentDeform += (uint)meshArray[i].meshBlob.Value.undeformedVertices.Length;
+                        }
                     }
                 }
 
@@ -340,14 +364,17 @@ namespace Latios.Kinemation.Systems
                     NativeArray<uint>  previous   = hasPrevious ? chunk.GetNativeArray(ref previousDeformHandle).Reinterpret<uint>() : default;
                     NativeArray<uint4> legacyDots = hasLegacyDots ? chunk.GetNativeArray(ref legacyDotsDeformHandle).Reinterpret<uint4>() : default;
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        if (hasPrevious)
-                            previous[i] = prefixSums.previousDeform;
-                        if (hasLegacyDots)
-                            legacyDots[i]         += new uint4(0, prefixSums.previousDeform, 0, 0);
-                        prefixSums.previousDeform += (uint)meshArray[i].meshBlob.Value.undeformedVertices.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            if (hasPrevious)
+                                previous[i] = prefixSums.previousDeform;
+                            if (hasLegacyDots)
+                                legacyDots[i]         += new uint4(0, prefixSums.previousDeform, 0, 0);
+                            prefixSums.previousDeform += (uint)meshArray[i].meshBlob.Value.undeformedVertices.Length;
+                        }
                     }
                 }
 
@@ -355,11 +382,14 @@ namespace Latios.Kinemation.Systems
                 {
                     NativeArray<uint> indices = chunk.GetNativeArray(ref twoAgoDeformHandle).Reinterpret<uint>();
 
-                    var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                    while (enumerator.NextEntityIndex(out int i))
+                    var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        indices[i]               = prefixSums.twoAgoDeform;
-                        prefixSums.twoAgoDeform += (uint)meshArray[i].meshBlob.Value.undeformedVertices.Length;
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
+                        {
+                            indices[i]               = prefixSums.twoAgoDeform;
+                            prefixSums.twoAgoDeform += (uint)meshArray[i].meshBlob.Value.undeformedVertices.Length;
+                        }
                     }
                 }
             }

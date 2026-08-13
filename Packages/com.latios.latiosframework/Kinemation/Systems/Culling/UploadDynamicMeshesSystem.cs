@@ -242,83 +242,86 @@ namespace Latios.Kinemation.Systems
                 bool needsPrevious = (classification & DeformClassification.AnyPreviousDeform) != DeformClassification.None;
                 bool needsTwoAgo   = (classification & DeformClassification.TwoAgoDeform) != DeformClassification.None;
 
-                var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                while (enumerator.NextEntityIndex(out int i))
+                var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    var state            = states[i].state;
-                    var mask             = state & DynamicMeshState.Flags.RotationMask;
-                    var currentRotation  = DynamicMeshState.CurrentFromMask[(byte)mask];
-                    var previousRotation = DynamicMeshState.PreviousFromMask[(byte)mask];
-                    currentRotation      = (state & DynamicMeshState.Flags.IsDirty) == DynamicMeshState.Flags.IsDirty ? currentRotation : previousRotation;
-                    var twoAgoRotation   = DynamicMeshState.TwoAgoFromMask[(byte)mask];
-                    var buffer           = verticesBuffers[i];
-                    var verticesCount    = blobs[i].meshBlob.Value.undeformedVertices.Length;
-
-                    void* currentPtr, previousPtr, twoAgoPtr;
-
-                    if (Unity.Burst.CompilerServices.Hint.Unlikely(verticesCount * 3 != buffer.Length))
+                    for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
                     {
-                        if (buffer.Length == verticesCount)
+                        var state            = states[i].state;
+                        var mask             = state & DynamicMeshState.Flags.RotationMask;
+                        var currentRotation  = DynamicMeshState.CurrentFromMask[(byte)mask];
+                        var previousRotation = DynamicMeshState.PreviousFromMask[(byte)mask];
+                        currentRotation      = (state & DynamicMeshState.Flags.IsDirty) == DynamicMeshState.Flags.IsDirty ? currentRotation : previousRotation;
+                        var twoAgoRotation   = DynamicMeshState.TwoAgoFromMask[(byte)mask];
+                        var buffer           = verticesBuffers[i];
+                        var verticesCount    = blobs[i].meshBlob.Value.undeformedVertices.Length;
+
+                        void* currentPtr, previousPtr, twoAgoPtr;
+
+                        if (Unity.Burst.CompilerServices.Hint.Unlikely(verticesCount * 3 != buffer.Length))
+                        {
+                            if (buffer.Length == verticesCount)
+                            {
+                                currentPtr  = buffer.AsNativeArray().GetSubArray(verticesCount * currentRotation, verticesCount).GetUnsafeReadOnlyPtr();
+                                previousPtr = currentPtr;
+                                twoAgoPtr   = currentPtr;
+                            }
+                            else
+                            {
+                                currentPtr  = blobs[i].meshBlob.Value.undeformedVertices.GetUnsafePtr();
+                                previousPtr = currentPtr;
+                                twoAgoPtr   = currentPtr;
+
+                                UnityEngine.Debug.LogError(
+                                    $"Entity {entities[i]} has the wrong number of vertices ({buffer.Length / 3} vs expected {verticesCount}) in DynamicBuffer<DynamicMeshVertex>. Uploading default mesh instead.");
+                            }
+                        }
+                        else
                         {
                             currentPtr  = buffer.AsNativeArray().GetSubArray(verticesCount * currentRotation, verticesCount).GetUnsafeReadOnlyPtr();
-                            previousPtr = currentPtr;
-                            twoAgoPtr   = currentPtr;
+                            previousPtr = buffer.AsNativeArray().GetSubArray(verticesCount * previousRotation, verticesCount).GetUnsafeReadOnlyPtr();
+                            twoAgoPtr   = buffer.AsNativeArray().GetSubArray(verticesCount * twoAgoRotation, verticesCount).GetUnsafeReadOnlyPtr();
                         }
-                        else
-                        {
-                            currentPtr  = blobs[i].meshBlob.Value.undeformedVertices.GetUnsafePtr();
-                            previousPtr = currentPtr;
-                            twoAgoPtr   = currentPtr;
 
-                            UnityEngine.Debug.LogError(
-                                $"Entity {entities[i]} has the wrong number of vertices ({buffer.Length / 3} vs expected {verticesCount}) in DynamicBuffer<DynamicMeshVertex>. Uploading default mesh instead.");
+                        if (needsCurrent)
+                        {
+                            uint gpuTarget;
+                            if ((classification & DeformClassification.CurrentDeform) != DeformClassification.None)
+                                gpuTarget = currentShaderIndices[i].firstVertexIndex;
+                            else if ((classification & DeformClassification.LegacyCompute) != DeformClassification.None)
+                                gpuTarget = legacyComputeShaderIndices[i].firstVertexIndex;
+                            else
+                                gpuTarget = legacyDotsShaderIndices[i].parameters.x;
+                            streamWriter.Write(new UploadPayload
+                            {
+                                ptr                   = currentPtr,
+                                length                = (uint)verticesCount,
+                                persistentBufferStart = gpuTarget
+                            });
                         }
-                    }
-                    else
-                    {
-                        currentPtr  = buffer.AsNativeArray().GetSubArray(verticesCount * currentRotation, verticesCount).GetUnsafeReadOnlyPtr();
-                        previousPtr = buffer.AsNativeArray().GetSubArray(verticesCount * previousRotation, verticesCount).GetUnsafeReadOnlyPtr();
-                        twoAgoPtr   = buffer.AsNativeArray().GetSubArray(verticesCount * twoAgoRotation, verticesCount).GetUnsafeReadOnlyPtr();
-                    }
-
-                    if (needsCurrent)
-                    {
-                        uint gpuTarget;
-                        if ((classification & DeformClassification.CurrentDeform) != DeformClassification.None)
-                            gpuTarget = currentShaderIndices[i].firstVertexIndex;
-                        else if ((classification & DeformClassification.LegacyCompute) != DeformClassification.None)
-                            gpuTarget = legacyComputeShaderIndices[i].firstVertexIndex;
-                        else
-                            gpuTarget = legacyDotsShaderIndices[i].parameters.x;
-                        streamWriter.Write(new UploadPayload
+                        if (needsPrevious)
                         {
-                            ptr                   = currentPtr,
-                            length                = (uint)verticesCount,
-                            persistentBufferStart = gpuTarget
-                        });
-                    }
-                    if (needsPrevious)
-                    {
-                        uint gpuTarget;
-                        if ((classification & DeformClassification.PreviousDeform) != DeformClassification.None)
-                            gpuTarget = previousShaderIndices[i].firstVertexIndex;
-                        else
-                            gpuTarget = legacyDotsShaderIndices[i].parameters.y;
-                        streamWriter.Write(new UploadPayload
+                            uint gpuTarget;
+                            if ((classification & DeformClassification.PreviousDeform) != DeformClassification.None)
+                                gpuTarget = previousShaderIndices[i].firstVertexIndex;
+                            else
+                                gpuTarget = legacyDotsShaderIndices[i].parameters.y;
+                            streamWriter.Write(new UploadPayload
+                            {
+                                ptr                   = previousPtr,
+                                length                = (uint)verticesCount,
+                                persistentBufferStart = gpuTarget
+                            });
+                        }
+                        if (needsTwoAgo)
                         {
-                            ptr                   = previousPtr,
-                            length                = (uint)verticesCount,
-                            persistentBufferStart = gpuTarget
-                        });
-                    }
-                    if (needsTwoAgo)
-                    {
-                        streamWriter.Write(new UploadPayload
-                        {
-                            ptr                   = twoAgoPtr,
-                            length                = (uint)verticesCount,
-                            persistentBufferStart = twoAgoShaderIndices[i].firstVertexIndex
-                        });
+                            streamWriter.Write(new UploadPayload
+                            {
+                                ptr                   = twoAgoPtr,
+                                length                = (uint)verticesCount,
+                                persistentBufferStart = twoAgoShaderIndices[i].firstVertexIndex
+                            });
+                        }
                     }
                 }
 

@@ -1,6 +1,7 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
 using Latios.Transforms;
+using Latios.Unsafe;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -70,7 +71,16 @@ namespace Latios.Transforms
                 var tickedWorldTransform = transformLookup.GetRefRW(entity);
                 var handle               = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
                 if (handle.isNull)
-                    return new TickedTransformAspect { m_worldTransform = tickedWorldTransform, m_handle = handle, };
+                {
+                    var esi       = esil[entity];
+                    var entityPtr = esi.Chunk.GetEntityDataPtrRO(esil.AsEntityTypeHandle()) + esi.IndexInChunk;
+                    return new TickedTransformAspect
+                    {
+                        m_worldTransform = tickedWorldTransform,
+                        m_handle         = handle,
+                        m_access         = entityPtr
+                    };
+                }
                 else
                 {
                     return new TickedTransformAspect
@@ -141,7 +151,16 @@ namespace Latios.Transforms
             }
             var handle = TransformTools.GetHierarchyHandle(entity, ref rootRefLookup, ref eihLookup, ref cleanupLookup);
             if (handle.isNull)
-                tickedTransformAspect = new TickedTransformAspect { m_worldTransform = worldTransform, m_handle = handle, };
+            {
+                var esi               = esil[entity];
+                var entityPtr         = esi.Chunk.GetEntityDataPtrRO(esil.AsEntityTypeHandle()) + esi.IndexInChunk;
+                tickedTransformAspect = new TickedTransformAspect
+                {
+                    m_worldTransform = worldTransform,
+                    m_handle         = handle,
+                    m_access         = entityPtr
+                };
+            }
             else
             {
                 tickedTransformAspect = new TickedTransformAspect
@@ -235,7 +254,7 @@ namespace Latios.Transforms
     /// For each chunk, call SetupChunk(). Then use the indexer with the index of the entity within the chunk to get the TickedTransformAspect.
     /// If used in an IJobEntity, make sure to include TickedWorldTransform in your query!
     /// </summary>
-    public unsafe struct TickedTransformAspectRootHandle : ILatiosApiGettable
+    public unsafe struct TickedTransformAspectRootHandle : IJobEach.IParameterHandle<TickedTransformAspect>, IJobEach.IParameterHandle<TickedTransformDeferableAspect>
     {
         /* Construct Snippet
            new TickedTransformAspectRootHandle(SystemAPI.GetComponentLookup<TickedWorldTransform>(false),
@@ -244,22 +263,27 @@ namespace Latios.Transforms
                                       SystemAPI.GetEntityStorageInfoLookup())
          */
 
-        struct ThreadCache
+        #region State
+        struct Cache
         {
-            public ComponentTypeHandle<TickedWorldTransform> transformHandle;
-            public NativeArray<TickedWorldTransform>         chunkTransforms;
-            public BufferAccessor<EntityInHierarchy>         entityInHierarchyAccessor;
-            public BufferAccessor<EntityInHierarchyCleanup>  entityInHierarchyCleanupAccessor;
-            public int                                       chunkIndex;
+            public ComponentTypeHandle<TickedWorldTransform>    transformHandle;
+            public NativeArray<TickedWorldTransform>            chunkTransforms;
+            public BufferAccessor<EntityInHierarchy>            entityInHierarchyAccessor;
+            public BufferAccessor<EntityInHierarchyCleanup>     entityInHierarchyCleanupAccessor;
+            public NativeList<TickedTransformBatchWriteCommand> deferredCommands;
+            public Entity*                                      chunkEntities;
+            public int                                          chunkIndex;
         }
 
         TransformsComponentLookup<TickedWorldTransform>       transformLookup;
         [ReadOnly] BufferTypeHandle<EntityInHierarchy>        hierarchyHandle;
         [ReadOnly] BufferTypeHandle<EntityInHierarchyCleanup> cleanupHandle;
         [ReadOnly] EntityStorageInfoLookup                    esil;
-        [NativeDisableUnsafePtrRestriction] ThreadCache*      cache;
+        ThreadCache<Cache>                                    threadCache;
         HasChecker<RootReference>                             rootRefChecker;
+        #endregion
 
+        #region API
         public TickedTransformAspectRootHandle(ComponentLookup<TickedWorldTransform>      tickedWorldTransformLookupRW,
                                                BufferTypeHandle<EntityInHierarchy>        entityInHierarchyHandleRO,
                                                BufferTypeHandle<EntityInHierarchyCleanup> entityInHierarchyCleanupHandleRO,
@@ -269,7 +293,7 @@ namespace Latios.Transforms
             hierarchyHandle = entityInHierarchyHandleRO;
             cleanupHandle   = entityInHierarchyCleanupHandleRO;
             esil            = entityStorageInfoLookup;
-            cache           = null;
+            threadCache     = default;
             rootRefChecker  = default;
         }
 
@@ -282,15 +306,18 @@ namespace Latios.Transforms
         public void SetupChunk(in ArchetypeChunk chunk)
         {
             CheckIsRoot(in chunk);
-            if (cache == null)
+            if (!threadCache.isCreated)
             {
-                cache                  = AllocatorManager.Allocate<ThreadCache>(Allocator.Temp);
-                cache->transformHandle = transformLookup.lookup.ToHandle(false);
+                threadCache                       = new ThreadCache<Cache>(default);
+                threadCache.cache.transformHandle = transformLookup.lookup.ToHandle(false);
             }
-            cache->chunkIndex                       = chunk.GetHashCode();
-            cache->chunkTransforms                  = chunk.GetNativeArray(ref cache->transformHandle);
-            cache->entityInHierarchyAccessor        = chunk.GetBufferAccessorRO(ref hierarchyHandle);
-            cache->entityInHierarchyCleanupAccessor = chunk.GetBufferAccessorRO(ref cleanupHandle);
+            ref var cache                          = ref threadCache.cache;
+            cache.chunkIndex                       = chunk.GetHashCode();
+            cache.chunkTransforms                  = chunk.GetNativeArray(ref cache.transformHandle);
+            cache.entityInHierarchyAccessor        = chunk.GetBufferAccessorRO(ref hierarchyHandle);
+            bool hasEntityInHierarchy              = cache.entityInHierarchyAccessor.Length > 0;
+            cache.entityInHierarchyCleanupAccessor = hasEntityInHierarchy ? chunk.GetBufferAccessorRO(ref cleanupHandle) : default;
+            cache.chunkEntities                    = hasEntityInHierarchy ? null : chunk.GetEntityDataPtrRO(esil.AsEntityTypeHandle());
         }
 
         /// <summary>
@@ -301,21 +328,23 @@ namespace Latios.Transforms
             get
             {
                 CheckInit();
-                var transform = new RefRW<TickedWorldTransform>(cache->chunkTransforms, indexInChunk);
-                if (cache->entityInHierarchyAccessor.Length == 0)
+                ref var cache     = ref threadCache.cache;
+                var     transform = new RefRW<TickedWorldTransform>(cache.chunkTransforms, indexInChunk);
+                if (cache.entityInHierarchyAccessor.Length == 0)
                 {
                     return new TickedTransformAspect
                     {
                         m_worldTransform = transform,
-                        m_handle         = default
+                        m_handle         = default,
+                        m_access         = cache.chunkEntities + indexInChunk
                     };
                 }
                 else
                 {
-                    var extra  = cache->entityInHierarchyCleanupAccessor.Length > 0 ? cache->entityInHierarchyCleanupAccessor[indexInChunk].GetUnsafeReadOnlyPtr() : null;
+                    var extra  = cache.entityInHierarchyCleanupAccessor.Length > 0 ? cache.entityInHierarchyCleanupAccessor[indexInChunk].GetUnsafeReadOnlyPtr() : null;
                     var handle = new EntityInHierarchyHandle
                     {
-                        m_hierarchy      = cache->entityInHierarchyAccessor[indexInChunk].AsNativeArray(),
+                        m_hierarchy      = cache.entityInHierarchyAccessor[indexInChunk].AsNativeArray(),
                         m_extraHierarchy = (EntityInHierarchy*)extra,
                         m_index          = 0
                     };
@@ -332,27 +361,59 @@ namespace Latios.Transforms
         }
 
         /// <summary>
-        /// Access to the TransformsKey for the current chunk
+        /// Access to the TickedTransformDeferableAspect at the specified index of the currently active chunk.
+        /// Use this when you want to batch writes to multiple transforms in a hierarchy from an IJobEntity or IJobChunk.
         /// </summary>
-        public TransformsKey transformsKey
+        public TickedTransformDeferableAspect Deferable(int indexInChunk)
         {
-            get
+            ref var cache     = ref threadCache.cache;
+            var     transform = this[indexInChunk];
+            if (!cache.deferredCommands.IsCreated)
+                cache.deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
+            return new TickedTransformDeferableAspect
             {
-                CheckInit();
-                return new TransformsKey
-                {
-                    chunkIndex  = cache->chunkIndex,
-                    entityIndex = -1,
-                    esil        = esil,
-                };
-            }
+                transform = transform,
+                commands  = cache.deferredCommands,
+            };
+        }
+
+        /// <summary>
+        /// Adds a deferred command for future playback. Deferred commands are played back in hierarchy order.
+        /// Refer to ApplyDeferredTransforms() for more details.
+        /// </summary>
+        /// <param name="command"></param>
+        public void AddDeferredCommand(in TickedTransformBatchWriteCommand command)
+        {
+            CheckInit();
+            ref var cache = ref threadCache.cache;
+            if (!cache.deferredCommands.IsCreated)
+                cache.deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
+            cache.deferredCommands.Add(command);
+        }
+
+        /// <summary>
+        /// Applies all pending deferred commands created by calls to AddDeferredCommand or from
+        /// TickedTransformDeferableAspects within hierarchies.
+        /// If using IJobParallelForDefer, you should call this yourself. If using IJobChunk or IJobEntity,
+        /// this will be automatically called after each batch, though you can call it yourself at any time
+        /// to get an up-to-date state of all transforms.
+        /// </summary>
+        public void ApplyDeferredTransforms()
+        {
+            if (!threadCache.isCreated || !threadCache.cache.deferredCommands.IsCreated)
+                return; // We never started a chunk, so there can't be any commands.
+            ref var cache = ref threadCache.cache;
+            cache.deferredCommands.ApplyTransforms();
+            cache.deferredCommands.Clear();
         }
 
         /// <summary>
         /// Access to the internal EntityStorageInfoLookup for convenience
         /// </summary>
         public EntityStorageInfoLookup entityStorageInfoLookup => esil;
+        #endregion
 
+        #region Source Gen API
         void ILatiosApiGettable.CreateForApi(ref SystemState state)
         {
             this = new TickedTransformAspectRootHandle(state.GetComponentLookup<TickedWorldTransform>(false),
@@ -369,10 +430,42 @@ namespace Latios.Transforms
             esil.Update(ref state);
         }
 
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public FluentQuery AppendToQuery(FluentQuery query)
+        {
+            return query.With<TickedWorldTransform>(false).Without<RootReference>();
+        }
+
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public bool OnChunkBegin(in IJobEach.JobContext context)
+        {
+            SetupChunk(context.chunk);
+            return true;
+        }
+
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public void OnChunkEnd(in IJobEach.JobContext context, bool chunkWasExecuted)
+        {
+            ApplyDeferredTransforms();
+        }
+
+        TickedTransformAspect IJobEach.IParameterHandle<TickedTransformAspect>.GetParameter(in IJobEach.JobContext context)
+        {
+            return this[context.indexInChunk];
+        }
+
+        TickedTransformDeferableAspect IJobEach.IParameterHandle<TickedTransformDeferableAspect>.GetParameter(in IJobEach.JobContext context)
+        {
+            ApplyDeferredTransforms();
+            return Deferable(context.indexInChunk);
+        }
+        #endregion
+
+        #region Safety
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckInit()
         {
-            if (cache == null)
+            if (!threadCache.isCreated)
                 throw new System.InvalidOperationException(
                     "The TransformAccessRootHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to SetupChunk().");
         }
@@ -383,6 +476,7 @@ namespace Latios.Transforms
             if (rootRefChecker[chunk])
                 throw new System.InvalidOperationException("Cannot set up a TransformAccessRootHandle for a chunk containing non-root entities.");
         }
+        #endregion
     }
 
     public static class TickedTransformAspectAccessExtensions
@@ -411,7 +505,16 @@ namespace Latios.Transforms
             var tickedWorldTransform = em.GetComponentDataRW<TickedWorldTransform>(entity);
             var handle               = TransformTools.GetHierarchyHandle(entity, em);
             if (handle.isNull)
-                return new TickedTransformAspect { m_worldTransform = tickedWorldTransform, m_handle = handle, };
+            {
+                var esi       = em.GetStorageInfo(entity);
+                var entityPtr = esi.Chunk.GetEntityDataPtrRO(em.GetEntityTypeHandle()) + esi.IndexInChunk;
+                return new TickedTransformAspect
+                {
+                    m_worldTransform = tickedWorldTransform,
+                    m_handle         = handle,
+                    m_access         = entityPtr
+                };
+            }
             else
             {
                 return new TickedTransformAspect
@@ -493,7 +596,16 @@ namespace Latios.Transforms
             var tickedWorldTransform = broker.GetRW<TickedWorldTransform>(entity);
             var handle               = TransformTools.GetHierarchyHandle(entity, ref broker);
             if (handle.isNull)
-                return new TickedTransformAspect { m_worldTransform = tickedWorldTransform, m_handle = handle, };
+            {
+                var esi       = broker.entityStorageInfoLookup[entity];
+                var entityPtr = esi.Chunk.GetEntityDataPtrRO(broker.entityTypeHandle) + esi.IndexInChunk;
+                return new TickedTransformAspect
+                {
+                    m_worldTransform = tickedWorldTransform,
+                    m_handle         = handle,
+                    m_access         = entityPtr
+                };
+            }
             else
             {
                 return new TickedTransformAspect
@@ -542,7 +654,14 @@ namespace Latios.Transforms
             if (handle.isNull)
             {
                 key.Validate(entity);
-                return new TickedTransformAspect { m_worldTransform = tickedWorldTransform, m_handle = handle, };
+                var esi       = broker.entityStorageInfoLookup[entity];
+                var entityPtr = esi.Chunk.GetEntityDataPtrRO(broker.entityTypeHandle) + esi.IndexInChunk;
+                return new TickedTransformAspect
+                {
+                    m_worldTransform = tickedWorldTransform,
+                    m_handle         = handle,
+                    m_access         = entityPtr
+                };
             }
             else
             {

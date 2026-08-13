@@ -169,43 +169,46 @@ namespace Latios.Kinemation
                 validator.Init();
 
                 bool reservedMmiWrite = false;
-                var  enumerator       = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
-                while (enumerator.NextEntityIndex(out var entityIndex))
+                var  enumerator       = new ChunkEntityBatchEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    if (!validator.IsEntityIndexValidMesh(entityIndex))
+                    for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
                     {
-                        // Mark the entity as configured now so that we don't try to process it again until the user fixes the problem.
-                        configuredBits[entityIndex] = false;
-                        // Mark the entity as invalid so that we can cull it in future updates, but only if the status changed.
+                        if (!validator.IsEntityIndexValidMesh(entityIndex))
+                        {
+                            // Mark the entity as configured now so that we don't try to process it again until the user fixes the problem.
+                            configuredBits[entityIndex] = false;
+                            // Mark the entity as invalid so that we can cull it in future updates, but only if the status changed.
 
-                        if (mmis[entityIndex].Mesh != 0)
-                        {
-                            if (!reservedMmiWrite)
+                            if (mmis[entityIndex].Mesh != 0)
                             {
-                                chunk.GetComponentDataPtrRW(ref mmiHandle);
-                                reservedMmiWrite = true;
+                                if (!reservedMmiWrite)
+                                {
+                                    chunk.GetComponentDataPtrRW(ref mmiHandle);
+                                    reservedMmiWrite = true;
+                                }
+                                mmis[entityIndex].Mesh = 0;
                             }
-                            mmis[entityIndex].Mesh = 0;
                         }
-                    }
-                    else
-                    {
-                        if (entityIndex < 64)
-                            lowerToProcess.SetBits(entityIndex, true);
                         else
-                            upperToProcess.SetBits(entityIndex - 64, true);
-                        if (mmis[entityIndex].Mesh == 0)
                         {
-                            if (!reservedMmiWrite)
+                            if (entityIndex < 64)
+                                lowerToProcess.SetBits(entityIndex, true);
+                            else
+                                upperToProcess.SetBits(entityIndex - 64, true);
+                            if (mmis[entityIndex].Mesh == 0)
                             {
-                                chunk.GetComponentDataPtrRW(ref mmiHandle);
-                                reservedMmiWrite = true;
-                            }
-                            // All of these checks should pass at this point, but I don't really want to crash Unity if they fail for some reason.
-                            if (tracked != null)
-                            {
-                                if (meshPool.meshToIdMap.TryGetValue(tracked[entityIndex].mesh, out var id))
-                                    mmis[entityIndex].Mesh = id;
+                                if (!reservedMmiWrite)
+                                {
+                                    chunk.GetComponentDataPtrRW(ref mmiHandle);
+                                    reservedMmiWrite = true;
+                                }
+                                // All of these checks should pass at this point, but I don't really want to crash Unity if they fail for some reason.
+                                if (tracked != null)
+                                {
+                                    if (meshPool.meshToIdMap.TryGetValue(tracked[entityIndex].mesh, out var id))
+                                        mmis[entityIndex].Mesh = id;
+                                }
                             }
                         }
                     }
@@ -291,24 +294,30 @@ namespace Latios.Kinemation
                 if (tracked != null)
                 {
                     int dstIndex = chunk.prefixSum;
-                    var e        = new ChunkEntityEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
-                    while (e.NextEntityIndex(out var entityIndex))
+                    var e        = new ChunkEntityBatchEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
+                    while (e.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        mask[entityIndex]        = false;
-                        meshesToUpload[dstIndex] = tracked[entityIndex].mesh;
-                        dstIndex++;
+                        for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
+                        {
+                            mask[entityIndex]        = false;
+                            meshesToUpload[dstIndex] = tracked[entityIndex].mesh;
+                            dstIndex++;
+                        }
                     }
                 }
                 else
                 {
                     var mmis     = chunk.chunk.GetComponentDataPtrRO(ref mmiHandle);
                     int dstIndex = chunk.prefixSum;
-                    var e        = new ChunkEntityEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
-                    while (e.NextEntityIndex(out var entityIndex))
+                    var e        = new ChunkEntityBatchEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
+                    while (e.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        mask[entityIndex]        = false;
-                        meshesToUpload[dstIndex] = meshPool.idToMeshMap[mmis[entityIndex].Mesh];
-                        dstIndex++;
+                        for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
+                        {
+                            mask[entityIndex]        = false;
+                            meshesToUpload[dstIndex] = meshPool.idToMeshMap[mmis[entityIndex].Mesh];
+                            dstIndex++;
+                        }
                     }
                 }
 
@@ -322,251 +331,255 @@ namespace Latios.Kinemation
                 var indexBuffers    = chunk.chunk.GetBufferAccessor(ref indexHandle);
                 var submeshBuffers  = chunk.chunk.GetBufferAccessor(ref submeshHandle);
 
-                var enumerator = new ChunkEntityEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
-                for (int meshIndex = chunk.prefixSum; enumerator.NextEntityIndex(out var entityIndex); meshIndex++)
+                var enumerator = new ChunkEntityBatchEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
+                int meshIndex = chunk.prefixSum;
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    var config = configurations[entityIndex];
+                    for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++, meshIndex++)
+                    {
+                        var config = configurations[entityIndex];
 
-                    // Capture the arrays, possibly performing normal and tangent recalculation.
-                    var                 indices   = indexBuffers.Length > 0 ? indexBuffers[entityIndex].AsNativeArray().Reinterpret<int>() : default;
-                    var                 submeshes = submeshBuffers.Length > 0 ? submeshBuffers[entityIndex].AsNativeArray() : default;
-                    var                 positions = positionBuffers.Length > 0 ? positionBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
-                    NativeArray<float3> normals   = default;
-                    if (config.calculateNormals)
-                    {
-                        if (normalBuffers.Length > 0)
+                        // Capture the arrays, possibly performing normal and tangent recalculation.
+                        var                 indices   = indexBuffers.Length > 0 ? indexBuffers[entityIndex].AsNativeArray().Reinterpret<int>() : default;
+                        var                 submeshes = submeshBuffers.Length > 0 ? submeshBuffers[entityIndex].AsNativeArray() : default;
+                        var                 positions = positionBuffers.Length > 0 ? positionBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
+                        NativeArray<float3> normals   = default;
+                        if (config.calculateNormals)
                         {
-                            var nb = normalBuffers[entityIndex];
-                            nb.ResizeUninitialized(positions.Length);
-                            normals = nb.AsNativeArray().Reinterpret<float3>();
-                        }
-                        else
-                        {
-                            if (!tempNormals.IsCreated)
-                                tempNormals = new NativeList<float3>(positions.Length, Allocator.Temp);
-                            tempNormals.ResizeUninitialized(positions.Length);
-                            normals = tempNormals.AsArray();
-                        }
-                        RecalculateNormals(positions, normals, indices, submeshes);
-                    }
-                    else if (normalBuffers.Length > 0)
-                    {
-                        normals = normalBuffers[entityIndex].AsNativeArray().Reinterpret<float3>();
-                    }
-                    var                 uv0xys   = uv0xyBuffers.Length > 0 ? uv0xyBuffers[entityIndex].AsNativeArray().Reinterpret<float2>() : default;
-                    NativeArray<float4> tangents = default;
-                    if (config.calculateTangents)
-                    {
-                        if (tangentBuffers.Length > 0)
-                        {
-                            var nb = tangentBuffers[entityIndex];
-                            nb.ResizeUninitialized(positions.Length);
-                            tangents = nb.AsNativeArray().Reinterpret<float4>();
-                        }
-                        else
-                        {
-                            if (!tempTangents.IsCreated)
-                                tempTangents = new NativeList<float4>(positions.Length, Allocator.Temp);
-                            tempTangents.ResizeUninitialized(positions.Length);
-                            tangents = tempTangents.AsArray();
-                        }
-                        RecalculateTangents(positions, normals, tangents, uv0xys, indices, submeshes);
-                    }
-                    else if (tangentBuffers.Length > 0)
-                    {
-                        tangents = tangentBuffers[entityIndex].AsNativeArray().Reinterpret<float4>();
-                    }
-                    var colors  = colorBuffers.Length > 0 ? colorBuffers[entityIndex].AsNativeArray().Reinterpret<float4>() : default;
-                    var uv3xyzs = uv3xyzBuffers.Length > 0 ? uv3xyzBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
-
-                    // Set up vertex attributes
-                    tempDescriptors.Clear();
-                    int vertexCount = 0;
-                    if (positions.Length > 0)
-                    {
-                        vertexCount = positions.Length;
-                        tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0));
-                    }
-                    if (normals.Length > 0)
-                    {
-                        vertexCount = normals.Length;
-                        tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0));
-                    }
-                    if (tangents.Length > 0)
-                    {
-                        vertexCount = tangents.Length;
-                        tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 0));
-                    }
-                    if (colors.Length > 0)
-                    {
-                        vertexCount = colors.Length;
-                        tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
-                    }
-                    if (uv0xys.Length > 0)
-                    {
-                        vertexCount = uv0xys.Length;
-                        tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
-                    }
-                    if (uv3xyzBuffers.Length > 0)
-                    {
-                        vertexCount = uv3xyzs.Length;
-                        tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 3, 0));
-                    }
-
-                    if (vertexCount == 0)
-                    {
-                        // We have an attribute-free mesh. We need to extract the vertex count from the indices.
-                        if (indices.Length > 0)
-                        {
-                            foreach (var vindex in indices)
+                            if (normalBuffers.Length > 0)
                             {
-                                vertexCount = math.max(vertexCount, vindex + 1);
+                                var nb = normalBuffers[entityIndex];
+                                nb.ResizeUninitialized(positions.Length);
+                                normals = nb.AsNativeArray().Reinterpret<float3>();
                             }
-                        }
-                        else
-                        {
-                            // Our mesh is fully defined by the submesh.
-                            foreach (var submesh in submeshes)
+                            else
                             {
-                                vertexCount = math.max(vertexCount, submesh.indexStart + submesh.indexCount);
+                                if (!tempNormals.IsCreated)
+                                    tempNormals = new NativeList<float3>(positions.Length, Allocator.Temp);
+                                tempNormals.ResizeUninitialized(positions.Length);
+                                normals = tempNormals.AsArray();
                             }
+                            RecalculateNormals(positions, normals, indices, submeshes);
                         }
-                    }
+                        else if (normalBuffers.Length > 0)
+                        {
+                            normals = normalBuffers[entityIndex].AsNativeArray().Reinterpret<float3>();
+                        }
+                        var                 uv0xys   = uv0xyBuffers.Length > 0 ? uv0xyBuffers[entityIndex].AsNativeArray().Reinterpret<float2>() : default;
+                        NativeArray<float4> tangents = default;
+                        if (config.calculateTangents)
+                        {
+                            if (tangentBuffers.Length > 0)
+                            {
+                                var nb = tangentBuffers[entityIndex];
+                                nb.ResizeUninitialized(positions.Length);
+                                tangents = nb.AsNativeArray().Reinterpret<float4>();
+                            }
+                            else
+                            {
+                                if (!tempTangents.IsCreated)
+                                    tempTangents = new NativeList<float4>(positions.Length, Allocator.Temp);
+                                tempTangents.ResizeUninitialized(positions.Length);
+                                tangents = tempTangents.AsArray();
+                            }
+                            RecalculateTangents(positions, normals, tangents, uv0xys, indices, submeshes);
+                        }
+                        else if (tangentBuffers.Length > 0)
+                        {
+                            tangents = tangentBuffers[entityIndex].AsNativeArray().Reinterpret<float4>();
+                        }
+                        var colors  = colorBuffers.Length > 0 ? colorBuffers[entityIndex].AsNativeArray().Reinterpret<float4>() : default;
+                        var uv3xyzs = uv3xyzBuffers.Length > 0 ? uv3xyzBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
 
-                    var meshData = meshDataArray[meshIndex];
-                    meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
-                    var stream0 = meshData.GetVertexData<float>(0);
-
-                    int writeIndex = 0;
-                    for (int i = 0; i < vertexCount; i++)
-                    {
+                        // Set up vertex attributes
+                        tempDescriptors.Clear();
+                        int vertexCount = 0;
                         if (positions.Length > 0)
-                            Write(ref writeIndex, ref stream0, positions[i]);
+                        {
+                            vertexCount = positions.Length;
+                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0));
+                        }
                         if (normals.Length > 0)
-                            Write(ref writeIndex, ref stream0, normals[i]);
+                        {
+                            vertexCount = normals.Length;
+                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0));
+                        }
                         if (tangents.Length > 0)
-                            Write(ref writeIndex, ref stream0, tangents[i]);
+                        {
+                            vertexCount = tangents.Length;
+                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 0));
+                        }
                         if (colors.Length > 0)
-                            Write(ref writeIndex, ref stream0, colors[i]);
+                        {
+                            vertexCount = colors.Length;
+                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
+                        }
                         if (uv0xys.Length > 0)
-                            Write(ref writeIndex, ref stream0, uv0xys[i]);
-                        if (uv3xyzs.Length > 0)
-                            Write(ref writeIndex, ref stream0, uv3xyzs[i]);
-                    }
-
-                    // Process indices
-                    int indexCount = indices.Length > 0 ? indices.Length : vertexCount;
-                    if (vertexCount < ushort.MaxValue)
-                    {
-                        meshData.SetIndexBufferParams(indexCount, IndexFormat.UInt16);
-                        var indexStream = meshData.GetIndexData<ushort>();
-                        if (indices.Length > 0)
                         {
-                            for (int i = 0; i < indices.Length; i++)
-                            {
-                                indexStream[i] = (ushort)indices[i];
-                            }
-                        }
-                        else
-                        {
-                            for (ushort i = 0; i < indexCount; i++)
-                            {
-                                indexStream[i] = i;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        meshData.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
-                        var indexStream = meshData.GetIndexData<int>();
-                        if (indices.Length > 0)
-                        {
-                            indexStream.CopyFrom(indices);
-                        }
-                        else
-                        {
-                            for (int i = 0; i < indexCount; i++)
-                            {
-                                indexStream[i] = i;
-                            }
-                        }
-                    }
-
-                    // Process submeshes
-                    meshData.subMeshCount = math.max(1, submeshes.Length);
-                    var flags             = MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontResetBoneBounds | MeshUpdateFlags.DontNotifyMeshUsers |
-                                            MeshUpdateFlags.DontRecalculateBounds;
-                    if (submeshes.Length == 0)
-                    {
-                        meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount, UnityEngine.MeshTopology.Triangles), flags);
-                    }
-                    else
-                    {
-                        for (int submeshIndex = 0; submeshIndex < submeshes.Length; submeshIndex++)
-                        {
-                            var submesh  = submeshes[submeshIndex];
-                            var topology = submesh.topology switch
-                            {
-                                UniqueMeshSubmesh.Topology.Triangles => UnityEngine.MeshTopology.Triangles,
-                                UniqueMeshSubmesh.Topology.Lines => UnityEngine.MeshTopology.Lines,
-                                UniqueMeshSubmesh.Topology.LineStrip => UnityEngine.MeshTopology.LineStrip,
-                                UniqueMeshSubmesh.Topology.Points => UnityEngine.MeshTopology.Points,
-                                _ => UnityEngine.MeshTopology.Triangles
-                            };
-                            meshData.SetSubMesh(submeshIndex, new SubMeshDescriptor(submesh.indexStart, submesh.indexCount, topology), flags);
-                        }
-                    }
-
-                    // Process buffer clearing option
-                    if (config.reclaimDynamicBufferMemoryAfterUpload && !liveBaked)
-                    {
-                        if (positionBuffers.Length > 0)
-                        {
-                            var b = positionBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
-                        }
-                        if (normalBuffers.Length > 0)
-                        {
-                            var b = normalBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
-                        }
-                        if (tangentBuffers.Length > 0)
-                        {
-                            var b = tangentBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
-                        }
-                        if (colorBuffers.Length > 0)
-                        {
-                            var b = colorBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
-                        }
-                        if (uv0xyBuffers.Length > 0)
-                        {
-                            var b = uv0xyBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
+                            vertexCount = uv0xys.Length;
+                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
                         }
                         if (uv3xyzBuffers.Length > 0)
                         {
-                            var b = uv3xyzBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
+                            vertexCount = uv3xyzs.Length;
+                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 3, 0));
                         }
-                        if (indexBuffers.Length > 0)
+
+                        if (vertexCount == 0)
                         {
-                            var b = indexBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
+                            // We have an attribute-free mesh. We need to extract the vertex count from the indices.
+                            if (indices.Length > 0)
+                            {
+                                foreach (var vindex in indices)
+                                {
+                                    vertexCount = math.max(vertexCount, vindex + 1);
+                                }
+                            }
+                            else
+                            {
+                                // Our mesh is fully defined by the submesh.
+                                foreach (var submesh in submeshes)
+                                {
+                                    vertexCount = math.max(vertexCount, submesh.indexStart + submesh.indexCount);
+                                }
+                            }
                         }
-                        if (submeshBuffers.Length > 0)
+
+                        var meshData = meshDataArray[meshIndex];
+                        meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
+                        var stream0 = meshData.GetVertexData<float>(0);
+
+                        int writeIndex = 0;
+                        for (int i = 0; i < vertexCount; i++)
                         {
-                            var b = submeshBuffers[entityIndex];
-                            b.Clear();
-                            b.TrimExcess();
+                            if (positions.Length > 0)
+                                Write(ref writeIndex, ref stream0, positions[i]);
+                            if (normals.Length > 0)
+                                Write(ref writeIndex, ref stream0, normals[i]);
+                            if (tangents.Length > 0)
+                                Write(ref writeIndex, ref stream0, tangents[i]);
+                            if (colors.Length > 0)
+                                Write(ref writeIndex, ref stream0, colors[i]);
+                            if (uv0xys.Length > 0)
+                                Write(ref writeIndex, ref stream0, uv0xys[i]);
+                            if (uv3xyzs.Length > 0)
+                                Write(ref writeIndex, ref stream0, uv3xyzs[i]);
+                        }
+
+                        // Process indices
+                        int indexCount = indices.Length > 0 ? indices.Length : vertexCount;
+                        if (vertexCount < ushort.MaxValue)
+                        {
+                            meshData.SetIndexBufferParams(indexCount, IndexFormat.UInt16);
+                            var indexStream = meshData.GetIndexData<ushort>();
+                            if (indices.Length > 0)
+                            {
+                                for (int i = 0; i < indices.Length; i++)
+                                {
+                                    indexStream[i] = (ushort)indices[i];
+                                }
+                            }
+                            else
+                            {
+                                for (ushort i = 0; i < indexCount; i++)
+                                {
+                                    indexStream[i] = i;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            meshData.SetIndexBufferParams(indexCount, IndexFormat.UInt32);
+                            var indexStream = meshData.GetIndexData<int>();
+                            if (indices.Length > 0)
+                            {
+                                indexStream.CopyFrom(indices);
+                            }
+                            else
+                            {
+                                for (int i = 0; i < indexCount; i++)
+                                {
+                                    indexStream[i] = i;
+                                }
+                            }
+                        }
+
+                        // Process submeshes
+                        meshData.subMeshCount = math.max(1, submeshes.Length);
+                        var flags             = MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontResetBoneBounds | MeshUpdateFlags.DontNotifyMeshUsers |
+                                                MeshUpdateFlags.DontRecalculateBounds;
+                        if (submeshes.Length == 0)
+                        {
+                            meshData.SetSubMesh(0, new SubMeshDescriptor(0, indexCount, UnityEngine.MeshTopology.Triangles), flags);
+                        }
+                        else
+                        {
+                            for (int submeshIndex = 0; submeshIndex < submeshes.Length; submeshIndex++)
+                            {
+                                var submesh  = submeshes[submeshIndex];
+                                var topology = submesh.topology switch
+                                {
+                                    UniqueMeshSubmesh.Topology.Triangles => UnityEngine.MeshTopology.Triangles,
+                                    UniqueMeshSubmesh.Topology.Lines => UnityEngine.MeshTopology.Lines,
+                                    UniqueMeshSubmesh.Topology.LineStrip => UnityEngine.MeshTopology.LineStrip,
+                                    UniqueMeshSubmesh.Topology.Points => UnityEngine.MeshTopology.Points,
+                                    _ => UnityEngine.MeshTopology.Triangles
+                                };
+                                meshData.SetSubMesh(submeshIndex, new SubMeshDescriptor(submesh.indexStart, submesh.indexCount, topology), flags);
+                            }
+                        }
+
+                        // Process buffer clearing option
+                        if (config.reclaimDynamicBufferMemoryAfterUpload && !liveBaked)
+                        {
+                            if (positionBuffers.Length > 0)
+                            {
+                                var b = positionBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (normalBuffers.Length > 0)
+                            {
+                                var b = normalBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (tangentBuffers.Length > 0)
+                            {
+                                var b = tangentBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (colorBuffers.Length > 0)
+                            {
+                                var b = colorBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (uv0xyBuffers.Length > 0)
+                            {
+                                var b = uv0xyBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (uv3xyzBuffers.Length > 0)
+                            {
+                                var b = uv3xyzBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (indexBuffers.Length > 0)
+                            {
+                                var b = indexBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
+                            if (submeshBuffers.Length > 0)
+                            {
+                                var b = submeshBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
                         }
                     }
                 }

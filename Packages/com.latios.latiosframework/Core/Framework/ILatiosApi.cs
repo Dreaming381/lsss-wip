@@ -34,6 +34,11 @@ namespace Latios
         {
             throw new System.NotImplementedException("This method should have been replaced by codegen.");
         }
+
+        public EntityQuery __GetJobDefaultQuery<T>() where T : struct, IJobEach
+        {
+            throw new System.NotImplementedException("This method should have been replaced by codegen.");
+        }
         #endregion
     }
 
@@ -153,6 +158,22 @@ namespace Latios
         /// The elapsed time of the current system
         /// </summary>
         public double elapsedTime => time.ElapsedTime;
+        /// <summary>
+        /// The global system version of the previous time this system updated,
+        /// for use with change filtering methods such as ArchetypeChunk.DidChange()
+        /// </summary>
+        public uint lastSystemVersion => m_state->LastSystemVersion;
+
+        /// <summary>
+        /// Gets the cached default EntityQuery of an IJobEach, which is the query used when the job is dispatched
+        /// without one. The query is only created if it is used.
+        /// </summary>
+        /// <typeparam name="T">The IJobEach whose query to retrieve</typeparam>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public EntityQuery GetDefaultQuery<T>() where T : struct, IJobEach
+        {
+            return m_thisPtr->__GetJobDefaultQuery<T>();
+        }
 
         /// <summary>
         /// Gets the cached TGettable and updates it

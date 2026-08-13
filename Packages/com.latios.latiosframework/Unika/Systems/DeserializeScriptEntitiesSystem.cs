@@ -52,22 +52,25 @@ namespace Latios.Unika.Systems
                 var controllers        = chunk.GetNativeArray(ref controllerHandle);
                 chunk.SetComponentEnabledForAll(ref controllerHandle, false);
 
-                var enumerator = new ChunkEntityEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
-                while (enumerator.NextEntityIndex(out int i))
+                var enumerator = new ChunkEntityBatchEnumerator(useEnabledMask, chunkEnabledMask, chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    var entity     = entities[i];
-                    var controller = controllers[i];
-                    if (controller.IsOriginalEntity(entity))
-                        continue;
-
-                    controllers[i] = new UnikaEntitySerializationController
+                    for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
                     {
-                        originalIndex   = entity.Index,
-                        originalVersion = entity.Version
-                    };
-                    var scripts    = scriptsAccessor[i].AsNativeArray();
-                    var references = referencesAccessor[i].AsNativeArray();
-                    ScriptSerialization.DeserializeEntities(ref scripts, in references);
+                        var entity     = entities[i];
+                        var controller = controllers[i];
+                        if (controller.IsOriginalEntity(entity))
+                            continue;
+
+                        controllers[i] = new UnikaEntitySerializationController
+                        {
+                            originalIndex   = entity.Index,
+                            originalVersion = entity.Version
+                        };
+                        var scripts    = scriptsAccessor[i].AsNativeArray();
+                        var references = referencesAccessor[i].AsNativeArray();
+                        ScriptSerialization.DeserializeEntities(ref scripts, in references);
+                    }
                 }
             }
         }

@@ -445,73 +445,76 @@ namespace Latios.Kinemation
                     SelectPromisedEntities(ref mask, chunk.Count, worldBoundsArray, cameraParametersArray);
                 }
 
-                var entityEnumerator = new ChunkEntityEnumerator(true, new v128(mask.lower.Value, mask.upper.Value), chunk.Count);
-                while (entityEnumerator.NextEntityIndex(out var entityIndex))
+                var entityEnumerator = new ChunkEntityBatchEnumerator(true, new v128(mask.lower.Value, mask.upper.Value), chunk.Count);
+                while (entityEnumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    var mmi         = mmiArray[entityIndex];
-                    var worldBounds = worldBoundsArray[entityIndex];
-
-                    if (mmi.HasMaterialMeshIndexRange)
+                    for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
                     {
-                        RangeInt matMeshIndexRange = mmi.MaterialMeshIndexRange;
-                        if (matMeshIndexRange.length == 127)
+                        var mmi         = mmiArray[entityIndex];
+                        var worldBounds = worldBoundsArray[entityIndex];
+
+                        if (mmi.HasMaterialMeshIndexRange)
                         {
-                            int newLength             = (rma.MaterialMeshSubMeshes[matMeshIndexRange.start + 1].SubMeshIndex >> 16) & 0xff;
-                            newLength                |= (rma.MaterialMeshSubMeshes[matMeshIndexRange.start + 2].SubMeshIndex >> 8) & 0xff00;
-                            newLength                |= rma.MaterialMeshSubMeshes[matMeshIndexRange.start + 3].SubMeshIndex & 0xff0000;
-                            matMeshIndexRange.length  = newLength;
+                            RangeInt matMeshIndexRange = mmi.MaterialMeshIndexRange;
+                            if (matMeshIndexRange.length == 127)
+                            {
+                                int newLength             = (rma.MaterialMeshSubMeshes[matMeshIndexRange.start + 1].SubMeshIndex >> 16) & 0xff;
+                                newLength                |= (rma.MaterialMeshSubMeshes[matMeshIndexRange.start + 2].SubMeshIndex >> 8) & 0xff00;
+                                newLength                |= rma.MaterialMeshSubMeshes[matMeshIndexRange.start + 3].SubMeshIndex & 0xff0000;
+                                matMeshIndexRange.length  = newLength;
+                            }
+
+                            // Todo: We could potentially run the LOD Pack evaluation algorithm here against all captured cameras to cull unused meshes and materials from evaluation.
+
+                            int overrideMeshIndex = 0;
+                            if (hasOverrideMesh)
+                            {
+                                if (mmi.IsRuntimeMesh)
+                                {
+                                    if (!smma.batchMeshToRmaIndexMap.TryGetValue(mmi.MeshID, out overrideMeshIndex))
+                                        continue; // Runtime meshes are not supported
+                                }
+                                else
+                                    overrideMeshIndex = mmi.MeshArrayIndex;
+                            }
+
+                            for (int i = 0; i < matMeshIndexRange.length; i++)
+                            {
+                                int matMeshSubMeshIndex = matMeshIndexRange.start + i;
+
+                                // Drop if OOB. Errors should have been reported already so no need to log anything
+                                if (matMeshSubMeshIndex >= rma.MaterialMeshSubMeshes.Length)
+                                    continue;
+
+                                BatchMaterialMeshSubMesh matMeshSubMesh = rma.MaterialMeshSubMeshes[matMeshSubMeshIndex];
+                                var                      meshIndex      = hasOverrideMesh ? overrideMeshIndex : smma.batchMeshToRmaIndexMap[matMeshSubMesh.Mesh];
+                                var                      materialIndex  = smma.batchMaterialToRmaIndexMap[matMeshSubMesh.Material];
+
+                                EvaluateDrawInstance(ref smma, cameraParametersArray, in worldBounds, meshIndex, materialIndex);
+                            }
                         }
-
-                        // Todo: We could potentially run the LOD Pack evaluation algorithm here against all captured cameras to cull unused meshes and materials from evaluation.
-
-                        int overrideMeshIndex = 0;
-                        if (hasOverrideMesh)
+                        else
                         {
+                            var meshIndex = 0;
                             if (mmi.IsRuntimeMesh)
                             {
-                                if (!smma.batchMeshToRmaIndexMap.TryGetValue(mmi.MeshID, out overrideMeshIndex))
+                                if (!smma.batchMeshToRmaIndexMap.TryGetValue(mmi.MeshID, out meshIndex))
                                     continue; // Runtime meshes are not supported
                             }
                             else
-                                overrideMeshIndex = mmi.MeshArrayIndex;
-                        }
+                                meshIndex = mmi.MeshArrayIndex;
 
-                        for (int i = 0; i < matMeshIndexRange.length; i++)
-                        {
-                            int matMeshSubMeshIndex = matMeshIndexRange.start + i;
-
-                            // Drop if OOB. Errors should have been reported already so no need to log anything
-                            if (matMeshSubMeshIndex >= rma.MaterialMeshSubMeshes.Length)
-                                continue;
-
-                            BatchMaterialMeshSubMesh matMeshSubMesh = rma.MaterialMeshSubMeshes[matMeshSubMeshIndex];
-                            var                      meshIndex      = hasOverrideMesh ? overrideMeshIndex : smma.batchMeshToRmaIndexMap[matMeshSubMesh.Mesh];
-                            var                      materialIndex  = smma.batchMaterialToRmaIndexMap[matMeshSubMesh.Material];
+                            var materialIndex = 0;
+                            if (mmi.IsRuntimeMaterial)
+                            {
+                                if (!smma.batchMaterialToRmaIndexMap.TryGetValue(mmi.MaterialID, out materialIndex))
+                                    continue; // Runtime materials are not supported
+                            }
+                            else
+                                materialIndex = mmi.MaterialArrayIndex;
 
                             EvaluateDrawInstance(ref smma, cameraParametersArray, in worldBounds, meshIndex, materialIndex);
                         }
-                    }
-                    else
-                    {
-                        var meshIndex = 0;
-                        if (mmi.IsRuntimeMesh)
-                        {
-                            if (!smma.batchMeshToRmaIndexMap.TryGetValue(mmi.MeshID, out meshIndex))
-                                continue; // Runtime meshes are not supported
-                        }
-                        else
-                            meshIndex = mmi.MeshArrayIndex;
-
-                        var materialIndex = 0;
-                        if (mmi.IsRuntimeMaterial)
-                        {
-                            if (!smma.batchMaterialToRmaIndexMap.TryGetValue(mmi.MaterialID, out materialIndex))
-                                continue; // Runtime materials are not supported
-                        }
-                        else
-                            materialIndex = mmi.MaterialArrayIndex;
-
-                        EvaluateDrawInstance(ref smma, cameraParametersArray, in worldBounds, meshIndex, materialIndex);
                     }
                 }
             }
@@ -572,23 +575,26 @@ namespace Latios.Kinemation
                 {
                     int   bestIndex  = -1;
                     float bestValue  = float.MaxValue;
-                    var   enumerator = new ChunkEntityEnumerator(true, new v128(oldMask.lower.Value, oldMask.upper.Value), chunkCount);
-                    while (enumerator.NextEntityIndex(out var i))
+                    var   enumerator = new ChunkEntityBatchEnumerator(true, new v128(oldMask.lower.Value, oldMask.upper.Value), chunkCount);
+                    while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                     {
-                        var   bounds     = worldBoundsArray[i];
-                        var   distanceSq = math.distancesq(bounds.Value.Center, camera.position);
-                        var   extents    = bounds.Value.Extents;
-                        float area;
-                        if (extents.x > extents.y)
-                            area = extents.x * math.max(extents.y, extents.z);
-                        else
-                            area = extents.y * math.max(extents.x, extents.z);
-
-                        var heuristic = distanceSq / math.max(area, math.EPSILON);
-                        if (heuristic < bestValue)
+                        for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
                         {
-                            bestIndex = i;
-                            bestValue = heuristic;
+                            var   bounds     = worldBoundsArray[i];
+                            var   distanceSq = math.distancesq(bounds.Value.Center, camera.position);
+                            var   extents    = bounds.Value.Extents;
+                            float area;
+                            if (extents.x > extents.y)
+                                area = extents.x * math.max(extents.y, extents.z);
+                            else
+                                area = extents.y * math.max(extents.x, extents.z);
+
+                            var heuristic = distanceSq / math.max(area, math.EPSILON);
+                            if (heuristic < bestValue)
+                            {
+                                bestIndex = i;
+                                bestValue = heuristic;
+                            }
                         }
                     }
                     if (bestIndex >= 0)

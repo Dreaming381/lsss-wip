@@ -7,7 +7,7 @@
       "dependencies": {
         "com.unity.entities": "1.4.8",
         "com.unity.entities.graphics": "1.4.21",
-        "com.unity.burst": "1.8.29"
+        "com.unity.burst": "1.8.30"
       }
     },
     "com.unity.ai.navigation": {
@@ -20,8 +20,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.29",
-      "depth": 0,
+      "version": "1.8.30",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.mathematics": "1.2.1",

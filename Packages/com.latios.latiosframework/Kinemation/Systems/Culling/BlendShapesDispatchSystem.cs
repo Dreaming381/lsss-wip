@@ -240,117 +240,120 @@ namespace Latios.Kinemation.Systems
                 bool needsPrevious = (classification & DeformClassification.AnyPreviousDeform) != DeformClassification.None;
                 bool needsTwoAgo   = (classification & DeformClassification.TwoAgoDeform) != DeformClassification.None;
 
-                var enumerator = new ChunkEntityEnumerator(true, new v128(lower, upper), chunk.Count);
-                while (enumerator.NextEntityIndex(out int i))
+                var enumerator = new ChunkEntityBatchEnumerator(true, new v128(lower, upper), chunk.Count);
+                while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
-                    var state              = states[i].state;
-                    var mask               = state & BlendShapeState.Flags.RotationMask;
-                    var currentRotation    = BlendShapeState.CurrentFromMask[(byte)mask];
-                    var previousRotation   = BlendShapeState.PreviousFromMask[(byte)mask];
-                    currentRotation        = (state & BlendShapeState.Flags.IsDirty) == BlendShapeState.Flags.IsDirty ? currentRotation : previousRotation;
-                    var twoAgoRotation     = BlendShapeState.TwoAgoFromMask[(byte)mask];
-                    var buffer             = weightsBuffers[i];
-                    var blob               = meshes[i].meshBlob;
-                    var weightsCount       = blob.Value.blendShapesData.shapes.Length;
-                    var requiresMeshUpload = (classification & DeformClassification.RequiresUploadDynamicMesh) == DeformClassification.None;
-                    var meshEntryIndex     = meshes[i].meshEntryIndex;
-
-                    void* currentPtr, previousPtr, twoAgoPtr;
-
-                    if (Unity.Burst.CompilerServices.Hint.Unlikely(weightsCount * 3 != buffer.Length))
+                    for (int i = rangeStart, rangeEnd = rangeStart + rangeCount; i < rangeEnd; i++)
                     {
-                        if (weightsCount == buffer.Length)
+                        var state              = states[i].state;
+                        var mask               = state & BlendShapeState.Flags.RotationMask;
+                        var currentRotation    = BlendShapeState.CurrentFromMask[(byte)mask];
+                        var previousRotation   = BlendShapeState.PreviousFromMask[(byte)mask];
+                        currentRotation        = (state & BlendShapeState.Flags.IsDirty) == BlendShapeState.Flags.IsDirty ? currentRotation : previousRotation;
+                        var twoAgoRotation     = BlendShapeState.TwoAgoFromMask[(byte)mask];
+                        var buffer             = weightsBuffers[i];
+                        var blob               = meshes[i].meshBlob;
+                        var weightsCount       = blob.Value.blendShapesData.shapes.Length;
+                        var requiresMeshUpload = (classification & DeformClassification.RequiresUploadDynamicMesh) == DeformClassification.None;
+                        var meshEntryIndex     = meshes[i].meshEntryIndex;
+
+                        void* currentPtr, previousPtr, twoAgoPtr;
+
+                        if (Unity.Burst.CompilerServices.Hint.Unlikely(weightsCount * 3 != buffer.Length))
+                        {
+                            if (weightsCount == buffer.Length)
+                            {
+                                currentPtr  = buffer.AsNativeArray().GetSubArray(weightsCount * currentRotation, weightsCount).GetUnsafeReadOnlyPtr();
+                                previousPtr = currentPtr;
+                                twoAgoPtr   = currentPtr;
+                            }
+                            else
+                            {
+                                currentPtr  = null;
+                                previousPtr = currentPtr;
+                                twoAgoPtr   = currentPtr;
+
+                                UnityEngine.Debug.LogError(
+                                    $"Entity {entities[i]} has the wrong number of weights ({buffer.Length / 3} vs expected {weightsCount}) in DynamicBuffer<BlendShapeWeight>. Uploading zero weights instead.");
+                            }
+                        }
+                        else
                         {
                             currentPtr  = buffer.AsNativeArray().GetSubArray(weightsCount * currentRotation, weightsCount).GetUnsafeReadOnlyPtr();
-                            previousPtr = currentPtr;
-                            twoAgoPtr   = currentPtr;
-                        }
-                        else
-                        {
-                            currentPtr  = null;
-                            previousPtr = currentPtr;
-                            twoAgoPtr   = currentPtr;
-
-                            UnityEngine.Debug.LogError(
-                                $"Entity {entities[i]} has the wrong number of weights ({buffer.Length / 3} vs expected {weightsCount}) in DynamicBuffer<BlendShapeWeight>. Uploading zero weights instead.");
-                        }
-                    }
-                    else
-                    {
-                        currentPtr  = buffer.AsNativeArray().GetSubArray(weightsCount * currentRotation, weightsCount).GetUnsafeReadOnlyPtr();
-                        previousPtr = buffer.AsNativeArray().GetSubArray(weightsCount * previousRotation, weightsCount).GetUnsafeReadOnlyPtr();
-                        twoAgoPtr   = buffer.AsNativeArray().GetSubArray(weightsCount * twoAgoRotation, weightsCount).GetUnsafeReadOnlyPtr();
-                    }
-
-                    if (needsCurrent)
-                    {
-                        var  floatWeightsBuffer  = (float*)currentPtr;
-                        uint nonzeroWeightsCount = 0;
-                        if (floatWeightsBuffer != null)
-                        {
-                            for (int j = 0; j < weightsCount; j++)
-                                nonzeroWeightsCount += math.select(0u, 1u, floatWeightsBuffer[j] != 0f);
+                            previousPtr = buffer.AsNativeArray().GetSubArray(weightsCount * previousRotation, weightsCount).GetUnsafeReadOnlyPtr();
+                            twoAgoPtr   = buffer.AsNativeArray().GetSubArray(weightsCount * twoAgoRotation, weightsCount).GetUnsafeReadOnlyPtr();
                         }
 
-                        uint gpuTarget = 0;
-                        if ((classification & DeformClassification.CurrentDeform) != DeformClassification.None)
-                            gpuTarget = currentShaderIndices[i].firstVertexIndex;
-                        else if ((classification & DeformClassification.LegacyCompute) != DeformClassification.None)
-                            gpuTarget = legacyComputeShaderIndices[i].firstVertexIndex;
-                        else
-                            gpuTarget = legacyDotsShaderIndices[i].parameters.x;
-                        //UnityEngine.Debug.Log("Wrote upload payload");
-                        streamWriter.Write(new UploadPayload
+                        if (needsCurrent)
                         {
-                            weightsPtr            = currentPtr,
-                            meshEntryIndex        = meshEntryIndex,
-                            nonzeroWeightsCount   = nonzeroWeightsCount,
-                            persistentBufferStart = gpuTarget,
-                            requiresMeshUpload    = requiresMeshUpload
-                        });
-                    }
-                    if (needsPrevious)
-                    {
-                        var  floatWeightsBuffer  = (float*)previousPtr;
-                        uint nonzeroWeightsCount = 0;
-                        if (floatWeightsBuffer != null)
-                        {
-                            for (int j = 0; j < weightsCount; j++)
-                                nonzeroWeightsCount += math.select(0u, 1u, floatWeightsBuffer[j] != 0f);
-                        }
+                            var  floatWeightsBuffer  = (float*)currentPtr;
+                            uint nonzeroWeightsCount = 0;
+                            if (floatWeightsBuffer != null)
+                            {
+                                for (int j = 0; j < weightsCount; j++)
+                                    nonzeroWeightsCount += math.select(0u, 1u, floatWeightsBuffer[j] != 0f);
+                            }
 
-                        uint gpuTarget = 0;
-                        if ((classification & DeformClassification.PreviousDeform) != DeformClassification.None)
-                            gpuTarget = previousShaderIndices[i].firstVertexIndex;
-                        else
-                            gpuTarget = legacyDotsShaderIndices[i].parameters.y;
-                        streamWriter.Write(new UploadPayload
-                        {
-                            weightsPtr            = previousPtr,
-                            meshEntryIndex        = meshEntryIndex,
-                            nonzeroWeightsCount   = nonzeroWeightsCount,
-                            persistentBufferStart = gpuTarget,
-                            requiresMeshUpload    = requiresMeshUpload
-                        });
-                    }
-                    if (needsTwoAgo)
-                    {
-                        var  floatWeightsBuffer  = (float*)twoAgoPtr;
-                        uint nonzeroWeightsCount = 0;
-                        if (floatWeightsBuffer != null)
-                        {
-                            for (int j = 0; j < weightsCount; j++)
-                                nonzeroWeightsCount += math.select(0u, 1u, floatWeightsBuffer[j] != 0f);
+                            uint gpuTarget = 0;
+                            if ((classification & DeformClassification.CurrentDeform) != DeformClassification.None)
+                                gpuTarget = currentShaderIndices[i].firstVertexIndex;
+                            else if ((classification & DeformClassification.LegacyCompute) != DeformClassification.None)
+                                gpuTarget = legacyComputeShaderIndices[i].firstVertexIndex;
+                            else
+                                gpuTarget = legacyDotsShaderIndices[i].parameters.x;
+                            //UnityEngine.Debug.Log("Wrote upload payload");
+                            streamWriter.Write(new UploadPayload
+                            {
+                                weightsPtr            = currentPtr,
+                                meshEntryIndex        = meshEntryIndex,
+                                nonzeroWeightsCount   = nonzeroWeightsCount,
+                                persistentBufferStart = gpuTarget,
+                                requiresMeshUpload    = requiresMeshUpload
+                            });
                         }
-
-                        streamWriter.Write(new UploadPayload
+                        if (needsPrevious)
                         {
-                            weightsPtr            = twoAgoPtr,
-                            meshEntryIndex        = meshEntryIndex,
-                            nonzeroWeightsCount   = nonzeroWeightsCount,
-                            persistentBufferStart = twoAgoShaderIndices[i].firstVertexIndex,
-                            requiresMeshUpload    = requiresMeshUpload
-                        });
+                            var  floatWeightsBuffer  = (float*)previousPtr;
+                            uint nonzeroWeightsCount = 0;
+                            if (floatWeightsBuffer != null)
+                            {
+                                for (int j = 0; j < weightsCount; j++)
+                                    nonzeroWeightsCount += math.select(0u, 1u, floatWeightsBuffer[j] != 0f);
+                            }
+
+                            uint gpuTarget = 0;
+                            if ((classification & DeformClassification.PreviousDeform) != DeformClassification.None)
+                                gpuTarget = previousShaderIndices[i].firstVertexIndex;
+                            else
+                                gpuTarget = legacyDotsShaderIndices[i].parameters.y;
+                            streamWriter.Write(new UploadPayload
+                            {
+                                weightsPtr            = previousPtr,
+                                meshEntryIndex        = meshEntryIndex,
+                                nonzeroWeightsCount   = nonzeroWeightsCount,
+                                persistentBufferStart = gpuTarget,
+                                requiresMeshUpload    = requiresMeshUpload
+                            });
+                        }
+                        if (needsTwoAgo)
+                        {
+                            var  floatWeightsBuffer  = (float*)twoAgoPtr;
+                            uint nonzeroWeightsCount = 0;
+                            if (floatWeightsBuffer != null)
+                            {
+                                for (int j = 0; j < weightsCount; j++)
+                                    nonzeroWeightsCount += math.select(0u, 1u, floatWeightsBuffer[j] != 0f);
+                            }
+
+                            streamWriter.Write(new UploadPayload
+                            {
+                                weightsPtr            = twoAgoPtr,
+                                meshEntryIndex        = meshEntryIndex,
+                                nonzeroWeightsCount   = nonzeroWeightsCount,
+                                persistentBufferStart = twoAgoShaderIndices[i].firstVertexIndex,
+                                requiresMeshUpload    = requiresMeshUpload
+                            });
+                        }
                     }
                 }
 

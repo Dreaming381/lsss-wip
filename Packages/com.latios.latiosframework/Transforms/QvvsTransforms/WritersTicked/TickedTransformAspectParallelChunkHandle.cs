@@ -1,5 +1,6 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System.Diagnostics;
+using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -103,7 +104,7 @@ namespace Latios.Transforms
             this.expectedChunkCount   = expectedChunkCount;
             currentCapturedChunkIndex = -1;
             didFirstCaptureChunk      = false;
-            cache                     = null;
+            threadCache               = default;
             hierarchyChecker          = default;
             cleanupChecker            = default;
         }
@@ -274,21 +275,23 @@ namespace Latios.Transforms
             {
                 CheckInit();
                 CheckIndexInChunkValid(indexInChunk);
-                var transform = new RefRW<TickedWorldTransform>(cache->chunkTransforms, indexInChunk);
-                switch (cache->role)
+                ref var cache     = ref threadCache.cache;
+                var     transform = new RefRW<TickedWorldTransform>(cache.chunkTransforms, indexInChunk);
+                switch (cache.role)
                 {
                     case Role.Solo:
                         return new TickedTransformAspect
                         {
                             m_worldTransform = transform,
-                            m_handle         = default
+                            m_handle         = default,
+                            m_access         = cache.chunkEntities + indexInChunk
                         };
                     case Role.Root:
                     {
-                        var extra  = cache->entityInHierarchyCleanupAccessor.Length > 0 ? cache->entityInHierarchyCleanupAccessor[indexInChunk].GetUnsafeReadOnlyPtr() : null;
+                        var extra  = cache.entityInHierarchyCleanupAccessor.Length > 0 ? cache.entityInHierarchyCleanupAccessor[indexInChunk].GetUnsafeReadOnlyPtr() : null;
                         var handle = new EntityInHierarchyHandle
                         {
-                            m_hierarchy      = cache->entityInHierarchyAccessor[indexInChunk].AsNativeArray(),
+                            m_hierarchy      = cache.entityInHierarchyAccessor[indexInChunk].AsNativeArray(),
                             m_extraHierarchy = (EntityInHierarchy*)extra,
                             m_index          = 0
                         };
@@ -303,7 +306,7 @@ namespace Latios.Transforms
                     }
                     case Role.Child:
                     {
-                        var rr     = cache->rootReferences[indexInChunk];
+                        var rr     = cache.rootReferences[indexInChunk];
                         var handle = rr.ToHandle(ref hierarchyLookup, ref cleanupLookup);
                         return new TickedTransformAspect
                         {
@@ -326,38 +329,15 @@ namespace Latios.Transforms
         /// </summary>
         public TickedTransformDeferableAspect Deferable(int indexInChunk)
         {
-            var transform = this[indexInChunk];
-            if (!cache->deferredCommands.IsCreated)
-                cache->deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
+            var     transform = this[indexInChunk];
+            ref var cache     = ref threadCache.cache;
+            if (!cache.deferredCommands.IsCreated)
+                cache.deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
             return new TickedTransformDeferableAspect
             {
                 transform = transform,
-                commands  = cache->deferredCommands,
+                commands  = cache.deferredCommands,
             };
-        }
-
-        /// <summary>
-        /// Gets the TransformsKey associated with hierarchy the entity at the specified index in the chunk belongs to
-        /// </summary>
-        public TransformsKey GetTransformsKey(int indexInChunk)
-        {
-            CheckInit();
-            CheckIndexInChunkValid(indexInChunk);
-            switch (cache->role)
-            {
-                case Role.Solo:
-                    return TransformsKey.CreateFromExclusivelyAccessedRoot(cache->chunk.GetEntityDataPtrRO(esil.AsEntityTypeHandle())[indexInChunk], esil);
-                case Role.Root:
-                    return TransformsKey.CreateFromExclusivelyAccessedRoot(cache->entityInHierarchyAccessor[indexInChunk][0].entity, esil);
-                case Role.Child:
-                {
-                    var rr     = cache->rootReferences[indexInChunk];
-                    var handle = rr.ToHandle(ref hierarchyLookup, ref cleanupLookup);
-                    return TransformsKey.CreateFromExclusivelyAccessedRoot(handle.root.entity, esil);
-                }
-                default:
-                    return default;
-            }
         }
 
         /// <summary>
@@ -368,9 +348,10 @@ namespace Latios.Transforms
         public void AddDeferredCommand(in TickedTransformBatchWriteCommand command)
         {
             CheckInit();
-            if (!cache->deferredCommands.IsCreated)
-                cache->deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
-            cache->deferredCommands.Add(command);
+            ref var cache = ref threadCache.cache;
+            if (!cache.deferredCommands.IsCreated)
+                cache.deferredCommands = new NativeList<TickedTransformBatchWriteCommand>(Allocator.Temp);
+            cache.deferredCommands.Add(command);
         }
 
         /// <summary>
@@ -382,10 +363,11 @@ namespace Latios.Transforms
         /// </summary>
         public void ApplyDeferredTransforms()
         {
-            if (cache == null || !cache->deferredCommands.IsCreated)
+            if (!threadCache.isCreated || !threadCache.cache.deferredCommands.IsCreated)
                 return; // We never started a chunk, so there can't be any commands.
-            cache->deferredCommands.ApplyTransforms();
-            cache->deferredCommands.Clear();
+            ref var cache = ref threadCache.cache;
+            cache.deferredCommands.ApplyTransforms();
+            cache.deferredCommands.Clear();
         }
 
         /// <summary>
@@ -453,7 +435,7 @@ namespace Latios.Transforms
             public int            enabledEntityCount;
         }
 
-        struct ThreadCache
+        struct Cache
         {
             public ComponentTypeHandle<TickedWorldTransform>    transformHandle;
             public NativeArray<TickedWorldTransform>            chunkTransforms;
@@ -461,7 +443,8 @@ namespace Latios.Transforms
             public BufferAccessor<EntityInHierarchy>            entityInHierarchyAccessor;
             public BufferTypeHandle<EntityInHierarchyCleanup>   entityInHierarchyCleanupHandle;
             public BufferAccessor<EntityInHierarchyCleanup>     entityInHierarchyCleanupAccessor;
-            public NativeArray<RootReference>                   rootReferences;
+            public RootReference*                               rootReferences;
+            public Entity*                                      chunkEntities;
             public NativeList<TickedTransformBatchWriteCommand> deferredCommands;
             public ArchetypeChunk                               chunk;
             public Role                                         role;
@@ -483,45 +466,48 @@ namespace Latios.Transforms
         [ReadOnly] BufferLookup<EntityInHierarchyCleanup>    cleanupLookup;
         [ReadOnly] public ComponentTypeHandle<RootReference> rootReferenceHandle;
         [ReadOnly] EntityStorageInfoLookup                   esil;
-        [NativeDisableUnsafePtrRestriction] ThreadCache*     cache;
+        ThreadCache<Cache>                                   threadCache;
 
         HasChecker<EntityInHierarchy>        hierarchyChecker;
         HasChecker<EntityInHierarchyCleanup> cleanupChecker;
 
         void SetupChunk(in CapturedChunk chunk)
         {
-            if (cache == null)
+            if (!threadCache.isCreated)
             {
-                cache                                 = AllocatorManager.Allocate<ThreadCache>(Allocator.Temp);
-                cache->transformHandle                = transformLookup.lookup.ToHandle(false);
-                cache->entityInHierarchyHandle        = hierarchyLookup.ToHandle(true);
-                cache->entityInHierarchyCleanupHandle = cleanupLookup.ToHandle(true);
-                cache->deferredCommands               = default;
+                threadCache                                      = new ThreadCache<Cache>(default);
+                threadCache.cache.transformHandle                = transformLookup.lookup.ToHandle(false);
+                threadCache.cache.entityInHierarchyHandle        = hierarchyLookup.ToHandle(true);
+                threadCache.cache.entityInHierarchyCleanupHandle = cleanupLookup.ToHandle(true);
             }
-            cache->chunkTransforms = chunk.chunk.GetNativeArray(ref cache->transformHandle);
+            ref var cache         = ref threadCache.cache;
+            cache.chunkTransforms = chunk.chunk.GetNativeArray(ref cache.transformHandle);
             if (chunk.role == Role.Solo)
             {
-                cache->entityInHierarchyAccessor        = default;
-                cache->entityInHierarchyCleanupAccessor = default;
-                cache->rootReferences                   = default;
+                cache.entityInHierarchyAccessor        = default;
+                cache.entityInHierarchyCleanupAccessor = default;
+                cache.rootReferences                   = default;
+                cache.chunkEntities                    = chunk.chunk.GetEntityDataPtrRO(esil.AsEntityTypeHandle());
             }
             else if (chunk.role == Role.Root)
             {
-                cache->entityInHierarchyAccessor = chunk.chunk.GetBufferAccessorRO(ref cache->entityInHierarchyHandle);
+                cache.entityInHierarchyAccessor = chunk.chunk.GetBufferAccessorRO(ref cache.entityInHierarchyHandle);
                 if (chunk.rootHasCleanup)
-                    cache->entityInHierarchyCleanupAccessor = chunk.chunk.GetBufferAccessorRO(ref cache->entityInHierarchyCleanupHandle);
+                    cache.entityInHierarchyCleanupAccessor = chunk.chunk.GetBufferAccessorRO(ref cache.entityInHierarchyCleanupHandle);
                 else
-                    cache->entityInHierarchyCleanupAccessor = default;
-                cache->rootReferences                       = default;
+                    cache.entityInHierarchyCleanupAccessor = default;
+                cache.rootReferences                       = default;
+                cache.chunkEntities                        = default;
             }
             else if (chunk.role == Role.Child)
             {
-                cache->entityInHierarchyAccessor        = default;
-                cache->entityInHierarchyCleanupAccessor = default;
-                cache->rootReferences                   = chunk.chunk.GetNativeArray(ref rootReferenceHandle);
+                cache.entityInHierarchyAccessor        = default;
+                cache.entityInHierarchyCleanupAccessor = default;
+                cache.rootReferences                   = chunk.chunk.GetComponentDataPtrRO(ref rootReferenceHandle);
+                cache.chunkEntities                    = default;
             }
-            cache->chunk = chunk.chunk;
-            cache->role  = chunk.role;
+            cache.chunk = chunk.chunk;
+            cache.role  = chunk.role;
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -555,7 +541,7 @@ namespace Latios.Transforms
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         void CheckInit()
         {
-            if (cache == null)
+            if (!threadCache.isCreated)
                 throw new System.InvalidOperationException(
                     "The TransformAccessParallelChunkHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to OnChunkBegin(), or call SetActiveChunkForIJobParallelForDefer().");
         }
@@ -564,6 +550,8 @@ namespace Latios.Transforms
         void CheckIndexInChunkValid(int indexInChunk)
         {
             var capture = chunks[currentCapturedChunkIndex];
+            if (indexInChunk >= capture.chunk.Count || indexInChunk < 0)
+                throw new System.ArgumentOutOfRangeException($"indexInChunk {indexInChunk} is outside the range of valid entities [0, {capture.chunk.Count})");
             if (!capture.useEnabledMask)
                 return;
             BitField64 bits;
@@ -682,21 +670,27 @@ namespace Latios.Transforms
                 {
                     sets[i]        = i;
                     var chunk      = hierarchyChunks[i];
-                    var enumerator = new ChunkEntityEnumerator(chunk.useEnabledMask, chunk.enabledMask, chunk.chunk.Count);
+                    var enumerator = new ChunkEntityBatchEnumerator(chunk.useEnabledMask, chunk.enabledMask, chunk.chunk.Count);
                     if (chunk.role == Role.Root)
                     {
                         var entities = chunk.chunk.GetEntityDataPtrRO(entityHandle);
-                        while (enumerator.NextEntityIndex(out var entityIndex))
+                        while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                         {
-                            Union(entities[entityIndex], i, ref entityToFirstChunkMap, ref sets);
+                            for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
+                            {
+                                Union(entities[entityIndex], i, ref entityToFirstChunkMap, ref sets);
+                            }
                         }
                     }
                     else
                     {
                         var rootRefs = chunk.chunk.GetComponentDataPtrRO(ref rootReferenceHandle);
-                        while (enumerator.NextEntityIndex(out var entityIndex))
+                        while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                         {
-                            Union(rootRefs[entityIndex].rootEntity, i, ref entityToFirstChunkMap, ref sets);
+                            for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++)
+                            {
+                                Union(rootRefs[entityIndex].rootEntity, i, ref entityToFirstChunkMap, ref sets);
+                            }
                         }
                     }
                 }
@@ -762,9 +756,9 @@ namespace Latios.Transforms
                             sets[treeNodeA] = sets[treeNodeB];
                             break;
                         }
-                        var temp        = treeNodeA;
+                        var temp        = sets[treeNodeA];
                         sets[treeNodeA] = sets[treeNodeB];
-                        treeNodeA       = sets[temp];
+                        treeNodeA       = temp;
                     }
                     else
                     {
@@ -773,9 +767,9 @@ namespace Latios.Transforms
                             sets[treeNodeB] = sets[treeNodeA];
                             break;
                         }
-                        var temp        = treeNodeB;
+                        var temp        = sets[treeNodeB];
                         sets[treeNodeB] = sets[treeNodeA];
-                        treeNodeB       = sets[temp];
+                        treeNodeB       = temp;
                     }
                 }
             }

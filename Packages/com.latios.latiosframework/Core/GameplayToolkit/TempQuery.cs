@@ -351,7 +351,7 @@ namespace Latios
     }
 
     /// <summary>
-    /// A chunk along with an optional enabled filter mask that can be iterated with ChunkEntityEnumerator
+    /// A chunk along with an optional enabled filter mask that can be iterated with ChunkEntityBatchEnumerator
     /// </summary>
     public struct MaskedChunk
     {
@@ -411,9 +411,10 @@ namespace Latios
     public struct TempEntityEnumerator<TTempMaskedChunkEnumerator> where TTempMaskedChunkEnumerator : unmanaged, ITempMaskedChunkEnumerator
     {
         internal TTempMaskedChunkEnumerator chunkEnumerator;
-        internal ChunkEntityEnumerator      indexEnumerator;
+        internal ChunkEntityBatchEnumerator indexEnumerator;
         internal NativeArray<Entity>        entities;
         internal int                        currentIndex;
+        internal int                        currentRangeEnd;
 
         public TempEntityEnumerator(TTempMaskedChunkEnumerator maskedChunks)
         {
@@ -421,6 +422,7 @@ namespace Latios
             indexEnumerator = default;
             entities        = default;
             currentIndex    = -1;
+            currentRangeEnd = -1;
         }
 
         public TempEntityEnumerator<TTempMaskedChunkEnumerator> GetEnumerator() => this;
@@ -428,19 +430,27 @@ namespace Latios
         public Entity Current => entities[currentIndex];
         public bool MoveNext()
         {
+            currentIndex++;
+            if (currentIndex < currentRangeEnd)
+                return true;
+
             // Note: A default instance will return false here.
-            if (!indexEnumerator.NextEntityIndex(out currentIndex))
+            if (!indexEnumerator.NextRange(out var rangeStart, out var rangeCount))
             {
                 if (chunkEnumerator.MoveNext())
                 {
                     var chunk       = chunkEnumerator.Current;
                     entities        = chunk.chunk.GetNativeArray(chunkEnumerator.entityStorageInfoLookup.AsEntityTypeHandle());
-                    indexEnumerator = new ChunkEntityEnumerator(chunk.useEnabledMask, chunk.enabledMask, chunk.chunk.Count);
-                    indexEnumerator.NextEntityIndex(out currentIndex);
+                    indexEnumerator = new ChunkEntityBatchEnumerator(chunk.useEnabledMask, chunk.enabledMask, chunk.chunk.Count);
+                    indexEnumerator.NextRange(out rangeStart, out rangeCount);
+                    currentIndex    = rangeStart;
+                    currentRangeEnd = rangeStart + rangeCount;
                     return true;
                 }
                 return false;
             }
+            currentIndex    = rangeStart;
+            currentRangeEnd = rangeStart + rangeCount;
             return true;
         }
     }

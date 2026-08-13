@@ -9,8 +9,9 @@ using Unity.Mathematics;
 
 namespace Latios.Transforms
 {
+    [IJobEach.ParameterHandle(typeof(TickedTransformReadAspectParameterHandle), IJobEach.ScheduleModeMask.All)]
     [NativeContainer]
-    public unsafe struct TickedTransformReadAspect
+    public unsafe struct TickedTransformReadAspect : IJobEach.IParameter
     {
         internal RefRO<TickedWorldTransform> m_worldTransform;
         internal EntityInHierarchyHandle     m_handle;
