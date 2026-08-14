@@ -29,7 +29,7 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var api = this.GetApi(ref state);
-            new SpawnPointResetFlagsJob().ScheduleParallel();
+            new SpawnPointResetFlagsJob().ScheduleParallel(api);
 
             var processor      = new SpawnPointIsNotSafeProcessor().Inject(api);
             var closeProcessor = new SpawnPointsAreTooCloseProcessor().Inject(api);
@@ -55,7 +55,7 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct SpawnPointResetFlagsJob : IJobEntity
+        partial struct SpawnPointResetFlagsJob : IJobEach
         {
             public void Execute(ref SafeToSpawn safeToSpawn) => safeToSpawn.safe = true;
         }

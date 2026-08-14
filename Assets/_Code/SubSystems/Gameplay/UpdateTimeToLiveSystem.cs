@@ -22,20 +22,20 @@ namespace Lsss
             var api = this.GetApi(ref state);
             var dcb = api.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
-            new Job { dcb = dcb, dt = api.deltaTime }.ScheduleParallel();
+            new Job { dcb = dcb, dt = api.deltaTime }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEach
         {
             public DestroyCommandBuffer.ParallelWriter dcb;
             public float                               dt;
 
-            public void Execute(Entity entity, [ChunkIndexInQuery] int chunkIndexInQuery, ref TimeToLive timeToLive)
+            public void Execute(Entity entity, in IJobEach.JobContext context, ref TimeToLive timeToLive)
             {
                 timeToLive.timeToLive -= dt;
                 if (timeToLive.timeToLive < 0f)
-                    dcb.Add(entity, chunkIndexInQuery);
+                    dcb.Add(entity, context.chunkIndexInQuery);
             }
         }
     }

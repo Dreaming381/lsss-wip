@@ -30,12 +30,12 @@ namespace Lsss
             {
                 arenaRadius = api.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius,
                 rng         = state.GetJobRng(),
-            }.ScheduleParallel();
+            }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
+        [With(typeof(AiTag))]
+        partial struct Job : IJobEach
         {
             public float     arenaRadius;
             public SystemRng rng;

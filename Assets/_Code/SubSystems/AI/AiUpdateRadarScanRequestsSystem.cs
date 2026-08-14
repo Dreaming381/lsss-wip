@@ -22,13 +22,13 @@ namespace Lsss
             new Job
             {
                 dt = api.deltaTime
-            }.Inject(api).ScheduleParallel();
+            }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        [WithAll(typeof(AiSearchAndDestroyPersonality))]
-        partial struct Job : IJobEntity, IInjectable
+        [With(typeof(AiTag))]
+        [With(typeof(AiSearchAndDestroyPersonality))]
+        partial struct Job : IJobEach
         {
             [NativeDisableParallelForRestriction, Inject] ComponentLookup<AiShipRadarRequests> requestsLookup;
             public float                                                                       dt;

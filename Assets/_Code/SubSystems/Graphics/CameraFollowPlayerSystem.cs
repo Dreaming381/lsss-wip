@@ -28,16 +28,16 @@ namespace Lsss
             new JobA
             {
                 mountTransform = mountTransform,
-            }.Inject(api).Schedule();
+            }.Schedule(api);
             new JobB
             {
                 mountTransform = mountTransform,
-            }.Inject(api).Schedule();
+            }.Schedule(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(PlayerTag))]
-        partial struct JobA : IJobEntity, IInjectable
+        [With(typeof(PlayerTag))]
+        partial struct JobA : IJobEach
         {
             public NativeReference<TransformQvvs>              mountTransform;
             [ReadOnly, Inject] ComponentLookup<WorldTransform> transformLookup;
@@ -49,9 +49,9 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(CameraManager.ExistComponent))]
-        [WithAll(typeof(WorldTransform))]
-        partial struct JobB : IJobEntity, IInjectable
+        [With(typeof(CameraManager.ExistComponent))]
+        [With(typeof(WorldTransform))]
+        partial struct JobB : IJobEach
         {
             public NativeReference<TransformQvvs> mountTransform;
             [Inject] TransformAspectLookup        transformLookup;

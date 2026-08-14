@@ -20,18 +20,18 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var api = this.GetApi(ref state);
-            new JobA().Inject(api).ScheduleParallel();
+            new JobA().ScheduleParallel(api);
 
             //var stats            = new NativeReference<Stats>(state.WorldUpdateAllocator, NativeArrayOptions.ClearMemory);
             //new StatsJob { stats = stats }.Schedule();
             //state.Dependency     = new LogJob { stats = stats }.Schedule(state.Dependency);
 
-            new JobB().ScheduleParallel();
+            new JobB().ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        partial struct JobA : IJobEntity, IInjectable
+        [With(typeof(AiTag))]
+        partial struct JobA : IJobEach
         {
             [ReadOnly, Inject] ComponentLookup<AiShipRadarScanResults> scanResultsLookup;
 
@@ -53,8 +53,8 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiRadarTag))]
-        partial struct JobB : IJobEntity
+        [With(typeof(AiRadarTag))]
+        partial struct JobB : IJobEach
         {
             public void Execute(ref AiShipRadar radar, in AiShipRadarScanResults results)
             {
@@ -72,9 +72,9 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiRadarTag))]
-        [WithAll(typeof(AiShipRadarNeedsFullScanFlag))]
-        partial struct StatsJob : IJobEntity
+        [With(typeof(AiRadarTag))]
+        [WithEnabled(typeof(AiShipRadarNeedsFullScanFlag))]
+        partial struct StatsJob : IJobEach
         {
             public NativeReference<Stats> stats;
 

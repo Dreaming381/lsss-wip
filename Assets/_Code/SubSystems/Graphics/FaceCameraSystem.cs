@@ -23,17 +23,16 @@ namespace Lsss
             var api         = this.GetApi(ref state);
             var foundCamera = new NativeReference<float3>(state.WorldUpdateAllocator);
 
-            new JobA { foundCamera = foundCamera }.Schedule();
+            new JobA { foundCamera = foundCamera }.Schedule(api);
             new JobB
             {
                 foundCamera = foundCamera,
-            }.Inject(api).Schedule();
-            // .ScheduleParallel(); // Todo: Switch to parallel handle type when this becomes a bottleneck
+            }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(CameraManager.ExistComponent))]
-        partial struct JobA : IJobEntity
+        [With(typeof(CameraManager.ExistComponent))]
+        partial struct JobA : IJobEach
         {
             public NativeReference<float3> foundCamera;
 
@@ -44,15 +43,13 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(FaceCameraTag), typeof(WorldTransform))]
-        partial struct JobB : IJobEntity, IInjectable
+        [With(typeof(FaceCameraTag), typeof(WorldTransform))]
+        partial struct JobB : IJobEach
         {
             [ReadOnly] public NativeReference<float3> foundCamera;
-            [Inject] TransformAspectLookup            transformLookup;
 
-            public void Execute(Entity entity)
+            public void Execute(TransformDeferableAspect transform)
             {
-                var    transform = transformLookup[entity];
                 var    camPos    = foundCamera.Value;
                 float3 direction = math.normalize(camPos - transform.worldPosition);
                 if (math.abs(math.dot(direction, new float3(0f, 1f, 0f))) < 0.9999f)

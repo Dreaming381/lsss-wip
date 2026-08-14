@@ -15,7 +15,8 @@ namespace Lsss
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            this.OnCreateForLatios(ref state);
+            var api = this.OnCreateForLatios(ref state);
+            api.GetDefaultQuery<Job>().AddChangedVersionFilter(ComponentType.ReadOnly<ShipHealth>());
         }
 
         [BurstCompile]
@@ -25,27 +26,26 @@ namespace Lsss
             var icb = api.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
             var dcb = api.syncPoint.CreateDestroyCommandBuffer().AsParallelWriter();
 
-            new Job { dcb = dcb, icb = icb }.ScheduleParallel();
+            new Job { dcb = dcb, icb = icb }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithChangeFilter(typeof(ShipHealth))]
-        partial struct Job : IJobEntity
+        partial struct Job : IJobEach
         {
             public InstantiateCommandBufferCommand1<WorldTransformCommand>.ParallelWriter icb;
             public DestroyCommandBuffer.ParallelWriter                                    dcb;
 
             public void Execute(Entity entity,
-                                [ChunkIndexInQuery] int chunkIndexInQuery,
+                                in IJobEach.JobContext context,
                                 in ShipHealth health,
                                 in ShipExplosionPrefab explosionPrefab,
                                 in WorldTransform worldTransform)
             {
                 if (health.health <= 0f)
                 {
-                    dcb.Add(entity, chunkIndexInQuery);
+                    dcb.Add(entity, context.chunkIndexInQuery);
                     if (explosionPrefab.explosionPrefab != Entity.Null)
-                        icb.Add(explosionPrefab.explosionPrefab, new WorldTransformCommand(worldTransform.worldTransform), chunkIndexInQuery);
+                        icb.Add(explosionPrefab.explosionPrefab, new WorldTransformCommand(worldTransform.worldTransform), context.chunkIndexInQuery);
                 }
             }
         }

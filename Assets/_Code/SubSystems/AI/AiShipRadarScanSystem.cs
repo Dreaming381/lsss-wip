@@ -1,15 +1,12 @@
-﻿using System.Collections.Generic;
-using Latios;
+﻿using Latios;
 using Latios.Psyshock;
 using Latios.Transforms;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using UnityEngine.Profiling;
 
 namespace Lsss
 {
@@ -54,10 +51,10 @@ namespace Lsss
             var wallLayer              = api.sceneBlackboardEntity.GetCollectionComponent<WallCollisionLayer>(true).layer;
             var shipLayer              = api.sceneBlackboardEntity.GetCollectionComponent<ShipsCollisionLayer>(true).layer;
 
-            state.Dependency = new EvaluateScanRequestsJob
+            new EvaluateScanRequestsJob
             {
                 wallLayer = wallLayer,
-            }.Inject(api).ScheduleParallel(state.Dependency);
+            }.ScheduleParallel(api);
 
             var allocator = state.WorldUpdateAllocator;
 
@@ -110,16 +107,15 @@ namespace Lsss
                 state.Dependency = new CopyBackJob
                 {
                     array = array.AsDeferredJobArray(),
-                }.ScheduleParallel(m_radarsQuery, state.Dependency);
+                }.ScheduleParallel(api, m_radarsQuery, state.Dependency);
             }
 
             m_radarsQuery.ResetFilter();
         }
 
         [BurstCompile]
-        [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
-        [WithAll(typeof(AiRadarTag))]
-        partial struct EvaluateScanRequestsJob : IJobEntity, IInjectable
+        [With(typeof(AiRadarTag))]
+        partial struct EvaluateScanRequestsJob : IJobEach
         {
             [ReadOnly] public CollisionLayer                   wallLayer;
             [ReadOnly, Inject] ComponentLookup<WorldTransform> worldTransformLookup;
@@ -178,13 +174,13 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct CopyBackJob : IJobEntity
+        partial struct CopyBackJob : IJobEach
         {
             [ReadOnly] public NativeArray<AiShipRadarScanResults> array;
 
-            public void Execute([EntityIndexInQuery] int entityIndexInQuery, ref AiShipRadarScanResults dst)
+            public void Execute(in IJobEach.JobContext context, ref AiShipRadarScanResults dst)
             {
-                dst = array[entityIndexInQuery];
+                dst = array[context.entityIndexInQuery];
             }
         }
 
@@ -195,6 +191,7 @@ namespace Lsss
                                           out CollisionLayer layer,
                                           JobHandle inputDeps)
         {
+            var api = this.GetApi(ref state);
             m_radarsQuery.SetSharedComponentFilter(factionMember);
             var entities = m_radarsQuery.ToEntityListAsync(allocator, inputDeps, out var jh);
             var bodies   = new NativeList<ColliderBody>(allocator);
@@ -205,7 +202,7 @@ namespace Lsss
                 entities = entities.AsDeferredJobArray(),
                 bodies   = bodies.AsDeferredJobArray(),
                 aabbs    = aabbs.AsDeferredJobArray()
-            }.ScheduleParallel(m_radarsQuery, jh);
+            }.ScheduleParallel(api, m_radarsQuery, jh);
             jh = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).ScheduleParallel(out layer, allocator, jh);
             return jh;
         }
@@ -225,19 +222,20 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct BuildRadarBodiesJob : IJobEntity
+        [RequireEntityIndexInQuery]
+        partial struct BuildRadarBodiesJob : IJobEach
         {
             [ReadOnly] public NativeArray<Entity> entities;
             public NativeArray<ColliderBody>      bodies;
             public NativeArray<Aabb>              aabbs;
 
-            public void Execute([EntityIndexInQuery] int entityInQueryIndex, in AiShipRadar radar, in WorldTransform worldTransform)
+            public void Execute(in IJobEach.JobContext context, in AiShipRadar radar, in WorldTransform worldTransform)
             {
                 var sphere = new SphereCollider(0f, radar.distance);
                 if (radar.cosFov < 0f)
                 {
                     //Todo: Create tighter bounds here too.
-                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, worldTransform.worldTransform);
+                    aabbs[context.entityIndexInQuery] = Physics.AabbFrom(sphere, worldTransform.worldTransform);
                 }
                 else
                 {
@@ -250,23 +248,23 @@ namespace Lsss
                     Aabb   aabb                = new Aabb(min, max);
 
                     //Compute aabb of circle base
-                    float4 cos                = new float4(forward, radar.cosFov);
-                    float4 sinSq              = 1f - (cos * cos);
-                    float4 sin                = math.sqrt(sinSq);
-                    float3 center             = forward * radar.distance * radar.cosFov;
-                    float  radius             = radar.distance * sin.w;
-                    float3 extents            = sin.xyz * radius;
-                    min                       = center - extents;
-                    max                       = center + extents;
-                    aabb.min                  = math.min(aabb.min, min) + worldTransform.position;
-                    aabb.max                  = math.max(aabb.max, max) + worldTransform.position;
-                    aabbs[entityInQueryIndex] = aabb;
+                    float4 cos                        = new float4(forward, radar.cosFov);
+                    float4 sinSq                      = 1f - (cos * cos);
+                    float4 sin                        = math.sqrt(sinSq);
+                    float3 center                     = forward * radar.distance * radar.cosFov;
+                    float  radius                     = radar.distance * sin.w;
+                    float3 extents                    = sin.xyz * radius;
+                    min                               = center - extents;
+                    max                               = center + extents;
+                    aabb.min                          = math.min(aabb.min, min) + worldTransform.position;
+                    aabb.max                          = math.max(aabb.max, max) + worldTransform.position;
+                    aabbs[context.entityIndexInQuery] = aabb;
                 }
 
-                bodies[entityInQueryIndex] = new ColliderBody
+                bodies[context.entityIndexInQuery] = new ColliderBody
                 {
                     collider  = sphere,
-                    entity    = entities[entityInQueryIndex],
+                    entity    = entities[context.entityIndexInQuery],
                     transform = worldTransform.worldTransform
                 };
             }
@@ -428,7 +426,7 @@ namespace Lsss
             var bodies       = CollectionHelper.CreateNativeArray<ColliderBody>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var aabbs        = CollectionHelper.CreateNativeArray<Aabb>(count, allocator, NativeArrayOptions.UninitializedMemory);
             var scanResults  = CollectionHelper.CreateNativeArray<AiShipRadarScanResults>(count, allocator, NativeArrayOptions.UninitializedMemory);
-            state.Dependency = new BuildRadarBodiesJob { bodies = bodies, aabbs = aabbs, scanResults = scanResults }.ScheduleParallel(m_radarsQuery, state.Dependency);
+            state.Dependency = new BuildRadarBodiesJob { bodies = bodies, aabbs = aabbs, scanResults = scanResults }.ScheduleParallel(api, m_radarsQuery, state.Dependency);
             state.Dependency = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(collisionLayerSettings).ScheduleParallel(out var radarLayer, allocator, state.Dependency);
 
             var scanProcessor = new ScanProcessor
@@ -448,19 +446,20 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct BuildRadarBodiesJob : IJobEntity
+        [RequireEntityIndexInQuery]
+        partial struct BuildRadarBodiesJob : IJobEach
         {
             public NativeArray<ColliderBody>           bodies;
             public NativeArray<Aabb>                   aabbs;
             public NativeArray<AiShipRadarScanResults> scanResults;
 
-            public void Execute(Entity e, [EntityIndexInQuery] int entityInQueryIndex, in AiShipRadar radar, in WorldTransform worldTransform)
+            public void Execute(Entity e, in IJobEach.JobContext context, in AiShipRadar radar, in WorldTransform worldTransform)
             {
                 var sphere = new SphereCollider(0f, radar.distance);
                 if (radar.cosFov < 0f)
                 {
                     //Todo: Create tighter bounds here too.
-                    aabbs[entityInQueryIndex] = Physics.AabbFrom(sphere, worldTransform.worldTransform);
+                    aabbs[context.entityIndexInQuery] = Physics.AabbFrom(sphere, worldTransform.worldTransform);
                 }
                 else
                 {
@@ -473,20 +472,20 @@ namespace Lsss
                     Aabb   aabb                = new Aabb(min, max);
 
                     //Compute aabb of circle base
-                    float4 cos                = new float4(forward, radar.cosFov);
-                    float4 sinSq              = 1f - (cos * cos);
-                    float4 sin                = math.sqrt(sinSq);
-                    float3 center             = forward * radar.distance * radar.cosFov;
-                    float  radius             = radar.distance * sin.w;
-                    float3 extents            = sin.xyz * radius;
-                    min                       = center - extents;
-                    max                       = center + extents;
-                    aabb.min                  = math.min(aabb.min, min) + worldTransform.position;
-                    aabb.max                  = math.max(aabb.max, max) + worldTransform.position;
-                    aabbs[entityInQueryIndex] = aabb;
+                    float4 cos                        = new float4(forward, radar.cosFov);
+                    float4 sinSq                      = 1f - (cos * cos);
+                    float4 sin                        = math.sqrt(sinSq);
+                    float3 center                     = forward * radar.distance * radar.cosFov;
+                    float  radius                     = radar.distance * sin.w;
+                    float3 extents                    = sin.xyz * radius;
+                    min                               = center - extents;
+                    max                               = center + extents;
+                    aabb.min                          = math.min(aabb.min, min) + worldTransform.position;
+                    aabb.max                          = math.max(aabb.max, max) + worldTransform.position;
+                    aabbs[context.entityIndexInQuery] = aabb;
                 }
 
-                bodies[entityInQueryIndex] = new ColliderBody
+                bodies[context.entityIndexInQuery] = new ColliderBody
                 {
                     collider  = sphere,
                     entity    = e,
@@ -654,20 +653,19 @@ namespace Lsss
             new EvaluateScanRequestsJob
             {
                 wallLayer = wallLayer,
-            }.Inject(api).ScheduleParallel();
+            }.ScheduleParallel(api);
 
             new PerformFullScanJob
             {
                 wallLayer           = wallLayer,
                 shipLayer           = shipLayer,
                 factionMemberHandle = m_factionMemberHandle,
-            }.Inject(api).ScheduleParallel();
+            }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
-        [WithAll(typeof(AiRadarTag))]
-        partial struct EvaluateScanRequestsJob : IJobEntity, IInjectable
+        [With(typeof(AiRadarTag))]
+        partial struct EvaluateScanRequestsJob : IJobEach
         {
             [ReadOnly] public CollisionLayer                   wallLayer;
             [ReadOnly, Inject] ComponentLookup<WorldTransform> worldTransformLookup;
@@ -714,8 +712,9 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiRadarTag), typeof(AiShipRadarNeedsFullScanFlag))]
-        partial struct PerformFullScanJob : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
+        [With(typeof(AiRadarTag))]
+        [WithEnabled(typeof(AiShipRadarNeedsFullScanFlag))]
+        partial struct PerformFullScanJob : IJobEach
         {
             [ReadOnly] public CollisionLayer                   wallLayer;
             [ReadOnly] public CollisionLayer                   shipLayer;
@@ -740,14 +739,10 @@ namespace Lsss
                 }
             }
 
-            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            public bool OnChunkBegin(in IJobEach.JobContext context)
             {
-                radarFactionIndex = chunk.GetSharedComponentIndex(ref factionMemberHandle);
+                radarFactionIndex = context.chunk.GetSharedComponentIndex(ref factionMemberHandle);
                 return true;
-            }
-
-            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
-            {
             }
 
             Aabb GetSearchAabb(in AiShipRadar radar, in WorldTransform worldTransform)

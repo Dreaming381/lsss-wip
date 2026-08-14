@@ -8,20 +8,27 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AiEvaluateGoalsSystem : ISystem
+    public partial struct AiEvaluateGoalsSystem : ISystem, ILatiosApi
     {
         [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public void OnCreate(ref SystemState state)
         {
-            new JobA().ScheduleParallel();
-            new JobB().ScheduleParallel();
-            new JobC().ScheduleParallel();
-            new JobD().ScheduleParallel();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        partial struct JobA : IJobEntity
+        public void OnUpdate(ref SystemState state)
+        {
+            var api = this.GetApi(ref state);
+            new JobA().ScheduleParallel(api);
+            new JobB().ScheduleParallel(api);
+            new JobC().ScheduleParallel(api);
+            new JobD().ScheduleParallel(api);
+        }
+
+        [BurstCompile]
+        [With(typeof(AiTag))]
+        partial struct JobA : IJobEach
         {
             public void Execute(ref AiGoalOutput output, in AiSearchAndDestroyOutput searchAndDestroy, in AiExploreOutput explore)
             {
@@ -33,9 +40,9 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        [WithNone(typeof(AiSearchAndDestroyOutput))]
-        partial struct JobB : IJobEntity
+        [With(typeof(AiTag))]
+        [Without(typeof(AiSearchAndDestroyOutput))]
+        partial struct JobB : IJobEach
         {
             public void Execute(ref AiGoalOutput output, in AiExploreOutput explore)
             {
@@ -47,9 +54,9 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        [WithNone(typeof(AiExploreOutput))]
-        partial struct JobC : IJobEntity
+        [With(typeof(AiTag))]
+        [Without(typeof(AiExploreOutput))]
+        partial struct JobC : IJobEach
         {
             public void Execute(ref AiGoalOutput output, in AiSearchAndDestroyOutput searchAndDestroy)
             {
@@ -61,10 +68,10 @@ namespace Lsss
         }
 
         [BurstCompile]
-        [WithAll(typeof(AiTag))]
-        [WithNone(typeof(AiSearchAndDestroyOutput))]
-        [WithNone(typeof(AiExploreOutput))]
-        partial struct JobD : IJobEntity
+        [With(typeof(AiTag))]
+        [Without(typeof(AiSearchAndDestroyOutput))]
+        [Without(typeof(AiExploreOutput))]
+        partial struct JobD : IJobEach
         {
             public void Execute(ref AiGoalOutput output)
             {

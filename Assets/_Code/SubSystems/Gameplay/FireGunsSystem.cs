@@ -29,12 +29,12 @@ namespace Lsss
                 bulletIcb = bulletIcb,
                 effectIcb = effectIcb,
                 dt        = api.deltaTime,
-            }.Inject(api).ScheduleParallel();
+            }.ScheduleParallel(api);
         }
 
-        [WithAll(typeof(ShipTag))]
+        [With(typeof(ShipTag))]
         [BurstCompile]
-        partial struct Job : IJobEntity, IInjectable
+        partial struct Job : IJobEach
         {
             public InstantiateCommandBufferCommand1<BulletFirer, WorldTransformCommand>.ParallelWriter bulletIcb;
             public InstantiateCommandBufferCommand1<ParentCommand>.ParallelWriter                      effectIcb;
@@ -44,7 +44,7 @@ namespace Lsss
             [ReadOnly, Inject] ComponentLookup<BulletCollider> colliderLookup;
 
             public void Execute(Entity entity,
-                                [ChunkIndexInQuery] int chunkIndexInQuery,
+                                in IJobEach.JobContext context,
                                 ref ShipReloadTime reloadTimes,
                                 in ShipDesiredActions desiredActions,
                                 in ShipBulletPrefab bulletPrefab,
@@ -65,10 +65,10 @@ namespace Lsss
                             bulletIcb.Add(bulletPrefab.bulletPrefab,
                                           new BulletFirer { entity = entity, initialized = false },
                                           new WorldTransformCommand(gunPointTransform.worldTransform),
-                                          chunkIndexInQuery);
+                                          context.chunkIndexInQuery);
                             if (effectPrefab.effectPrefab != Entity.Null)
                             {
-                                effectIcb.Add(effectPrefab.effectPrefab, new ParentCommand(gunPoints[i].gun), chunkIndexInQuery);
+                                effectIcb.Add(effectPrefab.effectPrefab, new ParentCommand(gunPoints[i].gun), context.chunkIndexInQuery);
                             }
                         }
                     }

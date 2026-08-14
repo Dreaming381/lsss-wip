@@ -1,7 +1,6 @@
 ﻿using Latios;
 using Latios.Transforms;
 using Unity.Burst;
-using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -25,30 +24,18 @@ namespace Lsss
             new Job
             {
                 dt = api.deltaTime
-            }.Inject(api).ScheduleParallel();
+            }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(BulletTag), typeof(WorldTransform))]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
+        [With(typeof(BulletTag))]
+        partial struct Job : IJobEach
         {
-            [Inject] TransformAspectRootHandle transformHandle;
-            public float                       dt;
+            public float dt;
 
-            public void Execute([EntityIndexInChunk] int indexInChunk, in Speed speed)
+            public void Execute([RootOnly] TransformAspect transform, in Speed speed)
             {
-                var transform            = transformHandle[indexInChunk];
                 transform.worldPosition += dt * speed.speed * transform.forwardDirection;
-            }
-
-            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
-            {
-                transformHandle.SetupChunk(in chunk);
-                return true;
-            }
-
-            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
-            {
             }
         }
     }

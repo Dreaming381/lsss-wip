@@ -30,7 +30,7 @@ namespace Lsss
 
             var icb = api.syncPoint.CreateInstantiateCommandBuffer<WorldTransformCommand>().AsParallelWriter();
 
-            new BulletFirerJob { frameId = m_frameId, lastSystemVersion = state.LastSystemVersion }.ScheduleParallel();
+            new BulletFirerJob { frameId = m_frameId, lastSystemVersion = state.LastSystemVersion }.ScheduleParallel(api);
 
             var processor = new DamageHitShipsAndDestroyBulletProcessor
             {
@@ -44,7 +44,7 @@ namespace Lsss
         }
 
         [BurstCompile]
-        partial struct BulletFirerJob : IJobEntity, IJobEntityChunkBeginEnd
+        partial struct BulletFirerJob : IJobEach
         {
             public int  frameId;
             public uint lastSystemVersion;

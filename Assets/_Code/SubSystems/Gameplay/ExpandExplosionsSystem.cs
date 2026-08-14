@@ -25,32 +25,20 @@ namespace Lsss
             new Job
             {
                 dt = api.deltaTime,
-            }.Inject(api).ScheduleParallel();
+            }.ScheduleParallel(api);
         }
 
         [BurstCompile]
-        [WithAll(typeof(ExplosionTag), typeof(WorldTransform))]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
+        [With(typeof(ExplosionTag))]
+        partial struct Job : IJobEach
         {
-            [Inject] TransformAspectRootHandle transformHandle;
-            public float                       dt;
+            public float dt;
 
-            public void Execute([EntityIndexInChunk] int indexInChunk, in ExplosionStats stats)
+            public void Execute([RootOnly] TransformAspect transform, in ExplosionStats stats)
             {
-                var transform        = transformHandle[indexInChunk];
                 var scale            = transform.localScale + stats.expansionRate * dt;
                 scale                = math.min(scale, stats.radius);
                 transform.localScale = scale;
-            }
-
-            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
-            {
-                transformHandle.SetupChunk(in chunk);
-                return true;
-            }
-
-            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
-            {
             }
         }
     }

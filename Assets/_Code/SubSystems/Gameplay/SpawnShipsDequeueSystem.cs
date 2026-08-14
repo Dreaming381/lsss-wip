@@ -35,7 +35,7 @@ namespace Lsss
         public void OnUpdate(ref SystemState state)
         {
             var api                = this.GetApi(ref state);
-            new SpawnTimesJob { dt = api.deltaTime }.Schedule();
+            new SpawnTimesJob { dt = api.deltaTime }.Schedule(api);
 
             var    spawnQueues  = api.sceneBlackboardEntity.GetCollectionComponent<SpawnQueues>();
             int    initialIndex = api.sceneBlackboardEntity.GetComponentData<NextSpawnCounter>().index;
@@ -49,15 +49,15 @@ namespace Lsss
                 useBeforeIndex = true,
                 nscEntity      = nscEntity,
                 spawnQueues    = spawnQueues,
-            }.Inject(api);
-            job.Schedule();
+            };
+            job.Schedule(api);
             job.useBeforeIndex = false;
-            job.Schedule();
+            job.Schedule(api);
         }
 
-        [WithAll(typeof(SpawnPointTag))]
+        [With(typeof(SpawnPointTag))]
         [BurstCompile]
-        partial struct SpawnTimesJob : IJobEntity
+        partial struct SpawnTimesJob : IJobEach
         {
             public float dt;
 
@@ -71,30 +71,29 @@ namespace Lsss
             }
         }
 
-        [WithAll(typeof(SpawnPointTag), typeof(WorldTransform))]
+        [With(typeof(SpawnPointTag))]
         [BurstCompile]
-        partial struct SpawnDequeueJob : IJobEntity, IJobEntityChunkBeginEnd, IInjectable
+        partial struct SpawnDequeueJob : IJobEach
         {
             public int  initialIndex;
             public bool useBeforeIndex;
 
-            [Inject] TransformAspectRootHandle                     transformHandle;
             public SpawnQueues                                     spawnQueues;
             public Entity                                          nscEntity;
             public InstantiateCommandBufferCommand1<ParentCommand> icb;
             [Inject] ComponentLookup<NextSpawnCounter>             nscLookup;
 
             public void Execute(Entity entity,
-                                [EntityIndexInQuery] int indexInQuery,
-                                [EntityIndexInChunk] int indexInChunk,
+                                in IJobEach.JobContext context,
+                                [RootOnly] TransformAspect transform,
                                 ref SpawnPayload payload,
                                 ref SpawnTimes times,
                                 in SpawnPoint spawnData,
                                 in SafeToSpawn safe)
             {
-                if (useBeforeIndex && indexInQuery < initialIndex)
+                if (useBeforeIndex && context.entityIndexInQuery < initialIndex)
                     return;
-                if (!useBeforeIndex && indexInQuery >= initialIndex)
+                if (!useBeforeIndex && context.entityIndexInQuery >= initialIndex)
                     return;
 
                 bool playerQueued = !spawnQueues.playerQueue.IsEmpty();
@@ -103,8 +102,6 @@ namespace Lsss
 
                 if ((playerQueued || aiQueued) && isReady && safe.safe)
                 {
-                    var transform = transformHandle[indexInChunk];
-
                     if (playerQueued)
                         payload.disabledShip = spawnQueues.playerQueue.Dequeue();
                     else
@@ -119,28 +116,23 @@ namespace Lsss
 
                     icb.Add(spawnData.spawnGraphicPrefab, new ParentCommand(entity));
 
-                    nsc.index            = indexInQuery;
+                    nsc.index            = context.entityIndexInQuery;
                     nscLookup[nscEntity] = nsc;
                 }
             }
 
-            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            public bool OnChunkBegin(in IJobEach.JobContext context)
             {
                 // Cull entire chunks if we can
                 if (spawnQueues.playerQueue.IsEmpty() && spawnQueues.aiQueue.IsEmpty())
                     return false;
 
-                var baseIndex = __ChunkBaseEntityIndices[unfilteredChunkIndex];
-                if (useBeforeIndex && baseIndex + chunk.Count <= initialIndex)
+                var baseIndex = context.entityIndexInQuery;
+                if (useBeforeIndex && baseIndex + context.chunk.Count <= initialIndex)
                     return false;
                 if (!useBeforeIndex && baseIndex >= initialIndex)
                     return false;
-                transformHandle.SetupChunk(in chunk);
                 return true;
-            }
-
-            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
-            {
             }
         }
     }

@@ -30,28 +30,29 @@ namespace Lsss
             else
                 settings = BuildCollisionLayerConfig.defaultSettings;
 
-            var query = SystemAPI.QueryBuilder().WithAll<WorldTransform, BulletCollider, PreviousTransform, BulletTag, Speed>().Build();
-
+            var query  = api.GetDefaultQuery<Job>();
             var count  = query.CalculateEntityCount();
             var bodies = CollectionHelper.CreateNativeArray<ColliderBody>(count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
             var aabbs  = CollectionHelper.CreateNativeArray<Aabb>(count, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
 
-            new Job { bodies = bodies, aabbs = aabbs, dt = api.deltaTime }.ScheduleParallel(query);
+            new Job { bodies = bodies, aabbs = aabbs, dt = api.deltaTime }.ScheduleParallel(api);
 
             state.Dependency = Physics.BuildCollisionLayer(bodies, aabbs).WithSettings(settings).ScheduleParallel(out CollisionLayer layer, Allocator.Persistent, state.Dependency);
             var bcl          = new BulletCollisionLayer { layer = layer };
             api.sceneBlackboardEntity.SetCollectionComponentAndDisposeOld(bcl);
         }
 
+        [With(typeof(BulletTag))]
         [BurstCompile]
-        partial struct Job : IJobEntity
+        [RequireEntityIndexInQuery]
+        partial struct Job : IJobEach
         {
-            public NativeArray<ColliderBody> bodies;
-            public NativeArray<Aabb>         aabbs;
-            public float                     dt;
+            [NativeDisableParallelForRestriction] public NativeArray<ColliderBody> bodies;
+            [NativeDisableParallelForRestriction] public NativeArray<Aabb>         aabbs;
+            public float                                                           dt;
 
             public void Execute(Entity entity,
-                                [EntityIndexInQuery] int entityInQueryIndex,
+                                in IJobEach.JobContext context,
                                 in WorldTransform worldTransform,
                                 in BulletCollider collider,
                                 //in PreviousTransform previousPosition)
@@ -64,13 +65,13 @@ namespace Lsss
                 float tailLength  = dt * speed.speed;
                 capsule.pointA.z -= math.max(tailLength, math.EPSILON);
 
-                bodies[entityInQueryIndex] = new ColliderBody
+                bodies[context.entityIndexInQuery] = new ColliderBody
                 {
                     collider  = capsule,
                     entity    = entity,
                     transform = worldTransform.worldTransform
                 };
-                aabbs[entityInQueryIndex] = Physics.AabbFrom(capsule, worldTransform.worldTransform);
+                aabbs[context.entityIndexInQuery] = Physics.AabbFrom(capsule, worldTransform.worldTransform);
             }
         }
     }

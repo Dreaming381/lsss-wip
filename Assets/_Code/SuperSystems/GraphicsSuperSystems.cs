@@ -18,7 +18,7 @@ namespace Lsss.SuperSystems
     {
         protected override void CreateSystems()
         {
-            GetOrCreateAndAddUnmanagedSystem<SpawnPointAnimationSystem2>();
+            GetOrCreateAndAddUnmanagedSystem<SpawnPointAnimationSystem>();
             //GetOrCreateAndAddSystem<GravityWarpShaderUpdateSystem>();
             GetOrCreateAndAddUnmanagedSystem<LifetimeFadeSystem>();
             GetOrCreateAndAddUnmanagedSystem<SpeedShaderUpdateSystem>();

@@ -16,14 +16,10 @@ namespace Lsss
     [BurstCompile]
     public partial struct AiExploreInitializePersonalitySystem : ISystem, ILatiosApi, ISystemNewScene
     {
-        EntityQuery m_query;
-
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             this.OnCreateForLatios(ref state);
-            m_query =
-                QueryBuilder().WithAllRW<AiExplorePersonality, AiExploreState>().WithAll<AiExplorePersonalityInitializerValues, WorldTransform, AiTag>().Build();
         }
 
         public void OnNewScene(ref SystemState state) => state.InitSystemRng("AiExploreInitializePersonalitySystem");
@@ -37,26 +33,20 @@ namespace Lsss
             float arenaRadius = api.sceneBlackboardEntity.GetComponentData<ArenaRadius>().radius;
             new Job
             {
-                rng         = state.GetJobRng(),
                 arenaRadius = arenaRadius
-            }.ScheduleParallel(m_query);
+            }.ScheduleParallel(api);
 
-            ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(m_query.ToEntityArray(Allocator.Temp));
+            ecb.RemoveComponent<AiExplorePersonalityInitializerValues>(api.GetDefaultQuery<Job>().ToEntityArray(Allocator.Temp));
         }
 
+        [With(typeof(AiTag))]
         [BurstCompile]
-        partial struct Job : IJobEntity, IJobEntityChunkBeginEnd
+        partial struct Job : IJobEach
         {
-            public SystemRng rng;
-            public float     arenaRadius;
+            public float arenaRadius;
 
-            public bool OnChunkBegin(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
-            {
-                rng.BeginChunk(unfilteredChunkIndex);
-                return true;
-            }
-
-            public void Execute(ref AiExplorePersonality personality,
+            public void Execute(RngEach rng,
+                                ref AiExplorePersonality personality,
                                 ref AiExploreState state,
                                 in AiExplorePersonalityInitializerValues initalizer,
                                 in WorldTransform worldTransform)
@@ -68,10 +58,6 @@ namespace Lsss
                 var targetPosition   = worldTransform.forwardDirection * (personality.spawnForwardDistance + personality.wanderDestinationRadius) + worldTransform.position;
                 var radius           = math.length(targetPosition);
                 state.wanderPosition = math.select(targetPosition, targetPosition * arenaRadius / radius, radius > arenaRadius);
-            }
-
-            public void OnChunkEnd(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask, bool chunkWasExecuted)
-            {
             }
         }
     }

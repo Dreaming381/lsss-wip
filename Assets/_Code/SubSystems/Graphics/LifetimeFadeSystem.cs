@@ -10,16 +10,23 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct LifetimeFadeSystem : ISystem
+    public partial struct LifetimeFadeSystem : ISystem, ILatiosApi
     {
         [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public void OnCreate(ref SystemState state)
         {
-            new Job().ScheduleParallel();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
-        partial struct Job : IJobEntity
+        public void OnUpdate(ref SystemState state)
+        {
+            var api = this.GetApi(ref state);
+            new Job().ScheduleParallel(api);
+        }
+
+        [BurstCompile]
+        partial struct Job : IJobEach
         {
             public void Execute(ref FadeProperty fade, in TimeToLive timeToLive, in TimeToLiveFadeStart timeToLiveFadeStart)
             {

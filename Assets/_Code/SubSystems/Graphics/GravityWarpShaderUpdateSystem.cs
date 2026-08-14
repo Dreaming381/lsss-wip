@@ -34,7 +34,7 @@ namespace Lsss
                     transform = worldTransform.worldTransform,
                     entity    = entity
                 };
-            }).ScheduleParallel();
+            }).ScheduleParallel(api);
 
             Dependency = Physics.BuildCollisionLayer(warpZoneBodies).WithSettings(settings).ScheduleParallel(out CollisionLayer warpZoneLayer, Allocator.TempJob, Dependency);
 
@@ -42,7 +42,7 @@ namespace Lsss
             var warpedBodies = new NativeArray<ColliderBody>(warpedCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
             var warpedAabbs  = new NativeArray<Aabb>(warpedCount, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
 
-            Entities.ForEach((ref GravityWarpZoneParamsProperty paramsProp) => { paramsProp = default; }).ScheduleParallel();
+            Entities.ForEach((ref GravityWarpZoneParamsProperty paramsProp) => { paramsProp = default; }).ScheduleParallel(api);
 
             Entities.WithAll<GravityWarpZoneParamsProperty>().ForEach((Entity entity, int entityInQueryIndex, ref RenderBounds renderBounds, in BackupRenderBounds backupBounds,
                                                                        in WorldTransform worldTransform) =>
@@ -57,7 +57,7 @@ namespace Lsss
                     transform = worldTransform.worldTransform,
                     entity    = entity
                 };
-            }).WithStoreEntityQueryInField(ref m_warpedQuery).ScheduleParallel();
+            }).WithStoreEntityQueryInField(ref m_warpedQuery).ScheduleParallel(api);
 
             Dependency = Physics.BuildCollisionLayer(warpedBodies, warpedAabbs)
                          .WithSettings(settings)

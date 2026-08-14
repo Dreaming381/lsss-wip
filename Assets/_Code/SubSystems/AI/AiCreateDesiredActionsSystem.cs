@@ -9,17 +9,24 @@ using Unity.Mathematics;
 namespace Lsss
 {
     [BurstCompile]
-    public partial struct AiCreateDesiredActionsSystem : ISystem
+    public partial struct AiCreateDesiredActionsSystem : ISystem, ILatiosApi
     {
         [BurstCompile]
-        public void OnUpdate(ref SystemState state)
+        public void OnCreate(ref SystemState state)
         {
-            new Job().ScheduleParallel();
+            this.OnCreateForLatios(ref state);
         }
 
         [BurstCompile]
-        [WithNone(typeof(PlayerTag))]
-        partial struct Job : IJobEntity
+        public void OnUpdate(ref SystemState state)
+        {
+            var api = this.GetApi(ref state);
+            new Job().ScheduleParallel(api);
+        }
+
+        [BurstCompile]
+        [Without(typeof(PlayerTag))]
+        partial struct Job : IJobEach
         {
             public void Execute(ref ShipDesiredActions finalActions, in AiGoalOutput goalData, in WorldTransform worldTransform, in ShipSpeedStats speedStats, in Speed speed)
             {

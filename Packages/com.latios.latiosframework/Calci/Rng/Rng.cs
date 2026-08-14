@@ -1,4 +1,6 @@
-﻿using Unity.Collections;
+﻿using Latios.Unsafe;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -263,59 +265,88 @@ namespace Latios.Calci
         public void ShuffleElements<T, U>(T list) where T : unmanaged, INativeList<U> where U : unmanaged => currentSequence.ShuffleElements<T, U>(list);
     }
 
-    // Todo: In order for the below to work, Unity would need to change the source generators to invoke these interface methods
-    // via interface-constrained generics, rather than calling them directly. Calling them directly doesn't export the symbols
-    // to the struct type for easy call access.
-    // An alternative would be to write a source generator that adds the IJobEntityChunkBeginEnd interface and implementation
-    // if it isn't already present. That could even define the SystemRng property, though we'd probably need to validate
-    // the SystemRng instance if we went that route.
+    [IJobEach.ParameterHandle(typeof(RngEachParameter), IJobEach.ScheduleModeMask.All)]
+    public unsafe struct RngEach : IJobEach.IParameter
+    {
+        internal Rng.RngSequence* sequencePtr;
+        Rng.RngSequence currentSequence => *sequencePtr;
 
-    // /// <summary>
-    // /// An interface to implement in IJobEntity jobs to automatically set up SystemRng.
-    // /// You simply need to define a SystemRng autoproperty named "rng" in your job for everything
-    // /// to function correctly within the job.
-    // /// </summary>
-    // public interface IJobEntityRng : IJobEntityChunkBeginEnd
-    // {
-    //     public SystemRng rng { get; set; }
-    //
-    //     new public bool OnChunkBegin(in ArchetypeChunk chunk,
-    //                                  int unfilteredChunkIndex,
-    //                                  bool useEnabledMask,
-    //                                  in Unity.Burst.Intrinsics.v128 chunkEnabledMask)
-    //     {
-    //         var instance = rng;
-    //         instance.BeginChunk(unfilteredChunkIndex);
-    //         rng = instance;
-    //         return true;
-    //     }
-    //
-    //     new public void OnChunkEnd(in ArchetypeChunk chunk,
-    //                                int unfilteredChunkIndex,
-    //                                bool useEnabledMask,
-    //                                in Unity.Burst.Intrinsics.v128 chunkEnabledMask,
-    //                                bool chunkWasExecuted)
-    //     {
-    //     }
-    //
-    //     bool IJobEntityChunkBeginEnd.OnChunkBegin(in ArchetypeChunk chunk,
-    //                                               int unfilteredChunkIndex,
-    //                                               bool useEnabledMask,
-    //                                               in Unity.Burst.Intrinsics.v128 chunkEnabledMask)
-    //     {
-    //         var instance = rng;
-    //         instance.BeginChunk(unfilteredChunkIndex);
-    //         rng = instance;
-    //         return true;
-    //     }
-    //
-    //     void IJobEntityChunkBeginEnd.OnChunkEnd(in ArchetypeChunk chunk,
-    //                                             int unfilteredChunkIndex,
-    //                                             bool useEnabledMask,
-    //                                             in Unity.Burst.Intrinsics.v128 chunkEnabledMask,
-    //                                             bool chunkWasExecuted)
-    //     {
-    //     }
-    // }
+        public bool NextBool() => currentSequence.NextBool();
+        public bool2 NextBool2() => currentSequence.NextBool2();
+        public bool3 NextBool3() => currentSequence.NextBool3();
+        public bool4 NextBool4() => currentSequence.NextBool4();
+
+        public uint NextUInt() => currentSequence.NextUInt();
+        public uint2 NextUInt2() => currentSequence.NextUInt2();
+        public uint3 NextUInt3() => currentSequence.NextUInt3();
+        public uint4 NextUInt4() => currentSequence.NextUInt4();
+        public uint NextUInt(uint minInclusive, uint maxExclusive) => currentSequence.NextUInt(minInclusive, maxExclusive);
+        public uint2 NextUInt2(uint2 minInclusive, uint2 maxExclusive) => currentSequence.NextUInt2(minInclusive, maxExclusive);
+        public uint3 NextUInt3(uint3 minInclusive, uint3 maxExclusive) => currentSequence.NextUInt3(minInclusive, maxExclusive);
+        public uint4 NextUInt4(uint4 minInclusive, uint4 maxExclusive) => currentSequence.NextUInt4(minInclusive, maxExclusive);
+
+        public int NextInt() => currentSequence.NextInt();
+        public int2 NextInt2() => currentSequence.NextInt2();
+        public int3 NextInt3() => currentSequence.NextInt3();
+        public int4 NextInt4() => currentSequence.NextInt4();
+        public int NextInt(int minInclusive, int maxExclusive) => currentSequence.NextInt(minInclusive, maxExclusive);
+        public int2 NextInt2(int2 minInclusive, int2 maxExclusive) => currentSequence.NextInt2(minInclusive, maxExclusive);
+        public int3 NextInt3(int3 minInclusive, int3 maxExclusive) => currentSequence.NextInt3(minInclusive, maxExclusive);
+        public int4 NextInt4(int4 minInclusive, int4 maxExclusive) => currentSequence.NextInt4(minInclusive, maxExclusive);
+
+        public float NextFloat() => currentSequence.NextFloat();
+        public float2 NextFloat2() => currentSequence.NextFloat2();
+        public float3 NextFloat3() => currentSequence.NextFloat3();
+        public float4 NextFloat4() => currentSequence.NextFloat4();
+        public float NextFloat(float minInclusive, float maxExclusive) => currentSequence.NextFloat(minInclusive, maxExclusive);
+        public float2 NextFloat2(float2 minInclusive, float2 maxExclusive) => currentSequence.NextFloat2(minInclusive, maxExclusive);
+        public float3 NextFloat3(float3 minInclusive, float3 maxExclusive) => currentSequence.NextFloat3(minInclusive, maxExclusive);
+        public float4 NextFloat4(float4 minInclusive, float4 maxExclusive) => currentSequence.NextFloat4(minInclusive, maxExclusive);
+
+        public float2 NextFloat2Direction() => currentSequence.NextFloat2Direction();
+        public float3 NextFloat3Direction() => currentSequence.NextFloat3Direction();
+        public quaternion NextQuaternionRotation() => currentSequence.NextQuaternionRotation();
+
+        public void ShuffleElements<T>(NativeArray<T> array) where T : unmanaged => currentSequence.ShuffleElements(array);
+        public void ShuffleElements<T, U>(T list) where T : unmanaged, INativeList<U> where U : unmanaged => currentSequence.ShuffleElements<T, U>(list);
+    }
+
+    public struct RngEachParameter : IJobEach.IParameterHandle<RngEach>
+    {
+        SystemRng                    srng;
+        ThreadCache<Rng.RngSequence> cache;
+
+        public FluentQuery AppendToQuery(FluentQuery query) => query;
+
+        public void CreateForApi(ref SystemState state)
+        {
+            FixedString128Bytes name = default;
+            name.CopyFromTruncated(state.DebugName);
+            state.InitSystemRng(name);
+        }
+
+        public unsafe RngEach GetParameter(in IJobEach.JobContext context)
+        {
+            return new RngEach { sequencePtr = (Rng.RngSequence*)UnsafeUtility.AddressOf(ref cache.cache) };
+        }
+
+        public bool OnChunkBegin(in IJobEach.JobContext context)
+        {
+            if (!cache.isCreated)
+                cache = new ThreadCache<Rng.RngSequence>(default);
+            srng.BeginChunk(context.chunkIndexInQuery);
+            cache.cache = srng.currentSequence;
+            return true;
+        }
+
+        public void OnChunkEnd(in IJobEach.JobContext context, bool chunkWasExecuted)
+        {
+        }
+
+        public void UpdateForApi(ref SystemState state)
+        {
+            srng = state.GetJobRng();
+        }
+    }
 }
 

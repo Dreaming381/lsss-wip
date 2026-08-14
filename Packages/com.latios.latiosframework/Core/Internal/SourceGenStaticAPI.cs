@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace Latios.InternalSourceGen
@@ -224,6 +225,51 @@ namespace Latios.InternalSourceGen
         public static void CallOnChunkEnd<T>(ref T job, in IJobEach.JobContext context, bool wasChunkExecuted) where T : struct, IJobEach
         {
             job.OnChunkEnd(in context, wasChunkExecuted);
+        }
+
+        public static FluentQuery CallHandleAppendToQuery<THandle, TParameter>(FluentQuery query) where THandle : unmanaged,
+        IJobEach.IParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            THandle handle = default;
+            return handle.AppendToQuery(query);
+        }
+
+        public static bool CallHandleOnChunkBegin<THandle, TParameter>(ref THandle handle, in IJobEach.JobContext context) where THandle : unmanaged,
+        IJobEach.IParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            return handle.OnChunkBegin(in context);
+        }
+
+        public static void CallHandleOnChunkEnd<THandle, TParameter>(ref THandle handle, in IJobEach.JobContext context,
+                                                                     bool chunkWasExecuted) where THandle : unmanaged,
+        IJobEach.IParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            handle.OnChunkEnd(in context, chunkWasExecuted);
+        }
+
+        public static TParameter CallHandleGetParameter<THandle, TParameter>(ref THandle handle, in IJobEach.JobContext context) where THandle : unmanaged,
+        IJobEach.IParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            return handle.GetParameter(in context);
+        }
+
+        public static JobHandle CallHandleScheduleGroupUnions<THandle, TParameter>(ref THandle handle, IJobEach.ChunkGroupBuilder builder,
+                                                                                   JobHandle inputDeps) where THandle : unmanaged,
+        IJobEach.IGroupedParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            return handle.ScheduleGroupUnions(builder, inputDeps);
+        }
+
+        public static void CallHandleOnGroupBegin<THandle, TParameter>(ref THandle handle, in IJobEach.GroupContext groupContext) where THandle : unmanaged,
+        IJobEach.IGroupedParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            handle.OnGroupBegin(in groupContext);
+        }
+
+        public static void CallHandleOnGroupEnd<THandle, TParameter>(ref THandle handle, in IJobEach.GroupContext groupContext) where THandle : unmanaged,
+        IJobEach.IGroupedParameterHandle<TParameter> where TParameter : unmanaged, IJobEach.IParameter
+        {
+            handle.OnGroupEnd(in groupContext);
         }
         #endregion
     }
