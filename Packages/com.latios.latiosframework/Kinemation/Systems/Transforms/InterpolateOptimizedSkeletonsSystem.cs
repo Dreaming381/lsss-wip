@@ -85,7 +85,7 @@ namespace Latios.Kinemation.Systems
                         if (tickedBones.Length == dstBones.Length)
                             continue;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         throw new System.InvalidOperationException(
                             $"TickedOptimizedBoneTransform buffer length {tickedBones.Length} does not match OptimizedBoneTransform buffer length {dstBones.Length * 6}");
 #endif
@@ -97,7 +97,7 @@ namespace Latios.Kinemation.Systems
                     var currentBones  = previousBones;
                     if ((tickedState.state & OptimizedSkeletonState.Flags.IsDirty) == OptimizedSkeletonState.Flags.IsDirty)
                     {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         if ((tickedState.state & OptimizedSkeletonState.Flags.NeedsSync) == OptimizedSkeletonState.Flags.NeedsSync)
                         {
                             throw new System.InvalidOperationException(
@@ -200,7 +200,7 @@ namespace Latios.Kinemation.Systems
                         if (tickedBones.Length == dstBones.Length)
                             continue;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         throw new System.InvalidOperationException(
                             $"TickedOptimizedBoneTransform buffer length {tickedBones.Length} does not match OptimizedBoneTransform buffer length {dstBones.Length * 6}");
 #endif
@@ -212,7 +212,7 @@ namespace Latios.Kinemation.Systems
                     var currentBones  = previousBones;
                     if ((tickedState.state & OptimizedSkeletonState.Flags.IsDirty) == OptimizedSkeletonState.Flags.IsDirty)
                     {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         if ((tickedState.state & OptimizedSkeletonState.Flags.NeedsSync) == OptimizedSkeletonState.Flags.NeedsSync)
                         {
                             throw new System.InvalidOperationException(

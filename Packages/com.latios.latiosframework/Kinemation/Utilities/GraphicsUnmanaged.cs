@@ -61,7 +61,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 8);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Setting the Graphics Buffer globally failed.");
 #endif
@@ -82,7 +82,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 13);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Creating the meshes failed.");
 #endif
@@ -101,7 +101,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 16);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Destroying the meshes failed.");
 #endif
@@ -125,7 +125,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 14);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Registering the meshes failed.");
 #endif
@@ -149,7 +149,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 15);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Applying the meshes failed.");
 #endif
@@ -176,7 +176,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 5);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Setting the Graphics Buffer for the Compute Shader failed.");
 #endif
@@ -198,7 +198,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 6);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Setting the Int for the Compute Shader failed.");
 #endif
@@ -224,7 +224,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 7);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Dispatching the Compute Shader failed.");
 #endif
@@ -250,7 +250,7 @@ namespace Latios.Kinemation
             y = context.y;
             z = context.z;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Dispatching the Compute Shader failed.");
 #endif
@@ -271,7 +271,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 18);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Setting the mipmap level failed.");
 #endif
@@ -308,7 +308,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 1);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Creating the GraphicsBufferUnmanaged failed.");
 #endif
@@ -342,7 +342,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 3);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Locking the GraphicsBufferUnmanaged for write failed.");
 #endif
@@ -359,7 +359,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 4);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Unlocking the GraphicsBufferUnmanaged after write failed.");
 #endif
@@ -375,7 +375,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 10);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Failed to obtain the count from the GraphicsBufferUnmanaged.");
 #endif
@@ -392,7 +392,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 11);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Failed to obtain the stride from the GraphicsBufferUnmanaged.");
 #endif
@@ -409,7 +409,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 12);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Failed to set the name for the GraphicsBufferUnmanaged.");
 #endif
@@ -425,7 +425,7 @@ namespace Latios.Kinemation
             };
             DoManagedExecute((IntPtr)(&context), 17);
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!context.success)
                 throw new System.InvalidOperationException("Failed to obtain the bufferHandle from the GraphicsBufferUnmanaged.");
 #endif

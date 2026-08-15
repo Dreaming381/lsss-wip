@@ -54,7 +54,7 @@ namespace Latios.Psyshock
                 {
                     SetScheduleMode(scheduleMode);
                     if (scheduleMode == ScheduleMode.ParallelPart1)
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         return this.ScheduleParallelByRef(IndexStrategies.BucketCountWithNaN(pairStream.data.cellCount) + 2, 1, inputDeps);
 #else
                         return this.ScheduleParallelByRef(IndexStrategies.BucketCountWithNaN(pairStream.data.cellCount) + 1, 1, inputDeps);
@@ -382,7 +382,7 @@ namespace Latios.Psyshock
             pairStream.data.state->needsIslanding = false;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckAliasing(PairStream pairStream)
         {
             // Note: It is allowed to have an entity with write access in bucket 0 and read access in bucket 1.
@@ -439,7 +439,7 @@ namespace Latios.Psyshock
 
         public static void ScheduleBumpVersions(ref PairStream pairStream, ref JobHandle jobHandle)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             jobHandle = new BumpVersionsJob { pairStream = pairStream }.Schedule(jobHandle);
 #endif
         }

@@ -257,7 +257,7 @@ namespace Latios.Unika
             return Resolve(ref scriptRef, in allScripts);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void AssertInCollection(bool inCollection, Entity entity)
         {
             if (!inCollection)

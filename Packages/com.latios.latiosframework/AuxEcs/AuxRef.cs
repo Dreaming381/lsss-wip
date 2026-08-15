@@ -28,7 +28,7 @@ namespace Latios.AuxEcs
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckValid()
         {
             if (componentPtr == null)

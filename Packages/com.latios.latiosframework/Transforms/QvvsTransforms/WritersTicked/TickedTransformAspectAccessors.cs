@@ -462,7 +462,7 @@ namespace Latios.Transforms
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckInit()
         {
             if (!threadCache.isCreated)
@@ -470,7 +470,7 @@ namespace Latios.Transforms
                     "The TransformAccessRootHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to SetupChunk().");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIsRoot(in ArchetypeChunk chunk)
         {
             if (rootRefChecker[chunk])

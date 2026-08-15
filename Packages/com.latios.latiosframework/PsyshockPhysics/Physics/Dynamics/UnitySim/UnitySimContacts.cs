@@ -181,14 +181,14 @@ namespace Latios.Psyshock
                 }
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckCapacityBeforeAdd()
             {
                 if (contactCount >= 32)
                     throw new System.InvalidOperationException("Cannot add more than 32 contacts.");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckInRange(int index)
             {
                 if (index < 0 || index >= contactCount)

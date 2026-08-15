@@ -120,7 +120,7 @@ namespace Latios.Kinemation
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ThrowIfDuplicateSocket(Entity skeleton, int socket)
         {
             throw new System.InvalidOperationException(

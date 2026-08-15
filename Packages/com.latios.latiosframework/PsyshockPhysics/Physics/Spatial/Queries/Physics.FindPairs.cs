@@ -159,7 +159,7 @@ namespace Latios.Psyshock
             }
         }
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
         /// <summary>
         /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
         /// owning entity of the first collider in the pair. It can also be implicitly casted and used as a normal entity reference.
@@ -258,7 +258,7 @@ namespace Latios.Psyshock
         }
         //Todo: Shorthands for calling narrow phase distance and manifold queries
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckCanGenerateParallelPairKey()
         {
             if (m_isImmediateContext)
@@ -342,7 +342,7 @@ namespace Latios.Psyshock
         public SafeEntity GetSafeEntityInA(int aIndex)
         {
             CheckSafeEntityInRange(aIndex, bucketStartA, bucketCountA);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             var entity = layerA.bodies[aIndex].entity;
             return new SafeEntity
             {
@@ -368,7 +368,7 @@ namespace Latios.Psyshock
         public SafeEntity GetSafeEntityInB(int bIndex)
         {
             CheckSafeEntityInRange(bIndex, bucketStartB, bucketCountB);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             var entity = layerB.bodies[bIndex].entity;
             return new SafeEntity
             {
@@ -422,7 +422,7 @@ namespace Latios.Psyshock
             m_isImmediateContext = isImmediateContext;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckSafeEntityInRange(int index, int start, int count)
         {
             var clampedIndex = math.clamp(index, start, start + count);
@@ -430,7 +430,7 @@ namespace Latios.Psyshock
                 throw new ArgumentOutOfRangeException($"Index {index} is outside the bucket range of [{start}, {start + count - 1}].");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckCanGenerateParallelPairKey()
         {
             if (m_isImmediateContext)
@@ -566,26 +566,26 @@ namespace Latios.Psyshock
         internal static readonly Unity.Profiling.ProfilerMarker kCrossMarker = new Unity.Profiling.ProfilerMarker("Cross");
 
         #region SafetyChecks
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckLayersAreCompatible(in CollisionLayer layerA, in CollisionLayer layerB)
         {
             if (math.any(layerA.worldMin != layerB.worldMin | layerA.worldAxisStride != layerB.worldAxisStride | layerA.worldSubdivisionsPerAxis !=
                          layerB.worldSubdivisionsPerAxis))
             {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                 throw new InvalidOperationException(
                     "The two layers used in the FindPairs operation are not compatible. Please ensure the layers were constructed with identical settings.");
 #endif
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void WarnEntityAliasingUnchecked()
         {
             UnityEngine.Debug.LogWarning("IgnoreEntityAliasing is unchecked for this schedule mode.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void WarnCrossCacheUnused()
         {
             UnityEngine.Debug.LogWarning("Cross-caching is unsupported for this schedule mode at this time. The setting is being ignored.");

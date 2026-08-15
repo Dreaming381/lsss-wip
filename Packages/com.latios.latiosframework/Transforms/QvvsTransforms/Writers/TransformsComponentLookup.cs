@@ -33,7 +33,7 @@ namespace Latios.Transforms
         // True if this key was created, false if it is the default
         public bool isCreated => root != Entity.Null;
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal void Validate(Entity root)
         {
             if (!isCreated)
@@ -44,7 +44,7 @@ namespace Latios.Transforms
                 $"The root of the hierarchy has not been safely secured. Root of hierarchy: {root.ToFixedString()}  Secured root: {this.root}");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ValidateIsRoot(Entity candidate, EntityStorageInfoLookup esil)
         {
             if (esil[candidate].Chunk.Has<RootReference>())
@@ -546,7 +546,7 @@ namespace Latios.Transforms
             return ref locked.lookup;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ValidateRootChunk(in this ArchetypeChunk chunk)
         {
             if (chunk.Has<RootReference>())

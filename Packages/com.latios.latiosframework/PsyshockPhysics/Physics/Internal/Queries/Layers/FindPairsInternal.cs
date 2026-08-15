@@ -62,7 +62,7 @@ namespace Latios.Psyshock
                     if (scheduleMode == ScheduleMode.ParallelPart1 || scheduleMode == ScheduleMode.ParallelPart1AllowEntityAliasing)
                         return this.ScheduleParallelByRef(IndexStrategies.Part1Count(layer.cellCount), 1, inputDeps);
                     if (scheduleMode == ScheduleMode.ParallelPart2)
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         return this.ScheduleParallelByRef(2, 1, inputDeps);
 #else
                         return this.ScheduleParallelByRef(1, 1, inputDeps);
@@ -219,7 +219,7 @@ namespace Latios.Psyshock
                     }
                 }
 
-                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
                 private static void EntityAliasCheck(in CollisionLayer layer)
                 {
                     var hashSet = new NativeParallelHashSet<Entity>(layer.count, Allocator.Temp);
@@ -791,7 +791,7 @@ namespace Latios.Psyshock
                     if (scheduleMode == ScheduleMode.ParallelPart2 && allowEntityAliasing)
                         return this.ScheduleParallelByRef(2, 1, inputDeps);
                     if (scheduleMode == ScheduleMode.ParallelPart2)
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         return this.ScheduleParallelByRef(3, 1, inputDeps);
 #else
                         return this.ScheduleParallelByRef(2, 1, inputDeps);
@@ -811,7 +811,7 @@ namespace Latios.Psyshock
                         if (allowEntityAliasing)
                             inputDeps = this.ScheduleParallelByRef(part1Count, 1, inputDeps);
                         else
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                             inputDeps = this.ScheduleParallelByRef(part1Count + 1, 1, inputDeps);
 #else
                             inputDeps = this.ScheduleParallelByRef(part1Count, 1, inputDeps);
@@ -1163,7 +1163,7 @@ namespace Latios.Psyshock
                     }
                 }
 
-                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
                 private static void EntityAliasCheck(in CollisionLayer layerA, in CollisionLayer layerB)
                 {
                     var hashSet = new NativeParallelHashSet<Entity>(layerA.count + layerB.count, Allocator.Temp);
@@ -1189,7 +1189,7 @@ namespace Latios.Psyshock
                     }
                 }
 
-                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
                 private static void EntityAliasCheckLayerA(in CollisionLayer layerA)
                 {
                     var hashSet = new NativeParallelHashSet<Entity>(layerA.count, Allocator.Temp);
@@ -1381,7 +1381,7 @@ namespace Latios.Psyshock
                     if (scheduleMode == ScheduleMode.ParallelPart2 && allowEntityAliasing)
                         return this.ScheduleParallelByRef(2, 1, inputDeps);
                     if (scheduleMode == ScheduleMode.ParallelPart2)
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                         return this.ScheduleParallelByRef(3, 1, inputDeps);
 #else
                         return this.ScheduleParallelByRef(2, 1, inputDeps);
@@ -1751,7 +1751,7 @@ namespace Latios.Psyshock
                     }
                 }
 
-                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+                [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
                 private static void EntityAliasCheck(in CollisionWorld worldA, in CollisionWorld worldB, in CollisionWorld.Mask maskA, in CollisionWorld.Mask maskB)
                 {
                     var hashSet = new NativeParallelHashSet<Entity>(worldA.count + worldB.count, Allocator.Temp);

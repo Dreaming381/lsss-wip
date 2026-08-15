@@ -114,7 +114,7 @@ namespace Latios
             get
             {
                 CheckHandleIsValid();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                 if (m_impl->m_sceneBlackboardEntity == Entity.Null)
                 {
                     throw new System.InvalidOperationException(
@@ -229,7 +229,7 @@ namespace Latios
                 m_impl->m_managedStructStorage = GCHandle.Alloc(managedStructStorage, GCHandleType.Normal);
             }
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!m_impl->m_worldUnmanaged.EntityManager.HasComponent(entity, (m_impl->m_managedStructStorage.Target as ManagedStructComponentStorage).GetExistType<T>()))
                 throw new System.InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
 #endif
@@ -248,7 +248,7 @@ namespace Latios
         InternalSourceGen.StaticAPI.IManagedStructComponentSourceGenerated
         {
             CheckHandleIsValid();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!m_impl->m_worldUnmanaged.EntityManager.HasComponent(entity, managedStructComponent.componentType))
                 throw new System.InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
 #endif
@@ -367,7 +367,7 @@ namespace Latios
         public T GetCollectionComponent<T>(Entity entity, bool readOnly) where T : unmanaged, ICollectionComponent, InternalSourceGen.StaticAPI.ICollectionComponentSourceGenerated
         {
             CheckHandleIsValid();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             var type = m_impl->m_collectionComponentStorage.GetExistType<T>();
             if (!m_impl->m_worldUnmanaged.EntityManager.HasComponent(entity, type))
                 throw new System.InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
@@ -401,7 +401,7 @@ namespace Latios
         InternalSourceGen.StaticAPI.ICollectionComponentSourceGenerated
         {
             CheckHandleIsValid();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             var type = m_impl->m_collectionComponentStorage.GetExistType<T>();
             if (!m_impl->m_worldUnmanaged.EntityManager.HasComponent(entity, type))
                 throw new System.InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
@@ -444,7 +444,7 @@ namespace Latios
         InternalSourceGen.StaticAPI.ICollectionComponentSourceGenerated
         {
             CheckHandleIsValid();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (!m_impl->m_worldUnmanaged.EntityManager.HasComponent(entity, collectionComponent.componentType))
                 throw new System.InvalidOperationException($"Entity {entity} does not have a component of type: {typeof(T).Name}");
 #endif
@@ -561,7 +561,7 @@ namespace Latios
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckHandleIsValid()
         {
             if (!LatiosWorldUnmanagedTracking.CheckHandle(m_index, m_version))
@@ -643,7 +643,7 @@ namespace Latios
                 m_registeredSystemOnce = true;
             }
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_syncPointPlaybackSystem != null && m_syncPointPlaybackSystem->hasPendingJobHandlesToAquire)
             {
                 if (m_executingSystemStack.IsEmpty)
@@ -708,7 +708,7 @@ namespace Latios
         public void EndDependencyTracking(SystemHandle system, bool hadError)
         {
             m_errorState |= hadError;
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_executingSystemStack.IsEmpty || m_executingSystemStack[m_executingSystemStack.Length - 1] != system)
             {
                 m_errorState = true;
@@ -866,7 +866,7 @@ namespace Latios
 
         public ref Systems.SyncPointPlaybackSystem GetSyncPoint()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_syncPointPlaybackSystem == null)
                 throw new System.InvalidOperationException("No SyncPointPlaybackSystem exists in the LatiosWorld.");
 #endif
@@ -875,7 +875,7 @@ namespace Latios
 
         public ref Systems.TickedSyncPointPlaybackSystem GetTickedSyncPoint()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_tickedSyncPointPlaybackSystem == null)
                 throw new System.InvalidOperationException("No TickedSyncPointPlaybackSystem exists in the LatiosWorld. You may need to install ticking in the bootstrap.");
 #endif

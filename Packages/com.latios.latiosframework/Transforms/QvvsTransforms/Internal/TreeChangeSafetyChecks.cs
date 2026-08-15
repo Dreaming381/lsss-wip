@@ -9,7 +9,7 @@ namespace Latios.Transforms
 {
     internal static class TreeChangeSafetyChecks
     {
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckChangeParent(EntityManager em, Entity parent, Entity child, InheritanceFlags flags, SetParentOptions options)
         {
             if (parent == child)
@@ -31,7 +31,7 @@ namespace Latios.Transforms
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckLegEntitiesHaveValidRootReferences(EntityManager em, Entity child)
         {
             if (!em.HasBuffer<LinkedEntityGroup>(child))
@@ -52,7 +52,7 @@ namespace Latios.Transforms
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckInternalParentHasValidRootReference(EntityManager em, Entity parent, in TreeKernels.TreeClassification parentClassification)
         {
             var rr     = new RootReference { m_rootEntity = parentClassification.root, m_indexInHierarchy = parentClassification.indexInHierarchy };
@@ -62,7 +62,7 @@ namespace Latios.Transforms
                     $"Parent {parent.ToFixedString()} appears to be an instantiated entity, as its RootReference clones another entity. It cannot become a parent until this issue is corrected.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckNotAssigningChildToDescendant(EntityManager em,
                                                               Entity parent,
                                                               Entity child,
@@ -84,7 +84,7 @@ namespace Latios.Transforms
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckNotAssigningRootChildToDescendant(Entity parent, Entity rootChild, TreeKernels.TreeClassification parentClassification)
         {
             if (parentClassification.root == rootChild)
@@ -92,7 +92,7 @@ namespace Latios.Transforms
                     $"Cannot make an entity a child of one of its own descendants. Reassign the descendant's parent first. Parent: {parent.ToFixedString()}  Child: {rootChild.ToFixedString()}");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         public static void CheckChildToRemoveIsAlive(EntityManager em, Entity child)
         {
             if (!em.IsAlive(child))

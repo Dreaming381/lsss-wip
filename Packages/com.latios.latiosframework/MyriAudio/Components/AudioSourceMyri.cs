@@ -313,7 +313,7 @@ namespace Latios.Myri
             context.threadStackAllocator.Dispose();
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIsStereo()
         {
             if (!isStereo)

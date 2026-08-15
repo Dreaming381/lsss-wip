@@ -108,10 +108,10 @@ namespace Latios
         }
         #endregion
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckDidNotPlayback()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_playedBack.Value == true)
                 throw new System.InvalidOperationException(
                     "The AddComponentsCommandBuffer has already been played back. You cannot write more commands to it or play it back again.");

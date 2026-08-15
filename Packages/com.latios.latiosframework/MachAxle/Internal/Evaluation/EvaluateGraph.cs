@@ -68,7 +68,7 @@ namespace Latios.MachAxle
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckEvaluatorAndGraphAreCompatible(ref AxleGraphEvaluator evaluator)
         {
             if (evaluator.m_currentGraph == null)

@@ -480,14 +480,14 @@ namespace Latios.Unsafe
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckMultipleOf64(ulong size)
         {
             if (!CollectionHelper.IsAligned(size, 64))
                 throw new InvalidOperationException($"The memory size {size} is not a multiple of 64. This TLSF allocator does not support that.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckNewPoolIsSafe(byte* ptr, int elementSize, int numElements, AllocatorManager.AllocatorHandle backingAllocator)
         {
             if (!CollectionHelper.IsAligned(ptr, 64))
@@ -497,7 +497,7 @@ namespace Latios.Unsafe
                 throw new InvalidOperationException($"The specified backing allocator does not match the backing allocator this Tlsf allocator uses.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckAlignmentIs64(int alignment)
         {
             if (alignment != 64)
@@ -505,7 +505,7 @@ namespace Latios.Unsafe
                     $"Requested alignment is {alignment}. This TLSF allocator requires the alignment be exactly 64. Smaller alignments should automatically be increased to 64 via AllocatorManager internals.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckDeallocation(void* ptr)
         {
             if (ptr == null)

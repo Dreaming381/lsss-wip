@@ -393,7 +393,7 @@ namespace Latios.Transforms
                 batchAddSetsStream.Write(rootAddSet);
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckDeadRootLegRules(in TreeKernels.TreeClassification parentClassification, SetParentOptions options)
             {
                 if (options != SetParentOptions.IgnoreLinkedEntityGroup &&
@@ -406,7 +406,7 @@ namespace Latios.Transforms
                 }
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckNewEntitiesAreSupported(Entity child, in TreeKernels.TreeClassification childClassification)
             {
                 if (!legLookup.TryGetBuffer(child, out var legBuffer))

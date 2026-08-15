@@ -86,7 +86,7 @@ namespace Latios.Psyshock
         internal int   m_length;
         internal int   m_typeHash;
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckTypeHash<T>() where T : unmanaged
         {
             if (m_typeHash != BurstRuntime.GetHashCode32<T>())
@@ -552,7 +552,7 @@ namespace Latios.Psyshock
                 }
             }
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             /// <summary>
             /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
             /// owning entity of the first entity in the pair. It can also be implicitly casted and used as a normal entity reference.
@@ -790,7 +790,7 @@ namespace Latios.Psyshock
 #endif
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckTypeHash<T>() where T : unmanaged
             {
                 if ((header->flags & PairHeader.kRootPtrIsRaw) == PairHeader.kRootPtrIsRaw)
@@ -888,7 +888,7 @@ namespace Latios.Psyshock
 #endif
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckKeyCompatible(in ParallelWriteKey key)
             {
                 if (key.cellCount != data.cellCount)
@@ -896,7 +896,7 @@ namespace Latios.Psyshock
                         $"The key is generated from a different base bucket count {IndexStrategies.BucketCountWithoutNaN(key.cellCount)} from what the PairStream was constructed with {IndexStrategies.BucketCountWithoutNaN(data.cellCount)}");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckPairCanBeAddedInParallel(in Pair pairFromOtherStream)
             {
                 if (!pairFromOtherStream.isParallelKeySafe)
@@ -904,7 +904,7 @@ namespace Latios.Psyshock
                         $"The pair cannot be safely added to the ParallelWriter because the pair was created from an immediate operation. Add directly to the PairStream instead of the ParallelWriter.");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckStreamsMatch(Pair other)
             {
                 if (data.cellCount != other.data.cellCount)
@@ -921,14 +921,14 @@ namespace Latios.Psyshock
             internal int                                           onePastLastStreamIndex;
             internal int                                           enumeratorVersion;
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckSafeToEnumerate()
             {
                 if (pair.data.state->enumeratorVersion != enumeratorVersion)
                     throw new InvalidOperationException($"The PairStream Enumerator has been invalidated.");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckValid()
             {
                 if (pair.header == null)
@@ -1172,16 +1172,16 @@ namespace Latios.Psyshock
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (allocator.ToAllocator <= Allocator.None)
                 throw new System.InvalidOperationException("Allocator cannot be Invalid or None");
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckTargetBucketIsValid(int bucket)
         {
             var bucketCount = IndexStrategies.BucketCountWithoutNaN(data.cellCount);
@@ -1189,7 +1189,7 @@ namespace Latios.Psyshock
                 throw new ArgumentOutOfRangeException($"The target bucket {bucket} is out of range of max buckets {bucketCount}");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckStreamsMatch(ref PairStream other)
         {
             if (data.cellCount != other.data.cellCount)
@@ -1199,7 +1199,7 @@ namespace Latios.Psyshock
                 throw new InvalidOperationException($"The allocators are not the same. Memory stealing cannot be safely performed.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckStreamsMatch(Pair other)
         {
             if (data.cellCount != other.data.cellCount)
@@ -1207,21 +1207,21 @@ namespace Latios.Psyshock
                     $"The streams do not have matching bucket counts: {IndexStrategies.BucketCountWithoutNaN(data.cellCount)} vs {IndexStrategies.BucketCountWithoutNaN(other.data.cellCount)}.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckPairPtrVersionMatches(State* state, int version)
         {
             if (state->pairPtrVersion != version)
                 throw new InvalidOperationException($"The pair allocator has been invalidated by a concatenate operation.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckEnumerationVersionMatches(State* state, int version)
         {
             if (state->pairPtrVersion != version)
                 throw new InvalidOperationException($"The enumerator has been invalidated by an addition or concatenate operation.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckNotNull(void* rawPtr)
         {
             if (rawPtr == null)

@@ -68,7 +68,7 @@ namespace Latios.Psyshock
         /// A safe entity handle that can be used inside of PhysicsComponentLookup or PhysicsBufferLookup and corresponds to the
         /// owning entity of the collider. It can also be implicitly casted and used as a normal entity reference.
         /// </summary>
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
         public SafeEntity entity => new SafeEntity
         {
             m_entity = new Entity

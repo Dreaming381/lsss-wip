@@ -69,21 +69,21 @@ namespace Latios.Myri.DSP
             m_count            = 0;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckEnqueue()
         {
             if (m_count == m_buffer.Length)
                 throw new System.InvalidOperationException("Failed to enqueue sample. The SampleQueue is full.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckDequeue()
         {
             if (m_count == 0)
                 throw new System.InvalidOperationException("Failed to dequeue sample. The SampleQueue is empty.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIndex(int index)
         {
             if (index < 0 || index >= m_count)

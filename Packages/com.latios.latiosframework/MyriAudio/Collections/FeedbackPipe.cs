@@ -102,7 +102,7 @@ namespace Latios.Myri
             public ref T Current => ref *(T*)m_pipeEnumerator.Current;
             public bool MoveNext()
             {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                 if (!m_megaPipe[0].isCreated)
                     return false;
 #endif
@@ -119,7 +119,7 @@ namespace Latios.Myri
             public void* Current => m_pipeEnumerator.Current;
             public bool MoveNext()
             {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                 if (!m_megaPipe[0].isCreated)
                     return false;
 #endif

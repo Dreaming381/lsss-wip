@@ -267,7 +267,7 @@ namespace Latios.Calci
             return 407164411 + m_float3s.GetHashCode();
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private void CheckIndex(int i)
         {
             if (i > 3 || i < 0)

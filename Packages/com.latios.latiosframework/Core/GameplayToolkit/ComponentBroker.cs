@@ -1262,14 +1262,14 @@ namespace Latios
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIndexInChunkWithinChunkCount(int index, int count)
         {
             if (index >= count || index < 0)
                 throw new System.ArgumentOutOfRangeException($"The index in chunk {index} is outside the chunk's range [0, {count})");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal void CheckTypeIndexIsInComponentList(int index)
         {
             if (index >= handleIndices.Length)
@@ -1290,21 +1290,21 @@ namespace Latios
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal void CheckTypeNotBuffer(TypeIndex typeIndex)
         {
             if (typeIndex.IsBuffer)
                 throw new System.ArgumentOutOfRangeException($"The specified TypeIndex is for a DynamicBuffer, which is not supported in this operation.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal void CheckTypeNotShared(TypeIndex typeIndex)
         {
             if (typeIndex.IsSharedComponentType)
                 throw new System.ArgumentOutOfRangeException($"The specified TypeIndex is for a SharedComponent, which is not supported in this operation.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckTypeIsBuffer(TypeIndex typeIndex)
         {
             if (!typeIndex.IsBuffer)

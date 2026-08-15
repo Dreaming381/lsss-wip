@@ -47,7 +47,7 @@ namespace Latios
                 return result;
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckTypeAccess<T>(int expectedSize) where T : unmanaged, ICustomCommand
             {
                 if (UnsafeUtility.SizeOf<T>() != expectedSize)

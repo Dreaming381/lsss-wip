@@ -857,14 +857,14 @@ namespace Latios.Psyshock
         }
         #endregion
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckContactAndJacobianSpanLengthsEqual(int parametersLength, int contactsLength)
         {
             if (parametersLength != contactsLength)
                 throw new ArgumentException($"Span<ContactJacobianContactParameters> length of {parametersLength} does not match the number of contacts {contactsLength}");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckContactAndImpulseSpanLengthsEqual(int parametersLength, int impulseLength)
         {
             if (impulseLength != parametersLength)

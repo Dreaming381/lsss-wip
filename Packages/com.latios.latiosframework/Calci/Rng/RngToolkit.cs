@@ -189,19 +189,19 @@ namespace Latios.Calci
             return new quaternion(math.select(q.value, -q.value, q.value.w < 0.0f));
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void CheckIntMinMax(int4 minInclusive, int4 maxExclusive)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (math.any(minInclusive > maxExclusive))
                 throw new System.ArgumentException("minInclusive must be less than or equal to maxExclusive");
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void CheckUIntMinMax(uint4 minInclusive, uint4 maxExclusive)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (math.any(minInclusive > maxExclusive))
                 throw new System.ArgumentException("minInclusive must be less than or equal to maxExclusive");
 #endif

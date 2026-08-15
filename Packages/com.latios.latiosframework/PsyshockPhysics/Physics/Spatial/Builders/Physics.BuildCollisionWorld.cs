@@ -460,7 +460,7 @@ namespace Latios.Psyshock
         #endregion
 
         #region Validators
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ValidateSettings(this BuildCollisionWorldConfig config)
         {
             if (math.any(config.settings.worldAabb.min > config.settings.worldAabb.max))

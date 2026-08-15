@@ -252,7 +252,7 @@ namespace Latios.AuxEcs
         #region State
         internal AuxWorldImpl* impl;
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIsValid()
         {
             if (impl == null)

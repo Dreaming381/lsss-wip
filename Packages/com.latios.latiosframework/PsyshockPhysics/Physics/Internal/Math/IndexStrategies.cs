@@ -46,21 +46,21 @@ namespace Latios.Psyshock
             return (subdivisionIndices.x * subdivisionsPerAxis.y + subdivisionIndices.y) * subdivisionsPerAxis.z + subdivisionIndices.z;
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ValidateSubdivisions(int3 subdivisionsPerAxis)
         {
             if (math.any(subdivisionsPerAxis < 1))
                 throw new InvalidOperationException("The number of subdivisions for each axis must be 1 or greater.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ValidateCellCountPositive(int cellCount)
         {
             if (cellCount < 1)
                 throw new InvalidOperationException("The number of cells must be 1 or greater.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ValidateBucketCountWithNaNSufficient(int bucketCountWithNaN)
         {
             if (bucketCountWithNaN < 2)

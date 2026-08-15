@@ -56,7 +56,7 @@ namespace Latios.Kinemation.Systems
                 }
             }
 
-            [System.Diagnostics.Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [System.Diagnostics.Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), System.Diagnostics.Conditional("UNITY_DOTS_DEBUG")]
             void ValidateChunkArchetype(ArchetypeChunk chunk, ref bool skip)
             {
                 if (!chunkValidityMask.MatchesIgnoreFilter(chunk))

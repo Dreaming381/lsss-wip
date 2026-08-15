@@ -121,10 +121,10 @@ namespace Latios
         }
         #endregion
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckDidNotPlayback()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_playedBack.Value == true)
                 throw new System.InvalidOperationException("The DestroyCommandBuffer has already been played back. You cannot write more commands to it or play it back again.");
 #endif
@@ -634,7 +634,7 @@ namespace Latios
                 }
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void CheckFirstLegIsRoot(Entity root, Entity leg)
             {
                 if (root != leg)

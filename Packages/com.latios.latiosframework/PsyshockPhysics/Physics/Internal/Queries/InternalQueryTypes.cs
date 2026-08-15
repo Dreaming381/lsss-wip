@@ -60,7 +60,7 @@ namespace Latios.Psyshock
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckMprResolved(bool somethingWentWrong)
         {
             if (somethingWentWrong)

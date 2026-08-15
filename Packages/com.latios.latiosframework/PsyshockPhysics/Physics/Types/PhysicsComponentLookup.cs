@@ -22,7 +22,7 @@ namespace Latios.Psyshock
 
         public Entity entity => (Entity)this;
 
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
         public static implicit operator Entity(SafeEntity e) => new Entity
         {
             Index = math.select(e.m_entity.Index, math.abs(e.m_entity.Index + 1), e.m_entity.Index < 0), Version = e.m_entity.Version
@@ -44,10 +44,10 @@ namespace Latios.Psyshock
             return TransformsKey.CreateFromExclusivelyAccessedRoot(entity, entityStorageInfoLookup);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void ValidateSafeEntityIsSafe()
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_entity.Index < 0)
             {
                 throw new InvalidOperationException(
@@ -173,10 +173,10 @@ namespace Latios.Psyshock
             lookup.Update(system);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ValidateSafeEntityIsSafe(SafeEntity safeEntity)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (safeEntity.m_entity.Index < 0)
             {
                 throw new InvalidOperationException(
@@ -287,10 +287,10 @@ namespace Latios.Psyshock
             lookup.Update(system);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ValidateSafeEntityIsSafe(SafeEntity safeEntity)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (safeEntity.m_entity.Index < 0)
             {
                 throw new InvalidOperationException(
@@ -349,10 +349,10 @@ namespace Latios.Psyshock
             return broker.GetBufferIgnoreParallelSafety<T>(entity);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ValidateSafeEntityIsSafe(SafeEntity safeEntity)
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (safeEntity.m_entity.Index < 0)
             {
                 throw new InvalidOperationException("SafeEntity for a ComponentBroker cannot be used inside a RunImmediate context. Use SafeEntity.entity instead.");

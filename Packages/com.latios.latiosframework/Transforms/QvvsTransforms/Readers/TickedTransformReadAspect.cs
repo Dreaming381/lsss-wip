@@ -371,14 +371,14 @@ namespace Latios.Transforms
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckBelongsToSameHierarchy(in EntityInHierarchyHandle otherHandle)
         {
             if (m_handle.isNull || otherHandle.isNull || m_handle.m_hierarchy != otherHandle.m_hierarchy)
                 throw new System.ArgumentException("The EntityInHierarchyHandle does not belong to the same hierarchy as this TickedTransformReadAspect.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckWorldTransformIsValid(in RefRO<TickedWorldTransform> transform)
         {
             if (!transform.IsValid)

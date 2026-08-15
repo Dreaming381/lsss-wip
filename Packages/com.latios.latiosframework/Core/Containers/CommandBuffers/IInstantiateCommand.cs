@@ -61,7 +61,7 @@ namespace Latios
                 requestToDestroyList.Add(entityToDestroy);
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckTypeAccess<T>(int expectedSize) where T : unmanaged, IInstantiateCommand
             {
                 if (UnsafeUtility.SizeOf<T>() != expectedSize)

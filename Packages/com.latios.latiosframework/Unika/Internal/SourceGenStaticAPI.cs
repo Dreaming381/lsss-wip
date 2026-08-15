@@ -612,7 +612,7 @@ namespace Latios.Unika.InternalSourceGen
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ThrowBadCastOnResolve(Script script)
         {
             throw new System.InvalidCastException($"{script.ToFixedString()} does not implement the requested interface.");

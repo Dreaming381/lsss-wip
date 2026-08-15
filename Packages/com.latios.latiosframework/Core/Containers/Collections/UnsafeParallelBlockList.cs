@@ -804,7 +804,7 @@ namespace Latios.Unsafe
         }
 
         //This catches race conditions if I accidentally pass in 0 for thread index in the parallel writer because copy and paste.
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckBlockCountMatchesCount(int count, int blockCount)
         {
             int expectedBlocks = count / m_elementsPerBlock;
@@ -814,7 +814,7 @@ namespace Latios.Unsafe
                 throw new System.InvalidOperationException($"Block count: {blockCount} does not match element count: {count}");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckBlockListsMatch(ref UnsafeIndexedBlockList other)
         {
             if (m_blockSize != other.m_blockSize || m_elementSize != other.m_elementSize || m_indexCount != other.m_indexCount || m_allocator != other.m_allocator)

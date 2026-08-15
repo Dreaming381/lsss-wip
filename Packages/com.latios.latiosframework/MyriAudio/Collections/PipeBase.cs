@@ -83,7 +83,7 @@ namespace Latios.Myri
         internal int   m_length;
         internal int   m_typeHash;
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckTypeHash<T>() where T : unmanaged
         {
             if (m_typeHash != BurstRuntime.GetHashCode32<T>())
@@ -272,7 +272,7 @@ namespace Latios.Myri
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckNotNull(void* rawPtr)
         {
             if (rawPtr == null)

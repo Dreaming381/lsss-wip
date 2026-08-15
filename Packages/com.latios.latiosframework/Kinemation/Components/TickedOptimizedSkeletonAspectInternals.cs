@@ -618,7 +618,7 @@ namespace Latios.Kinemation
             public int Compare(TransformQvvs x, TransformQvvs y) => x.context32.CompareTo(y.context32);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckSynced()
         {
             if ((m_skeletonState.ValueRO.state & OptimizedSkeletonState.Flags.NeedsSync) == OptimizedSkeletonState.Flags.NeedsSync)

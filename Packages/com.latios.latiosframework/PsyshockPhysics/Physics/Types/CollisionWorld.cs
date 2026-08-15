@@ -385,14 +385,14 @@ namespace Latios.Psyshock
             };
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTION_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckWorldIndexIsValid(byte worldIndex)
         {
             if (worldIndex == 0)
                 throw new ArgumentOutOfRangeException("The worldIndex must be greater than 0 in a CollisionWorld");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckValid(EntityStorageInfoLookup esil) => esil.Exists(Entity.Null);
     }
 

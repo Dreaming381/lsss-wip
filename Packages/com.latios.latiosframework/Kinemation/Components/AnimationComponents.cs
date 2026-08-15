@@ -356,21 +356,21 @@ namespace Latios.Kinemation
         /// </summary>
         public int sizeCompressed => compressedClipDataAligned16.Length;
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckBlenderIsBigEnoughForClip(in BufferPoseBlender blender, short boneCount)
         {
             if (blender.buffer.Length < boneCount)
                 throw new ArgumentException("The blender does not contain enough elements to store the sampled pose.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckSkeletonIsBigEnoughForClip(in OptimizedSkeletonAspect osa, short boneCount)
         {
             if (osa.boneCount < boneCount)
                 throw new ArgumentException("The Optimized Skeleton does not contain enough bones for the animation clip.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckSkeletonIsBigEnoughForClip(in TickedOptimizedSkeletonAspect osa, short boneCount)
         {
             if (osa.boneCount < boneCount)
@@ -510,7 +510,7 @@ namespace Latios.Kinemation
             AclUnity.Decompression.SampleFloatsMasked(compressedClipDataAligned16.GetUnsafePtr(), destination, mask, time, mode);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckBufferIsBigEnoughForClip(NativeArray<float> buffer, short parameterCount)
         {
             if (buffer.Length < parameterCount)

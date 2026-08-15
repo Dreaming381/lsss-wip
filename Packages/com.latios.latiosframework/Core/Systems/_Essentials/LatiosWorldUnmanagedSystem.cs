@@ -34,7 +34,7 @@ namespace Latios
         public static LatiosWorldUnmanaged GetLatiosWorldUnmanaged(this WorldUnmanaged world)
         {
             var system = world.GetExistingUnmanagedSystem<Systems.LatiosWorldUnmanagedSystem>();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (system == SystemHandle.Null)
                 throw new System.InvalidOperationException("The current world is not a LatiosWorld. Did you forget to create a Bootstrap?");
 #endif
@@ -81,7 +81,7 @@ namespace Latios.Systems
         public void Initialize(WorldUnmanaged world)
         {
             LatiosWorldUnmanagedTracking.CreateHandle(out m_trackingIndex, out m_trackingVersion);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (m_trackingVersion == 0)
                 throw new System.InvalidOperationException("Failed to allocate a LatiosWorldUnmanaged. This is an internal bug. Please report!");
 #endif

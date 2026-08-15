@@ -351,21 +351,21 @@ namespace Latios
                 m_index     = index;
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void CheckWriteLength(int newLength)
             {
                 if (newLength < 0)
                     throw new System.ArgumentOutOfRangeException($"Length cannot be negative. Attempted to assign Length {newLength}.");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void CheckWriteCapacity(int newCapacity, int length)
             {
                 if (newCapacity < length)
                     throw new System.ArgumentOutOfRangeException($"Capacity cannot be less than the current Length of {length}. Attempted to assign Capacity {newCapacity}.");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void CheckInsert(int index, int currentLength)
             {
                 if (index < 0)
@@ -374,7 +374,7 @@ namespace Latios
                     throw new System.ArgumentOutOfRangeException($"Cannot insert at index {index} which is greater than the length {currentLength}");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void CheckRemoveRange(int index, int count, int currentLength)
             {
                 if (index < 0)
@@ -384,14 +384,14 @@ namespace Latios
                         $"Cannot remove range starting at index {index} with {count} elements, as this assumes a list of at least length {index + count} which is greater than the length {currentLength}");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void ThrowStrangeAddRangeAlias(int srcStart, int srcCount, int listStart, int listCount)
             {
                 throw new System.InvalidOperationException(
                     $"Attempting to call AddRange with a badly aliased array from the same DynamicMultiList. The array starts at index {srcStart} and has {srcCount} elements, while the destination List starts at {listStart} and has {listCount} elements.");
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             static void CheckListIndex(int listIndex, DynamicBuffer<MultiListHeader<T> > headers)
             {
                 if (headers[listIndex].length < 0)

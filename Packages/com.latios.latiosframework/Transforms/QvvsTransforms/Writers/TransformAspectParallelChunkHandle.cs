@@ -519,7 +519,7 @@ namespace Latios.Transforms
 #endif
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckCapturedChunkMatches(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
         {
             var captured = chunks[currentCapturedChunkIndex];
@@ -538,7 +538,7 @@ namespace Latios.Transforms
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckInit()
         {
             if (!threadCache.isCreated)
@@ -546,7 +546,7 @@ namespace Latios.Transforms
                     "The TransformAccessParallelChunkHandle has not been set up. Use IJobEntityChunkBeginEnd or IJobChunk to pass in the current chunk to OnChunkBegin(), or call SetActiveChunkForIJobParallelForDefer().");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIndexInChunkValid(int indexInChunk)
         {
             var capture = chunks[currentCapturedChunkIndex];
@@ -570,7 +570,7 @@ namespace Latios.Transforms
                 throw new System.ArgumentOutOfRangeException($"indexInChunk {indexInChunk} is not an index enabled in the captured chunk.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckIndexInGroupInRange(int groupCount, int indexInGroup)
         {
             if (indexInGroup < 0 || indexInGroup >= groupCount)

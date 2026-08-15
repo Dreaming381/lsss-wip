@@ -230,7 +230,7 @@ namespace Latios
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckValid(EntityStorageInfoLookup esil) => esil.Exists(Entity.Null);
         #endregion
 

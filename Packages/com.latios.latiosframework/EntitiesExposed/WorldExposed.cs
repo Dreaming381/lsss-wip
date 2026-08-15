@@ -23,7 +23,7 @@ namespace Unity.Entities.Exposed
 
         public static unsafe ref T GetUnsafeSystemRefFromSystemState<T>(this WorldUnmanaged world, ref SystemState state) where T : unmanaged, ISystem
         {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (state.m_SystemTypeIndex != TypeManager.GetSystemTypeIndex<T>())
                 throw new System.InvalidOperationException($"The SystemState does not belong to the system of type {typeof(T)}");
 #endif

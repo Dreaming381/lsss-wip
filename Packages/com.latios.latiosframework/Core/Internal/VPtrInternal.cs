@@ -483,7 +483,7 @@ namespace Latios.Unsafe.InternalSourceGen
         // Todo: Need more than 8?
         #endregion
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckFunctionFound(bool found)
         {
             if (!found)

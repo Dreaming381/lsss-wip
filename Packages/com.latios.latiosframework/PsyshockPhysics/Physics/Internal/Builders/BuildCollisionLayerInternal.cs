@@ -853,7 +853,7 @@ namespace Latios.Psyshock
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ValidateOverrideAabbsAreRightLength(NativeArray<Aabb> aabbs, int count)
         {
             if (aabbs.Length != count)

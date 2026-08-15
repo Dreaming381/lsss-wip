@@ -42,7 +42,7 @@ namespace AclUnity
                 DisposeCompressedTrack(this);
             }
 
-            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+            [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckArraySufficient(NativeArray<byte> array)
             {
                 if (!array.IsCreated)
@@ -267,7 +267,7 @@ namespace AclUnity
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckParentIndicesIsValid(NativeArray<short> parentIndices)
         {
             if (!parentIndices.IsCreated || parentIndices.Length == 0)
@@ -286,7 +286,7 @@ namespace AclUnity
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckClipDataIsValid(NativeArray<Qvvs> aosClipData, int boneCount)
         {
             if (!aosClipData.IsCreated || aosClipData.Length == 0)
@@ -295,14 +295,14 @@ namespace AclUnity
                 throw new ArgumentException("aosClipData is not sized correctly relative to the bone count");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckErrorsByTrackIsValid(NativeArray<float> maxErrorsByTrack)
         {
             if (!maxErrorsByTrack.IsCreated || maxErrorsByTrack.Length == 0)
                 throw new ArgumentException("maxErrorsByTrack is invalid");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckClipDataIsValid(NativeArray<float> clipData, int trackCount)
         {
             if (!clipData.IsCreated || clipData.Length == 0)
@@ -311,14 +311,14 @@ namespace AclUnity
                 throw new ArgumentException("clipData is not sized correctly relative to the track count");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckSampleRateIsValid(float sampleRate)
         {
             if (sampleRate <= math.EPSILON)
                 throw new ArgumentOutOfRangeException("sampleRate is negative or too small");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckCompressionLevelIsValid(short compressionLevel)
         {
             if (compressionLevel == 100) // Automatic mode
@@ -329,7 +329,7 @@ namespace AclUnity
                     "compressionLevel must be between 0 (lowest/fastest_to_compress) and 4 (highest/slowest_to_compress) or 100 for automatic mode");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckSkeletonSettingsIsValid(SkeletonCompressionSettings settings)
         {
             CheckCompressionLevelIsValid(settings.compressionLevel);

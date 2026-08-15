@@ -2117,7 +2117,7 @@ namespace Latios.Kinemation.Systems
                                 var entity = bones[i].bone;
                                 if (Hint.Unlikely(!previousTransformLookup.TryGetComponent(entity, out var previousTransform)))
                                 {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                                     UnityEngine.Debug.LogError(
                                         $"Bone {entity.ToFixedString()} at index {i} does not have the required PreviousTransform. Using WorldTansform instead.");
 #endif
@@ -2147,7 +2147,7 @@ namespace Latios.Kinemation.Systems
                                 var entity = bones[offsets[i]].bone;
                                 if (Hint.Unlikely(!previousTransformLookup.TryGetComponent(entity, out var previousTransform)))
                                 {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                                     UnityEngine.Debug.LogError(
                                         $"Bone {entity.ToFixedString()} at index {i} does not have the required PreviousTransform. Using WorldTansform instead.");
 #endif
@@ -2172,7 +2172,7 @@ namespace Latios.Kinemation.Systems
                                 var entity = bones[i].bone;
                                 if (Hint.Unlikely(!twoAgoTransformLookup.TryGetComponent(entity, out var twoAgoTransform)))
                                 {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                                     UnityEngine.Debug.LogError(
                                         $"Bone {entity.ToFixedString()} at index {i} does not have the required TwoAgoTransform. Using WorldTansform instead.");
 #endif
@@ -2202,7 +2202,7 @@ namespace Latios.Kinemation.Systems
                                 var entity = bones[offsets[i]].bone;
                                 if (Hint.Unlikely(!twoAgoTransformLookup.TryGetComponent(entity, out var twoAgoTransform)))
                                 {
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
                                     UnityEngine.Debug.LogError(
                                         $"Bone {entity.ToFixedString()} at index {i} does not have the required TwoAgoTransform. Using WorldTansform instead.");
 #endif

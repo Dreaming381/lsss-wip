@@ -378,7 +378,7 @@ namespace AclUnity
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckCompressedClipIsValid(void* compressedClip)
         {
             if (compressedClip == null)
@@ -387,13 +387,13 @@ namespace AclUnity
                 throw new ArgumentException("compressedClip is not aligned to a 16 byte boundary");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void ThrowIfWrongType()
         {
             throw new ArgumentException("compressedClip is of the wrong type (skeleton vs scalar)");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckOutputArrayIsSufficient(NativeArray<Qvvs> outputBuffer, short trackCount)
         {
             if (!outputBuffer.IsCreated || outputBuffer.Length == 0)
@@ -402,7 +402,7 @@ namespace AclUnity
                 throw new ArgumentException("outputBuffer does not contain enough elements");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckOutputArrayIsSufficient(NativeArray<float> outputBuffer, short trackCount)
         {
             if (!outputBuffer.IsCreated || outputBuffer.Length == 0)
@@ -411,7 +411,7 @@ namespace AclUnity
                 throw new ArgumentException("outputBuffer does not contain enough elements");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckMaskSpanIsSufficient(ReadOnlySpan<ulong> mask, short trackCount)
         {
             if (mask.IsEmpty)
@@ -420,7 +420,7 @@ namespace AclUnity
                 throw new ArgumentException("mask does not contain enough elements");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckIndexIsValid(int index, short trackCount)
         {
             if (index < 0)

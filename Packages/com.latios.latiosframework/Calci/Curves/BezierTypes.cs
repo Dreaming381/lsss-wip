@@ -66,7 +66,7 @@ namespace Latios.Calci
             return new BezierKnot(curveA.endpointB, curveA.controlB - curveA.endpointB, curveB.controlA - curveA.endpointB);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void EndpointsMatch(float3 fromA, float3 fromB)
         {
             if (!fromA.Equals(fromB))
@@ -315,7 +315,7 @@ namespace Latios.Calci
             };
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void EndpointsMatch(float leftTime, float leftValue, float rightTime, float rightValue)
         {
             if (leftTime != rightTime)

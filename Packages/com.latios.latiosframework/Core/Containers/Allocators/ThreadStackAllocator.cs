@@ -289,14 +289,14 @@ namespace Latios.Unsafe
         #endregion
 
         #region Safety
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckAllocatorIsValid()
         {
             if (m_statePtr == null)
                 throw new System.InvalidOperationException("ThreadStackAllocator is not initialized.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckForDepthLeaks(int depth)
         {
             if (depth > s_settings.Data.maxDepthsError)
@@ -307,7 +307,7 @@ namespace Latios.Unsafe
                     $"Thread has too many ThreadStackAllocators compared to the warning threshold of {s_settings.Data.maxDepths}. This may be a sign of a leak caused by allocator instances not being disposed.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckForDepthLeaks(int depthOfFreed, int depthsTotal)
         {
             if (depthOfFreed < depthsTotal)

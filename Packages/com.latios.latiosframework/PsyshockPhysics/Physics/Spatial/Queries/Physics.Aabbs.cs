@@ -123,7 +123,7 @@ namespace Latios.Psyshock
             return CombineAabb(aabbStart, aabbEnd);
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ThrowUnsupportedType(ColliderType type)
         {
             throw new InvalidOperationException($"Collider type not supported yet. Type code is {(int)type}");

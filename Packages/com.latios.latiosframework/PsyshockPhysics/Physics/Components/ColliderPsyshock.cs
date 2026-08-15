@@ -225,7 +225,7 @@ namespace Latios.Psyshock
             return collider.m_terrain();
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         internal static void CheckColliderIsCastTargetType(in Collider c, ColliderType targetType)
         {
             if (c.m_type != targetType)

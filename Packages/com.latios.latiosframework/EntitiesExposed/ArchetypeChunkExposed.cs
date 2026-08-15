@@ -55,7 +55,7 @@ namespace Unity.Entities.Exposed
             where T : unmanaged, IBufferElementData
         {
             var typeIndex = TypeManager.GetTypeIndex<T>();
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
             if (typeIndex != bufferTypeHandle.m_TypeIndex)
                 throw new System.ArgumentException($"ArchetypeChunk.GetBufferAccessor<T> must be called only for the type stored in the DynamicComponentTypeHandle");
 #endif

@@ -423,13 +423,13 @@ namespace Latios.Psyshock
             }
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ThrowEntityQueryInImmediateMode()
         {
             throw new InvalidOperationException("Running immediate mode on an EntityQuery is not supported. Use Run instead.");
         }
 
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ThrowUnknownConfiguration()
         {
             throw new InvalidOperationException("Something went wrong with the BuildCollisionError configuration.");
@@ -782,7 +782,7 @@ namespace Latios.Psyshock
         #endregion
 
         #region Validators
-        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         private static void ValidateSettings(this BuildCollisionLayerConfig config)
         {
             if (math.any(config.settings.worldAabb.min > config.settings.worldAabb.max))
