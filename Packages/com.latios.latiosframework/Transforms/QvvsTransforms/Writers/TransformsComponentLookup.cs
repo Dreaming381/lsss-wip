@@ -25,34 +25,23 @@ namespace Latios.Transforms
         public static TransformsKey CreateFromExclusivelyAccessedRoot(Entity root, EntityStorageInfoLookup entityStorageInfoLookup)
         {
             ValidateIsRoot(root, entityStorageInfoLookup);
-            return new TransformsKey { chunkIndex = -1, entityIndex = root.Index };
+            return new TransformsKey { root = root };
         }
 
-        internal EntityStorageInfoLookup esil;
-        internal int                     chunkIndex;
-        internal int                     entityIndex;
+        internal Entity root;
 
         // True if this key was created, false if it is the default
-        public bool isCreated => chunkIndex < 0 || esil.IsCreated();
+        public bool isCreated => root != Entity.Null;
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
         internal void Validate(Entity root)
         {
             if (!isCreated)
                 throw new System.ArgumentException("The TransformsKey is not valid.");
-            if (root.Index == entityIndex && entityIndex >= 0)
+            if (root == this.root)
                 return;
-            if (chunkIndex < 0)
-                throw new System.InvalidOperationException(
-                    $"The root of the hierarchy has not been safely secured. Root of hierarchy: {root.ToFixedString()}  Secured root Entity.Index: {entityIndex}");
-            var esi = esil[root];
-            if (esi.Chunk.GetHashCode() == chunkIndex)
-            {
-                entityIndex = root.Index;
-                return;
-            }
             throw new System.InvalidOperationException(
-                $"The root of the hierarchy does not belong to the secured ArchetypeChunk. Root of hierarchy: {root.ToFixedString()}  Secured chunk hashcode: {chunkIndex}");
+                $"The root of the hierarchy has not been safely secured. Root of hierarchy: {root.ToFixedString()}  Secured root: {this.root}");
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
@@ -457,22 +446,6 @@ namespace Latios.Transforms
 
     public static class TransformsKeyExtensions
     {
-        /// <summary>
-        /// Gets a key that allows safe access to all hierarchies and solo entities whose roots exist in this chunk.
-        /// </summary>
-        /// <param name="entityStorageInfoLookup">An EntityStorageInfoLookup used to validate root entities belong to the chunk</param>
-        /// <returns>A key which can be used to access components from any solo or root entity within this chunk or any entity within their hierarchies</returns>
-        public static TransformsKey GetChunkTransformsKey(in this ArchetypeChunk chunk, in EntityStorageInfoLookup entityStorageInfoLookup)
-        {
-            ValidateRootChunk(in chunk);
-            return new TransformsKey
-            {
-                chunkIndex  = chunk.GetHashCode(),
-                entityIndex = -1,
-                esil        = entityStorageInfoLookup
-            };
-        }
-
         /// <summary>
         /// Acquires an optional RefRO to the component on the solo or root entity secured with the key.
         /// When safety checks are enabled, this throws when parallel safety cannot
