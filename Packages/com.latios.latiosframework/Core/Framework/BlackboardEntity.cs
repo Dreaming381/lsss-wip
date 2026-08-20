@@ -149,6 +149,22 @@ namespace Latios
         }
 
         /// <summary>
+        /// Returns true if the blackboard entity has a buffer of the specified type
+        /// </summary>
+        public bool HasBuffer<T>() where T : unmanaged, IBufferElementData
+        {
+            return em.HasBuffer<T>(entity);
+        }
+
+        /// <summary>
+        /// Returns true if the blackboard entity has a shared component of the specified type
+        /// </summary>
+        public bool HasSharedComponent<T>() where T : unmanaged, ISharedComponentData
+        {
+            return em.HasComponent<T>(entity);
+        }
+
+        /// <summary>
         /// Returns true if the blackboard entity has a component of the specified ComponentType
         /// </summary>
         public bool HasComponent(ComponentType componentType)
