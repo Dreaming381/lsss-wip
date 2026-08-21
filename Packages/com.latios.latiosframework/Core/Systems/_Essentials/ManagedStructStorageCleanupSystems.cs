@@ -136,7 +136,7 @@ namespace Latios.Systems
 
             public void Add(Entity entity, ManagedStructComponentStorage storage)
             {
-                storage.AddComponent(entity, m_default);
+                storage.TryAddComponent(entity, m_default);
             }
 
             public void Remove(Entity entity, ManagedStructComponentStorage storage)
@@ -261,7 +261,7 @@ namespace Latios.Systems
                 }
                 if (removeIndices.IsCreated)
                 {
-                    foreach (var i in addIndices)
+                    foreach (var i in removeIndices)
                     {
                         var                 manipulator  = manipulators[i];
                         NativeArray<Entity> entities     = default;
@@ -316,7 +316,7 @@ namespace Latios.Systems
         [BurstCompile]
         static void RemoveComponentFromQuery(ref SystemState state, ref ManagedStructComponentDispatchable dispatchable, in ComponentType cleanupType)
         {
-            state.EntityManager.RemoveComponent(dispatchable.addQuery, cleanupType);
+            state.EntityManager.RemoveComponent(dispatchable.removeQuery, cleanupType);
         }
 
         public void OnDestroy(ref SystemState state)

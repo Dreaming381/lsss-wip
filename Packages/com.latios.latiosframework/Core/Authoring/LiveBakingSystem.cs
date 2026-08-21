@@ -29,6 +29,7 @@ namespace Latios.Authoring.Systems
                 {
                     var system = world.GetExistingSystemManaged<Latios.Systems.BeforeLiveBakingSuperSystem>();
                     SuperSystem.UpdateSystem(latiosWorld.latiosWorldUnmanaged, system.SystemHandle);
+                    foundLatiosWorld = true;
                 }
             }
             if (foundLatiosWorld)

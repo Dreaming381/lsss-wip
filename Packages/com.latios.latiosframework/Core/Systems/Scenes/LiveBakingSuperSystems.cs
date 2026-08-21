@@ -24,7 +24,6 @@ namespace Latios.Systems
                 return; // We already procesed once this frame
 
             liveBakeTriggered = true;
-            var unmanaged     = latiosWorldUnmanaged;
             base.OnUpdate();
             worldBlackboardEntity.SetComponentData(new SystemVersionBeforeLiveBake
             {

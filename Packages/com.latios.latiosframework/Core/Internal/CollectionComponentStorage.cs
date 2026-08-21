@@ -210,6 +210,36 @@ namespace Latios
             return true;
         }
 
+        // Does not overwrite if already existing
+        public bool TryAddCollectionComponent<T>(Entity entity, T value, out CollectionComponentRef<T> newOrExistingRef) where T : unmanaged,
+        ICollectionComponent, InternalSourceGen.StaticAPI.ICollectionComponentSourceGenerated
+        {
+            ref var tcs = ref GetTypedCollectionStorage<T>(entity, out int index);
+            if (index >= 0)
+            {
+                newOrExistingRef = new CollectionComponentRef<T>(ref tcs, entity, index);
+                return false;
+            }
+
+            if (tcs.freeStack.IsEmpty)
+            {
+                index = tcs.collectionComponents.Length;
+                tcs.collectionComponents.Add(value);
+                tcs.writeHandles.Add(default);
+                tcs.readHandles.Add(default);
+            }
+            else
+            {
+                index = tcs.freeStack[tcs.freeStack.Length - 1];
+                tcs.freeStack.Length--;
+                tcs.collectionComponents[index] = value;
+            }
+
+            m_twoLevelLookup.Add(new Key { entity = entity, typeHash = BurstRuntime.GetHashCode64<T>() }, new int2(tcs.typeIndex, index));
+            newOrExistingRef                                         = new CollectionComponentRef<T>(ref tcs, entity, index);
+            return true;
+        }
+
         public CollectionComponentRef<T> GetCollectionComponent<T>(Entity entity) where T : unmanaged, ICollectionComponent,
         InternalSourceGen.StaticAPI.ICollectionComponentSourceGenerated
         {

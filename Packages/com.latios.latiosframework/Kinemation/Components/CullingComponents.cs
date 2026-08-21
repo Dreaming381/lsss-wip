@@ -60,8 +60,8 @@ namespace Latios.Kinemation
         /// </summary>
         public bool text
         {
-            get => Bits.GetBit(packed, 3);
-            set => Bits.SetBit(ref packed, 3, value);
+            get => Bits.GetBit(packed, 4);
+            set => Bits.SetBit(ref packed, 4, value);
         }
     }
 

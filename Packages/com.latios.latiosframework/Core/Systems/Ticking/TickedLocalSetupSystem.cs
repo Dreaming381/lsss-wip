@@ -6,9 +6,10 @@ using Unity.Mathematics;
 
 namespace Latios.Systems
 {
+    [UpdateInGroup(typeof(LatiosWorldSyncGroup))]
     [DisableAutoCreation]
     [BurstCompile]
-    public partial struct TickLocalSetupSystem : ISystem, ILatiosApi
+    public partial struct TickedLocalSetupSystem : ISystem, ILatiosApi
     {
         internal float tickDeltaTime;
         internal bool  snapInputToTick;  // When true, we typically only simulate one tick per frame (assuming faster framerate than tickrate), but inputs may not be applied as quickly.
@@ -20,7 +21,7 @@ namespace Latios.Systems
         {
             var api = this.OnCreateForLatios(ref state);
 
-            tickDeltaTime = 1f;
+            tickDeltaTime = 1f / 30f;
             timeInTick    = 0f;
 
             api.worldBlackboardEntity.AddComponentData(new TickingState { previousEvaluatedTick = -1 });

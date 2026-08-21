@@ -125,6 +125,29 @@ namespace Latios
             return true;
         }
 
+        // Same as AddComponent except doesn't write value if it already exists.
+        public bool TryAddComponent<T>(Entity entity, T value) where T : struct, IManagedStructComponent, InternalSourceGen.StaticAPI.IManagedStructComponentSourceGenerated
+        {
+            var tmss = GetTypedManagedStructStorage<T>(entity, out int index);
+            if (index >= 0)
+            {
+                return false;
+            }
+
+            if (!tmss.freeStack.TryPop(out index))
+            {
+                index = tmss.storage.Count;
+                tmss.storage.Add(value);
+            }
+            else
+            {
+                tmss.storage[index] = value;
+            }
+
+            m_twoLevelLookup.Add(new Key { entity = entity, typeHash = BurstRuntime.GetHashCode64<T>() }, new int2(tmss.typeIndex, index));
+            return true;
+        }
+
         public T GetComponent<T>(Entity entity) where T : struct, IManagedStructComponent, InternalSourceGen.StaticAPI.IManagedStructComponentSourceGenerated
         {
             var tmss = GetTypedManagedStructStorage<T>(entity, out int index);

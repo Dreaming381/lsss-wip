@@ -167,7 +167,7 @@ namespace Latios.InternalSourceGen
                     var entities = chunk.GetNativeArray(context->entityHandle);
                     foreach (var entity in entities)
                     {
-                        storage.AddOrSetCollectionComponentAndDisposeOld<T>(entity, default, out _, out _);
+                        storage.TryAddCollectionComponent<T>(entity, default, out _);
                     }
                 }
             }
