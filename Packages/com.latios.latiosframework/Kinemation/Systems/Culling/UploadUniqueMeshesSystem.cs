@@ -122,20 +122,22 @@ namespace Latios.Kinemation
         [BurstCompile]
         partial struct FindAndValidateMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly, Inject] EntityTypeHandle                       entityHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshPosition>   positionHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshNormal>     normalHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshTangent>    tangentHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshColor>      colorHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv0xy>      uv0xyHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv3xyz>     uv3xyzHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshIndex>      indexHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshSubmesh>    submeshHandle;
-            [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
-            [ReadOnly] public UniqueMeshPool                         meshPool;
+            [ReadOnly, Inject] EntityTypeHandle                               entityHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshPosition>           positionHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshNormal>             normalHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshTangent>            tangentHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshColor>              colorHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv0xy>              uv0xyHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv3xyz>             uv3xyzHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshIndex>              indexHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshSubmesh>            submeshHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshVertexRawData>      vertexRawDataHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<UniqueMeshVertexRawLayout> vertexRawLayoutHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh>         trackedHandle;
+            [ReadOnly] public UniqueMeshPool                                  meshPool;
 
-            [Inject] ComponentTypeHandle<UniqueMeshConfig>                            configHandle;
-            [Inject] ComponentTypeHandle<MaterialMeshInfo>                            mmiHandle;
+            [Inject] ComponentTypeHandle<UniqueMeshConfig>                          configHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>                          mmiHandle;
             [NativeDisableParallelForRestriction] public NativeList<CollectedChunk> collectedChunks;  // Preallocated to query chunk count without filtering
 
             [NativeSetThreadIndex]
@@ -165,6 +167,8 @@ namespace Latios.Kinemation
                     uv3xyzBuffers   = chunk.GetBufferAccessor(ref uv3xyzHandle),
                     indexBuffers    = chunk.GetBufferAccessor(ref indexHandle),
                     submeshBuffers  = chunk.GetBufferAccessor(ref submeshHandle),
+                    rawDataBuffers  = chunk.GetBufferAccessor(ref vertexRawDataHandle),
+                    rawLayouts      = chunk.GetComponentDataPtrRO(ref vertexRawLayoutHandle),
                 };
                 validator.Init();
 
@@ -256,20 +260,22 @@ namespace Latios.Kinemation
         [BurstCompile]
         partial struct WriteMeshesJob : IJobParallelForDefer, IInjectable
         {
-            [ReadOnly] public NativeArray<CollectedChunk>            collectedChunks;
+            [ReadOnly] public NativeArray<CollectedChunk>             collectedChunks;
             [ReadOnly, Inject] ComponentTypeHandle<MaterialMeshInfo>  mmiHandle;
             [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
-            [ReadOnly] public UniqueMeshPool                         meshPool;
+            [ReadOnly] public UniqueMeshPool                          meshPool;
 
-            [Inject] ComponentTypeHandle<UniqueMeshConfig> configHandle;
-            [Inject] BufferTypeHandle<UniqueMeshPosition>  positionHandle;
-            [Inject] BufferTypeHandle<UniqueMeshNormal>    normalHandle;
-            [Inject] BufferTypeHandle<UniqueMeshTangent>   tangentHandle;
-            [Inject] BufferTypeHandle<UniqueMeshColor>     colorHandle;
-            [Inject] BufferTypeHandle<UniqueMeshUv0xy>     uv0xyHandle;
-            [Inject] BufferTypeHandle<UniqueMeshUv3xyz>    uv3xyzHandle;
-            [Inject] BufferTypeHandle<UniqueMeshIndex>     indexHandle;
-            [Inject] BufferTypeHandle<UniqueMeshSubmesh>   submeshHandle;
+            [Inject] ComponentTypeHandle<UniqueMeshConfig>                    configHandle;
+            [Inject] BufferTypeHandle<UniqueMeshPosition>                     positionHandle;
+            [Inject] BufferTypeHandle<UniqueMeshNormal>                       normalHandle;
+            [Inject] BufferTypeHandle<UniqueMeshTangent>                      tangentHandle;
+            [Inject] BufferTypeHandle<UniqueMeshColor>                        colorHandle;
+            [Inject] BufferTypeHandle<UniqueMeshUv0xy>                        uv0xyHandle;
+            [Inject] BufferTypeHandle<UniqueMeshUv3xyz>                       uv3xyzHandle;
+            [Inject] BufferTypeHandle<UniqueMeshIndex>                        indexHandle;
+            [Inject] BufferTypeHandle<UniqueMeshSubmesh>                      submeshHandle;
+            [Inject] BufferTypeHandle<UniqueMeshVertexRawData>                vertexRawDataHandle;
+            [Inject, ReadOnly] ComponentTypeHandle<UniqueMeshVertexRawLayout> vertexRawLayoutHandle;
 
             [NativeDisableParallelForRestriction] public UnityEngine.Mesh.MeshDataArray                 meshDataArray;
             [NativeDisableParallelForRestriction] public NativeArray<UnityObjectRef<UnityEngine.Mesh> > meshesToUpload;
@@ -330,140 +336,159 @@ namespace Latios.Kinemation
                 var uv3xyzBuffers   = chunk.chunk.GetBufferAccessor(ref uv3xyzHandle);
                 var indexBuffers    = chunk.chunk.GetBufferAccessor(ref indexHandle);
                 var submeshBuffers  = chunk.chunk.GetBufferAccessor(ref submeshHandle);
+                var rawDataBuffers  = chunk.chunk.GetBufferAccessor(ref vertexRawDataHandle);
+                var rawLayouts      = chunk.chunk.GetComponentDataPtrRO(ref vertexRawLayoutHandle);
 
                 var enumerator = new ChunkEntityBatchEnumerator(true, new v128(chunk.lower.Value, chunk.upper.Value), chunk.chunk.Count);
-                int meshIndex = chunk.prefixSum;
+                int meshIndex  = chunk.prefixSum;
                 while (enumerator.NextRange(out var rangeStart, out var rangeCount))
                 {
                     for (int entityIndex = rangeStart, rangeEnd = rangeStart + rangeCount; entityIndex < rangeEnd; entityIndex++, meshIndex++)
                     {
-                        var config = configurations[entityIndex];
+                        var config   = configurations[entityIndex];
+                        var meshData = meshDataArray[meshIndex];
 
                         // Capture the arrays, possibly performing normal and tangent recalculation.
-                        var                 indices   = indexBuffers.Length > 0 ? indexBuffers[entityIndex].AsNativeArray().Reinterpret<int>() : default;
-                        var                 submeshes = submeshBuffers.Length > 0 ? submeshBuffers[entityIndex].AsNativeArray() : default;
-                        var                 positions = positionBuffers.Length > 0 ? positionBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
-                        NativeArray<float3> normals   = default;
-                        if (config.calculateNormals)
-                        {
-                            if (normalBuffers.Length > 0)
-                            {
-                                var nb = normalBuffers[entityIndex];
-                                nb.ResizeUninitialized(positions.Length);
-                                normals = nb.AsNativeArray().Reinterpret<float3>();
-                            }
-                            else
-                            {
-                                if (!tempNormals.IsCreated)
-                                    tempNormals = new NativeList<float3>(positions.Length, Allocator.Temp);
-                                tempNormals.ResizeUninitialized(positions.Length);
-                                normals = tempNormals.AsArray();
-                            }
-                            RecalculateNormals(positions, normals, indices, submeshes);
-                        }
-                        else if (normalBuffers.Length > 0)
-                        {
-                            normals = normalBuffers[entityIndex].AsNativeArray().Reinterpret<float3>();
-                        }
-                        var                 uv0xys   = uv0xyBuffers.Length > 0 ? uv0xyBuffers[entityIndex].AsNativeArray().Reinterpret<float2>() : default;
-                        NativeArray<float4> tangents = default;
-                        if (config.calculateTangents)
-                        {
-                            if (tangentBuffers.Length > 0)
-                            {
-                                var nb = tangentBuffers[entityIndex];
-                                nb.ResizeUninitialized(positions.Length);
-                                tangents = nb.AsNativeArray().Reinterpret<float4>();
-                            }
-                            else
-                            {
-                                if (!tempTangents.IsCreated)
-                                    tempTangents = new NativeList<float4>(positions.Length, Allocator.Temp);
-                                tempTangents.ResizeUninitialized(positions.Length);
-                                tangents = tempTangents.AsArray();
-                            }
-                            RecalculateTangents(positions, normals, tangents, uv0xys, indices, submeshes);
-                        }
-                        else if (tangentBuffers.Length > 0)
-                        {
-                            tangents = tangentBuffers[entityIndex].AsNativeArray().Reinterpret<float4>();
-                        }
-                        var colors  = colorBuffers.Length > 0 ? colorBuffers[entityIndex].AsNativeArray().Reinterpret<float4>() : default;
-                        var uv3xyzs = uv3xyzBuffers.Length > 0 ? uv3xyzBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
-
-                        // Set up vertex attributes
-                        tempDescriptors.Clear();
+                        var indices     = indexBuffers.Length > 0 ? indexBuffers[entityIndex].AsNativeArray().Reinterpret<int>() : default;
+                        var submeshes   = submeshBuffers.Length > 0 ? submeshBuffers[entityIndex].AsNativeArray() : default;
                         int vertexCount = 0;
-                        if (positions.Length > 0)
-                        {
-                            vertexCount = positions.Length;
-                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0));
-                        }
-                        if (normals.Length > 0)
-                        {
-                            vertexCount = normals.Length;
-                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0));
-                        }
-                        if (tangents.Length > 0)
-                        {
-                            vertexCount = tangents.Length;
-                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 0));
-                        }
-                        if (colors.Length > 0)
-                        {
-                            vertexCount = colors.Length;
-                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
-                        }
-                        if (uv0xys.Length > 0)
-                        {
-                            vertexCount = uv0xys.Length;
-                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
-                        }
-                        if (uv3xyzBuffers.Length > 0)
-                        {
-                            vertexCount = uv3xyzs.Length;
-                            tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 3, 0));
-                        }
 
-                        if (vertexCount == 0)
+                        if (rawDataBuffers.Length > 0 && rawLayouts != null)
                         {
-                            // We have an attribute-free mesh. We need to extract the vertex count from the indices.
-                            if (indices.Length > 0)
+                            tempDescriptors.Clear();
+                            var layout = rawLayouts[entityIndex];
+                            for (int i = 0; i < layout.length; i++)
                             {
-                                foreach (var vindex in indices)
-                                {
-                                    vertexCount = math.max(vertexCount, vindex + 1);
-                                }
+                                var descriptor = layout[i];
+                                tempDescriptors.Add(new VertexAttributeDescriptor(descriptor.attribute, descriptor.format, descriptor.dimension, 0));
                             }
-                            else
-                            {
-                                // Our mesh is fully defined by the submesh.
-                                foreach (var submesh in submeshes)
-                                {
-                                    vertexCount = math.max(vertexCount, submesh.indexStart + submesh.indexCount);
-                                }
-                            }
+                            meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
+                            var stream0 = meshData.GetVertexData<byte>(0);
+                            rawDataBuffers[entityIndex].AsNativeArray().Reinterpret<byte>().CopyTo(stream0);
                         }
-
-                        var meshData = meshDataArray[meshIndex];
-                        meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
-                        var stream0 = meshData.GetVertexData<float>(0);
-
-                        int writeIndex = 0;
-                        for (int i = 0; i < vertexCount; i++)
+                        else
                         {
+                            var                 positions = positionBuffers.Length > 0 ? positionBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
+                            NativeArray<float3> normals   = default;
+                            if (config.calculateNormals)
+                            {
+                                if (normalBuffers.Length > 0)
+                                {
+                                    var nb = normalBuffers[entityIndex];
+                                    nb.ResizeUninitialized(positions.Length);
+                                    normals = nb.AsNativeArray().Reinterpret<float3>();
+                                }
+                                else
+                                {
+                                    if (!tempNormals.IsCreated)
+                                        tempNormals = new NativeList<float3>(positions.Length, Allocator.Temp);
+                                    tempNormals.ResizeUninitialized(positions.Length);
+                                    normals = tempNormals.AsArray();
+                                }
+                                RecalculateNormals(positions, normals, indices, submeshes);
+                            }
+                            else if (normalBuffers.Length > 0)
+                            {
+                                normals = normalBuffers[entityIndex].AsNativeArray().Reinterpret<float3>();
+                            }
+                            var                 uv0xys   = uv0xyBuffers.Length > 0 ? uv0xyBuffers[entityIndex].AsNativeArray().Reinterpret<float2>() : default;
+                            NativeArray<float4> tangents = default;
+                            if (config.calculateTangents)
+                            {
+                                if (tangentBuffers.Length > 0)
+                                {
+                                    var nb = tangentBuffers[entityIndex];
+                                    nb.ResizeUninitialized(positions.Length);
+                                    tangents = nb.AsNativeArray().Reinterpret<float4>();
+                                }
+                                else
+                                {
+                                    if (!tempTangents.IsCreated)
+                                        tempTangents = new NativeList<float4>(positions.Length, Allocator.Temp);
+                                    tempTangents.ResizeUninitialized(positions.Length);
+                                    tangents = tempTangents.AsArray();
+                                }
+                                RecalculateTangents(positions, normals, tangents, uv0xys, indices, submeshes);
+                            }
+                            else if (tangentBuffers.Length > 0)
+                            {
+                                tangents = tangentBuffers[entityIndex].AsNativeArray().Reinterpret<float4>();
+                            }
+                            var colors  = colorBuffers.Length > 0 ? colorBuffers[entityIndex].AsNativeArray().Reinterpret<float4>() : default;
+                            var uv3xyzs = uv3xyzBuffers.Length > 0 ? uv3xyzBuffers[entityIndex].AsNativeArray().Reinterpret<float3>() : default;
+
+                            // Set up vertex attributes
+                            tempDescriptors.Clear();
                             if (positions.Length > 0)
-                                Write(ref writeIndex, ref stream0, positions[i]);
+                            {
+                                vertexCount = positions.Length;
+                                tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0));
+                            }
                             if (normals.Length > 0)
-                                Write(ref writeIndex, ref stream0, normals[i]);
+                            {
+                                vertexCount = normals.Length;
+                                tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 0));
+                            }
                             if (tangents.Length > 0)
-                                Write(ref writeIndex, ref stream0, tangents[i]);
+                            {
+                                vertexCount = tangents.Length;
+                                tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float32, 4, 0));
+                            }
                             if (colors.Length > 0)
-                                Write(ref writeIndex, ref stream0, colors[i]);
+                            {
+                                vertexCount = colors.Length;
+                                tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4, 0));
+                            }
                             if (uv0xys.Length > 0)
-                                Write(ref writeIndex, ref stream0, uv0xys[i]);
-                            if (uv3xyzs.Length > 0)
-                                Write(ref writeIndex, ref stream0, uv3xyzs[i]);
+                            {
+                                vertexCount = uv0xys.Length;
+                                tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
+                            }
+                            if (uv3xyzBuffers.Length > 0)
+                            {
+                                vertexCount = uv3xyzs.Length;
+                                tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 3, 0));
+                            }
+
+                            if (vertexCount == 0)
+                            {
+                                // We have an attribute-free mesh. We need to extract the vertex count from the indices.
+                                if (indices.Length > 0)
+                                {
+                                    foreach (var vindex in indices)
+                                    {
+                                        vertexCount = math.max(vertexCount, vindex + 1);
+                                    }
+                                }
+                                else
+                                {
+                                    // Our mesh is fully defined by the submesh.
+                                    foreach (var submesh in submeshes)
+                                    {
+                                        vertexCount = math.max(vertexCount, submesh.indexStart + submesh.indexCount);
+                                    }
+                                }
+                            }
+
+                            meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
+                            var stream0 = meshData.GetVertexData<float>(0);
+
+                            int writeIndex = 0;
+                            for (int i = 0; i < vertexCount; i++)
+                            {
+                                if (positions.Length > 0)
+                                    Write(ref writeIndex, ref stream0, positions[i]);
+                                if (normals.Length > 0)
+                                    Write(ref writeIndex, ref stream0, normals[i]);
+                                if (tangents.Length > 0)
+                                    Write(ref writeIndex, ref stream0, tangents[i]);
+                                if (colors.Length > 0)
+                                    Write(ref writeIndex, ref stream0, colors[i]);
+                                if (uv0xys.Length > 0)
+                                    Write(ref writeIndex, ref stream0, uv0xys[i]);
+                                if (uv3xyzs.Length > 0)
+                                    Write(ref writeIndex, ref stream0, uv3xyzs[i]);
+                            }
                         }
 
                         // Process indices
@@ -580,6 +605,12 @@ namespace Latios.Kinemation
                                 b.Clear();
                                 b.TrimExcess();
                             }
+                            if (rawDataBuffers.Length > 0)
+                            {
+                                var b = rawDataBuffers[entityIndex];
+                                b.Clear();
+                                b.TrimExcess();
+                            }
                         }
                     }
                 }
@@ -626,16 +657,18 @@ namespace Latios.Kinemation
 
         internal unsafe struct UniqueMeshValidator
         {
-            public UniqueMeshConfig*                  configurations;
-            public Entity*                            entities;
-            public BufferAccessor<UniqueMeshPosition> positionBuffers;
-            public BufferAccessor<UniqueMeshNormal>   normalBuffers;
-            public BufferAccessor<UniqueMeshTangent>  tangentBuffers;
-            public BufferAccessor<UniqueMeshColor>    colorBuffers;
-            public BufferAccessor<UniqueMeshUv0xy>    uv0xyBuffers;
-            public BufferAccessor<UniqueMeshUv3xyz>   uv3xyzBuffers;
-            public BufferAccessor<UniqueMeshIndex>    indexBuffers;
-            public BufferAccessor<UniqueMeshSubmesh>  submeshBuffers;
+            public UniqueMeshConfig*                       configurations;
+            public Entity*                                 entities;
+            public BufferAccessor<UniqueMeshPosition>      positionBuffers;
+            public BufferAccessor<UniqueMeshNormal>        normalBuffers;
+            public BufferAccessor<UniqueMeshTangent>       tangentBuffers;
+            public BufferAccessor<UniqueMeshColor>         colorBuffers;
+            public BufferAccessor<UniqueMeshUv0xy>         uv0xyBuffers;
+            public BufferAccessor<UniqueMeshUv3xyz>        uv3xyzBuffers;
+            public BufferAccessor<UniqueMeshIndex>         indexBuffers;
+            public BufferAccessor<UniqueMeshSubmesh>       submeshBuffers;
+            public BufferAccessor<UniqueMeshVertexRawData> rawDataBuffers;
+            public UniqueMeshVertexRawLayout*              rawLayouts;
 
             bool hasPositions;
             bool hasNormals;
@@ -645,113 +678,156 @@ namespace Latios.Kinemation
             bool hasUv3xyzs;
             bool hasIndices;
             bool hasSubmehes;
+            bool hasRawBuffers;
+            bool hasRawLayouts;
 
             public void Init()
             {
-                hasPositions = positionBuffers.Length > 0;
-                hasNormals   = normalBuffers.Length > 0;
-                hasTangents  = tangentBuffers.Length > 0;
-                hasColors    = colorBuffers.Length > 0;
-                hasUv0xys    = uv0xyBuffers.Length > 0;
-                hasUv3xyzs   = uv3xyzBuffers.Length > 0;
-                hasIndices   = indexBuffers.Length > 0;
-                hasSubmehes  = submeshBuffers.Length > 0;
+                hasPositions  = positionBuffers.Length > 0;
+                hasNormals    = normalBuffers.Length > 0;
+                hasTangents   = tangentBuffers.Length > 0;
+                hasColors     = colorBuffers.Length > 0;
+                hasUv0xys     = uv0xyBuffers.Length > 0;
+                hasUv3xyzs    = uv3xyzBuffers.Length > 0;
+                hasIndices    = indexBuffers.Length > 0;
+                hasSubmehes   = submeshBuffers.Length > 0;
+                hasRawBuffers = rawDataBuffers.Length > 0;
+                hasRawLayouts = rawLayouts != null;
             }
 
             public bool IsEntityIndexValidMesh(int entityIndex)
             {
-                var  config = configurations[entityIndex];
-                bool failed = false;
+                var  config      = configurations[entityIndex];
+                bool failed      = false;
+                int  vertexCount = -1;
 
-                // Validate buffer size matches
-                int vertexCode  = -1;
-                int vertexCount = -1;
-                if (hasPositions)
+                if (hasRawBuffers && hasRawLayouts)
                 {
-                    vertexCode  = 0;
-                    vertexCount = positionBuffers[entityIndex].Length;
-                }
-                if (!config.calculateNormals && hasNormals)
-                {
-                    if (vertexCode < 0)
+                    var layout     = rawLayouts[entityIndex];
+                    int vertexSize = 0;
+                    for (int i = 0; i < layout.length; i++)
                     {
-                        vertexCode  = 1;
-                        vertexCount = normalBuffers[entityIndex].Length;
+                        var descriptor = layout[i];
+                        int size       = descriptor.format switch
+                        {
+                            VertexAttributeFormat.Float32 => 4,
+                            VertexAttributeFormat.Float16 => 2,
+                            VertexAttributeFormat.UNorm8 => 1,
+                            VertexAttributeFormat.SNorm8 => 1,
+                            VertexAttributeFormat.UNorm16 => 2,
+                            VertexAttributeFormat.SNorm16 => 2,
+                            VertexAttributeFormat.UInt8 => 1,
+                            VertexAttributeFormat.SInt8 => 1,
+                            VertexAttributeFormat.UInt16 => 2,
+                            VertexAttributeFormat.SInt16 => 2,
+                            VertexAttributeFormat.UInt32 => 4,
+                            VertexAttributeFormat.SInt32 => 4,
+                            _ => 4,
+                        };
+                        vertexSize += size * descriptor.dimension;
                     }
-                    else if (vertexCount != normalBuffers[entityIndex].Length)
+                    var vertexBuffer = rawDataBuffers[entityIndex];
+                    vertexCount      = vertexSize > 0 ? vertexBuffer.Length / vertexSize : 0;
+                    if (vertexCount * vertexSize != vertexBuffer.Length)
                     {
                         UnityEngine.Debug.LogError(
-                            $"{entities[entityIndex].ToFixedString()} has {vertexCount} positions and {normalBuffers[entityIndex].Length} normals. These must match.");
+                            $"{entities[entityIndex].ToFixedString()} has an attribute stride of {vertexSize}, but the raw data buffer size is {vertexBuffer.Length} which is not a multiple of that size.");
                         failed = true;
                     }
+                    if (vertexSize == 0)
+                        failed = true; // Silently fail a mesh with no attributes.
                 }
-                if (!config.calculateTangents && hasTangents)
+                else
                 {
-                    if (vertexCode < 0)
+                    // Validate buffer size matches
+                    int vertexCode = -1;
+                    if (hasPositions)
                     {
-                        vertexCode  = 2;
-                        vertexCount = tangentBuffers[entityIndex].Length;
+                        vertexCode  = 0;
+                        vertexCount = positionBuffers[entityIndex].Length;
                     }
-                    else if (vertexCount != tangentBuffers[entityIndex].Length)
+                    if (!config.calculateNormals && hasNormals)
                     {
-                        UnityEngine.Debug.LogError(
-                            $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {tangentBuffers[entityIndex].Length} tangents. These must match.");
-                        failed = true;
+                        if (vertexCode < 0)
+                        {
+                            vertexCode  = 1;
+                            vertexCount = normalBuffers[entityIndex].Length;
+                        }
+                        else if (vertexCount != normalBuffers[entityIndex].Length)
+                        {
+                            UnityEngine.Debug.LogError(
+                                $"{entities[entityIndex].ToFixedString()} has {vertexCount} positions and {normalBuffers[entityIndex].Length} normals. These must match.");
+                            failed = true;
+                        }
                     }
-                }
-                if (hasColors)
-                {
-                    if (vertexCode < 0)
+                    if (!config.calculateTangents && hasTangents)
                     {
-                        vertexCode  = 3;
-                        vertexCount = colorBuffers[entityIndex].Length;
+                        if (vertexCode < 0)
+                        {
+                            vertexCode  = 2;
+                            vertexCount = tangentBuffers[entityIndex].Length;
+                        }
+                        else if (vertexCount != tangentBuffers[entityIndex].Length)
+                        {
+                            UnityEngine.Debug.LogError(
+                                $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {tangentBuffers[entityIndex].Length} tangents. These must match.");
+                            failed = true;
+                        }
                     }
-                    else if (vertexCount != colorBuffers[entityIndex].Length)
+                    if (hasColors)
                     {
-                        UnityEngine.Debug.LogError(
-                            $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {colorBuffers[entityIndex].Length} colors. These must match.");
-                        failed = true;
+                        if (vertexCode < 0)
+                        {
+                            vertexCode  = 3;
+                            vertexCount = colorBuffers[entityIndex].Length;
+                        }
+                        else if (vertexCount != colorBuffers[entityIndex].Length)
+                        {
+                            UnityEngine.Debug.LogError(
+                                $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {colorBuffers[entityIndex].Length} colors. These must match.");
+                            failed = true;
+                        }
                     }
-                }
-                if (hasUv0xys)
-                {
-                    if (vertexCode < 0)
+                    if (hasUv0xys)
                     {
-                        vertexCode  = 4;
-                        vertexCount = uv0xyBuffers[entityIndex].Length;
+                        if (vertexCode < 0)
+                        {
+                            vertexCode  = 4;
+                            vertexCount = uv0xyBuffers[entityIndex].Length;
+                        }
+                        else if (vertexCount != uv0xyBuffers[entityIndex].Length)
+                        {
+                            UnityEngine.Debug.LogError(
+                                $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {uv0xyBuffers[entityIndex].Length} UV0 xy values. These must match.");
+                            failed = true;
+                        }
                     }
-                    else if (vertexCount != uv0xyBuffers[entityIndex].Length)
+                    if (hasUv3xyzs)
                     {
-                        UnityEngine.Debug.LogError(
-                            $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {uv0xyBuffers[entityIndex].Length} UV0 xy values. These must match.");
-                        failed = true;
+                        if (vertexCode < 0)
+                        {
+                            vertexCode  = 4;
+                            vertexCount = uv3xyzBuffers[entityIndex].Length;
+                        }
+                        else if (vertexCount != uv3xyzBuffers[entityIndex].Length)
+                        {
+                            UnityEngine.Debug.LogError(
+                                $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {uv3xyzBuffers[entityIndex].Length} UV3 xyz values. These must match.");
+                            failed = true;
+                        }
                     }
-                }
-                if (hasUv3xyzs)
-                {
-                    if (vertexCode < 0)
-                    {
-                        vertexCode  = 4;
-                        vertexCount = uv3xyzBuffers[entityIndex].Length;
-                    }
-                    else if (vertexCount != uv3xyzBuffers[entityIndex].Length)
-                    {
-                        UnityEngine.Debug.LogError(
-                            $"{entities[entityIndex].ToFixedString()} has {vertexCount} {GetNameFromVertexCode(vertexCode)} and {uv3xyzBuffers[entityIndex].Length} UV3 xyz values. These must match.");
-                        failed = true;
-                    }
-                }
 
-                // Validate config options
-                if (config.calculateNormals && !hasPositions)
-                {
-                    UnityEngine.Debug.LogError($"Cannot calculate normals without positions for {entities[entityIndex].ToFixedString()}.");
-                    failed = true;
-                }
-                if (config.calculateTangents && !hasPositions && !hasUv0xys && !(hasNormals || config.calculateNormals))
-                {
-                    UnityEngine.Debug.LogError($"Cannot calculate tangents without positions, normals, and UV0 values for {entities[entityIndex].ToFixedString()}.");
-                    failed = true;
+                    // Validate config options
+                    if (config.calculateNormals && !hasPositions)
+                    {
+                        UnityEngine.Debug.LogError($"Cannot calculate normals without positions for {entities[entityIndex].ToFixedString()}.");
+                        failed = true;
+                    }
+                    if (config.calculateTangents && !hasPositions && !hasUv0xys && !(hasNormals || config.calculateNormals))
+                    {
+                        UnityEngine.Debug.LogError($"Cannot calculate tangents without positions, normals, and UV0 values for {entities[entityIndex].ToFixedString()}.");
+                        failed = true;
+                    }
                 }
 
                 // Validate submeshes

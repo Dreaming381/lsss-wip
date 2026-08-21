@@ -136,7 +136,7 @@ namespace Latios.Systems
 
             public void Add(Entity entity, ManagedStructComponentStorage storage)
             {
-                storage.TryAddComponent(entity, m_default);
+                storage.GetOrAddDefaultComponent<T>(entity);
             }
 
             public void Remove(Entity entity, ManagedStructComponentStorage storage)

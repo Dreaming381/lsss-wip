@@ -453,6 +453,117 @@ namespace Latios.Kinemation
             set => Bits.SetBits(ref packedB, 28, 3, (int)value);
         }
     }
+
+    /// <summary>
+    /// A buffer of raw vertex data. When this buffer and UniqueMeshVertexRawLayout are present,
+    /// then this buffer is the definitive defintion of vertex data, and all other vertex-related
+    /// Unique Mesh dynamic buffers are ignored. UniqueMeshIndex and UniqueMeshSubmesh are still
+    /// compatible with this representation.
+    /// </summary>
+    [InternalBufferCapacity(0)]
+    public struct UniqueMeshVertexRawData : IBufferElementData
+    {
+        public byte dataByte;
+    }
+
+    /// <summary>
+    /// A vertex attribute layout description supporting up to 12 attributes.
+    /// Used in combination with UniqueMeshVertexRawData to specify the vertex buffer directly.
+    /// </summary>
+    public struct UniqueMeshVertexRawLayout : IComponentData
+    {
+        /// <summary>
+        /// A vertex attribute descriptor.
+        /// </summary>
+        public struct Descriptor
+        {
+            public UnityEngine.Rendering.VertexAttribute       attribute;
+            public UnityEngine.Rendering.VertexAttributeFormat format;
+            public int                                         dimension;
+        }
+
+        /// <summary>
+        /// Add a new descriptor. Order added should reflect the same order as the raw data.
+        /// </summary>
+        public void Add(Descriptor descriptor)
+        {
+            if (m_length >= 12)
+                return;
+            var index = m_length;
+            WriteAtIndex(descriptor, index);
+            m_length++;
+        }
+
+        /// <summary>
+        /// Removes all descriptors
+        /// </summary>
+        public void Clear() => m_length = 0;
+
+        /// <summary>
+        /// Gets or sets the attribute descriptor at the specified index
+        /// </summary>
+        public Descriptor this[int index]
+        {
+            get
+            {
+                CheckIndexInRange(index);
+                return ReadAtIndex(index);
+            }
+            set
+            {
+                CheckIndexInRange(index);
+                WriteAtIndex(value, index);
+            }
+        }
+
+        /// <summary>
+        /// The number of attributes in the layout description
+        /// </summary>
+        public int length => m_length;
+
+        uint m_packedHeader;
+        int m_length
+        {
+            get => (int)Bits.GetBits(m_packedHeader, 0, 4);
+            set => Bits.SetBits(ref m_packedHeader, 0, 4, (byte)value);
+        }
+        uint m_enums03;
+        uint m_enums47;
+        uint m_enums811;
+
+        unsafe void WriteAtIndex(Descriptor descriptor, int index)
+        {
+            var dimensionOffset = 8 + index * 2;
+            Bits.SetBits(ref m_packedHeader, dimensionOffset, 2, (byte)descriptor.dimension);
+            fixed (uint* uintPtr = &m_enums03)
+            {
+                var bytePtr = (byte*)uintPtr;
+                Bits.SetBits(ref bytePtr[index], 0, 4, (byte)descriptor.attribute);
+                Bits.SetBits(ref bytePtr[index], 4, 4, (byte)descriptor.format);
+            }
+        }
+        unsafe Descriptor ReadAtIndex(int index)
+        {
+            Descriptor descriptor;
+            var        dimensionOffset = 8 + index * 2;
+            descriptor.dimension       = (int)Bits.GetBits(m_packedHeader, dimensionOffset, 2);
+            fixed (uint* uintPtr       = &m_enums03)
+            {
+                var bytePtr          = (byte*)uintPtr;
+                descriptor.attribute = (UnityEngine.Rendering.VertexAttribute)Bits.GetBits(bytePtr[index], 0, 4);
+                descriptor.format    = (UnityEngine.Rendering.VertexAttributeFormat)Bits.GetBits(bytePtr[index], 4, 4);
+            }
+            return descriptor;
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
+        void CheckIndexInRange(int index)
+        {
+            if (index < 0 || index >= m_length)
+                throw new ArgumentOutOfRangeException($"index {index} is outside the range of [0, {m_length})");
+        }
+    }
+
     #endregion
 
     #region Material Properties
