@@ -521,6 +521,45 @@ namespace Latios.Kinemation
         /// </summary>
         public int length => m_length;
 
+        /// <summary>
+        /// The number of bytes a single vertex occupies, which is the sum of the sizes of all the
+        /// attributes. The UniqueMeshVertexRawData buffer length must be a multiple of this.
+        /// </summary>
+        public int SizeOfVertex()
+        {
+            var count = m_length;
+            var total = 0;
+            for (int i = 0; i < count; i++)
+            {
+                var descriptor  = ReadAtIndex(i);
+                total          += SizeOfFormat(descriptor.format) * descriptor.dimension;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// The number of bytes a single component within an attribute of the specified format occupies.
+        /// </summary>
+        public static int SizeOfFormat(UnityEngine.Rendering.VertexAttributeFormat format)
+        {
+            switch (format)
+            {
+                case UnityEngine.Rendering.VertexAttributeFormat.Float16:
+                case UnityEngine.Rendering.VertexAttributeFormat.UNorm16:
+                case UnityEngine.Rendering.VertexAttributeFormat.SNorm16:
+                case UnityEngine.Rendering.VertexAttributeFormat.UInt16:
+                case UnityEngine.Rendering.VertexAttributeFormat.SInt16:
+                    return 2;
+                case UnityEngine.Rendering.VertexAttributeFormat.UNorm8:
+                case UnityEngine.Rendering.VertexAttributeFormat.SNorm8:
+                case UnityEngine.Rendering.VertexAttributeFormat.UInt8:
+                case UnityEngine.Rendering.VertexAttributeFormat.SInt8:
+                    return 1;
+                default:
+                    return 4;
+            }
+        }
+
         uint m_packedHeader;
         int m_length
         {
@@ -533,8 +572,10 @@ namespace Latios.Kinemation
 
         unsafe void WriteAtIndex(Descriptor descriptor, int index)
         {
+            CheckDimensionInRange(descriptor.dimension);
             var dimensionOffset = 8 + index * 2;
-            Bits.SetBits(ref m_packedHeader, dimensionOffset, 2, (byte)descriptor.dimension);
+            // Valid dimensions are [1, 4], but we store [0, 3], hence the -1 and +1 offsets
+            Bits.SetBits(ref m_packedHeader, dimensionOffset, 2, (byte)(descriptor.dimension - 1));
             fixed (uint* uintPtr = &m_enums03)
             {
                 var bytePtr = (byte*)uintPtr;
@@ -546,7 +587,7 @@ namespace Latios.Kinemation
         {
             Descriptor descriptor;
             var        dimensionOffset = 8 + index * 2;
-            descriptor.dimension       = (int)Bits.GetBits(m_packedHeader, dimensionOffset, 2);
+            descriptor.dimension       = (int)Bits.GetBits(m_packedHeader, dimensionOffset, 2) + 1;
             fixed (uint* uintPtr       = &m_enums03)
             {
                 var bytePtr          = (byte*)uintPtr;
@@ -561,6 +602,13 @@ namespace Latios.Kinemation
         {
             if (index < 0 || index >= m_length)
                 throw new ArgumentOutOfRangeException($"index {index} is outside the range of [0, {m_length})");
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
+        static void CheckDimensionInRange(int dimension)
+        {
+            if (dimension < 1 || dimension > 4)
+                throw new ArgumentOutOfRangeException($"dimension {dimension} is outside the supported range of [1, 4]");
         }
     }
 

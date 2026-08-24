@@ -7,6 +7,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Entities.Exposed;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 
 using CommandFunction = Unity.Burst.FunctionPointer<Latios.IInstantiateCommand.OnPlayback>;
@@ -37,6 +38,8 @@ namespace Latios
             public FixedList64Bytes<int>             typesSizes;
             public AllocatorManager.AllocatorHandle  allocator;
             public bool                              playedBack;
+
+            [NativeDisableUnsafePtrRestriction] public BlockStreamAllocator* spanAllocators;
         }
 
         internal struct PrefabSortkey : IRadixSortableInt3, IRadixSortableInt
@@ -103,8 +106,11 @@ namespace Latios
                 tagsToAdd        = default,
                 typesSizes       = typesSizes,
                 allocator        = allocator,
-                playedBack       = false
+                playedBack       = false,
+                spanAllocators   = AllocatorManager.Allocate<BlockStreamAllocator>(allocator, JobsUtility.MaxJobThreadCount)
             };
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+                m_state->spanAllocators[i] = new BlockStreamAllocator(allocator);
         }
 
         [BurstCompile]
@@ -160,6 +166,9 @@ namespace Latios
         private static void Deallocate(State* state, UnsafeParallelBlockList<PrefabSortkey>* prefabSortkeyBlockList, UnsafeParallelBlockList* componentDataBlockList)
         {
             var allocator = state->allocator;
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+                state->spanAllocators[i].Dispose();
+            AllocatorManager.Free(allocator, state->spanAllocators, JobsUtility.MaxJobThreadCount);
             prefabSortkeyBlockList->Dispose();
             componentDataBlockList->Dispose();
             AllocatorManager.Free(allocator, prefabSortkeyBlockList, 1);
@@ -288,6 +297,24 @@ namespace Latios
             UnsafeUtility.CopyStructureToPtr(ref c5, ptr);
             ptr += m_state->typesSizes[5];
             UnsafeUtility.CopyStructureToPtr(ref c6, ptr);
+        }
+
+        [WriteAccessRequired]
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            CheckWriteAccess();
+            CheckHasNotPlayedBack();
+            return CreateCommandSpan<T>(m_state, elementCount, 0);
+        }
+
+        static CommandSpan<T> CreateCommandSpan<T>(State* state, int elementCount, int threadIndex) where T : unmanaged
+        {
+            CheckElementCountValid(elementCount);
+            return new CommandSpan<T>
+            {
+                m_ptr    = state->spanAllocators[threadIndex].Allocate<T>(elementCount),
+                m_length = elementCount
+            };
         }
 
         public int Count()
@@ -768,6 +795,15 @@ namespace Latios
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
+        static void CheckElementCountValid(int elementCount)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
+            if (elementCount < 0)
+                throw new InvalidOperationException($"A CommandSpan must be created with zero or more elements, but {elementCount} was requested.");
+#endif
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
@@ -920,6 +956,13 @@ namespace Latios
                 UnsafeUtility.CopyStructureToPtr(ref c5, ptr);
                 ptr += m_state->typesSizes[5];
                 UnsafeUtility.CopyStructureToPtr(ref c6, ptr);
+            }
+
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                CheckWriteAccess();
+                CheckHasNotPlayedBack();
+                return InstantiateCommandBufferUntyped.CreateCommandSpan<T>(m_state, elementCount, m_ThreadIndex);
             }
 
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]

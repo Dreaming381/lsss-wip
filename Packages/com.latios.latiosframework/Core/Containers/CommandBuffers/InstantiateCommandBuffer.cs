@@ -940,6 +940,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -987,6 +999,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1083,6 +1107,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -1130,6 +1166,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1223,6 +1271,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -1270,6 +1330,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1372,6 +1444,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -1419,6 +1503,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1517,6 +1613,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -1564,6 +1672,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1669,6 +1789,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -1716,6 +1848,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1818,6 +1962,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -1865,6 +2021,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -1973,6 +2141,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -2020,6 +2200,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -2125,6 +2317,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -2172,6 +2376,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -2284,6 +2500,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -2331,6 +2559,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -2440,6 +2680,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -2487,6 +2739,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>
@@ -2602,6 +2866,18 @@ namespace Latios
         public int Count() => m_instantiateCommandBufferUntyped.Count();
 
         /// <summary>
+        /// Allocates an array of elements owned by this InstantiateCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this InstantiateCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the InstantiateCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
+        /// <summary>
         /// Set additional component types to be added to the instantiated entities. These components will be default-initialized.
         /// </summary>
         /// <param name="tags">The types to add to each instantiated entity</param>
@@ -2649,6 +2925,18 @@ namespace Latios
             internal ParallelWriter(InstantiateCommandBufferUntyped icb)
             {
                 m_instantiateCommandBufferUntyped = icb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the InstantiateCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the InstantiateCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the InstantiateCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_instantiateCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             /// <summary>

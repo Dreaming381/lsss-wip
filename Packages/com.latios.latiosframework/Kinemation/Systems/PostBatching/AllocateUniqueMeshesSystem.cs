@@ -26,7 +26,7 @@ namespace Latios.Kinemation.Systems
             m_newMeshesQuery   = state.Fluent().With<UniqueMeshConfig, MaterialMeshInfo>(true).Without<TrackedUniqueMesh>().Build();
             m_deadMeshesQuery  = state.Fluent().With<TrackedUniqueMesh>(true).Without<UniqueMeshConfig>().Build();
             m_deadMeshesQuery2 = state.Fluent().With<TrackedUniqueMesh, UniqueMeshConfig>(true).Without<MaterialMeshInfo>().Build();
-            m_liveBakedQuery   = state.Fluent().With<TrackedUniqueMesh, LiveBakedTag>(true).With<MaterialMeshInfo>(false).Build();
+            m_liveBakedQuery   = state.Fluent().With<TrackedUniqueMesh, LiveBakedTag>(true).With<MaterialMeshInfo>(false).IncludeDisabledEntities().Build();
             m_liveBakedQuery.AddChangedVersionFilter(ComponentType.ReadOnly<MaterialMeshInfo>());
 
             api.worldBlackboardEntity.AddOrSetCollectionComponentAndDisposeOld(new UniqueMeshPool
@@ -126,9 +126,9 @@ namespace Latios.Kinemation.Systems
         {
             [ReadOnly, Inject] EntityTypeHandle                       entityHandle;
             [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
-            [Inject] ComponentTypeHandle<MaterialMeshInfo>             mmiHandle;
-            public EntityCommandBuffer                               ecb;
-            public UniqueMeshPool                                    meshPool;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>            mmiHandle;
+            public EntityCommandBuffer                                ecb;
+            public UniqueMeshPool                                     meshPool;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -149,8 +149,8 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         partial struct NewMeshesJob : IJobChunk, IInjectable
         {
-            [ReadOnly, Inject] EntityTypeHandle                   entityHandle;
-            [Inject] ComponentTypeHandle<MaterialMeshInfo>         mmiHandle;
+            [ReadOnly, Inject] EntityTypeHandle                  entityHandle;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>       mmiHandle;
             public AddComponentsCommandBuffer<TrackedUniqueMesh> accb;
             public UniqueMeshPool                                meshPool;
 
@@ -176,8 +176,8 @@ namespace Latios.Kinemation.Systems
         partial struct PatchLiveBakedMeshesJob : IJobChunk, IInjectable
         {
             [ReadOnly, Inject] ComponentTypeHandle<TrackedUniqueMesh> trackedHandle;
-            [Inject] ComponentTypeHandle<MaterialMeshInfo>             mmiHandle;
-            [ReadOnly] public UniqueMeshPool                         meshPool;
+            [Inject] ComponentTypeHandle<MaterialMeshInfo>            mmiHandle;
+            [ReadOnly] public UniqueMeshPool                          meshPool;
 
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -185,9 +185,11 @@ namespace Latios.Kinemation.Systems
                 var mmis    = chunk.GetComponentDataPtrRW(ref mmiHandle);
                 for (int i = 0; i < chunk.Count; i++)
                 {
-                    mmis[i].Mesh = meshPool.meshToIdMap[tracked[i].mesh];
+                    if (meshPool.meshToIdMap.TryGetValue(tracked[i].mesh, out var id))
+                        mmis[i].Mesh = id;
                 }
             }
         }
     }
 }
+

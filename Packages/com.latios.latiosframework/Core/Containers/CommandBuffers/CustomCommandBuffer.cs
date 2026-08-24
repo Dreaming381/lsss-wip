@@ -43,6 +43,18 @@ namespace Latios
 
         public int Count() => m_customCommandBufferUntyped.Count();
 
+        /// <summary>
+        /// Allocates an array of elements owned by this CustomCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this CustomCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the CustomCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_customCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
         public ParallelWriter AsParallelWriter()
         {
             return new ParallelWriter(m_customCommandBufferUntyped);
@@ -57,6 +69,18 @@ namespace Latios
             internal ParallelWriter(CustomCommandBufferUntyped ccb)
             {
                 m_customCommandBufferUntyped = ccb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the CustomCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the CustomCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the CustomCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_customCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             public void Add(T0 c0, int sortKey)
@@ -110,6 +134,18 @@ namespace Latios
 
         public int Count() => m_customCommandBufferUntyped.Count();
 
+        /// <summary>
+        /// Allocates an array of elements owned by this CustomCommandBuffer, which can be assigned
+        /// to any command (or another CommandSpan) added to this CustomCommandBuffer.
+        /// </summary>
+        /// <typeparam name="T">The type of element stored within the span</typeparam>
+        /// <param name="elementCount">The number of elements to be allocated</param>
+        /// <returns>The array within the CustomCommandBuffer</returns>
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            return m_customCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
+        }
+
         public ParallelWriter AsParallelWriter()
         {
             return new ParallelWriter(m_customCommandBufferUntyped);
@@ -124,6 +160,18 @@ namespace Latios
             internal ParallelWriter(CustomCommandBufferUntyped ccb)
             {
                 m_customCommandBufferUntyped = ccb.AsParallelWriter();
+            }
+
+            /// <summary>
+            /// Allocates an array of elements owned by the CustomCommandBuffer, which can be assigned
+            /// to any command (or another CommandSpan) added to the CustomCommandBuffer.
+            /// </summary>
+            /// <typeparam name="T">The type of element stored within the span</typeparam>
+            /// <param name="elementCount">The number of elements to be allocated</param>
+            /// <returns>The array within the CustomCommandBuffer</returns>
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                return m_customCommandBufferUntyped.CreateCommandSpan<T>(elementCount);
             }
 
             public void Add(T0 c0, T1 c1, int sortKey)

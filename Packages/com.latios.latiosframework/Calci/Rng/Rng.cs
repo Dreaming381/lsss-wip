@@ -269,7 +269,7 @@ namespace Latios.Calci
     public unsafe struct RngEach : IJobEach.IParameter
     {
         internal Rng.RngSequence* sequencePtr;
-        Rng.RngSequence currentSequence => *sequencePtr;
+        ref Rng.RngSequence currentSequence => ref *sequencePtr;
 
         public bool NextBool() => currentSequence.NextBool();
         public bool2 NextBool2() => currentSequence.NextBool2();

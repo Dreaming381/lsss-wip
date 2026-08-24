@@ -135,7 +135,7 @@ namespace Latios.Calci
                 }
 
                 var dx = curve.rightTime - curve.leftTime;
-                var t  = FindT(time - curve.leftTime / dx, curve.leftTangentWeight, 1f - curve.rightTangentWeight);
+                var t  = FindT((time - curve.leftTime) / dx, curve.leftTangentWeight, 1f - curve.rightTangentWeight);
                 var p0 = curve.leftValue;
                 var p1 = curve.leftValue + dx * curve.leftTangentSlope * curve.leftTangentWeight;
                 var p2 = curve.rightValue - dx * curve.rightTangentSlope * curve.rightTangentWeight;

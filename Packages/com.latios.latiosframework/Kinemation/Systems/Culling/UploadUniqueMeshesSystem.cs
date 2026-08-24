@@ -362,9 +362,12 @@ namespace Latios.Kinemation
                                 var descriptor = layout[i];
                                 tempDescriptors.Add(new VertexAttributeDescriptor(descriptor.attribute, descriptor.format, descriptor.dimension, 0));
                             }
+                            var rawData = rawDataBuffers[entityIndex].AsNativeArray().Reinterpret<byte>();
+                            var stride  = layout.SizeOfVertex();
+                            vertexCount = stride > 0 ? rawData.Length / stride : 0;
                             meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
                             var stream0 = meshData.GetVertexData<byte>(0);
-                            rawDataBuffers[entityIndex].AsNativeArray().Reinterpret<byte>().CopyTo(stream0);
+                            rawData.GetSubArray(0, vertexCount * stride).CopyTo(stream0);
                         }
                         else
                         {
@@ -703,29 +706,8 @@ namespace Latios.Kinemation
 
                 if (hasRawBuffers && hasRawLayouts)
                 {
-                    var layout     = rawLayouts[entityIndex];
-                    int vertexSize = 0;
-                    for (int i = 0; i < layout.length; i++)
-                    {
-                        var descriptor = layout[i];
-                        int size       = descriptor.format switch
-                        {
-                            VertexAttributeFormat.Float32 => 4,
-                            VertexAttributeFormat.Float16 => 2,
-                            VertexAttributeFormat.UNorm8 => 1,
-                            VertexAttributeFormat.SNorm8 => 1,
-                            VertexAttributeFormat.UNorm16 => 2,
-                            VertexAttributeFormat.SNorm16 => 2,
-                            VertexAttributeFormat.UInt8 => 1,
-                            VertexAttributeFormat.SInt8 => 1,
-                            VertexAttributeFormat.UInt16 => 2,
-                            VertexAttributeFormat.SInt16 => 2,
-                            VertexAttributeFormat.UInt32 => 4,
-                            VertexAttributeFormat.SInt32 => 4,
-                            _ => 4,
-                        };
-                        vertexSize += size * descriptor.dimension;
-                    }
+                    var layout       = rawLayouts[entityIndex];
+                    int vertexSize   = layout.SizeOfVertex();
                     var vertexBuffer = rawDataBuffers[entityIndex];
                     vertexCount      = vertexSize > 0 ? vertexBuffer.Length / vertexSize : 0;
                     if (vertexCount * vertexSize != vertexBuffer.Length)

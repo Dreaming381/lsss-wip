@@ -159,7 +159,7 @@ namespace Latios.Psyshock
             data             = new SharedContainerData
             {
                 pairHeaders      = new UnsafeIndexedBlockList<PairHeader>(4096 / UnsafeUtility.SizeOf<PairHeader>(), totalStreams, allocator),
-                blockStreamArray = AllocatorManager.Allocate<BlockStream>(allocator, totalStreams),
+                blockStreamArray = AllocatorManager.Allocate<BlockStreamAllocator>(allocator, totalStreams),
                 state            = AllocatorManager.Allocate<State>(allocator),
                 cellCount        = cellCount,
                 allocator        = allocator
@@ -168,7 +168,7 @@ namespace Latios.Psyshock
             *data.state = default;
 
             for (int i = 0; i < data.pairHeaders.indexCount; i++)
-                data.blockStreamArray[i] = default;
+                data.blockStreamArray[i] = new BlockStreamAllocator(allocator);
         }
 
         /// <summary>
@@ -345,19 +345,7 @@ namespace Latios.Psyshock
             {
                 ref var stream      = ref data.blockStreamArray[i];
                 ref var otherStream = ref pairStreamToStealFrom.data.blockStreamArray[i];
-                if (!stream.blocks.IsCreated)
-                {
-                    stream      = otherStream;
-                    otherStream = default;
-                }
-                else if (otherStream.blocks.IsCreated)
-                {
-                    stream.blocks.AddRange(otherStream.blocks);
-                    stream.bytesRemainingInBlock = otherStream.bytesRemainingInBlock;
-                    stream.nextFreeAddress       = otherStream.nextFreeAddress;
-                    otherStream.blocks.Clear();
-                    otherStream.bytesRemainingInBlock = 0;
-                }
+                stream.ConcatenateFrom(ref otherStream);
             }
         }
 
@@ -427,7 +415,7 @@ namespace Latios.Psyshock
                 CheckWriteAccess();
                 CheckPairPtrVersionMatches(data.state, version);
                 ref var blocks = ref data.blockStreamArray[index];
-                var     ptr    = blocks.Allocate<T>(count, data.allocator);
+                var     ptr    = blocks.Allocate<T>(count);
                 var     result = new StreamSpan<T> { m_ptr = ptr, m_length = count };
                 if (options == NativeArrayOptions.ClearMemory)
                     result.AsSpan().Clear();
@@ -446,7 +434,7 @@ namespace Latios.Psyshock
                 if (sizeInBytes == 0)
                     return null;
                 ref var blocks = ref data.blockStreamArray[index];
-                return blocks.Allocate(sizeInBytes, alignInBytes, data.allocator);
+                return blocks.Allocate(sizeInBytes, alignInBytes);
             }
             /// <summary>
             /// Replaces the top-level ref associated with the pair with a new allocation of type T.
@@ -958,61 +946,6 @@ namespace Latios.Psyshock
             public const byte kRootPtrIsRaw = 0x8;
         }
 
-        internal struct BlockPtr
-        {
-            public byte* ptr;
-            public int   byteCount;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Size = JobsUtility.CacheLineSize)]
-        internal struct BlockStream
-        {
-            public UnsafeList<BlockPtr> blocks;
-            public byte*                nextFreeAddress;
-            public int                  bytesRemainingInBlock;
-
-            public T* Allocate<T>(int count, AllocatorManager.AllocatorHandle allocator) where T : unmanaged
-            {
-                var neededBytes = UnsafeUtility.SizeOf<T>() * count;
-                return (T*)Allocate(neededBytes, UnsafeUtility.AlignOf<T>(), allocator);
-            }
-
-            public void* Allocate(int sizeInBytes, int alignInBytes, AllocatorManager.AllocatorHandle allocator)
-            {
-                var neededBytes = sizeInBytes;
-                if (Hint.Unlikely(!CollectionHelper.IsAligned(nextFreeAddress, alignInBytes)))
-                {
-                    var newAddress         = (byte*)CollectionHelper.Align((ulong)nextFreeAddress, (ulong)alignInBytes);
-                    var diff               = newAddress - nextFreeAddress;
-                    bytesRemainingInBlock -= (int)diff;
-                    nextFreeAddress        = newAddress;
-                }
-
-                if (Hint.Unlikely(neededBytes > bytesRemainingInBlock))
-                {
-                    if (Hint.Unlikely(!blocks.IsCreated))
-                    {
-                        blocks = new UnsafeList<BlockPtr>(8, allocator);
-                    }
-                    var blockSize = math.max(neededBytes, 16 * 1024);
-                    var newBlock  = new BlockPtr
-                    {
-                        byteCount = blockSize,
-                        ptr       = AllocatorManager.Allocate<byte>(allocator, blockSize)
-                    };
-                    UnityEngine.Debug.Assert(CollectionHelper.IsAligned(newBlock.ptr, alignInBytes));
-                    blocks.Add(newBlock);
-                    nextFreeAddress       = newBlock.ptr;
-                    bytesRemainingInBlock = blockSize;
-                }
-
-                var result             = nextFreeAddress;
-                bytesRemainingInBlock -= neededBytes;
-                nextFreeAddress       += neededBytes;
-                return result;
-            }
-        }
-
         internal struct State
         {
             public int  enumeratorVersion;
@@ -1026,7 +959,7 @@ namespace Latios.Psyshock
             public UnsafeIndexedBlockList<PairHeader> pairHeaders;
 
             [NativeDisableUnsafePtrRestriction]
-            public BlockStream* blockStreamArray;
+            public BlockStreamAllocator* blockStreamArray;
 
             [NativeDisableUnsafePtrRestriction]
             public State* state;
@@ -1113,18 +1046,11 @@ namespace Latios.Psyshock
             return root;
         }
 
-        private static void Deallocate(State* state, UnsafeIndexedBlockList<PairHeader> blockList, BlockStream* blockStreams, AllocatorManager.AllocatorHandle allocator)
+        private static void Deallocate(State* state, UnsafeIndexedBlockList<PairHeader> blockList, BlockStreamAllocator* blockStreams,
+                                       AllocatorManager.AllocatorHandle allocator)
         {
             for (int i = 0; i < blockList.indexCount; i++)
-            {
-                var blockStream = blockStreams[i];
-                if (blockStream.blocks.IsCreated)
-                {
-                    foreach (var block in blockStream.blocks)
-                        AllocatorManager.Free(allocator, block.ptr, block.byteCount);
-                    blockStream.blocks.Dispose();
-                }
-            }
+                blockStreams[i].Dispose();
 
             AllocatorManager.Free(allocator, blockStreams, blockList.indexCount);
             AllocatorManager.Free(allocator, state,        1);
@@ -1140,7 +1066,7 @@ namespace Latios.Psyshock
             public UnsafeIndexedBlockList<PairHeader> blockList;
 
             [NativeDisableUnsafePtrRestriction]
-            public BlockStream* blockStreams;
+            public BlockStreamAllocator* blockStreams;
 
             public AllocatorManager.AllocatorHandle allocator;
 

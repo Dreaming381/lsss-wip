@@ -6,6 +6,7 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 
 using CommandFunction = Unity.Burst.FunctionPointer<Latios.ICustomCommand.OnPlayback>;
@@ -17,9 +18,9 @@ namespace Latios
     internal unsafe struct CustomCommandBufferUntyped : INativeDisposable
     {
         #region Structure
-        [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList<int>*     m_sortKeyBlockList;
-        [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList*         m_dataBlockList;
-        [NativeDisableUnsafePtrRestriction] private State*                           m_state;
+        [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList<int>* m_sortKeyBlockList;
+        [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList*      m_dataBlockList;
+        [NativeDisableUnsafePtrRestriction] private State*                        m_state;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         AtomicSafetyHandle m_Safety;
@@ -33,6 +34,8 @@ namespace Latios
             public FixedList64Bytes<int>             commandSizes;
             public AllocatorManager.AllocatorHandle  allocator;
             public bool                              playedBack;
+
+            [NativeDisableUnsafePtrRestriction] public BlockStreamAllocator* spanAllocators;
         }
 
         internal struct SortKey : IRadixSortableInt
@@ -57,7 +60,7 @@ namespace Latios
 
         internal CustomCommandBufferUntyped(AllocatorManager.AllocatorHandle allocator,
                                             FixedList64Bytes<CommandMeta>    commands,
-                                            int                              disposeSentinelStackDepth)
+                                            int disposeSentinelStackDepth)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             CheckAllocator(allocator);
@@ -86,8 +89,11 @@ namespace Latios
                 commandFunctions = functions,
                 commandSizes     = commandSizes,
                 allocator        = allocator,
-                playedBack       = false
+                playedBack       = false,
+                spanAllocators   = AllocatorManager.Allocate<BlockStreamAllocator>(allocator, JobsUtility.MaxJobThreadCount)
             };
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+                m_state->spanAllocators[i] = new BlockStreamAllocator(allocator);
         }
 
         [BurstCompile]
@@ -143,6 +149,9 @@ namespace Latios
         private static void Deallocate(State* state, UnsafeParallelBlockList<int>* sortKeyBlockList, UnsafeParallelBlockList* dataBlockList)
         {
             var allocator = state->allocator;
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+                state->spanAllocators[i].Dispose();
+            AllocatorManager.Free(allocator, state->spanAllocators, JobsUtility.MaxJobThreadCount);
             sortKeyBlockList->Dispose();
             dataBlockList->Dispose();
             AllocatorManager.Free(allocator, sortKeyBlockList, 1);
@@ -172,6 +181,24 @@ namespace Latios
             UnsafeUtility.CopyStructureToPtr(ref c0, ptr);
             ptr += m_state->commandSizes[0];
             UnsafeUtility.CopyStructureToPtr(ref c1, ptr);
+        }
+
+        [WriteAccessRequired]
+        public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+        {
+            CheckWriteAccess();
+            CheckHasNotPlayedBack();
+            return CreateCommandSpan<T>(m_state, elementCount, 0);
+        }
+
+        static CommandSpan<T> CreateCommandSpan<T>(State* state, int elementCount, int threadIndex) where T : unmanaged
+        {
+            CheckElementCountValid(elementCount);
+            return new CommandSpan<T>
+            {
+                m_ptr    = state->spanAllocators[threadIndex].Allocate<T>(elementCount),
+                m_length = elementCount
+            };
         }
 
         public int Count()
@@ -277,6 +304,15 @@ namespace Latios
         }
 
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
+        static void CheckElementCountValid(int elementCount)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
+            if (elementCount < 0)
+                throw new InvalidOperationException($"A CommandSpan must be created with zero or more elements, but {elementCount} was requested.");
+#endif
+        }
+
+        [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         static void CheckAllocator(AllocatorManager.AllocatorHandle allocator)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS || UNITY_DOTS_DEBUG
@@ -291,10 +327,10 @@ namespace Latios
         [NativeContainerIsAtomicWriteOnly]
         public struct ParallelWriter
         {
-            [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList<int>*    m_sortKeyBlockList;
-            [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList*         m_dataBlockList;
-            [NativeDisableUnsafePtrRestriction] private State*                           m_state;
-            [NativeSetThreadIndex] private int                                           m_ThreadIndex;
+            [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList<int>* m_sortKeyBlockList;
+            [NativeDisableUnsafePtrRestriction] private UnsafeParallelBlockList*      m_dataBlockList;
+            [NativeDisableUnsafePtrRestriction] private State*                        m_state;
+            [NativeSetThreadIndex] private int                                        m_ThreadIndex;
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             internal AtomicSafetyHandle m_Safety;
@@ -332,6 +368,13 @@ namespace Latios
                 UnsafeUtility.CopyStructureToPtr(ref c1, ptr);
             }
 
+            public CommandSpan<T> CreateCommandSpan<T>(int elementCount) where T : unmanaged
+            {
+                CheckWriteAccess();
+                CheckHasNotPlayedBack();
+                return CustomCommandBufferUntyped.CreateCommandSpan<T>(m_state, elementCount, m_ThreadIndex);
+            }
+
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS")]
             void CheckWriteAccess()
             {
@@ -352,3 +395,4 @@ namespace Latios
         #endregion
     }
 }
+

@@ -47,6 +47,15 @@ namespace Latios.Kinemation.Authoring
             context.optimizationSystemTypesToDisable.Add(TypeManager.GetSystemTypeIndex<Unity.Rendering.UpdateSceneBoundingVolumeFromRendererBounds>());
             context.optimizationSystemTypesToInject.Add(TypeManager.GetSystemTypeIndex<LatiosUpdateSceneBoundingVolumeFromRendererBounds>());
         }
+
+        /// <summary>
+        /// Removes the ParticleSystem companion baker, allowing a custom implementation to take over.
+        /// </summary>
+        /// <param name="context">The baking context to remove the companion baker from</param>
+        public static void RemoveParticleSystemCompanionBaker(ref CustomBakingBootstrapContext context)
+        {
+            context.filteredBakerTypes.Remove(typeof(Unity.Rendering.ParticleSystemCompanionBaker));
+        }
     }
 }
 

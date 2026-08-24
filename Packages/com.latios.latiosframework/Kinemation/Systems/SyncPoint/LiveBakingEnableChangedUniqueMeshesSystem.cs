@@ -24,7 +24,7 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var api           = this.GetApi(ref state);
+            var api          = this.GetApi(ref state);
             state.Dependency = new Job
             {
                 lastSystemVersion = api.worldBlackboardEntity.GetComponentData<SystemVersionBeforeLiveBake>().version,
@@ -34,15 +34,18 @@ namespace Latios.Kinemation.Systems
         [BurstCompile]
         partial struct Job : IJobChunk, IInjectable
         {
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshPosition> posHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshNormal>   normHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshTangent>  tanHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshColor>    colHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv0xy>    uv0Handle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv3xyz>   uv3Handle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshIndex>    indexHandle;
-            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshSubmesh>  submeshHandle;
-            [Inject] ComponentTypeHandle<UniqueMeshConfig>           configHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshPosition>           posHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshNormal>             normHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshTangent>            tanHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshColor>              colHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv0xy>              uv0Handle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshUv3xyz>             uv3Handle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshIndex>              indexHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshSubmesh>            submeshHandle;
+            [ReadOnly, Inject] BufferTypeHandle<UniqueMeshVertexRawData>      rawDataHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<UniqueMeshVertexRawLayout> rawLayoutHandle;
+
+            [Inject] ComponentTypeHandle<UniqueMeshConfig> configHandle;
 
             public uint lastSystemVersion;
 
@@ -57,7 +60,9 @@ namespace Latios.Kinemation.Systems
                                        chunk.DidChange(ref uv0Handle, lastSystemVersion) ||
                                        chunk.DidChange(ref uv3Handle, lastSystemVersion) ||
                                        chunk.DidChange(ref indexHandle, lastSystemVersion) ||
-                                       chunk.DidChange(ref submeshHandle, lastSystemVersion);
+                                       chunk.DidChange(ref submeshHandle, lastSystemVersion) ||
+                                       chunk.DidChange(ref rawDataHandle, lastSystemVersion) ||
+                                       chunk.DidChange(ref rawLayoutHandle, lastSystemVersion);
                 if (anythingChanged)
                     chunk.SetComponentEnabledForAll(ref configHandle, true);
             }
