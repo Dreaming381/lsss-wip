@@ -77,7 +77,8 @@ namespace Latios.Kinemation.Systems
             [NoAlias, NativeDisableUnsafePtrRestriction] SkeletonWorldBoundsOffsetsFromPosition* tempSkeletonOffsetsBuffer;
             bool                                                                                 skeletonBufferFilled;
 
-            HasChecker<DisableComputeShaderProcessingTag> disableComputeChecker;
+            HasChecker<DisableComputeShaderProcessingTag>  disableComputeChecker;
+            HasChecker<UniqueMeshWorldPositionRelativeTag> worldPositionRelativeChecker;
 
             public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
@@ -178,7 +179,18 @@ namespace Latios.Kinemation.Systems
 
                 var chunkAabb = new Aabb(float.MaxValue, float.MinValue);
 
-                if (chunk.Has(ref postProcessMatrixHandle))
+                if (worldPositionRelativeChecker[chunk])
+                {
+                    // The only thing that needs to be applied is the position offset.
+                    for (int i = 0; i < chunk.Count; i++)
+                    {
+                        var local       = localBounds[i].Value;
+                        local.Center   += worldTransforms[i].position;
+                        worldBounds[i]  = new WorldRenderBounds { Value = local };
+                        chunkAabb       = Physics.CombineAabb(chunkAabb, new Aabb(local.Min, local.Max));
+                    }
+                }
+                else if (chunk.Has(ref postProcessMatrixHandle))
                 {
                     // Only applies to QVVS Transforms
                     var matrices = chunk.GetNativeArray(ref postProcessMatrixHandle);

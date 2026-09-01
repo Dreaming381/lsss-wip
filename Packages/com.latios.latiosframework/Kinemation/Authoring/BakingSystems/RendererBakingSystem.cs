@@ -91,9 +91,9 @@ namespace Latios.Kinemation.Authoring.Systems
 
             state.EntityManager.SetSharedComponentManaged(QueryBuilder().WithAll<LightMaps>().Build(), lightmapsSCD);
 
-            var renderablesWithLightmapsQuery = QueryBuilder().WithAll<LightMaps, MaterialMeshInfo>().WithAllRW<BakingMaterialMeshSubmesh>()
+            var renderablesWithLightmapsQuery = QueryBuilder().WithAll<LightMaps>().WithPresent<MaterialMeshInfo>().WithAllRW<BakingMaterialMeshSubmesh>()
                                                 .WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build();
-            var mipmapRenderablesWithLightmapsQuery = QueryBuilder().WithAll<LightMaps, MaterialMeshInfo, BakingMaterialMeshSubmesh>()
+            var mipmapRenderablesWithLightmapsQuery = QueryBuilder().WithAll<LightMaps, BakingMaterialMeshSubmesh>().WithPresent<MaterialMeshInfo>()
                                                       .WithAll<BakingStreamingTexture, BakingStreamingTextureMeshUv0Metric, StreamingMipMapArray>()
                                                       .WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build();
             var meshMap               = new NativeHashMap<UnityObjectRef<Mesh>, int>(128, WorldUpdateAllocator);
@@ -167,9 +167,9 @@ namespace Latios.Kinemation.Authoring.Systems
                 duplicatesMap.Clear();
                 streamingTexturesList.Clear();
             }
-            var renderablesWithoutLightmapsQuery = QueryBuilder().WithAll<MaterialMeshInfo>().WithAllRW<BakingMaterialMeshSubmesh>().WithAbsent<LightMaps>()
+            var renderablesWithoutLightmapsQuery = QueryBuilder().WithPresent<MaterialMeshInfo>().WithAllRW<BakingMaterialMeshSubmesh>().WithAbsent<LightMaps>()
                                                    .WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build();
-            var mipmapRenderablesWithoutLightmapsQuery = QueryBuilder().WithAll<MaterialMeshInfo, BakingMaterialMeshSubmesh, BakingStreamingTexture>()
+            var mipmapRenderablesWithoutLightmapsQuery = QueryBuilder().WithPresent<MaterialMeshInfo>().WithAll<BakingMaterialMeshSubmesh, BakingStreamingTexture>()
                                                          .WithAll<BakingStreamingTextureMeshUv0Metric, StreamingMipMapArray>().WithAbsent<LightMaps>()
                                                          .WithOptions(EntityQueryOptions.IncludePrefab | EntityQueryOptions.IncludeDisabledEntities).Build();
             if (!renderablesWithoutLightmapsQuery.IsEmptyIgnoreFilter)

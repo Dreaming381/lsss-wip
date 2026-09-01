@@ -86,7 +86,7 @@ namespace Latios
         /// <summary>
         /// True if this tick is a tick that follows the tick where new input should be applied, because the ticks are trying to catch up with the game time
         /// </summary>
-        public bool isCatchupTick => tick > newTick;
+        public bool isCatchupTick => tick > inputTick;
         /// <summary>
         /// True if this is a tick that was rolled back with no new inputs to be appended. This only happens in a networked context.
         /// </summary>

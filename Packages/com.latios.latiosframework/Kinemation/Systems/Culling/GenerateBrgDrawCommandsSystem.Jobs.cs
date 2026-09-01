@@ -69,6 +69,7 @@ namespace Latios.Kinemation.Systems
             [ReadOnly, Inject] ComponentTypeHandle<RendererPriority>                rendererPriorityHandle;
             [ReadOnly, Inject] ComponentTypeHandle<MeshLod>                         meshLodHandle;
             [ReadOnly, Inject] ComponentTypeHandle<MmiRangeLodFlags>                mmiRangelLodFlagsHandle;
+            [ReadOnly, Inject] ComponentTypeHandle<SortingOffset>                   sortingOffsetHandle;
             [ReadOnly] public EntityQueryMask                                       motionVectorDeformQueryMask;
             public bool                                                             splitsAreValid;
 
@@ -105,6 +106,7 @@ namespace Latios.Kinemation.Systems
             HasChecker<PromiseAllEntitiesInChunkUseSameMaterialMeshInfoTag> promiseChecker;
             HasChecker<PerVertexMotionVectors_Tag>                          vertexMotionVectorsChecker;
             HasChecker<SpeedTreeCrossfadeTag>                               speedTreeChecker;
+            HasChecker<UniqueMeshWorldPositionRelativeTag>                  worldRelativeChecker;
 
             public void Execute(int i)
             {
@@ -141,12 +143,14 @@ namespace Latios.Kinemation.Systems
                     var  materialMeshInfos     = chunk.GetComponentDataPtrRO(ref MaterialMeshInfo);
                     var  worldTransforms       = chunk.GetComponentDataPtrRO(ref WorldTransform);
                     var  postProcessMatrices   = chunk.GetComponentDataPtrRO(ref PostProcessMatrix);
+                    var  sortingOffsets        = chunk.GetComponentDataPtrRO(ref sortingOffsetHandle);
                     var  lodCrossfades         = chunk.GetComponentDataPtrRO(ref lodCrossfadeHandle);
                     var  rendererPriorities    = chunk.GetComponentDataPtrRO(ref rendererPriorityHandle);
                     var  mmiRangeLodFlagsArray = chunk.GetComponentDataPtrRO(ref mmiRangelLodFlagsHandle);
                     var  meshLods              = chunk.GetComponentDataPtrRO(ref meshLodHandle);
                     var  meshLodCrossfades     = chunk.GetEnabledMask(ref meshLodHandle);
                     bool hasPostProcess        = postProcessMatrices != null;
+                    bool hasSortingOffsets     = sortingOffsets != null;
                     bool isDepthSorted         = depthSortedChecker[chunk];
                     bool isLightMapped         = chunk.GetSharedComponentIndex(LightMaps) >= 0;
                     bool hasLodCrossfade       = lodCrossfades != null;
@@ -191,7 +195,7 @@ namespace Latios.Kinemation.Systems
                     if (isDepthSorted)
                     {
                         chunkFlags |= BatchDrawCommandFlags.HasSortingPosition;
-                        if (hasPostProcess)
+                        if (hasPostProcess || hasSortingOffsets)
                         {
                             // In this case, we don't actually have a component that represents the rendered position.
                             // So we allocate a new array and compute the world positions.
@@ -201,34 +205,44 @@ namespace Latios.Kinemation.Systems
                             depthSortingTransformsPtr = (float*)AllocatorManager.Allocate<float3>(allocator, chunk.Count);
                             transformStrideInFloats   = 3;
                             positionOffsetInFloats    = 0;
+                            bool usePostProcess       = hasPostProcess && !worldRelativeChecker[chunk];
+#if LATIOS_TRANSFORMS_UNITY
+                            usePostProcess = false;
+#endif
 
                             for (int j = 0; j < 2; j++)
                             {
                                 ulong visibleWord = mask.GetUlongFromIndex(j);
                                 while (visibleWord != 0)
                                 {
-                                    int   bitIndex     = math.tzcnt(visibleWord);
-                                    int   entityIndex  = (j << 6) + bitIndex;
-                                    ulong entityMask   = 1ul << bitIndex;
-                                    visibleWord       ^= entityMask;
+                                    int   bitIndex    = math.tzcnt(visibleWord);
+                                    int   index       = (j << 6) + bitIndex;
+                                    ulong entityMask  = 1ul << bitIndex;
+                                    visibleWord      ^= entityMask;
 
-                                    var index = j * 64 + bitIndex;
-                                    var f4x4  = new float4x4(new float4(postProcessMatrices[index].postProcessMatrix.c0, 0f),
-                                                             new float4(postProcessMatrices[index].postProcessMatrix.c1, 0f),
-                                                             new float4(postProcessMatrices[index].postProcessMatrix.c2, 0f),
-                                                             new float4(postProcessMatrices[index].postProcessMatrix.c3, 1f));
 #if !LATIOS_TRANSFORMS_UNITY
-                                    var position = math.transform(f4x4, worldTransforms[index].position);
+                                    var position = worldTransforms[index].position;
 #elif LATIOS_TRANSFORMS_UNITY
-                                    var position = math.transform(f4x4, worldTransforms[index].Position);
+                                    var position = worldTransforms[index].Position;
 #endif
-                                    depthSortingTransformsPtr[3 * index]     = position.x;
-                                    depthSortingTransformsPtr[3 * index + 1] = position.y;
-                                    depthSortingTransformsPtr[3 * index + 2] = position.z;
+                                    if (usePostProcess)
+                                    {
+                                        var f4x4 = new float4x4(new float4(postProcessMatrices[index].postProcessMatrix.c0, 0f),
+                                                                new float4(postProcessMatrices[index].postProcessMatrix.c1, 0f),
+                                                                new float4(postProcessMatrices[index].postProcessMatrix.c2, 0f),
+                                                                new float4(postProcessMatrices[index].postProcessMatrix.c3, 1f));
+                                        position = math.transform(f4x4, position);
+                                    }
+
+                                    if (hasSortingOffsets)
+                                        position                             += sortingOffsets[index].offset;
+                                    depthSortingTransformsPtr[3 * index]      = position.x;
+                                    depthSortingTransformsPtr[3 * index + 1]  = position.y;
+                                    depthSortingTransformsPtr[3 * index + 2]  = position.z;
                                 }
                             }
                         }
-                        else if (isDepthSorted)
+                        else
                         {
                             depthSortingTransformsPtr = (float*)worldTransforms;
 #if !LATIOS_TRANSFORMS_UNITY

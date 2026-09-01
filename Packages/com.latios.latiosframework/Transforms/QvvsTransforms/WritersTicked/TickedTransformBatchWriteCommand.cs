@@ -1,7 +1,6 @@
 #if !LATIOS_TRANSFORMS_UNITY
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using Latios.Unsafe;
 using static Latios.Transforms.TransformTools.Propagate;
 using Unity.Collections;
@@ -488,7 +487,8 @@ namespace Latios.Transforms
                         ApplyHierarchyBatchTransformsWithoutChecks(commandSlice, ref childTsa);
                         childTsa.Dispose();
                         rangeStart = i;
-                        hierarchy  = sortedCommands[i].aspect.entityInHierarchyHandle.m_hierarchy;
+                        if (i < sortedCommands.Length)
+                            hierarchy = sortedCommands[i].aspect.entityInHierarchyHandle.m_hierarchy;
                     }
                 }
             }

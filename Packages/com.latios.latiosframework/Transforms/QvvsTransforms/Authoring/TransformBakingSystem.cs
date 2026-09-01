@@ -81,6 +81,7 @@ namespace Latios.Transforms.Authoring.Systems
                 rootReferenceHandle               = GetComponentTypeHandle<RootReference>(true),
                 authoringSiblingIndexHandle       = GetComponentTypeHandle<AuthoringSiblingIndex>(true),
                 mergedInheritanceFlagsHandle      = GetComponentTypeHandle<MergedInheritanceFlags>(true),
+                mergedInheritanceFlagsLookup      = GetComponentLookup<MergedInheritanceFlags>(true),
                 entityInHierarchyLookup           = GetBufferLookup<EntityInHierarchy>(true),
                 bakedLocalTransformOverrideHandle = GetComponentTypeHandle<BakedLocalTransformOverride>(true),
                 localOverrideCleanupTagHandle     = GetComponentTypeHandle<LocalOverrideCleanupTag>(true),
@@ -199,7 +200,8 @@ namespace Latios.Transforms.Authoring.Systems
 
             public void Remove(Entity entity, ref NativeHashSet<Entity> dirtyRoots)
             {
-                ref var node = ref nodes.ElementAt(entityToNodeIndexMap[entity]);
+                var     index = entityToNodeIndexMap[entity];
+                ref var node  = ref nodes.ElementAt(index);
                 if (node.children.IsCreated)
                 {
                     foreach (var child in node.children)
@@ -208,6 +210,29 @@ namespace Latios.Transforms.Authoring.Systems
                     }
                     node.children.Dispose();
                 }
+                if (node.parent != Entity.Null)
+                {
+                    ref var parentNode = ref nodes.ElementAt(entityToNodeIndexMap[node.parent]);
+                    for (int i = 0; i < parentNode.children.Length; i++)
+                    {
+                        if (parentNode.children[i] == entity)
+                        {
+                            parentNode.children.RemoveAtSwapBack(i);
+                            FindAndDirtyRoot(parentNode.entity, ref dirtyRoots);
+                            break;
+                        }
+                    }
+                }
+                if (index + 1 == nodes.Length)
+                {
+                    nodes.Length--;
+                    entityToNodeIndexMap.Remove(entity);
+                    return;
+                }
+                node                              = nodes[nodes.Length - 1];
+                entityToNodeIndexMap[node.entity] = index;
+                nodes.Length--;
+                entityToNodeIndexMap.Remove(entity);
             }
 
             public void ChangeOrder(Entity entity, int order, ref NativeHashSet<Entity> dirtyRoots)
@@ -300,6 +325,7 @@ namespace Latios.Transforms.Authoring.Systems
             [ReadOnly] public ComponentTypeHandle<RootReference>               rootReferenceHandle;
             [ReadOnly] public ComponentTypeHandle<AuthoringSiblingIndex>       authoringSiblingIndexHandle;
             [ReadOnly] public ComponentTypeHandle<MergedInheritanceFlags>      mergedInheritanceFlagsHandle;
+            [ReadOnly] public ComponentLookup<MergedInheritanceFlags>          mergedInheritanceFlagsLookup;
             [ReadOnly] public BufferLookup<EntityInHierarchy>                  entityInHierarchyLookup;
             [ReadOnly] public ComponentTypeHandle<BakedLocalTransformOverride> bakedLocalTransformOverrideHandle;
             [ReadOnly] public ComponentTypeHandle<LocalOverrideCleanupTag>     localOverrideCleanupTagHandle;
@@ -427,6 +453,10 @@ namespace Latios.Transforms.Authoring.Systems
                         if (transformAuthoring.AuthoringParent != Entity.Null)
                         {
                             worldTransform = GetWorldTransform(in transformAuthoring, true);
+                            if (hasInheritanceFlags && inheritanceFlagsArray[i].flags.HasCopyParent())
+                            {
+                                GetParentStretch(in transformAuthoring, out worldTransform.stretch);
+                            }
                         }
                         else
                         {
@@ -518,6 +548,24 @@ namespace Latios.Transforms.Authoring.Systems
                     };
                     qvvs.mulclean(ref worldTransform, parentWorldTransform, localTransform);
                     return worldTransform;
+                }
+            }
+
+            void GetParentStretch(in TransformAuthoring transformAuthoring, out float3 stretch)
+            {
+                stretch = 1f;
+                if (transformAuthoring.AuthoringParent == Entity.Null)
+                    return;
+                var parent = transformAuthoring.AuthoringParent;
+                while (parent != Entity.Null)
+                {
+                    var parentTransform = transformAuthoringLookup[parent];
+                    TransformBakeUtils.GetScaleAndStretch(parentTransform.LocalScale, out _, out stretch);
+                    if (!mergedInheritanceFlagsLookup.TryGetComponent(parent, out var flags))
+                        return;
+                    if (!flags.flags.HasCopyParent())
+                        return;
+                    parent = parentTransform.AuthoringParent;
                 }
             }
         }

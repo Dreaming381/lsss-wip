@@ -74,9 +74,10 @@ namespace Latios.Transforms.Systems
                 state.EntityManager.AddComponent(m_rootMissingTickedQuery, new TypePack<TickedWorldTransform, TickedPreviousTransform>());
                 foreach (var entity in entities)
                 {
-                    var qvvs                                                          = GetComponent<WorldTransform>(entity).worldTransform;
-                    SetComponent(entity, new TickedWorldTransform { worldTransform    = qvvs });
-                    SetComponent(entity, new TickedPreviousTransform { worldTransform = qvvs });
+                    var qvvs                                                       = GetComponent<WorldTransform>(entity).worldTransform;
+                    SetComponent(entity, new TickedWorldTransform { worldTransform = qvvs });
+                    // Don't do the below, because otherwise we won't detect the spawn position.
+                    //SetComponent(entity, new TickedPreviousTransform { worldTransform = qvvs });
                 }
             }
             if (!m_rootMissingNormalQuery.IsEmptyIgnoreFilter)

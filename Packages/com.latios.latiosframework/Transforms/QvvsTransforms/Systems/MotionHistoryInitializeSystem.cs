@@ -14,19 +14,25 @@ namespace Latios.Transforms.Systems
     public partial struct MotionHistoryInitializeSystem : ISystem, ILatiosApi
     {
         EntityQuery m_query;
+        EntityQuery m_tickedQuery;
 
         public void OnCreate(ref SystemState state)
         {
             this.OnCreateForLatios(ref state);
-            m_query = state.Fluent().With<WorldTransform>(true).With<PreviousTransform>(false).IncludeDisabledEntities().Build();
+            m_query = state.Fluent().With<WorldTransform>(true).With<PreviousTransform>(false).Build();
             m_query.SetOrderVersionFilter();
+            m_tickedQuery = state.Fluent().With<TickedWorldTransform>(true).With<TickedPreviousTransform>(false).Build();
+            m_tickedQuery.SetOrderVersionFilter();
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var api          = this.GetApi(ref state);
-            state.Dependency = new Job().Inject(api).ScheduleParallel(m_query, state.Dependency);
+            var api = this.GetApi(ref state);
+            if (!m_query.IsEmptyIgnoreFilter)
+                state.Dependency = new Job().Inject(api).ScheduleParallel(m_query, state.Dependency);
+            if (!m_tickedQuery.IsEmptyIgnoreFilter)
+                state.Dependency = new TickedJob().Inject(api).ScheduleParallel(m_tickedQuery, state.Dependency);
         }
 
         [BurstCompile]
@@ -117,6 +123,36 @@ namespace Latios.Transforms.Systems
                             previous[i].worldTransform = current[i].worldTransform;
                         }
                     }
+                }
+            }
+        }
+
+        [BurstCompile]
+        partial struct TickedJob : IJobChunk, IInjectable
+        {
+            [ReadOnly, Inject] ComponentTypeHandle<TickedWorldTransform> worldTransformHandle;
+            [Inject] ComponentTypeHandle<TickedPreviousTransform>        previousTransformHandle;
+
+            public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
+            {
+                var previous   = chunk.GetComponentDataPtrRO(ref previousTransformHandle);
+                int startIndex = chunk.Count;
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    if (previous[i].rotation.value.Equals(float4.zero))
+                    {
+                        startIndex = i;
+                        break;
+                    }
+                }
+                if (startIndex >= chunk.Count)
+                    return;
+                chunk.GetComponentDataPtrRW(ref previousTransformHandle);
+                var current = chunk.GetComponentDataPtrRO(ref worldTransformHandle);
+                for (int i = startIndex; i < chunk.Count; i++)
+                {
+                    if (previous[i].rotation.value.Equals(float4.zero))
+                        previous[i].worldTransform = current[i].worldTransform;
                 }
             }
         }

@@ -358,7 +358,8 @@ namespace Latios.Transforms.Systems
             public unsafe void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 bool updatePrevious = chunk.DidChange(ref worldTransformHandle, lastSystemVersion);
-                bool updateTwoAgo   = chunk.Has(ref twoAgoTransformHandle) && DidChangeLastFrame(chunk.GetChangeVersion(ref previousTransformHandle));
+                bool hasTwoAgo      = chunk.Has(ref twoAgoTransformHandle);
+                bool updateTwoAgo   = hasTwoAgo && DidChangeLastFrame(chunk.GetChangeVersion(ref previousTransformHandle));
                 bool checkForInit   = chunk.DidOrderChange(lastSystemVersion);
 
                 if (!updatePrevious && checkForInit)
@@ -373,7 +374,7 @@ namespace Latios.Transforms.Systems
                         }
                     }
                 }
-                if (!updateTwoAgo && checkForInit)
+                if (hasTwoAgo && !updateTwoAgo && checkForInit)
                 {
                     var                   twoAgos = chunk.GetComponentDataPtrRO(ref twoAgoTransformHandle);
                     TickedWorldTransform* current = null;
@@ -415,7 +416,7 @@ namespace Latios.Transforms.Systems
                         }
                     }
                 }
-                else if (updateTwoAgo)
+                else if (hasTwoAgo && updateTwoAgo)
                 {
                     var prevs   = chunk.GetRequiredComponentDataPtrRO(ref previousTransformHandle);
                     var twoAgos = chunk.GetRequiredComponentDataPtrRW(ref twoAgoTransformHandle);

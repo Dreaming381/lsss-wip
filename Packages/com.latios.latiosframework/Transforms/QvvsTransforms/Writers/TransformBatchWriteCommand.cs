@@ -487,7 +487,8 @@ namespace Latios.Transforms
                         ApplyHierarchyBatchTransformsWithoutChecks(commandSlice, ref childTsa);
                         childTsa.Dispose();
                         rangeStart = i;
-                        hierarchy  = sortedCommands[i].aspect.entityInHierarchyHandle.m_hierarchy;
+                        if (i < sortedCommands.Length)
+                            hierarchy = sortedCommands[i].aspect.entityInHierarchyHandle.m_hierarchy;
                     }
                 }
             }

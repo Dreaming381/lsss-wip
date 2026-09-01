@@ -229,7 +229,7 @@ namespace Latios.Kinemation.SparseUpload
         /// <summary>
         /// Options for the type of matrix to use in matrix uploads.
         /// </summary>
-        public enum MatrixType
+        public enum MatrixType : byte
         {
             /// <summary>
             /// A float4x4 matrix.
@@ -241,7 +241,7 @@ namespace Latios.Kinemation.SparseUpload
             MatrixType3x4,
         }
 
-        private void MatrixUploadHelper(void* src, int numMatrices, int offset, int offsetInverse, MatrixType srcType, MatrixType dstType)
+        private void MatrixUploadHelper(void* src, int numMatrices, int offset, int offsetInverse, MatrixType srcType, MatrixType dstType, bool forceIdentityRotationAndScale)
         {
             var size   = numMatrices * sizeof(float3x4);
             var opsize = UnsafeUtility.SizeOf<Operation>();
@@ -253,24 +253,53 @@ namespace Latios.Kinemation.SparseUpload
                 Debug.Log("SparseUploader failed to allocate upload memory for AddMatrixUpload operation");
                 return;
             }
-
-            if (srcType == MatrixType.MatrixType4x4)
+            if (forceIdentityRotationAndScale)
             {
-                var srcLocal = (byte*)src;
-                var dstLocal = dst + dataOffset;
-                for (int i = 0; i < numMatrices; ++i)
+                if (srcType == MatrixType.MatrixType4x4)
                 {
-                    for (int j = 0; j < 4; ++j)
+                    var srcLocal = (float4x4*)src;
+                    var dstLocal = (float3x4*)(dst + dataOffset);
+                    for (int i = 0; i < numMatrices; ++i)
                     {
-                        UnsafeUtility.MemCpy(dstLocal, srcLocal, 12);
-                        dstLocal += 12;
-                        srcLocal += 16;
+                        dstLocal[i].c0 = new float3(1f, 0f, 0f);
+                        dstLocal[i].c1 = new float3(0f, 1f, 0f);
+                        dstLocal[i].c2 = new float3(0f, 0f, 1f);
+                        dstLocal[i].c3 = srcLocal[i].c3.xyz;
+                    }
+                }
+                else
+                {
+                    var srcLocal = (float3x4*)src;
+                    var dstLocal = (float3x4*)(dst + dataOffset);
+                    for (int i = 0; i < numMatrices; ++i)
+                    {
+                        dstLocal[i].c0 = new float3(1f, 0f, 0f);
+                        dstLocal[i].c1 = new float3(0f, 1f, 0f);
+                        dstLocal[i].c2 = new float3(0f, 0f, 1f);
+                        dstLocal[i].c3 = srcLocal[i].c3;
                     }
                 }
             }
             else
             {
-                UnsafeUtility.MemCpy(dst + dataOffset, src, size);
+                if (srcType == MatrixType.MatrixType4x4)
+                {
+                    var srcLocal = (byte*)src;
+                    var dstLocal = dst + dataOffset;
+                    for (int i = 0; i < numMatrices; ++i)
+                    {
+                        for (int j = 0; j < 4; ++j)
+                        {
+                            UnsafeUtility.MemCpy(dstLocal, srcLocal, 12);
+                            dstLocal += 12;
+                            srcLocal += 16;
+                        }
+                    }
+                }
+                else
+                {
+                    UnsafeUtility.MemCpy(dst + dataOffset, src, size);
+                }
             }
 
             var uploadType  = (offsetInverse == -1) ? (uint)OperationType.Matrix_4x4 : (uint)OperationType.Matrix_Inverse_4x4;
@@ -299,9 +328,11 @@ namespace Latios.Kinemation.SparseUpload
         /// <param name="offset">The destination offset of the copy part of the upload operation.</param>
         /// <param name="srcType">The source matrix format.</param>
         /// <param name="dstType">The destination matrix format.</param>
-        public void AddMatrixUpload(void* src, int numMatrices, int offset, MatrixType srcType, MatrixType dstType)
+        /// <param name="forceIdentityRotationAndScale">Eliminates the rotation and scale components of matrices,
+        /// so that meshes that generate in world-space-relative to their position render correctly.</param>
+        public void AddMatrixUpload(void* src, int numMatrices, int offset, MatrixType srcType, MatrixType dstType, bool forceIdentityRotationAndScale = false)
         {
-            MatrixUploadHelper(src, numMatrices, offset, -1, srcType, dstType);
+            MatrixUploadHelper(src, numMatrices, offset, -1, srcType, dstType, forceIdentityRotationAndScale);
         }
 
         /// <summary>
@@ -319,12 +350,20 @@ namespace Latios.Kinemation.SparseUpload
         /// <param name="offsetInverse">The destination offset of the inverse part of the upload operation.</param>
         /// <param name="srcType">The source matrix format.</param>
         /// <param name="dstType">The destination matrix format.</param>
-        public void AddMatrixUploadAndInverse(void* src, int numMatrices, int offset, int offsetInverse, MatrixType srcType, MatrixType dstType)
+        /// <param name="forceIdentityRotationAndScale">Eliminates the rotation and scale components of matrices,
+        /// so that meshes that generate in world-space-relative to their position render correctly.</param>
+        public void AddMatrixUploadAndInverse(void*      src,
+                                              int numMatrices,
+                                              int offset,
+                                              int offsetInverse,
+                                              MatrixType srcType,
+                                              MatrixType dstType,
+                                              bool forceIdentityRotationAndScale = false)
         {
-            MatrixUploadHelper(src, numMatrices, offset, offsetInverse, srcType, dstType);
+            MatrixUploadHelper(src, numMatrices, offset, offsetInverse, srcType, dstType, forceIdentityRotationAndScale);
         }
 
-        private void QvvsUploadHelper(void* src, int numQvvs, int offset, int offsetInverse, void* postMatrixSrc = null)
+        private void QvvsUploadHelper(void* src, int numQvvs, int offset, int offsetInverse, void* postMatrixSrc, bool forceIdentityRotationAndScale)
         {
             var size   = numQvvs * sizeof(TransformQvvs);
             var opsize = UnsafeUtility.SizeOf<Operation>();
@@ -337,7 +376,21 @@ namespace Latios.Kinemation.SparseUpload
                 return;
             }
 
-            if (postMatrixSrc != null)
+            uint uploadType;
+            if (forceIdentityRotationAndScale)
+            {
+                var qvvs   = (TransformQvvs*)src;
+                var dstMat = (float3x4*)(dst + dataOffset);
+                for (int i = 0; i < numQvvs; i++)
+                {
+                    dstMat[i].c0 = new float3(1f, 0f, 0f);
+                    dstMat[i].c1 = new float3(0f, 1f, 0f);
+                    dstMat[i].c2 = new float3(0f, 0f, 1f);
+                    dstMat[i].c3 = qvvs[i].position;
+                }
+                uploadType = (offsetInverse == -1) ? (uint)OperationType.Matrix_3x4 : (uint)OperationType.Matrix_Inverse_3x4;
+            }
+            else if (postMatrixSrc != null)
             {
                 var qvvs     = (TransformQvvs*)src;
                 var matrices = (float3x4*)postMatrixSrc;
@@ -351,11 +404,13 @@ namespace Latios.Kinemation.SparseUpload
                     var bigRes = math.mul(bigPost, qvvs[i].ToMatrix4x4());
                     dstMat[i]  = new float3x4(bigRes.c0.xyz, bigRes.c1.xyz, bigRes.c2.xyz, bigRes.c3.xyz);
                 }
+                uploadType = (offsetInverse == -1) ? (uint)OperationType.Matrix_3x4 : (uint)OperationType.Matrix_Inverse_3x4;
             }
             else
+            {
                 UnsafeUtility.MemCpy(dst + dataOffset, src, size);
-
-            var uploadType = (offsetInverse == -1) ? (uint)OperationType.Qvvs_Matrix_3x4 : (uint)OperationType.Qvvs_Matrix_3x4_Inverse;
+                uploadType = (offsetInverse == -1) ? (uint)OperationType.Qvvs_Matrix_3x4 : (uint)OperationType.Qvvs_Matrix_3x4_Inverse;
+            }
 
             var op = new Operation
             {
@@ -381,9 +436,11 @@ namespace Latios.Kinemation.SparseUpload
         /// <param name="numQvvs">The number of QVVS transforms to upload.</param>
         /// <param name="offset">The destination offset of the copy part of the upload operation.</param>
         /// <param name="postMatrixSrc">A pointer to a memory area that contains float3x4 matrices to multiply with the qvvs.</param>
-        public void AddQvvsUpload(void* src, int numQvvs, int offset, void* postMatrixSrc = null)
+        /// <param name="forceIdentityRotationAndScale">Eliminates the rotation, scale and stretch,
+        /// so that meshes that generate in world-space-relative to their position render correctly.</param>
+        public void AddQvvsUpload(void* src, int numQvvs, int offset, void* postMatrixSrc = null, bool forceIdentityRotationAndScale = false)
         {
-            QvvsUploadHelper(src, numQvvs, offset, -1, postMatrixSrc);
+            QvvsUploadHelper(src, numQvvs, offset, -1, postMatrixSrc, forceIdentityRotationAndScale);
         }
 
         /// <summary>
@@ -401,9 +458,11 @@ namespace Latios.Kinemation.SparseUpload
         /// <param name="offset">The destination offset of the copy part of the upload operation.</param>
         /// <param name="offsetInverse">The destination offset of the inverse part of the upload operation.</param>
         /// <param name="postMatrixSrc">A pointer to a memory area that contains float3x4 matrices to multiply with the qvvs.</param>
-        public void AddQvvsUploadAndInverse(void* src, int numQvvs, int offset, int offsetInverse, void* postMatrixSrc = null)
+        /// <param name="forceIdentityRotationAndScale">Eliminates the rotation, scale and stretch,
+        /// so that meshes that generate in world-space-relative to their position render correctly.</param>
+        public void AddQvvsUploadAndInverse(void* src, int numQvvs, int offset, int offsetInverse, void* postMatrixSrc = null, bool forceIdentityRotationAndScale = false)
         {
-            QvvsUploadHelper(src, numQvvs, offset, offsetInverse, postMatrixSrc);
+            QvvsUploadHelper(src, numQvvs, offset, offsetInverse, postMatrixSrc, forceIdentityRotationAndScale);
         }
 
         /// <summary>

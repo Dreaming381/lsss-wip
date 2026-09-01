@@ -39,7 +39,7 @@ namespace Latios.Transforms.Authoring
         public static void GetScaleAndStretch(float3 localScale, out float scale, out float3 stretch)
         {
             // Todo: Make this configurable?
-            bool  isUniformScale  = math.abs(math.cmax(localScale) - math.cmin(localScale)) < math.EPSILON;
+            bool  isUniformScale  = math.abs(math.cmax(localScale) - math.cmin(localScale)) < math.EPSILON * math.max(1f, math.abs(math.cmax(localScale)));
             bool  isIdentityScale = isUniformScale && math.abs(1f - localScale.x) < math.EPSILON;
             float uniformScale    = math.select(localScale.x, 1f, isIdentityScale);
             scale                 = math.select(1f, uniformScale, isUniformScale);

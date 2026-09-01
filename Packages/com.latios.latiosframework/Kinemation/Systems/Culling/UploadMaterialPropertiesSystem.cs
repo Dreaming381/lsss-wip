@@ -288,6 +288,8 @@ namespace Latios.Kinemation.Systems
 
             public ComponentTypeCache.BurstCompatibleTypeArray ComponentTypes;
 
+            HasChecker<UniqueMeshWorldPositionRelativeTag> worldRelativeTagChecker;
+
             public void Execute(in ArchetypeChunk metaChunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
                 // metaChunk is the chunk which contains the meta entities (= entities holding the chunk components) for the actual chunks
@@ -363,7 +365,8 @@ namespace Latios.Kinemation.Systems
                             var dstOffset = chunkProperty.GPUDataBegin;
                             if (isLocalToWorld || isPrevLocalToWorld)
                             {
-                                void* extraPtr = null;
+                                void* extraPtr      = null;
+                                bool  worldRelative = worldRelativeTagChecker[chunk];
 #if !LATIOS_TRANSFORMS_UNITY
                                 var numQvvs = sizeBytes / sizeof(TransformQvvs);
                                 if (isLocalToWorld)
@@ -376,7 +379,8 @@ namespace Latios.Kinemation.Systems
                                     numQvvs,
                                     dstOffset,
                                     isLocalToWorld ? dstOffsetWorldToLocal : dstOffsetPrevWorldToLocal,
-                                    extraPtr
+                                    extraPtr,
+                                    worldRelative
                                     );
 #elif LATIOS_TRANSFORMS_UNITY
                                 var numMatrices = sizeBytes / sizeof(float4x4);
@@ -390,7 +394,8 @@ namespace Latios.Kinemation.Systems
                                     LatiosThreadedSparseUploader.MatrixType.MatrixType4x4,
                                     (chunkProperty.ValueSizeBytesGPU == 4 * 4 * 3) ?
                                     LatiosThreadedSparseUploader.MatrixType.MatrixType3x4 :
-                                    LatiosThreadedSparseUploader.MatrixType.MatrixType4x4);
+                                    LatiosThreadedSparseUploader.MatrixType.MatrixType4x4,
+                                    worldRelative);
 #endif
                             }
                             else
@@ -438,7 +443,8 @@ namespace Latios.Kinemation.Systems
                 int dstOffset,
                 int dstOffsetInverse,
                 LatiosThreadedSparseUploader.MatrixType matrixTypeCpu,
-                LatiosThreadedSparseUploader.MatrixType matrixTypeGpu)
+                LatiosThreadedSparseUploader.MatrixType matrixTypeGpu,
+                bool useWorldRealtive)
             {
                 int* numGpuUploadOperations = (int*)NumGpuUploadOperations.GetUnsafePtr();
                 int  index                  = System.Threading.Interlocked.Add(ref numGpuUploadOperations[0], 1) - 1;
@@ -450,11 +456,12 @@ namespace Latios.Kinemation.Systems
                         Kind = (matrixTypeGpu == LatiosThreadedSparseUploader.MatrixType.MatrixType3x4) ?
                                GpuUploadOperation.UploadOperationKind.SOAMatrixUpload3x4 :
                                GpuUploadOperation.UploadOperationKind.SOAMatrixUpload4x4,
-                        SrcMatrixType    = matrixTypeCpu,
-                        Src              = srcPtr,
-                        DstOffset        = dstOffset,
-                        DstOffsetInverse = dstOffsetInverse,
-                        Size             = numMatrices,
+                        SrcMatrixType      = matrixTypeCpu,
+                        Src                = srcPtr,
+                        DstOffset          = dstOffset,
+                        DstOffsetInverse   = dstOffsetInverse,
+                        Size               = numMatrices,
+                        worldSpaceRelative = useWorldRealtive
                     };
                 }
                 else
@@ -468,7 +475,8 @@ namespace Latios.Kinemation.Systems
                 int numQvvs,
                 int dstOffset,
                 int dstOffsetInverse,
-                void* srcExtraPtr)
+                void* srcExtraPtr,
+                bool worldSpaceRelative)
             {
                 int* numGpuUploadOperations = (int*)NumGpuUploadOperations.GetUnsafePtr();
                 int  index                  = System.Threading.Interlocked.Add(ref numGpuUploadOperations[0], 1) - 1;
@@ -480,11 +488,12 @@ namespace Latios.Kinemation.Systems
                         Kind = (srcExtraPtr == null) ?
                                GpuUploadOperation.UploadOperationKind.SOAQvvsUpload3x4 :
                                GpuUploadOperation.UploadOperationKind.SOACombineQvvsMatrixUpload3x4,
-                        Src              = srcPtr,
-                        SrcExtra         = srcExtraPtr,
-                        DstOffset        = dstOffset,
-                        DstOffsetInverse = dstOffsetInverse,
-                        Size             = numQvvs,
+                        Src                = srcPtr,
+                        SrcExtra           = srcExtraPtr,
+                        DstOffset          = dstOffset,
+                        DstOffsetInverse   = dstOffsetInverse,
+                        Size               = numQvvs,
+                        worldSpaceRelative = worldSpaceRelative
                     };
                 }
                 else
@@ -542,7 +551,7 @@ namespace Latios.Kinemation.Systems
         // purposes, and for effectively load balancing the upload memcpy work.
         internal unsafe struct GpuUploadOperation
         {
-            public enum UploadOperationKind
+            public enum UploadOperationKind : byte
             {
                 Memcpy,  // raw upload of a byte block to the GPU
                 SOAMatrixUpload3x4,  // upload matrices from CPU, invert on GPU, write in SoA arrays, 3x4 destination
@@ -556,6 +565,8 @@ namespace Latios.Kinemation.Systems
             public UploadOperationKind Kind;
             // If a matrix upload, what matrix type is this?
             public LatiosThreadedSparseUploader.MatrixType SrcMatrixType;
+            // Use world-space?
+            public bool worldSpaceRelative;
             // Pointer to source data, whether raw byte data, matrices, or qvvs
             public void* Src;
             // Pointer to extra source data that should be combined, typically for qvvs * matrices
@@ -604,7 +615,8 @@ namespace Latios.Kinemation.Systems
                                 uploadOperation.Size,
                                 uploadOperation.DstOffset,
                                 uploadOperation.SrcMatrixType,
-                                dstType);
+                                dstType,
+                                uploadOperation.worldSpaceRelative);
                         }
                         else
                         {
@@ -614,7 +626,8 @@ namespace Latios.Kinemation.Systems
                                 uploadOperation.DstOffset,
                                 uploadOperation.DstOffsetInverse,
                                 uploadOperation.SrcMatrixType,
-                                dstType);
+                                dstType,
+                                uploadOperation.worldSpaceRelative);
                         }
                         break;
                     case GpuUploadOperation.UploadOperationKind.SOAQvvsUpload3x4:
@@ -623,7 +636,9 @@ namespace Latios.Kinemation.Systems
                             ThreadedSparseUploader.AddQvvsUpload(
                                 uploadOperation.Src,
                                 uploadOperation.Size,
-                                uploadOperation.DstOffset);
+                                uploadOperation.DstOffset,
+                                null,
+                                uploadOperation.worldSpaceRelative);
                         }
                         else
                         {
@@ -631,7 +646,9 @@ namespace Latios.Kinemation.Systems
                                 uploadOperation.Src,
                                 uploadOperation.Size,
                                 uploadOperation.DstOffset,
-                                uploadOperation.DstOffsetInverse);
+                                uploadOperation.DstOffsetInverse,
+                                null,
+                                uploadOperation.worldSpaceRelative);
                         }
                         break;
                     case GpuUploadOperation.UploadOperationKind.SOACombineQvvsMatrixUpload3x4:
@@ -641,7 +658,8 @@ namespace Latios.Kinemation.Systems
                                 uploadOperation.Src,
                                 uploadOperation.Size,
                                 uploadOperation.DstOffset,
-                                uploadOperation.SrcExtra);
+                                uploadOperation.SrcExtra,
+                                uploadOperation.worldSpaceRelative);
                         }
                         else
                         {
@@ -650,7 +668,8 @@ namespace Latios.Kinemation.Systems
                                 uploadOperation.Size,
                                 uploadOperation.DstOffset,
                                 uploadOperation.DstOffsetInverse,
-                                uploadOperation.SrcExtra);
+                                uploadOperation.SrcExtra,
+                                uploadOperation.worldSpaceRelative);
                         }
                         break;
                     default:

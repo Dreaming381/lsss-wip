@@ -121,7 +121,7 @@ namespace Latios.Kinemation
                     {
                         var middleDelta = RootMotionTools.DeltaBetween(beginRoot, endRoot);
                         var toAdd       = middleDelta;
-                        for (float i = -2.5f; i < loopCycleTransitions; i -= 1f)
+                        for (float i = -2.5f; i > loopCycleTransitions; i -= 1f)
                             middleDelta = RootMotionTools.ConcatenateDeltas(middleDelta, toAdd);
                         newDelta        = RootMotionTools.ConcatenateDeltas(RootMotionTools.ConcatenateDeltas(h, middleDelta), t);
                     }
@@ -168,11 +168,11 @@ namespace Latios.Kinemation
             var previousInverse = math.inverse(previous.rotation);
             return new TransformQvvs
             {
-                position   = math.rotate(previousInverse, current.position - previous.position),
-                rotation   = math.mul(current.rotation, previousInverse),
+                position  = math.rotate(previousInverse, current.position - previous.position),
+                rotation  = math.mul(current.rotation, previousInverse),
                 context32 = current.context32,
-                scale      = current.scale / previous.scale,
-                stretch    = current.stretch / previous.stretch
+                scale     = current.scale / previous.scale,
+                stretch   = current.stretch / previous.stretch
             };
         }
 
@@ -188,7 +188,7 @@ namespace Latios.Kinemation
             bone.rotation.value *= weight;
             bone.scale          *= weight;
             bone.stretch        *= weight;
-            bone.context32      = math.asint(math.asfloat(bone.context32) * weight);
+            bone.context32       = math.asint(math.asfloat(bone.context32) * weight);
             return bone;
         }
 
@@ -203,10 +203,10 @@ namespace Latios.Kinemation
         {
             return new TransformQvvs
             {
-                position   = deltaA.position + deltaB.position,
-                rotation   = deltaA.rotation.value + math.chgsign(deltaB.rotation.value, math.dot(deltaA.rotation.value, deltaB.rotation.value)),
-                scale      = deltaA.scale + deltaB.scale,
-                stretch    = deltaA.stretch + deltaB.stretch,
+                position  = deltaA.position + deltaB.position,
+                rotation  = deltaA.rotation.value + math.chgsign(deltaB.rotation.value, math.dot(deltaA.rotation.value, deltaB.rotation.value)),
+                scale     = deltaA.scale + deltaB.scale,
+                stretch   = deltaA.stretch + deltaB.stretch,
                 context32 = math.asint(math.asfloat(deltaA.context32) + math.asfloat(deltaB.context32)),
             };
         }
@@ -223,10 +223,10 @@ namespace Latios.Kinemation
         {
             return new TransformQvvs
             {
-                position   = deltaFirst.position + math.rotate(deltaFirst.rotation, deltaSecond.position),
-                rotation   = math.mul(deltaSecond.rotation, deltaFirst.rotation),
-                scale      = deltaFirst.scale * deltaSecond.scale,
-                stretch    = deltaFirst.stretch * deltaSecond.stretch,
+                position  = deltaFirst.position + math.rotate(deltaFirst.rotation, deltaSecond.position),
+                rotation  = math.mul(deltaSecond.rotation, deltaFirst.rotation),
+                scale     = deltaFirst.scale * deltaSecond.scale,
+                stretch   = deltaFirst.stretch * deltaSecond.stretch,
                 context32 = deltaFirst.context32,
             };
         }

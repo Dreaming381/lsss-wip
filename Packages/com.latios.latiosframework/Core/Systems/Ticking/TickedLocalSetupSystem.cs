@@ -49,6 +49,7 @@ namespace Latios.Systems
                 newState.ticksThisFrame     = 1;
                 newState.firstTickThisFrame = newState.tick;
                 newState.inputTick          = newState.tick;
+                newState.newTick            = newState.tick + 1;
                 newState.inputTickFraction  = oldState.finalTickFraction;
                 newState.finalTickFraction  = timeInTick / tickDeltaTime;
                 newState.frameCounter++;
@@ -62,6 +63,7 @@ namespace Latios.Systems
                 newState.deltaTime           = tickDeltaTime;
                 newState.ticksThisFrame      = rollovers;
                 newState.firstTickThisFrame  = oldState.tick + 1;
+                newState.tick                = newState.firstTickThisFrame;
                 newState.newTick             = newState.firstTickThisFrame;
                 newState.inputTick           = newState.firstTickThisFrame;
                 newState.inputTickFraction   = 0f;
