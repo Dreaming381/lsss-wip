@@ -20,10 +20,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, entityManager);
             if (handle.isNull)
             {
-                TransformQvvs currentTransform                                             = entityManager.GetComponentData<WorldTransform>(entity).worldTransform;
-                currentTransform.position                                                 += translation;
-                currentTransform.rotation                                                  = math.normalize(math.mul(rotation, currentTransform.rotation));
-                entityManager.SetComponentData(entity, new WorldTransform { worldTransform = currentTransform });
+                TransformQvvs currentTransform                                              = entityManager.GetComponentData<WorldTransform>(entity).worldTransform;
+                currentTransform.position                                                  += translation;
+                currentTransform.rotation                                                   = math.normalize(math.mul(rotation, currentTransform.rotation));
+                entityManager.SetComponentData(entity, new WorldTransform { worldTransform  = currentTransform });
                 return;
             }
             TranslateRotateLocal(handle, translation, rotation, entityManager);
@@ -41,8 +41,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = componentBroker.GetRW<WorldTransform>(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<WorldTransform> refRW             = componentBroker.GetRW<WorldTransform>(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position              += translation;
                 currentTransform.rotation               = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform            = currentTransform;
@@ -64,8 +64,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = componentBroker.GetRW<WorldTransform>(entity, key);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<WorldTransform> refRW             = componentBroker.GetRW<WorldTransform>(entity, key);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position              += translation;
                 currentTransform.rotation               = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform            = currentTransform;
@@ -165,8 +165,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<WorldTransform> refRW             = transformLookupRW.GetRefRW(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position              += translation;
                 currentTransform.rotation               = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform            = currentTransform;
@@ -200,8 +200,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<WorldTransform> refRW            = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
-                TransformQvvs         currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<WorldTransform> refRW             = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
+                TransformQvvs         currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position              += translation;
                 currentTransform.rotation               = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform            = currentTransform;
@@ -227,7 +227,7 @@ namespace Latios.Transforms
             if (handle.isCopyParent)
                 return;
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { position = translation, rotation = rotation } };
-            Span<Propagate.WriteCommand> commands                                                               =
+            Span<Propagate.WriteCommand> commands                                                                                       =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
                                                       {
                                                           indexInHierarchy = handle.indexInHierarchy,
@@ -257,7 +257,7 @@ namespace Latios.Transforms
                 return;
             key.Validate(handle.root.entity);
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { position = translation, rotation = rotation } };
-            Span<Propagate.WriteCommand> commands                                                               =
+            Span<Propagate.WriteCommand> commands                                                                                       =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
                                                       {
                                                           indexInHierarchy = handle.indexInHierarchy,
@@ -282,10 +282,10 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, entityManager);
             if (handle.isNull)
             {
-                TransformQvvs currentTransform                                                   = entityManager.GetComponentData<TickedWorldTransform>(entity).worldTransform;
+                TransformQvvs currentTransform                                                    = entityManager.GetComponentData<TickedWorldTransform>(entity).worldTransform;
                 currentTransform.position                                                        += translation;
                 currentTransform.rotation                                                         = math.normalize(math.mul(rotation, currentTransform.rotation));
-                entityManager.SetComponentData(entity, new TickedWorldTransform { worldTransform = currentTransform });
+                entityManager.SetComponentData(entity, new TickedWorldTransform { worldTransform  = currentTransform });
                 return;
             }
             TranslateRotateTickedLocal(handle, translation, rotation, entityManager);
@@ -303,8 +303,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = componentBroker.GetRW<TickedWorldTransform>(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<TickedWorldTransform> refRW             = componentBroker.GetRW<TickedWorldTransform>(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position                    += translation;
                 currentTransform.rotation                     = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform                  = currentTransform;
@@ -326,8 +326,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref componentBroker);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = componentBroker.GetRW<TickedWorldTransform>(entity, key);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<TickedWorldTransform> refRW             = componentBroker.GetRW<TickedWorldTransform>(entity, key);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position                    += translation;
                 currentTransform.rotation                     = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform                  = currentTransform;
@@ -369,7 +369,7 @@ namespace Latios.Transforms
         {
             if (handle.isCopyParent)
                 return;
-            ref var                      lookup     = ref ComponentBrokerAccess.From(ref componentBroker);
+            ref var                      lookup     = ref TickedComponentBrokerAccess.From(ref componentBroker);
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { position = translation, rotation = rotation } };
             Span<Propagate.WriteCommand> commands   =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
@@ -388,12 +388,16 @@ namespace Latios.Transforms
         /// <param name="rotation">Rotates by this rotation delta</param>
         /// <param name="key">A key to ensure the hierarchy is safe to access</param>
         /// <param name="componentBroker">A ComponentBroker with write access to TickedWorldTransform and read access to RootReference, EntityInHierarchy, and EntityInHierarchyCleanup</param>
-        public static void TranslateRotateTickedLocal(EntityInHierarchyHandle handle, float3 translation, quaternion rotation, TransformsKey key, ref ComponentBroker componentBroker)
+        public static void TranslateRotateTickedLocal(EntityInHierarchyHandle handle,
+                                                      float3 translation,
+                                                      quaternion rotation,
+                                                      TransformsKey key,
+                                                      ref ComponentBroker componentBroker)
         {
             if (handle.isCopyParent)
                 return;
             key.Validate(handle.root.entity);
-            ref var                      lookup     = ref ComponentBrokerParallelAccess.From(ref componentBroker);
+            ref var                      lookup     = ref TickedComponentBrokerParallelAccess.From(ref componentBroker);
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { position = translation, rotation = rotation } };
             Span<Propagate.WriteCommand> commands   =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
@@ -427,8 +431,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = transformLookupRW.GetRefRW(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<TickedWorldTransform> refRW             = transformLookupRW.GetRefRW(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position                    += translation;
                 currentTransform.rotation                     = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform                  = currentTransform;
@@ -462,8 +466,8 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                RefRW<TickedWorldTransform> refRW            = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
-                TransformQvvs               currentTransform = refRW.ValueRO.worldTransform;
+                RefRW<TickedWorldTransform> refRW             = transformLookupRW.GetCheckedLookup(handle.root.entity, key).GetRefRW(entity);
+                TransformQvvs               currentTransform  = refRW.ValueRO.worldTransform;
                 currentTransform.position                    += translation;
                 currentTransform.rotation                     = math.normalize(math.mul(rotation, currentTransform.rotation));
                 refRW.ValueRW.worldTransform                  = currentTransform;
@@ -489,7 +493,7 @@ namespace Latios.Transforms
             if (handle.isCopyParent)
                 return;
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { position = translation, rotation = rotation } };
-            Span<Propagate.WriteCommand> commands                                                               =
+            Span<Propagate.WriteCommand> commands                                                                                       =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
                                                       {
                                                           indexInHierarchy = handle.indexInHierarchy,
@@ -519,7 +523,7 @@ namespace Latios.Transforms
                 return;
             key.Validate(handle.root.entity);
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { position = translation, rotation = rotation } };
-            Span<Propagate.WriteCommand> commands                                                               =
+            Span<Propagate.WriteCommand> commands                                                                                       =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
                                                       {
                                                           indexInHierarchy = handle.indexInHierarchy,
@@ -533,3 +537,4 @@ namespace Latios.Transforms
     }
 }
 #endif
+

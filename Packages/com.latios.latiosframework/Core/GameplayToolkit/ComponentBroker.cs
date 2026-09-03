@@ -197,7 +197,7 @@ namespace Latios
         public bool Has<T>(Entity entity)
         {
             var typeIndex = TypeManager.GetTypeIndex<T>();
-            if (typeIndex >= handleIndices.Length || !handleIndices[typeIndex.Index].isValid)
+            if (typeIndex.Index >= handleIndices.Length || !handleIndices[typeIndex.Index].isValid)
             {
                 // Fallback to slow path
                 if (entity == currentEntity)
@@ -633,7 +633,7 @@ namespace Latios
         }
 
         /// <summary>
-        /// Gets the read-write pointer to either the IComponentData or ISharedComponentData
+        /// Gets the read-write pointer to either the IComponentData
         /// </summary>
         /// <param name="entity">The entity to get the component from</param>
         /// <param name="typeIndex">The type of component to get</param>
@@ -723,7 +723,7 @@ namespace Latios
         }
 
         /// <summary>
-        /// Gets the read-write pointer to either the IComponentData or ISharedComponentData,
+        /// Gets the read-write pointer to either the IComponentData,
         /// ignoring parallel safety checks as if [NativeDisableParallelForRestriction] was used
         /// </summary>
         /// <param name="entity">The entity to get the component from</param>
@@ -877,7 +877,7 @@ namespace Latios
                             if (cCountRO >= 127)
                             {
                                 throw new InvalidOperationException(
-                                    $"ComponentBroker can only store up to 255 IComponentData and IBufferElementData types with read-only access. If you need more than this, please make a request! Total count = {builder.types.Count}");
+                                    $"ComponentBroker can only store up to 127 IComponentData and IBufferElementData types with read-only access. If you need more than this, please make a request! Total count = {builder.types.Count}");
                             }
                             c0Ptr[cCountRO + 128]            = state.GetDynamicComponentTypeHandle(c);
                             handleIndices[c.TypeIndex.Index] = new DynamicIndex(cCountRO + 128);

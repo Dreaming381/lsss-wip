@@ -119,10 +119,10 @@ namespace Latios.Kinemation
                 var q1  = math.normalize(math.mul(twoAgo.rotation, currentInverse));
                 var x1  = 2 * math.atan2(math.dot(q1.value.xyz, rotationAxis), q1.value.w);
                 x1      = math.select(x1, x1 - 2 * math.PI, x1 > math.PI);
-                x1      = math.select(x1, x1 + 2 * math.PI, x1 < math.PI);
+                x1      = math.select(x1, x1 + 2 * math.PI, x1 < -math.PI);
                 v0s.x   = x0s.x - x1;
                 v0s.x   = math.select(v0s.x, v0s.x - 2 * math.PI, v0s.x > math.PI);
-                v0s.x   = math.select(v0s.x, v0s.x + 2 * math.PI, v0s.x < math.PI);
+                v0s.x   = math.select(v0s.x, v0s.x + 2 * math.PI, v0s.x < -math.PI);
                 v0s.x  *= rcpDeltaTimeBetweenPreviousAndTwoAgo;
             }
 

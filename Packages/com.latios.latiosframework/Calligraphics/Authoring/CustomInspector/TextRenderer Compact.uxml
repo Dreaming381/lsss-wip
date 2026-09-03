@@ -1,5 +1,5 @@
 <engine:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:engine="UnityEngine.UIElements" xmlns:editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="True">
-    <Style src="project://database/Packages/com.latios.latiosframework/Calligraphics/Authoring/Custom%20Inspector/TextRenderer.uss?fileID=7433441132597879392&amp;guid=af803826a3f8fbb4abf853df8d8efc13&amp;type=3#TextRenderer"/>
+    <Style src="project://database/Packages/com.latios.latiosframework/Calligraphics/Authoring/CustomInspector/TextRenderer.uss?fileID=7433441132597879392&amp;guid=af803826a3f8fbb4abf853df8d8efc13&amp;type=3#TextRenderer"/>
     <engine:VisualElement data-source-type="Latios.Calligraphics.Authoring.TextRendererAuthoring, Latios.Calligraphics">
         <editor:PropertyField binding-path="text" name="Text"/>
         <editor:PropertyField binding-path="fontCollectionAsset" name="fontCollectionAsset"/>

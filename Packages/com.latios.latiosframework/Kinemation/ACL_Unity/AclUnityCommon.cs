@@ -77,11 +77,11 @@ namespace AclUnity
         {
             int version = 0;
             if (X86.Avx2.IsAvx2Supported)
-                version = AVX.getVersion();
+                version = AVX.getUnityVersion();
             else
             {
                 //UnityEngine.Debug.Log("Fetched without AVX");
-                version = NoExtensions.getVersion();
+                version = NoExtensions.getUnityVersion();
             }
 
             if (version == -1)

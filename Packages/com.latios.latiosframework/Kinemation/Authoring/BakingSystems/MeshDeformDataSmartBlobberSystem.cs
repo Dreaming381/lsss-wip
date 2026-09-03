@@ -452,9 +452,9 @@ namespace Latios.Kinemation.Authoring.Systems
 
                                 // Compute how much the vertex deviates from the bone it is targeting.
                                 // That deviation is applied to the maxRadialOffsets for that bone for culling.
-                                float3 boneSpacePosition              = math.transform(bindPoses[srcWeight.boneIndex], verticesToSkin[i].position);
+                                float3 boneSpacePosition              = math.transform(bindPoses[srcWeight.boneIndex], verticesToSkin[batchOffset + i].position);
                                 maxRadialOffsets[srcWeight.boneIndex] = math.max(maxRadialOffsets[srcWeight.boneIndex], math.length(boneSpacePosition));
-                                aabb                                  = Psyshock.Physics.CombineAabb(verticesToSkin[i].position, aabb);
+                                aabb                                  = Psyshock.Physics.CombineAabb(verticesToSkin[batchOffset + i].position, aabb);
 
                                 if (retireThisRound)
                                     threadsAlive--;

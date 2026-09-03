@@ -461,12 +461,12 @@ namespace Latios.Transforms
         bool                             didFirstCaptureChunk;
         AllocatorManager.AllocatorHandle allocator;
 
-        TransformsComponentLookup<TickedWorldTransform>      transformLookup;
-        [ReadOnly] BufferLookup<EntityInHierarchy>           hierarchyLookup;
-        [ReadOnly] BufferLookup<EntityInHierarchyCleanup>    cleanupLookup;
-        [ReadOnly] public ComponentTypeHandle<RootReference> rootReferenceHandle;
-        [ReadOnly] EntityStorageInfoLookup                   esil;
-        ThreadCache<Cache>                                   threadCache;
+        TransformsComponentLookup<TickedWorldTransform>   transformLookup;
+        [ReadOnly] BufferLookup<EntityInHierarchy>        hierarchyLookup;
+        [ReadOnly] BufferLookup<EntityInHierarchyCleanup> cleanupLookup;
+        [ReadOnly] ComponentTypeHandle<RootReference>     rootReferenceHandle;
+        [ReadOnly] EntityStorageInfoLookup                esil;
+        ThreadCache<Cache>                                threadCache;
 
         HasChecker<EntityInHierarchy>        hierarchyChecker;
         HasChecker<EntityInHierarchyCleanup> cleanupChecker;

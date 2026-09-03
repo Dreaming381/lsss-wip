@@ -342,7 +342,7 @@ namespace Latios.Transforms
         {
             if (handle.isCopyParent)
                 return;
-            ref var                      lookup     = ref ComponentBrokerAccess.From(ref componentBroker);
+            ref var                      lookup     = ref TickedComponentBrokerAccess.From(ref componentBroker);
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { rotation = rotationToApply } };
             Span<Propagate.WriteCommand> commands   =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand
@@ -365,7 +365,7 @@ namespace Latios.Transforms
             if (handle.isCopyParent)
                 return;
             key.Validate(handle.root.entity);
-            ref var                      lookup     = ref ComponentBrokerParallelAccess.From(ref componentBroker);
+            ref var                      lookup     = ref TickedComponentBrokerParallelAccess.From(ref componentBroker);
             Span<TransformQvvs>          transforms = stackalloc TransformQvvs[] { new TransformQvvs { rotation = rotationToApply } };
             Span<Propagate.WriteCommand> commands   =
                 stackalloc Propagate.WriteCommand[] { new Propagate.WriteCommand

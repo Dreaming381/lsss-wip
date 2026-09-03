@@ -164,10 +164,10 @@ namespace Latios
                 keys.byte6  = (byte)slsb.y;
                 keys.byte7  = (byte)smsb.y;
                 keys.byte8  = (byte)msb.y;
-                keys.byte9  = (byte)lsb.z;
-                keys.byte10 = (byte)slsb.z;
-                keys.byte11 = (byte)smsb.z;
-                keys.byte12 = (byte)msb.z;
+                keys.byte9  = (byte)lsb.x;
+                keys.byte10 = (byte)slsb.x;
+                keys.byte11 = (byte)smsb.x;
+                keys.byte12 = (byte)msb.x;
 
                 counts1[keys.byte1]   = counts1[keys.byte1] + 1;
                 counts2[keys.byte2]   = counts2[keys.byte2] + 1;

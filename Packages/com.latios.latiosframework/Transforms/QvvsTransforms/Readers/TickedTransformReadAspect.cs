@@ -350,7 +350,7 @@ namespace Latios.Transforms
         /// <returns>The transformed direction</returns>>
         public float3 TransformDirectionWorldToLocal(float3 direction)
         {
-            return qvvs.TransformDirection(worldTransform, direction);
+            return qvvs.InverseTransformDirection(worldTransform, direction);
         }
 
         /// <summary>Transforms a direction vector from world space into local space, including directional changes caused by stretch while preserving magnitude.</summary>
@@ -358,7 +358,7 @@ namespace Latios.Transforms
         /// <returns>The transformed direction</returns>>
         public float3 TransformDirectionWorldToLocalWithStretch(float3 direction)
         {
-            return qvvs.TransformDirectionWithStretch(worldTransform, direction);
+            return qvvs.InverseTransformDirectionWithStretch(worldTransform, direction);
         }
 
         /// <summary>Transforms a direction vector from world space into local space, including directional and magnitude changes caused by scale and stretch.</summary>
@@ -366,7 +366,7 @@ namespace Latios.Transforms
         /// <returns>The transformed direction</returns>>
         public float3 TransformDirectionWorldToLocalScaledAndStretched(float3 direction)
         {
-            return qvvs.TransformDirectionScaledAndStretched(worldTransform, direction);
+            return qvvs.InverseTransformDirectionScaledAndStretched(worldTransform, direction);
         }
         #endregion
 

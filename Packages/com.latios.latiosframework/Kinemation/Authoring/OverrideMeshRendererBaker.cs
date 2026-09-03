@@ -227,7 +227,7 @@ namespace Latios.Kinemation.Authoring
                                                         byte lodMask        = MeshMaterialSubmeshSettings.kDefaultLodMask,
                                                         bool clampSubmeshes = true)
         {
-            if (sharedMaterials == null)
+            if (sharedMaterials == null || sharedMaterials.Count == 0)
                 return;
 
             if (dst.Length < sharedMaterials.Count)
@@ -485,7 +485,8 @@ namespace Latios.Kinemation.Authoring
             var mesh       = (meshFilter != null) ? GetComponent<MeshFilter>().sharedMesh : null;
 
             m_materialsCache.Clear();
-            authoring.GetSharedMaterials(m_materialsCache);
+            if (mesh != null)
+                authoring.GetSharedMaterials(m_materialsCache);
 
             var entity = GetEntity(TransformUsageFlags.Renderable);
             RenderingBakingTools.GetLOD(this, authoring, out var lodSettings);
@@ -515,35 +516,44 @@ namespace Latios.Kinemation.Authoring
                 else
                     totalMms += m_materialsCache.Count;
             }
-            Span<MeshMaterialSubmeshSettings> mms = stackalloc MeshMaterialSubmeshSettings[totalMms];
+            if (totalMms == 0)
+                return;
+            Span<MeshMaterialSubmeshSettings> mms            = stackalloc MeshMaterialSubmeshSettings[totalMms];
+            var                               meshWithBounds = mesh;
             if (lodAppend != null)
             {
                 var lod0 = mms.Slice(0, m_materialsCache.Count);
                 RenderingBakingTools.ExtractMeshMaterialSubmeshes(lod0, mesh, m_materialsCache, 0x01);
                 if (!lodAppend1Null)
                 {
-                    if (lodAppend.lod1Mesh.subMeshCount != mesh.subMeshCount && !lodAppend.useOverrideMaterialsForLod1)
+                    if ((mesh == null || lodAppend.lod1Mesh.subMeshCount != mesh.subMeshCount) && !lodAppend.useOverrideMaterialsForLod1)
                     {
+                        string meshName = mesh != null ? mesh.name : "null";
                         UnityEngine.Debug.LogWarning(
-                            $"In {authoring.gameObject.name}, lod1Mesh {lodAppend.lod1Mesh.name} has a different submesh count {lodAppend.lod1Mesh.subMeshCount} than the main mesh {mesh.name} count {mesh.subMeshCount}, but does not use override materials. This will often lead to incorrect rendering.");
+                            $"In {authoring.gameObject.name}, lod1Mesh {lodAppend.lod1Mesh.name} has a different submesh count {lodAppend.lod1Mesh.subMeshCount} than the main mesh {meshName} count {mesh.subMeshCount}, but does not use override materials. This will often lead to incorrect rendering.");
                     }
 
                     var lod1     = mms.Slice(m_materialsCache.Count, lodAppend1Count);
                     var lod1Mats = lodAppend.useOverrideMaterialsForLod1 ? lodAppend.overrideMaterialsForLod1 : m_materialsCache;
                     RenderingBakingTools.ExtractMeshMaterialSubmeshes(lod1, lodAppend.lod1Mesh, lod1Mats, (byte)(lodAppend.enableLod2 ? 0x02 : 0xfe));
+                    if (meshWithBounds == null)
+                        meshWithBounds = lodAppend.lod1Mesh;
                 }
 
                 if (!lodAppend2Null)
                 {
-                    if (lodAppend.lod2Mesh.subMeshCount != mesh.subMeshCount && !lodAppend.useOverrideMaterialsForLod2)
+                    if ((mesh == null || lodAppend.lod2Mesh.subMeshCount != mesh.subMeshCount) && !lodAppend.useOverrideMaterialsForLod2)
                     {
+                        string meshName = mesh != null ? mesh.name : "null";
                         UnityEngine.Debug.LogWarning(
-                            $"In {authoring.gameObject.name}, lod2Mesh {lodAppend.lod2Mesh.name} has a different submesh count {lodAppend.lod2Mesh.subMeshCount} than the main mesh {mesh.name} count {mesh.subMeshCount}, but does not use override materials. This will often lead to incorrect rendering.");
+                            $"In {authoring.gameObject.name}, lod2Mesh {lodAppend.lod2Mesh.name} has a different submesh count {lodAppend.lod2Mesh.subMeshCount} than the main mesh {meshName} count {mesh.subMeshCount}, but does not use override materials. This will often lead to incorrect rendering.");
                     }
 
                     var lod2     = mms.Slice(m_materialsCache.Count + lodAppend1Count);
                     var lod2Mats = lodAppend.useOverrideMaterialsForLod2 ? lodAppend.overrideMaterialsForLod2 : m_materialsCache;
                     RenderingBakingTools.ExtractMeshMaterialSubmeshes(lod2, lodAppend.lod2Mesh, lod2Mats, 0xfc);
+                    if (meshWithBounds == null)
+                        meshWithBounds = lodAppend.lod2Mesh;
                 }
             }
             else
@@ -599,7 +609,7 @@ namespace Latios.Kinemation.Authoring
                 lightmapIndex               = authoring.lightmapIndex,
                 lightmapScaleOffset         = authoring.lightmapScaleOffset,
                 isStatic                    = IsStatic(),
-                localBounds                 = mesh != null ? mesh.bounds : default,
+                localBounds                 = meshWithBounds.bounds,
                 rendererPriority            = authoring.rendererPriority,
 #if UNITY_6000_2_OR_NEWER
                 meshLodRendererBias = authoring.meshLodSelectionBias,

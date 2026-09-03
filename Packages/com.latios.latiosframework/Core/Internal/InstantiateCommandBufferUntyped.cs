@@ -72,7 +72,7 @@ namespace Latios
             CheckAllocator(allocator);
 
             m_Safety = CollectionHelper.CreateSafetyHandle(allocator);
-            CollectionHelper.SetStaticSafetyId<EntityOperationCommandBuffer>(ref m_Safety, ref s_staticSafetyId.Data);
+            CollectionHelper.SetStaticSafetyId<InstantiateCommandBufferUntyped>(ref m_Safety, ref s_staticSafetyId.Data);
             AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
 #endif
 

@@ -227,7 +227,7 @@ namespace Latios.Transforms
         }
 
         /// <summary>
-        /// Multiplies B by the inverse of A, effectively computing the local transform of B relative to A. This variant normalizes the rotation
+        /// Multiplies B by the inverse of A, effectively computing the local transform of B relative to A. This variant normalizes the rotation.
         /// </summary>
         /// <param name="a">The transform to inverse</param>
         /// <param name="b">The transform to not inverse</param>
@@ -239,7 +239,7 @@ namespace Latios.Transforms
             return new TransformQvs
             {
                 position = math.rotate(inverseRotation, b.position - a.position) * rcps.xyz * rcps.w,
-                rotation = math.mul(inverseRotation, b.rotation),
+                rotation = math.normalize(math.mul(inverseRotation, b.rotation)),
                 scale    = rcps.w * b.scale
             };
         }

@@ -1187,7 +1187,7 @@ namespace Latios
             /// <param name="c0">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="c1">The second post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, sortKey);
             }
@@ -1351,7 +1351,7 @@ namespace Latios
             /// <param name="c0">The first component value to initialize for the instantiated entity</param>
             /// <param name="c1">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, sortKey);
             }
@@ -1525,7 +1525,7 @@ namespace Latios
             /// <param name="c1">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="c2">The second post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, sortKey);
             }
@@ -1694,7 +1694,7 @@ namespace Latios
             /// <param name="c1">The second component value to initialize for the instantiated entity</param>
             /// <param name="c2">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, sortKey);
             }
@@ -1871,7 +1871,7 @@ namespace Latios
             /// <param name="c2">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="c3">The second post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, sortKey);
             }
@@ -2044,7 +2044,7 @@ namespace Latios
             /// <param name="c2">The third component value to initialize for the instantiated entity</param>
             /// <param name="c3">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, sortKey);
             }
@@ -2224,7 +2224,7 @@ namespace Latios
             /// <param name="c3">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="c4">The second post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, c4, sortKey);
             }
@@ -2400,7 +2400,7 @@ namespace Latios
             /// <param name="c3">The fourth component value to initialize for the instantiated entity</param>
             /// <param name="c4">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, c4, sortKey);
             }
@@ -2584,7 +2584,7 @@ namespace Latios
             /// <param name="c4">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="c5">The second post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, c4, c5, sortKey);
             }
@@ -2764,7 +2764,7 @@ namespace Latios
             /// <param name="c4">The fifth component value to initialize for the instantiated entity</param>
             /// <param name="c5">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, c4, c5, sortKey);
             }
@@ -2951,7 +2951,7 @@ namespace Latios
             /// <param name="c5">The first post-process command data to be applied to the instantiated entity</param>
             /// <param name="c6">The second post-process command data to be applied to the instantiated entity</param>
             /// <param name="sortKey">The sort key for deterministic playback</param>
-            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, T6 c6, int sortKey = int.MaxValue)
+            public void Add(Entity entity, T0 c0, T1 c1, T2 c2, T3 c3, T4 c4, T5 c5, T6 c6, int sortKey)
             {
                 m_instantiateCommandBufferUntyped.Add(entity, c0, c1, c2, c3, c4, c5, c6, sortKey);
             }

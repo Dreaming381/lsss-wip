@@ -208,8 +208,8 @@ namespace Latios.Kinemation.Systems
                             mask.ClearBitAtIndex(i);
                         if (lodGroupPercentages == null || !crossfadesEnabled[i])
                             crossfadesEnabled[i] = crossfadeEnabled;
-                        if (enableMeshLodCrossfade)
-                            enableMeshLodCrossfades[i] = true;
+                        if (meshLods != null)
+                            enableMeshLodCrossfades[i] = enableMeshLodCrossfade;
                         if (select2s != null || select3s != null)
                             mmis[i] = mmi;
                     }

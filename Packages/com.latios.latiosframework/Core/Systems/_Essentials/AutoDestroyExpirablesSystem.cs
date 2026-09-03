@@ -172,7 +172,7 @@ namespace Latios.Systems
                         }
                     }
                 }
-                else if (Hint.Likely(chunkEnabledMask.ULong0 == ones && chunkEnabledMask.ULong1 == ones))
+                else if (Hint.Likely(enabledMask.ULong0 == ones && enabledMask.ULong1 == ones))
                 {
                     // All the entities in the chunk need to be kept alive. Early out.
                     return;
