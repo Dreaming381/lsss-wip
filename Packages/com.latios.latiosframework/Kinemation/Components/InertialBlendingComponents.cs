@@ -24,7 +24,7 @@ namespace Latios.Kinemation
     /// Same as OptimizedBoneInertialBlendState, but for Ticking.
     /// Usage: Prefer to use TickedOptimizedSkeletonAspect instead of this component directly.
     /// </summary>
-    [TickedAutoAdd(typeof(OptimizedBoneInertialBlendState), true)]
+    [TickedAutoAdd(typeof(OptimizedBoneInertialBlendState), true, true)]
     [InternalBufferCapacity(0)]
     public struct TickedOptimizedBoneInertialBlendState : IBufferElementData
     {

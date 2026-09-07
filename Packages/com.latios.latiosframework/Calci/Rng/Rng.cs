@@ -168,15 +168,40 @@ namespace Latios.Calci
             state.EntityManager.AddComponentData(state.SystemHandle, new SystemRng(seedString));
         }
 
+        public static void InitTickedSystemRng(this ref SystemState state, uint seed)
+        {
+            state.EntityManager.AddComponent(state.SystemHandle, new TypePack<SystemRng, TickedSystemRngSeed>());
+            state.EntityManager.SetComponentData(state.SystemHandle, new TickedSystemRngSeed { seed = seed });
+        }
+
+        public static void InitTickedSystemRng(this ref SystemState state, FixedString128Bytes seedString)
+        {
+            InitTickedSystemRng(ref state, math.asuint(seedString.GetHashCode()));
+        }
+
         public static SystemRng GetJobRng(this ref SystemState state)
         {
             return state.EntityManager.GetComponentDataRW<SystemRng>(state.SystemHandle).ValueRW.Shuffle();
+        }
+
+        public static SystemRng GetTickedJobRng(this ref SystemState state, int tick)
+        {
+            var     seed      = state.EntityManager.GetComponentData<TickedSystemRngSeed>(state.SystemHandle).seed;
+            ref var systemRng = ref state.EntityManager.GetComponentDataRW<SystemRng>(state.SystemHandle).ValueRW;
+            systemRng.rng     = new Rng(new Rng.RngSequence(new uint2(seed, math.asuint(tick))).NextUInt());
+            return systemRng;
         }
 
         public static Rng.RngSequence GetMainThreadRng(this ref SystemState state)
         {
             var srng = GetJobRng(ref state);
             return srng.rng.GetSequence(int.MaxValue);  // Do something most people won't encounter in jobs for extra randomness.
+        }
+
+        public static Rng.RngSequence GetTickedMainThreadRng(this ref SystemState state, int tick)
+        {
+            var srng = GetTickedJobRng(ref state, tick);
+            return srng.rng.GetSequence(int.MaxValue);
         }
     }
 
@@ -265,6 +290,11 @@ namespace Latios.Calci
         public void ShuffleElements<T, U>(T list) where T : unmanaged, INativeList<U> where U : unmanaged => currentSequence.ShuffleElements<T, U>(list);
     }
 
+    public struct TickedSystemRngSeed : IComponentData
+    {
+        public uint seed;
+    }
+
     [IJobEach.ParameterHandle(typeof(RngEachParameter), IJobEach.ScheduleModeMask.All)]
     public unsafe struct RngEach : IJobEach.IParameter
     {
@@ -346,6 +376,91 @@ namespace Latios.Calci
         public void UpdateForApi(ref SystemState state)
         {
             srng = state.GetJobRng();
+        }
+    }
+
+    [IJobEach.ParameterHandle(typeof(TickedRngEachParameter), IJobEach.ScheduleModeMask.All)]
+    public unsafe struct TickedRngEach : IJobEach.IParameter
+    {
+        internal Rng.RngSequence* sequencePtr;
+        ref Rng.RngSequence currentSequence => ref *sequencePtr;
+
+        public bool NextBool() => currentSequence.NextBool();
+        public bool2 NextBool2() => currentSequence.NextBool2();
+        public bool3 NextBool3() => currentSequence.NextBool3();
+        public bool4 NextBool4() => currentSequence.NextBool4();
+
+        public uint NextUInt() => currentSequence.NextUInt();
+        public uint2 NextUInt2() => currentSequence.NextUInt2();
+        public uint3 NextUInt3() => currentSequence.NextUInt3();
+        public uint4 NextUInt4() => currentSequence.NextUInt4();
+        public uint NextUInt(uint minInclusive, uint maxExclusive) => currentSequence.NextUInt(minInclusive, maxExclusive);
+        public uint2 NextUInt2(uint2 minInclusive, uint2 maxExclusive) => currentSequence.NextUInt2(minInclusive, maxExclusive);
+        public uint3 NextUInt3(uint3 minInclusive, uint3 maxExclusive) => currentSequence.NextUInt3(minInclusive, maxExclusive);
+        public uint4 NextUInt4(uint4 minInclusive, uint4 maxExclusive) => currentSequence.NextUInt4(minInclusive, maxExclusive);
+
+        public int NextInt() => currentSequence.NextInt();
+        public int2 NextInt2() => currentSequence.NextInt2();
+        public int3 NextInt3() => currentSequence.NextInt3();
+        public int4 NextInt4() => currentSequence.NextInt4();
+        public int NextInt(int minInclusive, int maxExclusive) => currentSequence.NextInt(minInclusive, maxExclusive);
+        public int2 NextInt2(int2 minInclusive, int2 maxExclusive) => currentSequence.NextInt2(minInclusive, maxExclusive);
+        public int3 NextInt3(int3 minInclusive, int3 maxExclusive) => currentSequence.NextInt3(minInclusive, maxExclusive);
+        public int4 NextInt4(int4 minInclusive, int4 maxExclusive) => currentSequence.NextInt4(minInclusive, maxExclusive);
+
+        public float NextFloat() => currentSequence.NextFloat();
+        public float2 NextFloat2() => currentSequence.NextFloat2();
+        public float3 NextFloat3() => currentSequence.NextFloat3();
+        public float4 NextFloat4() => currentSequence.NextFloat4();
+        public float NextFloat(float minInclusive, float maxExclusive) => currentSequence.NextFloat(minInclusive, maxExclusive);
+        public float2 NextFloat2(float2 minInclusive, float2 maxExclusive) => currentSequence.NextFloat2(minInclusive, maxExclusive);
+        public float3 NextFloat3(float3 minInclusive, float3 maxExclusive) => currentSequence.NextFloat3(minInclusive, maxExclusive);
+        public float4 NextFloat4(float4 minInclusive, float4 maxExclusive) => currentSequence.NextFloat4(minInclusive, maxExclusive);
+
+        public float2 NextFloat2Direction() => currentSequence.NextFloat2Direction();
+        public float3 NextFloat3Direction() => currentSequence.NextFloat3Direction();
+        public quaternion NextQuaternionRotation() => currentSequence.NextQuaternionRotation();
+
+        public void ShuffleElements<T>(NativeArray<T> array) where T : unmanaged => currentSequence.ShuffleElements(array);
+        public void ShuffleElements<T, U>(T list) where T : unmanaged, INativeList<U> where U : unmanaged => currentSequence.ShuffleElements<T, U>(list);
+    }
+
+    public struct TickedRngEachParameter : IJobEach.IParameterHandle<TickedRngEach>
+    {
+        SystemRng                    srng;
+        ThreadCache<Rng.RngSequence> cache;
+
+        public FluentQuery AppendToQuery(FluentQuery query) => query;
+
+        public void CreateForApi(ref SystemState state)
+        {
+            FixedString128Bytes name = default;
+            name.CopyFromTruncated(state.DebugName);
+            state.InitTickedSystemRng(name);
+        }
+
+        public unsafe TickedRngEach GetParameter(in IJobEach.JobContext context)
+        {
+            return new TickedRngEach { sequencePtr = (Rng.RngSequence*)UnsafeUtility.AddressOf(ref cache.cache) };
+        }
+
+        public bool OnChunkBegin(in IJobEach.JobContext context)
+        {
+            if (!cache.isCreated)
+                cache = new ThreadCache<Rng.RngSequence>(default);
+            srng.BeginChunk(context.chunkIndexInQuery);
+            cache.cache = srng.currentSequence;
+            return true;
+        }
+
+        public void OnChunkEnd(in IJobEach.JobContext context, bool chunkWasExecuted)
+        {
+        }
+
+        public void UpdateForApi(ref SystemState state)
+        {
+            var tickingState = state.GetLatiosWorldUnmanaged().worldBlackboardEntity.GetComponentData<TickingState>();
+            srng             = state.GetTickedJobRng(tickingState.tick);
         }
     }
 }

@@ -28,7 +28,7 @@ namespace Latios.Kinemation.Systems
         {
             var api = this.OnCreateForLatios(ref state);
 
-            m_query = state.Fluent().With<MaterialMeshInfo, LodCrossfade>(false).With<WorldRenderBounds>(true)
+            m_query = state.Fluent().With<MaterialMeshInfo, LodCrossfade>(false).With<WorldRenderBounds>(true).With<ChunkPerCameraCullingMask>(false, true)
                       .WithAnyEnabled<MmiRange2LodSelect, MmiRange3LodSelect, MeshLodCurve>(true).WithWorldTransformReadOnly().Build();
 
             api.worldBlackboardEntity.AddComponentDataIfMissing(new MeshLodCrossfadeMargin { margin = (half)0.05f });

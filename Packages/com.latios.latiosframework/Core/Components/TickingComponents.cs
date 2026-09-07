@@ -62,6 +62,10 @@ namespace Latios
         /// </summary>
         public float finalTickFraction;
         /// <summary>
+        /// Either the current or previous frame's finalTickFraction, with the latter being used for n-1 rendering
+        /// </summary>
+        public float presentationTickFraction;
+        /// <summary>
         /// A frame counter for convenience
         /// </summary>
         public int frameCounter;
@@ -107,15 +111,18 @@ namespace Latios
     [AttributeUsage(AttributeTargets.Struct)]
     public class TickedAutoAddAttribute : Attribute
     {
-        public Type nonTickedType;
+        public Type referenceType;
         public bool copyData;
+        public bool removeReferenceForTickedOnly;
 
-        /// <param name="nonTickedType">The target type this type pairs with for structural changes</param>
+        /// <param name="referenceType">The target type this type pairs with for structural changes</param>
         /// <param name="copyData">If set to true, structural changes will also copy component values. Only valid for unmanaged IComponentData and IBufferElementData.</param>
-        public TickedAutoAddAttribute(Type nonTickedType, bool copyData)
+        /// <param name="removeReferenceForTickingOnly">If set to true, then the reference type is an interpolated type which does not need to be populated for ticking-only entities.</param>
+        public TickedAutoAddAttribute(Type referenceType, bool copyData, bool removeReferenceForTickingOnly)
         {
-            this.nonTickedType = nonTickedType;
-            this.copyData      = copyData;
+            this.referenceType                = referenceType;
+            this.copyData                     = copyData;
+            this.removeReferenceForTickedOnly = removeReferenceForTickingOnly;
         }
     }
 
@@ -133,5 +140,7 @@ namespace Latios
             this.currentTickedType = currentTickedType;
         }
     }
+
+    internal struct UsesDeferredSimulationTag : IComponentData {}
 }
 

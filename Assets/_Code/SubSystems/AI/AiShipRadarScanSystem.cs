@@ -856,8 +856,13 @@ namespace Lsss
                                 if (math.distancesq(scanResult.nearestEnemyTransform.pos,
                                                     transform.position) > math.distancesq(ship.transform.position, transform.position))
                                 {
-                                    scanResult.nearestEnemy          = ship.entity;
-                                    scanResult.nearestEnemyTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                                    if (math.dot(math.normalize(ship.transform.position - transform.position),
+                                                 math.forward(math.mul(transform.rotation,
+                                                                       radar.crossHairsForwardDirectionBias))) > radar.nearestEnemyCrossHairsCosFovFilter)
+                                    {
+                                        scanResult.nearestEnemy          = ship.entity;
+                                        scanResult.nearestEnemyTransform = new RigidTransform(ship.transform.rotation, ship.transform.position);
+                                    }
                                 }
                             }
                         }

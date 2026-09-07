@@ -476,7 +476,7 @@ namespace Latios
         /// Update the PlayerLoop to run simulation after rendering.
         /// </summary>
         /// <param name="world">World with root-level systems that need insertion into the player loop</param>
-        public static void AddWorldToCurrentPlayerLoopWithDelayedSimulation(World world)
+        public static void AddWorldToCurrentPlayerLoopWithDelayedSimulation(LatiosWorld world)
         {
             var playerLoop = PlayerLoop.GetCurrentPlayerLoop();
 
@@ -487,6 +487,7 @@ namespace Latios
                 var initializeationSystem          = world.GetExistingSystemManaged<InitializationSystemGroup>();
                 var manager                        = initializeationSystem.RateManager as LatiosInitializationSystemGroupManager;
                 manager.m_deferredSimulationSystem = system;
+                world.worldBlackboardEntity.AddComponent<UsesDeferredSimulationTag>();
 
                 ScriptBehaviourUpdateOrder.AppendSystemToPlayerLoop(initializeationSystem, ref playerLoop, typeof(Initialization));
                 // We add it here for visibility in tools. But really we don't update until EndOfFrame

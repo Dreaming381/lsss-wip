@@ -639,22 +639,26 @@ namespace Latios.Transforms
                 {
                     int currentHierarchyIndex = 0;
                     int currentSoloIndex      = chunks.Length - 1;
-                    for (; currentHierarchyIndex < currentSoloIndex; currentHierarchyIndex++)
+                    while (currentHierarchyIndex <= currentSoloIndex)
                     {
-                        if (chunks[currentHierarchyIndex].role == Role.Solo)
+                        // Walk up until we hit a solo chunk or exhaust the array
+                        if (chunks[currentHierarchyIndex].role != Role.Solo)
                         {
-                            bool swapped = false;
-                            for (; currentSoloIndex > currentHierarchyIndex && !swapped; currentSoloIndex--)
-                            {
-                                if (chunks[currentSoloIndex].role != Role.Solo)
-                                {
-                                    (chunks[currentHierarchyIndex], chunks[currentSoloIndex]) = (chunks[currentSoloIndex], chunks[currentHierarchyIndex]);
-                                    swapped                                                   = true;
-                                }
-                            }
+                            currentHierarchyIndex++;
+                            continue;
                         }
+                        // Walk down until we hit a hierarchy chunk or reach the hierarchy counter
+                        while (currentSoloIndex > currentHierarchyIndex && chunks[currentSoloIndex].role == Role.Solo)
+                            currentSoloIndex--;
+                        // If we reach the hierarchy counter, that is pointing to the first solo chunk, and we can stop
+                        if (currentSoloIndex == currentHierarchyIndex)
+                            break;
+                        // Otherwise, swap the chunks, advance each indexer, and continue
+                        (chunks[currentHierarchyIndex], chunks[currentSoloIndex]) = (chunks[currentSoloIndex], chunks[currentHierarchyIndex]);
+                        currentHierarchyIndex++;
+                        currentSoloIndex--;
                     }
-                    hierarchyChunkCount = currentSoloIndex;
+                    hierarchyChunkCount = currentHierarchyIndex;
                 }
 
                 var hierarchyChunks = chunks.AsArray().GetSubArray(0, hierarchyChunkCount);
