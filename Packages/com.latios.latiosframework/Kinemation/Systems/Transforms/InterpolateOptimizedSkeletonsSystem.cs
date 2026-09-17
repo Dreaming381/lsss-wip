@@ -148,13 +148,7 @@ namespace Latios.Kinemation.Systems
             var api = this.GetApi(ref state);
             var job = new Job
             {
-                boneTransformHandle = GetBufferTypeHandle<OptimizedBoneTransform>(false),
-                factor              = latiosWorld.worldBlackboardEntity.GetComponentData<TickingState>().finalTickFraction,
-                hierarchyHandle     = GetComponentTypeHandle<OptimizedSkeletonHierarchyBlobReference>(true),
-                stateHandle         = GetComponentTypeHandle<OptimizedSkeletonState>(false),
-                tickedBonesHandle   = GetBufferTypeHandle<TickedOptimizedBoneTransform>(true),
-                tickedStateHandle   = GetComponentTypeHandle<TickedOptimizedSkeletonState>(true),
-                transformHandle     = GetComponentTypeHandle<Unity.Transforms.LocalToWorld>(true),
+                factor = api.worldBlackboardEntity.GetComponentData<TickingState>().finalTickFraction,
             }.Inject(api);
             state.Dependency = job.ScheduleParallel(m_query, state.Dependency);
         }
@@ -184,7 +178,7 @@ namespace Latios.Kinemation.Systems
                 {
                     var boneBuffer       = boneBuffers[i];
                     DynamicBuffer<OptimizedBoneInertialBlendState> dummyBlendBuffer = default;
-                    var skeletonAspect   = new OptimizedSkeletonAspect(in transformHandle[i],
+                    var skeletonAspect   = new OptimizedSkeletonAspect(in ltws[i],
                                                                        new RefRO<OptimizedSkeletonHierarchyBlobReference>(hierarchies,
                                                                                                                           i),
                                                                        new RefRW<OptimizedSkeletonState>(states, i),

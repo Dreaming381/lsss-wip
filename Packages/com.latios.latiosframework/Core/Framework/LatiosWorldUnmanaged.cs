@@ -66,6 +66,9 @@ namespace Latios
             }
         }
 
+        /// <summary>
+        /// Obtains Unity's WorldUnmanaged for this world
+        /// </summary>
         public WorldUnmanaged unityWorldUnmanaged
         {
             get

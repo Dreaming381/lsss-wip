@@ -10,7 +10,8 @@
         "Unity.Collections",
         "Unity.Entities",
         "Unity.Mathematics",
-        "Unity.Entities.Hybrid"
+        "Unity.Entities.Hybrid",
+        "Unity.Transforms"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

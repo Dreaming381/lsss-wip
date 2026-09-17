@@ -400,12 +400,9 @@ namespace Latios.Kinemation.Systems
 #if LATIOS_TRANSFORMS_UNITY
                 state.Dependency = new ProcessSkinnedMeshStateOpsJob
                 {
-                    failedBindingEntity  = m_failedSkeletonMeshBindingEntity,
-                    ops                  = skinnedMeshBindingsStatesToWrite.AsDeferredJobArray(),
-                    parentLookup         = GetComponentLookup<Unity.Transforms.Parent>(false),
-                    stateLookup          = GetComponentLookup<SkeletonDependent>(false),
-                    localTransformLookup = GetComponentLookup<Unity.Transforms.LocalTransform>(false)
-                }.Schedule(skinnedMeshBindingsStatesToWrite, 16, state.Dependency);
+                    failedBindingEntity = m_failedSkeletonMeshBindingEntity,
+                    ops                 = skinnedMeshBindingsStatesToWrite.AsDeferredJobArray(),
+                }.Inject(api).Schedule(skinnedMeshBindingsStatesToWrite, 16, state.Dependency);
 #else
                 meshBindingsJH.Complete();
                 foreach (var op in skinnedMeshBindingsStatesToWrite)

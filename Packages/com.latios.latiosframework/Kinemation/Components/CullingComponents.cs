@@ -72,6 +72,15 @@ namespace Latios.Kinemation
     public struct UsedOnlyForCustomGraphicsTag : IComponentData { }
 
     /// <summary>
+    /// Added to the worldBlackboardEntity by KinemationBootstrap when the platform cannot support
+    /// rendering, such as when running with -nographics, without a Scriptable Render Pipeline, or
+    /// on a device without compute shader support. Kinemation, other framework modules, and add-ons
+    /// check for this and skip creating any system that needs a graphics device, so animation and
+    /// simulation still run. Check for it in your own installers if you add such systems.
+    /// </summary>
+    public struct NoGraphicsTag : IComponentData { }
+
+    /// <summary>
     /// Add this component to entities when you can promise that all entities within the chunk will use the exact
     /// same MaterialMeshInfo values (excluding LOD Pack). This can usually be enforced through the use of
     /// ISharedComponentData. Promising this may unlock some optimizations with rendering a large amount of

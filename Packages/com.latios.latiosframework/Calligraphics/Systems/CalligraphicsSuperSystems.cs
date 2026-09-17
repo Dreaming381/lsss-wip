@@ -35,7 +35,9 @@ namespace Latios.Calligraphics.Systems
         {
             GetOrCreateAndAddUnmanagedSystem<GenerateGlyphsSystem>();
             GetOrCreateAndAddManagedSystem<CalligraphicsAnimationSuperSystem>();
-            GetOrCreateAndAddUnmanagedSystem<UpdateGlyphsRenderersSystem>();
+            // UpdateGlyphsRenderersSystem reads the glyph atlas, which only DispatchGlyphsSystem creates.
+            if (!worldBlackboardEntity.HasComponent<Kinemation.NoGraphicsTag>())
+                GetOrCreateAndAddUnmanagedSystem<UpdateGlyphsRenderersSystem>();
         }
     }
 

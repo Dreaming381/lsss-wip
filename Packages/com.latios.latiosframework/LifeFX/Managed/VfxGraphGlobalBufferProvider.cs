@@ -10,6 +10,7 @@ namespace Latios.LifeFX
     /// Supported built-in shader properties:
     /// _latiosDeformBuffer
     /// _latiosBoneTransforms
+    /// _latiosTrackedWorldTransforms
     /// </remarks>
     [AddComponentMenu("Latios/LifeFX/VFX Graph Global Buffer Provider (LifeFX)")]
     public class VfxGraphGlobalBufferProvider : GraphicsGlobalBufferReceptor
@@ -35,8 +36,10 @@ namespace Latios.LifeFX
 
                 if (!string.IsNullOrEmpty(buffer))
                 {
-                    hasBuffer = true;
                     bufferId  = Shader.PropertyToID(buffer);
+                    hasBuffer = effect.HasGraphicsBuffer(bufferId);
+                    if (!hasBuffer)
+                        Debug.LogWarning($"{name} specifies the global buffer property \"{buffer}\", which {effect.visualEffectAsset?.name} does not expose.", this);
                 }
             }
 

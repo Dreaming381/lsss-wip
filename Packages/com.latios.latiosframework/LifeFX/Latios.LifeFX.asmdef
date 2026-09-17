@@ -12,7 +12,8 @@
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.Entities.Graphics",
-        "Unity.VisualEffectGraph.Runtime"
+        "Unity.VisualEffectGraph.Runtime",
+        "Unity.Transforms"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

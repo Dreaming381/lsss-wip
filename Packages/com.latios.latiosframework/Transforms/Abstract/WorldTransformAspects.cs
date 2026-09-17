@@ -154,7 +154,11 @@ namespace Latios.Transforms.Abstract
 
             public bool Has(in ArchetypeChunk chunk) => chunk.Has(ref transformHandle);
 
+#if LATIOS_TRANSFORMS_UNITY
+            public bool isNativeQvvs => false;
+#else
             public bool isNativeQvvs => true;
+#endif
 
             void ILatiosApiGettable.CreateForApi(ref SystemState state) => this = new TypeHandle(ref state);
 

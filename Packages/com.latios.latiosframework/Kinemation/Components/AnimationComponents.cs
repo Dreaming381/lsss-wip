@@ -142,6 +142,7 @@ namespace Latios.Kinemation
                 AclUnity.Decompression.SamplePoseBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, blendWeight, time, mode);
         }
 
+#if !LATIOS_TRANSFORMS_UNITY
         /// <summary>
         /// Samples the animation clip for the entire skeleton at the given time weighted by the blendWeight.
         /// This method uses a special fast-path.
@@ -165,6 +166,7 @@ namespace Latios.Kinemation
             else
                 AclUnity.Decompression.SamplePoseBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, blendWeight, time, mode);
         }
+#endif
 
         /// <summary>
         /// Samples the animation clip for parts of the skeleton specified by the mask at the given time weighted by the blendWeight.
@@ -192,6 +194,7 @@ namespace Latios.Kinemation
                 AclUnity.Decompression.SamplePoseMaskedBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, mask, blendWeight, time, mode);
         }
 
+#if !LATIOS_TRANSFORMS_UNITY
         /// <summary>
         /// Samples the animation clip for parts of the skeleton specified by the mask at the given time weighted by the blendWeight.
         /// This method uses a special fast-path.
@@ -217,6 +220,7 @@ namespace Latios.Kinemation
             else
                 AclUnity.Decompression.SamplePoseMaskedBlendedFirst(compressedClipDataAligned16.GetUnsafePtr(), buffer, mask, blendWeight, time, mode);
         }
+#endif
 
         /// <summary>
         /// Samples the animation clip for the entire set of transforms at the given time weighted by the blendWeight.
@@ -370,12 +374,14 @@ namespace Latios.Kinemation
                 throw new ArgumentException("The Optimized Skeleton does not contain enough bones for the animation clip.");
         }
 
+#if !LATIOS_TRANSFORMS_UNITY
         [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
         void CheckSkeletonIsBigEnoughForClip(in TickedOptimizedSkeletonAspect osa, short boneCount)
         {
             if (osa.boneCount < boneCount)
                 throw new ArgumentException("The Optimized Skeleton does not contain enough bones for the animation clip.");
         }
+#endif
     }
 
     /// <summary>

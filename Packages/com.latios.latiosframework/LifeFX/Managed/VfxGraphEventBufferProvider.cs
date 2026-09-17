@@ -36,18 +36,24 @@ namespace Latios.LifeFX
 
                 if (!string.IsNullOrEmpty(buffer))
                 {
-                    hasBuffer = true;
                     bufferId  = Shader.PropertyToID(buffer);
+                    hasBuffer = effect.HasGraphicsBuffer(bufferId);
+                    if (!hasBuffer)
+                        Debug.LogWarning($"{name} specifies the buffer property \"{buffer}\", which {effect.visualEffectAsset?.name} does not expose.", this);
                 }
                 if (!string.IsNullOrEmpty(start))
                 {
-                    hasStart = true;
                     startId  = Shader.PropertyToID(start);
+                    hasStart = effect.HasInt(startId);
+                    if (!hasStart)
+                        Debug.LogWarning($"{name} specifies the start property \"{start}\", which {effect.visualEffectAsset?.name} does not expose.", this);
                 }
                 if (!string.IsNullOrEmpty(count))
                 {
-                    hasCount = true;
                     countId  = Shader.PropertyToID(count);
+                    hasCount = effect.HasInt(countId);
+                    if (!hasCount)
+                        Debug.LogWarning($"{name} specifies the count property \"{count}\", which {effect.visualEffectAsset?.name} does not expose.", this);
                 }
             }
 

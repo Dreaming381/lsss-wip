@@ -170,8 +170,8 @@ namespace Latios.Calci
 
         public static void InitTickedSystemRng(this ref SystemState state, uint seed)
         {
-            state.EntityManager.AddComponent(state.SystemHandle, new TypePack<SystemRng, TickedSystemRngSeed>());
-            state.EntityManager.SetComponentData(state.SystemHandle, new TickedSystemRngSeed { seed = seed });
+            state.EntityManager.AddComponent(state.SystemHandle, new TypePack<SystemRng, TickedSystemRngSeedAndLastVersion>());
+            state.EntityManager.SetComponentData(state.SystemHandle, new TickedSystemRngSeedAndLastVersion { seed = seed });
         }
 
         public static void InitTickedSystemRng(this ref SystemState state, FixedString128Bytes seedString)
@@ -186,9 +186,13 @@ namespace Latios.Calci
 
         public static SystemRng GetTickedJobRng(this ref SystemState state, int tick)
         {
-            var     seed      = state.EntityManager.GetComponentData<TickedSystemRngSeed>(state.SystemHandle).seed;
-            ref var systemRng = ref state.EntityManager.GetComponentDataRW<SystemRng>(state.SystemHandle).ValueRW;
-            systemRng.rng     = new Rng(new Rng.RngSequence(new uint2(seed, math.asuint(tick))).NextUInt());
+            ref var systemData = ref state.EntityManager.GetComponentDataRW<TickedSystemRngSeedAndLastVersion>(state.SystemHandle).ValueRW;
+            ref var systemRng  = ref state.EntityManager.GetComponentDataRW<SystemRng>(state.SystemHandle).ValueRW;
+            if (systemData.lastVersion == state.GlobalSystemVersion)
+                return systemRng.Shuffle();
+            var seed               = systemData.seed;
+            systemRng.rng          = new Rng(new Rng.RngSequence(new uint2(seed, math.asuint(tick))).NextUInt());
+            systemData.lastVersion = state.GlobalSystemVersion;
             return systemRng;
         }
 
@@ -290,9 +294,10 @@ namespace Latios.Calci
         public void ShuffleElements<T, U>(T list) where T : unmanaged, INativeList<U> where U : unmanaged => currentSequence.ShuffleElements<T, U>(list);
     }
 
-    public struct TickedSystemRngSeed : IComponentData
+    public struct TickedSystemRngSeedAndLastVersion : IComponentData
     {
         public uint seed;
+        public uint lastVersion;
     }
 
     [IJobEach.ParameterHandle(typeof(RngEachParameter), IJobEach.ScheduleModeMask.All)]
