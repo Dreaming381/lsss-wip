@@ -46,7 +46,7 @@ namespace Latios
         /// </summary>
         public int firstTickThisFrame;
         /// <summary>
-        /// One tick higher than the highest tick ever evaluated
+        /// One tick higher than the highest tick ever evaluated in a previous frame
         /// </summary>
         public int newTick;
         /// <summary>

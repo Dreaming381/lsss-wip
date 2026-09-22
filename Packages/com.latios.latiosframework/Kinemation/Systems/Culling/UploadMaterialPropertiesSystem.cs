@@ -40,8 +40,6 @@ namespace Latios.Kinemation.Systems
         private static ulong PrevUsedSpace = 0;
 #endif
 
-        bool m_updateLate;
-
         /// <summary>
         /// Prune sparse uploader gpu buffer pool.
         /// </summary>
@@ -66,7 +64,6 @@ namespace Latios.Kinemation.Systems
             m_GPUPersistentInstanceData         = broker.GetPersistentBufferNoResize(m_instanceBufferId);
             m_GPUPersistentInstanceBufferHandle = m_GPUPersistentInstanceData.bufferHandle;
             m_GPUUploader                       = new LatiosSparseUploader(api.latiosWorld.latiosWorld, m_GPUPersistentInstanceData, kGPUUploaderChunkSize);
-            m_updateLate                        = false;
         }
 
         internal void UpdateInstanceBuffer(LatiosWorldUnmanaged latiosWorld)

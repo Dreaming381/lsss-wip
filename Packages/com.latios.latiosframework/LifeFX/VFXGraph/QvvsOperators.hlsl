@@ -3,7 +3,7 @@
 // VFX Graph allows a Custom HLSL function at most four input slots. VFXExpression refuses more
 // than four parents, and exceeding it throws while the node's slots resolve, which aborts the
 // whole graph's compilation rather than flagging the node. A QVVS is three float4 slots, so any
-// operator taking two of them routes them through a float4x4 instead. The fourth row is padding.
+// operator taking two of them routes them through a float4x4 instead. The fourth row is ignored.
 
 float4x4 PackQvvs(float4 qvvsA, float4 qvvsB, float4 qvvsC)
 {

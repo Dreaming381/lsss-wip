@@ -81,7 +81,11 @@ namespace Latios
                 starts[count]   = (byte)(firstBit + offset);
                 counts[count]   = (byte)c;
                 offset         += firstBit + c;
-                lower         >>= c;
+                // A full run of all 64 bits will result in c of 64, which is shift no-op.
+                // Therefore, we break the shift in two. We know that c here is at least 1,
+                // so this is safe.
+                lower >>= c - 1;
+                lower >>= 1;
                 count++;
             }
             if (chunkEntityCount < 64)
@@ -98,7 +102,8 @@ namespace Latios
                 var c               = math.tzcnt(flipped);
                 counts[count - 1]  += (byte)c;
                 offset             += c;
-                upper             >>= c;
+                upper             >>= c - 1;
+                upper             >>= 1;
             }
             while (upper != 0)
             {
@@ -109,7 +114,8 @@ namespace Latios
                 starts[count]   = (byte)(firstBit + offset);
                 counts[count]   = (byte)c;
                 offset         += firstBit + c;
-                upper         >>= c;
+                upper         >>= c - 1;
+                upper         >>= 1;
                 count++;
             }
         }
