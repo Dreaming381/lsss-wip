@@ -49,22 +49,6 @@ namespace Latios.Kinemation.Systems
             EnableSystemSorting = true;
         }
     }
-
-    /// <summary>
-    /// This super system executes inside the culling loop after frustum culling and LOD selection,
-    /// and before draw commands are generated. It is intended for systems which further reduce the
-    /// ChunkPerCameraCullingMask and ChunkPerCameraCullingSplitsMask, such as occlusion culling.
-    /// MaterialMeshInfo is final when this super system updates, so a system here may rely on the
-    /// selected LOD mesh. A system here may only clear mask bits, never set them.
-    /// </summary>
-    [DisableAutoCreation]
-    public partial class KinemationOcclusionCullingSuperSystem : SuperSystem
-    {
-        protected override void CreateSystems()
-        {
-            EnableSystemSorting = true;
-        }
-    }
     #endregion
 
     #region Update SuperSystems
@@ -268,7 +252,6 @@ namespace Latios.Kinemation.Systems
             GetOrCreateAndAddUnmanagedSystem<CullLodsSystem>();
             GetOrCreateAndAddUnmanagedSystem<FrustumCullSystem>();
             GetOrCreateAndAddUnmanagedSystem<SelectMmiRangeLodsSystem>();
-            GetOrCreateAndAddManagedSystem<KinemationOcclusionCullingSuperSystem>();
             GetOrCreateAndAddUnmanagedSystem<GenerateBrgDrawCommandsSystem>();
 
             SetRateManagerCreateAllocator(null);
