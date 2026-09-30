@@ -447,13 +447,11 @@ namespace Latios
         {
             if ((m_options & EntityQueryOptions.IgnoreComponentEnabledState) == EntityQueryOptions.IgnoreComponentEnabledState)
             {
-                // Move any WithEnabled to With
+                // Move any WithEnabled to With. Unfortunately, we can't do any merging for withoutEnabled because Unity handles that in a special way.
                 m_with.AddRange(m_withEnabled.AsArray());
                 m_withEnabled.Clear();
                 m_with.AddRange(m_withDisabled.AsArray());
                 m_withDisabled.Clear();
-                m_with.AddRange(m_withoutEnabled.AsArray());
-                m_withoutEnabled.Clear();
             }
 
             // Remove all duplicates

@@ -118,7 +118,8 @@ namespace Latios.Systems
                             EntityManager.AddComponent<DisableSynchronousSubsceneLoadingTag>(e);
                             if (EntityManager.HasComponent<Unity.Scenes.ResolvedSectionEntity>(e))
                             {
-                                foreach (var s in EntityManager.GetBuffer<Unity.Scenes.ResolvedSectionEntity>(e))
+                                var resolved = EntityManager.GetBuffer<Unity.Scenes.ResolvedSectionEntity>(e).ToNativeArray(Allocator.Temp);
+                                foreach (var s in resolved)
                                     EntityManager.AddComponent<DisableSynchronousSubsceneLoadingTag>(s.SectionEntity);
                             }
                         }

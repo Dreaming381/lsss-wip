@@ -7,6 +7,10 @@ using Unity.Entities.Exposed;
 using Unity.Jobs;
 using Unity.Mathematics;
 
+// Todo: Extension methods currently pass the SyncPointPlaybackSystem by value, due to leftover logic from when
+// it was managed. It is a breaking change to fix this behavior. So on a new feature release, this and the ticked
+// counterpart need to be updated.
+
 namespace Latios.Systems
 {
     /// <summary>
@@ -91,8 +95,9 @@ namespace Latios.Systems
         internal AllocatorManager.AllocatorHandle allocator => m_commandBufferAllocator.Allocator.Handle;
 
         LatiosWorldUnmanaged m_world;
-        bool                 m_hasPendingJobHandlesToAcquire;
-        internal bool hasPendingJobHandlesToAquire => m_hasPendingJobHandlesToAcquire;
+        // Todo: Stop making this a NativeReference once the extension API is fixed.
+        NativeReference<bool> m_hasPendingJobHandlesToAcquire;
+        internal bool hasPendingJobHandlesToAquire => m_hasPendingJobHandlesToAcquire.Value;
 
         int  m_nextPlaybackIndex;
         bool m_needsAnotherRun;
@@ -136,6 +141,7 @@ namespace Latios.Systems
             m_addComponentsCommandBuffersWithoutData = new NativeList<AddComponentsCommandBuffer>(Allocator.Persistent);
             m_addComponentsCommandBuffersUntyped     = new NativeList<AddComponentsCommandBufferUntyped>(Allocator.Persistent);
             m_customCommandBuffersUntyped            = new NativeList<CustomCommandBufferUntyped>(Allocator.Persistent);
+            m_hasPendingJobHandlesToAcquire          = new NativeReference<bool>(Allocator.Persistent);
 
             m_jobHandles = new NativeList<JobHandle>(Allocator.Persistent);
 
@@ -166,6 +172,7 @@ namespace Latios.Systems
             m_addComponentsCommandBuffersWithoutData.Dispose();
             m_addComponentsCommandBuffersUntyped.Dispose();
             m_customCommandBuffersUntyped.Dispose();
+            m_hasPendingJobHandlesToAcquire.Dispose();
 
             m_externalSourceText.Dispose();
         }
@@ -296,6 +303,8 @@ namespace Latios.Systems
 #endif
             m_needsAnotherRun   = false;
             m_nextPlaybackIndex = 0;
+            foreach (var ecb in m_entityCommandBuffers)
+                ecb.Dispose();
             m_playbackInstances.Clear();
             m_entityCommandBuffers.Clear();
             m_enableCommandBuffers.Clear();
@@ -322,8 +331,8 @@ namespace Latios.Systems
 
         internal void AddInstantiateCommandBufferUntyped(InstantiateCommandBufferUntyped icb)
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.InstantiateUntyped,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -334,8 +343,8 @@ namespace Latios.Systems
 
         internal void AddAddComponentsCommandBufferUntyped(AddComponentsCommandBufferUntyped accb)
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.AddComponentsUntyped,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -346,8 +355,8 @@ namespace Latios.Systems
 
         internal void AddCustomCommandBufferUntyped(CustomCommandBufferUntyped ccb)
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.CustomUntyped,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -364,9 +373,9 @@ namespace Latios.Systems
         /// </summary>
         public EntityCommandBuffer CreateEntityCommandBuffer()
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var ecb                         = new EntityCommandBuffer(allocator, PlaybackPolicy.SinglePlayback);
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var ecb                               = new EntityCommandBuffer(allocator, PlaybackPolicy.SinglePlayback);
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.Entity,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -381,9 +390,9 @@ namespace Latios.Systems
         /// </summary>
         public EnableCommandBuffer CreateEnableCommandBuffer()
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var ecb                         = new EnableCommandBuffer(allocator);
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var ecb                               = new EnableCommandBuffer(allocator);
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.Enable,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -398,9 +407,9 @@ namespace Latios.Systems
         /// </summary>
         public DisableCommandBuffer CreateDisableCommandBuffer()
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var dcb                         = new DisableCommandBuffer(allocator);
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var dcb                               = new DisableCommandBuffer(allocator);
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.Disable,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -415,9 +424,9 @@ namespace Latios.Systems
         /// </summary>
         public DestroyCommandBuffer CreateDestroyCommandBuffer()
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var dcb                         = new DestroyCommandBuffer(allocator);
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var dcb                               = new DestroyCommandBuffer(allocator);
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.Destroy,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -432,9 +441,9 @@ namespace Latios.Systems
         /// </summary>
         public InstantiateCommandBuffer CreateInstantiateCommandBuffer()
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var icb                         = new InstantiateCommandBuffer(allocator);
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var icb                               = new InstantiateCommandBuffer(allocator);
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.InstantiateNoData,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -502,9 +511,9 @@ namespace Latios.Systems
         /// </summary>
         public AddComponentsCommandBuffer CreateAddComponentsCommandBuffer(AddComponentsDestroyedEntityResolution destroyedEntityResolution)
         {
-            m_hasPendingJobHandlesToAcquire = true;
-            var accb                        = new AddComponentsCommandBuffer(allocator, destroyedEntityResolution);
-            var instance                    = new PlaybackInstance
+            m_hasPendingJobHandlesToAcquire.Value = true;
+            var accb                              = new AddComponentsCommandBuffer(allocator, destroyedEntityResolution);
+            var instance                          = new PlaybackInstance
             {
                 type             = PlaybackType.AddComponentsNoData,
                 requestingSystem = m_world.m_impl->m_worldUnmanaged.GetCurrentlyExecutingSystem()
@@ -583,7 +592,7 @@ namespace Latios.Systems
         public void AddJobHandleForProducer(JobHandle handle)
         {
             m_jobHandles.Add(handle);
-            m_hasPendingJobHandlesToAcquire = false;
+            m_hasPendingJobHandlesToAcquire.Value = false;
         }
 
         /// <summary>
@@ -593,7 +602,7 @@ namespace Latios.Systems
         /// </summary>
         public void AddMainThreadCompletionForProducer()
         {
-            m_hasPendingJobHandlesToAcquire = false;
+            m_hasPendingJobHandlesToAcquire.Value = false;
         }
 
         #endregion
@@ -784,3 +793,4 @@ namespace Latios
         }
     }
 }
+

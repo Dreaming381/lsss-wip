@@ -2,6 +2,7 @@
 using System;
 using Latios.Unsafe;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -490,7 +491,7 @@ namespace Latios.Transforms
                     case WriteCommand.WriteType.CopyParentParentChanged:
                     {
                         var parentTransform = ParentTransformFrom(handle, ref aliveLookup, ref transformLookup, out _);
-                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        WorldLocalOps.SetCopyParentTransform(in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                     }
                 }
@@ -588,7 +589,7 @@ namespace Latios.Transforms
                         WorldLocalOps.InverseTransformWorld(in writeData, in parentTransform, ref transform, in parentHandle, in handle, transformLookup.isTicked);
                         break;
                     case WriteCommand.WriteType.CopyParentParentChanged:
-                        WorldLocalOps.TranslateWorld(writeData.position, in parentTransform, ref transform, in handle, transformLookup.isTicked);
+                        WorldLocalOps.SetCopyParentTransform(in parentTransform, ref transform, in handle, transformLookup.isTicked);
                         break;
                 }
                 oldNewWorldTransform.newTransform = transform;
@@ -601,12 +602,18 @@ namespace Latios.Transforms
                 ref var transform    = ref transformLookup.GetWorldTransformRefRW(handle.entity).ValueRW.worldTransform;
                 var     parentHandle = handle.GetFromIndexInHierarchy(parentIndex);
                 var     result       = new OldNewWorldTransform { oldTransform = transform };
+
+                ref var flagsRef    = ref ((EntityInHierarchy*)handle.m_hierarchy.GetUnsafeReadOnlyPtr())[handle.m_index].m_flags;
+                var     flagsBackup = flagsRef;
+                flagsRef            = flags;
+
                 WorldLocalOps.PropagateTransform(in oldNewWorldTransform.newTransform,
                                                  in oldNewWorldTransform.oldTransform,
                                                  ref transform,
                                                  in parentHandle,
                                                  in handle,
                                                  transformLookup.isTicked);
+                flagsRef            = flagsBackup;
                 result.newTransform = transform;
                 return result;
             }

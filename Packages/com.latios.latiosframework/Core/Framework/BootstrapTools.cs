@@ -71,13 +71,15 @@ namespace Latios
                 var type = system.GetManagedType();
                 if (type.Namespace == null)
                 {
-                    if (!silenceWarnings && type.Assembly.FullName.Contains("Unity"))
+                    if (type.Assembly.FullName.Contains("Unity"))
                     {
-                        Debug.LogWarning($"Hey Unity Devs! You forgot a namespace for {type}");
+                        if (!silenceWarnings)
+                            Debug.LogWarning($"Hey Unity Devs! You forgot a namespace for {type}");
                     }
-                    else if (!silenceWarnings && type.Assembly.FullName.Contains("Havok"))
+                    else if (type.Assembly.FullName.Contains("Havok"))
                     {
-                        Debug.LogWarning($"Hey Havok Devs! You forgot a namespace for {type}");
+                        if (!silenceWarnings)
+                            Debug.LogWarning($"Hey Havok Devs! You forgot a namespace for {type}");
                     }
                     else
                         continue;
@@ -229,7 +231,7 @@ namespace Latios
             }
             foreach (var g in groups)
             {
-                if (TypeManager.GetSystemAttributes(newSystem.GetType(), typeof(NoGroupInjectionAttribute)).Length > 0)
+                if (TypeManager.GetSystemAttributes(type.GetManagedType(), typeof(NoGroupInjectionAttribute)).Length > 0)
                     break;
 
                 var group = FindOrCreateGroup(world, type, g, defaultGroup, groupRemap);
@@ -281,7 +283,7 @@ namespace Latios
                 }
 
                 var updateInGroupAttributes = type.GetUpdateInGroupTargets();
-                if (updateInGroupAttributes.Length == 0)
+                if (updateInGroupAttributes.Length == 0 && defaultGroup != null)
                 {
                     if (defaultGroup.SystemHandle != system)
                         defaultGroup.AddSystemToUpdateList(system);
@@ -388,7 +390,7 @@ namespace Latios
             {
                 if (IsGroup(system))
                     continue;
-                if (!typeof(ComponentSystemBase).IsAssignableFrom(system))
+                if (!typeof(ComponentSystemBase).IsAssignableFrom(system) && !typeof(ISystem).IsAssignableFrom(system))
                     continue;
                 foreach (var targetGroup in groupList)
                 {

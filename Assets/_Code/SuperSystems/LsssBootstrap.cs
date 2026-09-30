@@ -61,7 +61,7 @@ public class LatiosBootstrap : ICustomBootstrap
 
         var systems = DefaultWorldInitialization.GetAllSystemTypeIndices(WorldSystemFilterFlags.Default);
 
-        BootstrapTools.InjectUnitySystems(systems, world, world.simulationSystemGroup);
+        BootstrapTools.InjectUnitySystems(systems, world, world.simulationSystemGroup, false);
 
         CoreBootstrap.InstallSceneManager(world);
         Latios.Transforms.TransformsBootstrap.InstallTransforms(world);
