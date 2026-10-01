@@ -2,6 +2,8 @@
 using System.Text;
 using Unity.Collections;
 
+// Todo: This does 32-bit to 16-bit casts, and may not work correctly in some situations.
+
 namespace Latios
 {
     public static class StringBuilderExtensions

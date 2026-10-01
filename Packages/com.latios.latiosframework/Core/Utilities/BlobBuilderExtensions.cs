@@ -33,11 +33,12 @@ namespace Latios
 
         unsafe public static void AllocateFixedString<T>(ref this BlobBuilder builder, ref BlobString blobStr, T fixedString) where T : INativeList<byte>, IUTF8Bytes
         {
-            var res = builder.Allocate(ref UnsafeUtility.As<BlobString, BlobArray<byte> >(ref blobStr), fixedString.Length);
+            var res = builder.Allocate(ref UnsafeUtility.As<BlobString, BlobArray<byte> >(ref blobStr), fixedString.Length + 1);
             for (int i = 0; i < fixedString.Length; i++)
             {
                 res[i] = fixedString[i];
             }
+            res[fixedString.Length] = 0;
         }
 
         // Todo: Find a new home for this?
