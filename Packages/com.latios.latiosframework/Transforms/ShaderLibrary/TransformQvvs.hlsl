@@ -184,7 +184,7 @@ float3 TransformDirection(in TransformQvvs qvvs, float3 direction)
 float3 TransformDirectionWithStretch(in TransformQvvs qvvs, float3 direction)
 {
 	float magnitude = length(direction);
-	return normalizesafe(rotate(qvvs.rotation, direction) * qvvs.stretch) * magnitude;
+    return normalizesafe(rotate(qvvs.rotation, direction * qvvs.stretch)) * magnitude;
 }
 
 float3 TransformDirectionScaledAndStretched(in TransformQvvs qvvs, float3 direction)

@@ -460,7 +460,7 @@ namespace Latios.Transforms
         public static float3 TransformDirectionWithStretch(in TransformQvvs qvvs, float3 direction)
         {
             var magnitude = math.length(direction);
-            return math.normalizesafe(math.rotate(qvvs.rotation, direction) * qvvs.stretch) * magnitude;
+            return math.normalizesafe(math.rotate(qvvs.rotation, direction * qvvs.stretch)) * magnitude;
         }
 
         public static float3 TransformDirectionScaledAndStretched(in TransformQvvs qvvs, float3 direction)

@@ -139,6 +139,7 @@ namespace Latios.Unika
         {
             br              = baseResolver;
             map             = AllocatorManager.Allocate<UnsafeHashMap<Entity, EntityScriptCollection> >(allocator, 1);
+            *map            = new UnsafeHashMap<Entity, EntityScriptCollection>(64, allocator);
             lastAccessed    = default;
             allocatorHandle = allocator;
         }

@@ -114,7 +114,7 @@ namespace Latios.Transforms
         {
             if (oldIndex < hierarchy.Length && hierarchy[oldIndex].entity == entity)
                 return oldIndex;
-            for (int i = 1; i <= hierarchy.Length; i++)
+            for (int i = 1; i < hierarchy.Length; i++)
                 if (hierarchy[i].entity == entity)
                     return i;
             return -1;

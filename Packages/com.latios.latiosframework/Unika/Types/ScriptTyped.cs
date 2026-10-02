@@ -78,6 +78,8 @@ namespace Latios.Unika
 
         public static implicit operator Script(Script<T> script)
         {
+            if (!script.m_scriptBuffer.IsCreated)
+                return default;
             return new Script
             {
                 m_scriptBuffer = script.m_scriptBuffer,

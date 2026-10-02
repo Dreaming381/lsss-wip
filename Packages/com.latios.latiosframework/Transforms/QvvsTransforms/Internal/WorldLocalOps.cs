@@ -314,6 +314,7 @@ namespace Latios.Transforms
             // If the passed in transform had zero scaling, we just set the world positions and scales to 0.
             newWorld.position = math.select(float3.zero, newWorld.position, math.isfinite(newWorld.position));
             newWorld.scale    = math.select(0f, newWorld.scale, math.isfinite(newWorld.scale));
+            SetWorldTransform(newWorld, in parent, ref child, in childHandle, isTicked);
         }
 
         public static void SetCopyParentTransform(in TransformQvvs parent, ref TransformQvvs child, in EntityInHierarchyHandle childHandle, bool isTicked)
