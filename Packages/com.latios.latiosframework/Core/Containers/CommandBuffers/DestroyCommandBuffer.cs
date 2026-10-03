@@ -633,7 +633,7 @@ namespace Latios
                         var entity = legs[i].Value;
                         if (!esil.Exists(entity))
                         {
-                            legsWithInfo[start + i] = default;
+                            legsWithInfo[start + i - 1] = default;
                             continue;
                         }
 

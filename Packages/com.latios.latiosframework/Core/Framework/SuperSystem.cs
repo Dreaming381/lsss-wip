@@ -69,7 +69,7 @@ namespace Latios
             CreateSystems();
 
             if (!m_overrideSystemSortingPreference)
-                base.EnableSystemSorting = !latiosWorld.useExplicitSystemOrdering;
+                base.EnableSystemSorting = latiosWorld == null || !latiosWorld.useExplicitSystemOrdering;
         }
 
         public EntityQuery GetEntityQuery(EntityQueryDesc desc) => GetEntityQuery(new EntityQueryDesc[] { desc });

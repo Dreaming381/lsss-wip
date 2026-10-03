@@ -207,7 +207,7 @@ namespace Latios.Systems
                     }
                     else
                     {
-                        state.EntityManager.AddComponent(typePairState.missingTickingQuery, typePairState.tickingType);
+                        state.EntityManager.AddComponent(typePairState.missingReferenceQuery, typePairState.referenceType);
                     }
                 }
                 if (!typePairState.removeTickingQuery.IsEmptyIgnoreFilter)

@@ -89,19 +89,29 @@ namespace Latios.Unika
             };
         }
 
-        public static implicit operator ScriptRef<T>(Script<T> script) => new ScriptRef<T>
+        public static implicit operator ScriptRef<T>(Script<T> script)
         {
-            m_entity            = script.m_entity,
-            m_instanceId        = script.m_headerRO.instanceId,
-            m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
-        };
+            if (!script.m_scriptBuffer.IsCreated)
+                return default;
+            return new ScriptRef<T>
+            {
+                m_entity            = script.m_entity,
+                m_instanceId        = script.m_headerRO.instanceId,
+                m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
+            };
+        }
 
-        public static implicit operator ScriptRef(Script<T> script) => new ScriptRef
+        public static implicit operator ScriptRef(Script<T> script)
         {
-            m_entity            = script.m_entity,
-            m_instanceId        = script.m_headerRO.instanceId,
-            m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
-        };
+            if (!script.m_scriptBuffer.IsCreated)
+                return default;
+            return new ScriptRef
+            {
+                m_entity            = script.m_entity,
+                m_instanceId        = script.m_headerRO.instanceId,
+                m_cachedHeaderIndex = (script.m_headerOffset / UnsafeUtility.SizeOf<ScriptHeader>()) - 1
+            };
+        }
         #endregion
 
         #region Type operations

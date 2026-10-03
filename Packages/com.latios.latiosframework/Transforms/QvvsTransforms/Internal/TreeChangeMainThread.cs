@@ -274,7 +274,7 @@ namespace Latios.Transforms
                             leg.Add(e);
                     }
                 }
-                else if (options != ClearParentOptions.IgnoreLinkedEntityGroup && entitiesToAddToNewLeg.Length > 2 && em.HasBuffer<LinkedEntityGroup>(child))
+                else if (options != ClearParentOptions.IgnoreLinkedEntityGroup && entitiesToAddToNewLeg.Length > 1 && em.HasBuffer<LinkedEntityGroup>(child))
                 {
                     var leg = em.GetBuffer<LinkedEntityGroup>(child).Reinterpret<Entity>();
                     foreach (var e in entitiesToAddToNewLeg)
@@ -282,7 +282,7 @@ namespace Latios.Transforms
                         if (e == child)
                             continue;
                         // If the entity was added to the parent with AttachLinkedEntityGroup, then it may already have the LEG entities. We don't want to duplicate.
-                        if (leg.AsNativeArray().Contains(child))
+                        if (leg.AsNativeArray().Contains(e))
                             continue;
                         leg.Add(e);
                     }
@@ -302,7 +302,7 @@ namespace Latios.Transforms
                     {
                         var newCleanup = em.AddBuffer<EntityInHierarchyCleanup>(child);
                         newHierarchy   = em.GetBuffer<EntityInHierarchy>(child);
-                        TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref newCleanup);
+                        TreeKernels.CopyHierarchyToCleanup(in newHierarchy, ref newCleanup);
                     }
                     if (removeLegFromChild)
                         em.RemoveComponent<LinkedEntityGroup>(child);

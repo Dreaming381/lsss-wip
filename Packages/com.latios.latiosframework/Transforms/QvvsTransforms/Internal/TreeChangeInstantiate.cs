@@ -845,9 +845,10 @@ namespace Latios.Transforms
 
                 if (addSet.linkedEntityGroup)
                 {
-                    var esi                               = esil[addSet.entity];
-                    var leg                               = esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk];
-                    leg.Add(new LinkedEntityGroup { Value = addSet.entity });
+                    var esi = esil[addSet.entity];
+                    var leg = esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk];
+                    if (leg.IsEmpty)
+                        leg.Add(new LinkedEntityGroup { Value = addSet.entity });
                 }
             }
 
@@ -864,8 +865,11 @@ namespace Latios.Transforms
                 int i = 0;
                 foreach (var element in hierarchy)
                 {
-                    if (element.parentIndex < 0 && !esil.IsAlive(element.entity))
+                    if (element.parentIndex < 0 || !esil.IsAlive(element.entity))
+                    {
+                        i++;
                         continue;
+                    }
 
                     var chunk       = esil[element.entity].Chunk;
                     var hasNormal   = worldTransformLookup.HasComponent(element.entity);
@@ -889,7 +893,7 @@ namespace Latios.Transforms
                             wasMissingSomething    = true;
                             bitArray[parentIndex] += needsNormalBit;
                         }
-                        if (needsTicked && (bitArray[parentIndex] & hasTickedBit) == 0)
+                        if (needsTicked && (bitArray[parentIndex] & needsTickedBit) == 0)
                         {
                             wasMissingSomething    = true;
                             bitArray[parentIndex] += needsTickedBit;
@@ -907,7 +911,7 @@ namespace Latios.Transforms
                     var bits = bitArray[i];
                     if ((bits & (hasNormalBit + needsNormalBit)) == hasNormalBit)
                         ecb.RemoveComponent(sortKey, entity, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
-                    if ((bits & (hasTickedBit + needsTickedBit)) == needsTickedBit)
+                    if ((bits & (hasTickedBit + needsTickedBit)) == hasTickedBit)
                         ecb.RemoveComponent(sortKey, entity,
                                             new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                     i++;

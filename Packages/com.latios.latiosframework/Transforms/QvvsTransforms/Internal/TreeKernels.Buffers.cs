@@ -433,7 +433,7 @@ namespace Latios.Transforms
                         break;
                     }
                 }
-                matchedAll |= matched;
+                matchedAll &= matched;
             }
             return resultBuffer.Slice(0, resultCount);
         }

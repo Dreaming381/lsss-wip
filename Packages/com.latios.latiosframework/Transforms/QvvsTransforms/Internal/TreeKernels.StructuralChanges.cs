@@ -380,7 +380,11 @@ namespace Latios.Transforms
             }
 
             if (addSet.linkedEntityGroup)
-                em.GetBuffer<LinkedEntityGroup>(addSet.entity).Add(new LinkedEntityGroup { Value = addSet.entity });
+            {
+                var leg = em.GetBuffer<LinkedEntityGroup>(addSet.entity);
+                if (leg.IsEmpty)
+                    leg.Add(new LinkedEntityGroup { Value = addSet.entity });
+            }
         }
 
         public static void RemoveUnnecessaryTransformComponents(ref ThreadStackAllocator parentTsa, EntityManager em, ReadOnlySpan<EntityInHierarchy> hierarchy)
@@ -396,8 +400,11 @@ namespace Latios.Transforms
             int i = 0;
             foreach (var element in hierarchy)
             {
-                if (element.parentIndex < 0 && !em.IsAlive(element.entity))
+                if (element.parentIndex < 0 || !em.IsAlive(element.entity))
+                {
+                    i++;
                     continue;
+                }
 
                 var hasNormal   = em.HasComponent<WorldTransform>(element.entity);
                 var hasTicked   = em.HasComponent<TickedWorldTransform>(element.entity);
@@ -420,7 +427,7 @@ namespace Latios.Transforms
                         wasMissingSomething    = true;
                         bitArray[parentIndex] += needsNormalBit;
                     }
-                    if (needsTicked && (bitArray[parentIndex] & hasTickedBit) == 0)
+                    if (needsTicked && (bitArray[parentIndex] & needsTickedBit) == 0)
                     {
                         wasMissingSomething    = true;
                         bitArray[parentIndex] += needsTickedBit;
@@ -438,7 +445,7 @@ namespace Latios.Transforms
                 var bits = bitArray[i];
                 if ((bits & (hasNormalBit + needsNormalBit)) == hasNormalBit)
                     em.RemoveComponent(entity, new TypePack<WorldTransform, PreviousTransform, TwoAgoTransform>());
-                if ((bits & (hasTickedBit + needsTickedBit)) == needsTickedBit)
+                if ((bits & (hasTickedBit + needsTickedBit)) == hasTickedBit)
                     em.RemoveComponent(entity, new TypePack<TickedWorldTransform, TickedPreviousTransform, TickedPreviousLocalTransformCache, TickedTwoAgoTransform>());
                 i++;
             }

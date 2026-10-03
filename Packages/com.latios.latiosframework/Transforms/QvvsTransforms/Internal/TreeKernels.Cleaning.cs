@@ -183,7 +183,7 @@ namespace Latios.Transforms
                     }
                     if (tickedLookup.TryGetComponent(element.entity, out var tt))
                     {
-                        var parentTransform = worldLookup[parent];
+                        var parentTransform = tickedLookup[parent];
                         WorldLocalOps.UpdateLocalTransformForCleanedParent(in parentTransform.worldTransform, in tt.worldTransform, ref element, true);
                     }
                 }
