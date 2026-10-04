@@ -104,9 +104,8 @@ namespace Latios.Transforms.Systems
 
                 somethingChanged = rootsChangedStructurally || childrenChangedStructurally || worldTransformsChangedStructurally || tickedTransformsChangedStructurally ||
                                    hierarchyBuffersChanged || rootReferencesChanged || worldTransformsChanged || tickedTransformsChanged;
-
-                m_firstUpdate = false;
             }
+
             api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new LiveTransformCapture
             {
                 roots                            = roots,
@@ -118,6 +117,7 @@ namespace Latios.Transforms.Systems
                 tickedWorldTransformOrderVersion = tickedWorldTransformOrderVersion,
                 cleanEditorWorld                 = editorWorld && !hasDynamicParents && !somethingChanged
             });
+            m_firstUpdate = false;
         }
 
         [BurstCompile]

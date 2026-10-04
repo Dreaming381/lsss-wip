@@ -209,7 +209,7 @@ namespace Latios.Transforms
                 workState.parentIsDead = !esil.IsAlive(workState.parent);
                 if (workState.parentIsDead)
                 {
-                    children[i] = new ChildWorkState { parentIsDead = true };
+                    children[i] = workState;
                     return;
                 }
 
@@ -657,9 +657,13 @@ namespace Latios.Transforms
                     batchAddSetStream.EndForEachIndex();
                 }
 
-                var oldHierarchy = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
-                var rootLeg      = esi.Chunk.Has(ref legHandle) ? esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk] : default;
-                TreeKernels.RemoveDeadDescendantsFromHierarchyAndLeg(ref tsa, ref hierarchy, ref rootLeg, esil, ref worldTransformLookup, ref tickedWorldTransformLookup);
+                var  oldHierarchy = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
+                bool hasRootLeg   = esi.Chunk.Has(ref legHandle);
+                var  rootLeg      = hasRootLeg ? esi.Chunk.GetBufferAccessorRW(ref legHandle)[esi.IndexInChunk] : default;
+                if (hasRootLeg)
+                    TreeKernels.RemoveDeadDescendantsFromHierarchyAndLeg(ref tsa, ref hierarchy, ref rootLeg, esil, ref worldTransformLookup, ref tickedWorldTransformLookup);
+                else
+                    TreeKernels.RemoveDeadDescendantsFromHierarchy(ref tsa, ref hierarchy, esil, ref worldTransformLookup, ref tickedWorldTransformLookup);
                 var cleanedAnything = hierarchy.Length != oldHierarchy.Length;
                 if (hierarchy.Length == 0)
                 {
@@ -676,7 +680,7 @@ namespace Latios.Transforms
                         m_tickedLocalScale    = 1f,
                     });
                 }
-                bool hadEnoughLegBefore = rootLeg.Length >= 2;
+                bool hadEnoughLegBefore = hasRootLeg && rootLeg.Length >= 2;
                 foreach (var childIndex in rootChildrenIndices)
                 {
                     var childWorkState = childWorkStates[childIndex];
@@ -796,7 +800,7 @@ namespace Latios.Transforms
                     if (worldTransformLookup.HasComponent(childWorkState.child))
                         TransformTools.SetLocalTransform(handle, childWorkState.localTransform, ref worldTransformLookup, ref esil);
                     if (tickedWorldTransformLookup.HasComponent(childWorkState.child))
-                        TransformTools.SetTickedLocalTransform(handle, childWorkState.localTransform, ref tickedWorldTransformLookup, ref esil);
+                        TransformTools.SetTickedLocalTransform(handle, childWorkState.tickedLocalTransform, ref tickedWorldTransformLookup, ref esil);
                 }
 
                 if (hadEnoughLegBefore && rootLeg.Length < 2)

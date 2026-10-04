@@ -74,7 +74,6 @@ namespace Latios.Psyshock
         public StreamSpan<T> GetSpan<T>() where T : unmanaged
         {
             CheckTypeHash<T>();
-            PairStream.CheckNotNull(m_ptr);
             return new StreamSpan<T> { m_ptr = (T*)m_ptr, m_length = m_length };
         }
 

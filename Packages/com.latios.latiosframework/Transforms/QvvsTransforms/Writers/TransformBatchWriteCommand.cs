@@ -467,7 +467,7 @@ namespace Latios.Transforms
                     sortedCommands[dst].sortId = dst;
                     dst++;
                 }
-                if (sortedCommands.Length == 0)
+                if (dst == 0)
                 {
                     tsa.Dispose();
                     return;

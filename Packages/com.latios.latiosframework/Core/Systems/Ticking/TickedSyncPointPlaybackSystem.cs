@@ -36,6 +36,7 @@ namespace Latios.Systems
                 }
                 catch (Exception e)
                 {
+                    playbackSystemRef.OnAfterException();
                     UnityEngine.Debug.LogException(e);
                 }
             }
@@ -288,18 +289,7 @@ namespace Latios.Systems
                 m_needsMarkerResolve = false;
 #endif
             }
-#if ENABLE_PROFILER
-            if (m_needsMarkerResolve)
-            {
-                m_currentMarker.End();
-                m_needsMarkerResolve = false;
-            }
-#endif
-            if (tickingState.discardPreviousTick)
-            {
-                foreach (var ecb in m_entityCommandBuffers)
-                    ecb.Dispose();
-            }
+
             m_needsAnotherRun   = false;
             m_nextPlaybackIndex = 0;
             foreach (var ecb in m_entityCommandBuffers)
@@ -326,6 +316,17 @@ namespace Latios.Systems
             m_customUntypedIndex        = 0;
 
             m_commandBufferAllocator.Allocator.Rewind();
+        }
+
+        internal void OnAfterException()
+        {
+#if ENABLE_PROFILER
+            if (m_needsMarkerResolve)
+            {
+                m_currentMarker.End();
+                m_needsMarkerResolve = false;
+            }
+#endif
         }
 
         internal void AddInstantiateCommandBufferUntyped(InstantiateCommandBufferUntyped icb)

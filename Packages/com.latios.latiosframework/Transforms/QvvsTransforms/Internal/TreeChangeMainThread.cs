@@ -170,7 +170,15 @@ namespace Latios.Transforms
             TreeKernels.UpdateRootReferencesFromDiff(hierarchy.AsNativeArray(), old, em);
             if (hierarchy.Length < 2)
                 TreeKernels.RemoveRootComponents(em, root, removeLeg);
-            else if (removeLeg)
+            else if (cleanedSomething)
+            {
+                if (isAlive && em.HasBuffer<EntityInHierarchyCleanup>(root))
+                {
+                    var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root);
+                    TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
+                }
+            }
+            if (removeLeg)
                 em.RemoveComponent<LinkedEntityGroup>(root);
             if (cleanedSomething)
                 CleanTickingArchetypesForHierarchy(ref tsa, em, root);
@@ -644,7 +652,7 @@ namespace Latios.Transforms
 
             // Now we can add the ancestry components and perform cleanup.
             TreeKernels.AddComponents(em, ancestryAddSets);
-            if (rootAddSet.entityInHierarchyCleanup || (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(parent)))
+            if (rootAddSet.entityInHierarchyCleanup || (parentClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(root)))
             {
                 hierarchy   = em.GetBuffer<EntityInHierarchy>(root, true);
                 var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
@@ -702,6 +710,11 @@ namespace Latios.Transforms
             CleanHierarchy(ref tsa, em, oldRoot, ref oldChildHierarchy, true, out var removeOldRootLeg, out var cleanedSomething);
             TreeKernels.UpdateRootReferencesFromDiff(oldChildHierarchy.AsNativeArray(), oldRootEntities, em);
             bool convertOldRootToSolo = oldChildHierarchy.Length < 2;
+            if (!convertOldRootToSolo && childClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(oldParentEntity))
+            {
+                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(oldParentEntity);
+                TreeKernels.CopyHierarchyToCleanup(in oldChildHierarchy, ref cleanup);
+            }
 
             // And then we construct the new hierarchy, and optionally apply cleanup.
             var hierarchy = em.GetBuffer<EntityInHierarchy>(parent, false);
@@ -922,6 +935,11 @@ namespace Latios.Transforms
             CleanHierarchy(ref tsa, em, oldRoot, ref oldChildHierarchy, true, out var removeOldRootLeg, out var cleanedSomethingOld);
             TreeKernels.UpdateRootReferencesFromDiff(oldChildHierarchy.AsNativeArray(), oldRootEntities, em);
             bool convertOldRootToSolo = oldChildHierarchy.Length < 2;
+            if (!convertOldRootToSolo && childClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(oldRoot))
+            {
+                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(oldRoot);
+                TreeKernels.CopyHierarchyToCleanup(in oldChildHierarchy, ref cleanup);
+            }
 
             // And then we insert the child into the new hierarchy. We do this before cleaning while we know the index of the parent.
             hierarchy = GetRootHierarchy(em, parentClassification, false);
@@ -929,7 +947,7 @@ namespace Latios.Transforms
             var old = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
             TreeKernels.InsertSoloEntityIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, child, flags);
             CleanHierarchy(ref tsa, em, root, ref hierarchy, !rootAddSet.linkedEntityGroup, out var removeRootLeg, out var cleanedSomethingNew);
-            if (rootAddSet.entityInHierarchyCleanup || em.HasBuffer<EntityInHierarchyCleanup>(parent))
+            if (rootAddSet.entityInHierarchyCleanup || em.HasBuffer<EntityInHierarchyCleanup>(root))
             {
                 var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
                 TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
@@ -1119,6 +1137,11 @@ namespace Latios.Transforms
             TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
             TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
             bool convertOldRootToSolo = oldHierarchy.Length < 2;
+            if (!convertOldRootToSolo && childClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(oldRoot))
+            {
+                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(oldRoot);
+                TreeKernels.CopyHierarchyToCleanup(in oldHierarchy, ref cleanup);
+            }
 
             // Next, we need to remove the LEG from the old hierarchy
             ProcessInternalChildLegWithSubtree(ref tsa,
@@ -1144,7 +1167,7 @@ namespace Latios.Transforms
             var old       = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
             CleanHierarchy(ref tsa, em, parent, ref hierarchy, !parentAddSet.linkedEntityGroup, out var removeParentLeg, out var cleanedSomethingNew);
             TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, 0, subtree, flags);
-            if (parentAddSet.entityInHierarchyCleanup)
+            if (parentAddSet.entityInHierarchyCleanup || em.HasBuffer<EntityInHierarchyCleanup>(parent))
             {
                 var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(parent, false);
                 TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
@@ -1261,6 +1284,11 @@ namespace Latios.Transforms
             TreeKernels.RemoveSubtreeFromHierarchy(ref tsa, ref oldHierarchy, childClassification.indexInHierarchy, subtree);
             TreeKernels.UpdateRootReferencesFromDiff(oldHierarchy.AsNativeArray(), oldChildEntities, em);
             bool convertOldRootToSolo = oldHierarchy.Length < 2;
+            if (!convertOldRootToSolo && childClassification.isRootAlive && em.HasBuffer<EntityInHierarchyCleanup>(oldRoot))
+            {
+                var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(oldRoot);
+                TreeKernels.CopyHierarchyToCleanup(in oldHierarchy, ref cleanup);
+            }
 
             // Next, we need to remove the LEG from the old hierarchy
             ProcessInternalChildLegWithSubtree(ref tsa,
@@ -1287,7 +1315,7 @@ namespace Latios.Transforms
             var old = TreeKernels.CopyHierarchyEntities(ref tsa, hierarchy.AsNativeArray());
             CleanHierarchy(ref tsa, em, root, ref hierarchy, !rootAddSet.linkedEntityGroup, out var removeRootLeg, out var cleanedSomethingNew);
             TreeKernels.InsertSubtreeIntoHierarchy(ref hierarchy, parentClassification.indexInHierarchy, subtree, flags);
-            if (rootAddSet.entityInHierarchyCleanup)
+            if (rootAddSet.entityInHierarchyCleanup || em.HasBuffer<EntityInHierarchyCleanup>(root))
             {
                 var cleanup = em.GetBuffer<EntityInHierarchyCleanup>(root, false);
                 TreeKernels.CopyHierarchyToCleanup(in hierarchy, ref cleanup);
@@ -1531,6 +1559,17 @@ namespace Latios.Transforms
             do
             {
                 var element = hierarchy[indexInHierarchy];
+                if (element.entity != parentToClean && em.IsAlive(element.entity))
+                {
+                    var elementTicked = em.HasComponent<TickedEntityTag>(element.entity);
+                    if (toRemoveIsTicked && elementTicked)
+                        return;
+                    if (!toRemoveIsTicked)
+                    {
+                        if (!elementTicked || !em.HasComponent<TickingOnlyEntityTag>(element.entity))
+                            return;
+                    }
+                }
                 for (int i = 0; i < element.childCount; i++)
                 {
                     var child = hierarchy[element.firstChildIndex + i].entity;

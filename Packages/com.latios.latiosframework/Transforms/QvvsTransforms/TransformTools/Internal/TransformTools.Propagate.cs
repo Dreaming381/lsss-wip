@@ -121,7 +121,7 @@ namespace Latios.Transforms
                                 commandsRead++;
                                 for (int extraCommandRead = commandsRead; extraCommandRead < commands.Length; extraCommandRead++)
                                 {
-                                    if (commands[extraCommandRead].indexInHierarchy != 0)
+                                    if (commands[extraCommandRead].indexInHierarchy != command.indexInHierarchy)
                                         break;
                                     var extraChangedTransform = ComputeCommandTransformChild(in commands[extraCommandRead],
                                                                                              in commandTransformParts[extraCommandRead],
@@ -174,7 +174,7 @@ namespace Latios.Transforms
                                 commandsRead++;
                                 for (int extraCommandRead = commandsRead; extraCommandRead < commands.Length; extraCommandRead++)
                                 {
-                                    if (commands[extraCommandRead].indexInHierarchy != 0)
+                                    if (commands[extraCommandRead].indexInHierarchy != command.indexInHierarchy)
                                         break;
                                     changedTransform = ComputeCommandTransform(in commands[extraCommandRead],
                                                                                in commandTransformParts[extraCommandRead],
@@ -189,11 +189,6 @@ namespace Latios.Transforms
                             }
                         }
                     }
-                    else if (!transformLookup.HasWorldTransform(entityInHierarchyToPropagate.entity))
-                    {
-                        // This entity only has one of either WorldTransform or TickedWorldTransform, and we are propagating the other type.
-                        entityInHierarchyToPropagate.m_childCount = 0;
-                    }
                     else if (!aliveLookup.IsAlive(entityInHierarchyToPropagate.entity))
                     {
                         // The current handle is dead. If its parent is also dead, we need to propagate the override flags from the parent.
@@ -204,6 +199,11 @@ namespace Latios.Transforms
                         aliveAncestorToChildrenIndex = instruction.ancestorIndexInHierarchy;
                         if (instruction.useOverrideFlagsForCopyParent)
                             entityInHierarchyToPropagate.m_flags = instruction.overrideFlagsForCopyParent;
+                    }
+                    else if (!transformLookup.HasWorldTransform(entityInHierarchyToPropagate.entity))
+                    {
+                        // This entity only has one of either WorldTransform or TickedWorldTransform, and we are propagating the other type.
+                        entityInHierarchyToPropagate.m_childCount = 0;
                     }
                     else
                     {

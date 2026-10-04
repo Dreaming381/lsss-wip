@@ -235,7 +235,9 @@ namespace Latios.Systems
                 for (int i = 1; i < linkedEntities.Length; i++)
                 {
                     var linked = linkedEntities[i].Value;
-                    var info   = esil[linked];
+                    if (!esil.Exists(linked))
+                        continue; // Block esil[linked] from throwing. TryGetValue() below will return false for cleanup archetypes.
+                    var info = esil[linked];
                     if (chunkMasksMap.TryGetValue(info.Chunk, out var mask))
                     {
                         if (info.IndexInChunk >= 64 && new BitField64(mask.ULong1).IsSet(info.IndexInChunk - 64))
