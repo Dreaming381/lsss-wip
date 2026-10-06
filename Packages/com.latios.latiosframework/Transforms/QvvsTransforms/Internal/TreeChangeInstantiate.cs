@@ -366,8 +366,13 @@ namespace Latios.Transforms
                                             SetParentOptions options,
                                             out bool addedLeg)
             {
-                var  parentAddSet         = GetParentComponentsToAdd(hierarchy[parentClassification.indexInHierarchy].entity, parentClassification.role, childAddSet, options);
-                bool allTransformsPresent = false;
+                var parentInHierarchy                = hierarchy[parentClassification.indexInHierarchy];
+                var parentAddSet                     = GetParentComponentsToAdd(parentInHierarchy.entity, parentClassification.role, childAddSet, options);
+                parentAddSet.addSet.indexInHierarchy = parentClassification.indexInHierarchy;
+                parentAddSet.addSet.parent           = hierarchy[parentInHierarchy.parentIndex].entity;
+                if (parentInHierarchy.m_flags.HasCopyParent())
+                    parentAddSet.addSet.isCopyParent = true;
+                bool allTransformsPresent            = false;
                 if (!parentAddSet.addSet.noChange)
                 {
                     batchAddSetsStream.Write(parentAddSet);
@@ -388,8 +393,12 @@ namespace Latios.Transforms
                     }
                 }
 
-                var rootAddSet = GetParentComponentsToAdd(parentClassification.root, TreeKernels.TreeClassification.TreeRole.Root, childAddSet, options, !allTransformsPresent);
-                addedLeg       = rootAddSet.addSet.linkedEntityGroup;
+                BatchedAddSet rootAddSet;
+                if (parentClassification.isRootAlive)
+                    rootAddSet = GetParentComponentsToAdd(parentClassification.root, TreeKernels.TreeClassification.TreeRole.Root, childAddSet, options, !allTransformsPresent);
+                else
+                    rootAddSet = new BatchedAddSet { addSet = new TreeKernels.ComponentAddSet { entity = parentClassification.root } };
+                addedLeg                                                                               = rootAddSet.addSet.linkedEntityGroup;
                 batchAddSetsStream.Write(rootAddSet);
             }
 

@@ -88,13 +88,13 @@ namespace Latios.Transforms
                 {
                     // We got a mismatch. Try to compute the local position. This can be somewhat lossy over many frames.
                     // If we get a bad calculation, fall back to whatever we had previously.
-                    var newPosition = qvvs.InverseTransformPoint(in parent, pos);
+                    var newPosition = qvvs.InverseTransformPoint(in parent, child.position);
                     pos             = math.select(pos, newPosition, math.isfinite(newPosition));
                 }
                 if (math.distance(child.scale, qvvs.TransformScale(in parent, scale)) >= 1e-5f)
                 {
                     // We got a scale mismatch.
-                    var newScale = qvvs.InverseTransformScale(in parent, scale);
+                    var newScale = qvvs.InverseTransformScale(in parent, child.scale);
                     scale        = math.select(scale, newScale, math.isfinite(newScale));
                 }
             }
@@ -432,13 +432,13 @@ namespace Latios.Transforms
             {
                 // We got a mismatch. Try to compute the local position. This can be somewhat lossy over many frames.
                 // If we get a bad calculation, fall back to whatever we had previously.
-                var newPosition = qvvs.InverseTransformPoint(in newParent, pos);
+                var newPosition = qvvs.InverseTransformPoint(in newParent, child.position);
                 pos             = math.select(pos, newPosition, math.isfinite(newPosition));
             }
             if (math.distance(child.scale, qvvs.TransformScale(in newParent, scale)) >= 1e-5f)
             {
                 // We got a scale mismatch.
-                var newScale = qvvs.InverseTransformScale(in newParent, scale);
+                var newScale = qvvs.InverseTransformScale(in newParent, child.scale);
                 scale        = math.select(scale, newScale, math.isfinite(newScale));
             }
         }

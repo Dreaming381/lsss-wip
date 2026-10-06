@@ -54,6 +54,8 @@ namespace Latios.Transforms.Systems
             var worldTransformOrderVersion       = state.EntityManager.GetComponentOrderVersion<WorldTransform>();
             var tickedWorldTransformOrderVersion = state.EntityManager.GetComponentOrderVersion<TickedWorldTransform>();
 
+            m_rootsQuery.ResetFilter();
+            m_childrenQuery.ResetFilter();
             var rootCount        = m_rootsQuery.CalculateEntityCountWithoutFiltering();
             var roots            = CollectionHelper.CreateNativeArray<LiveTransformCapture.Root>(rootCount, state.WorldUpdateAllocator, NativeArrayOptions.UninitializedMemory);
             var rootStartIndices = m_rootsQuery.CalculateBaseEntityIndexArray(state.WorldUpdateAllocator);

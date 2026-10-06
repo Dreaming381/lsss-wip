@@ -261,9 +261,9 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, entityManager);
             if (handle.isNull)
             {
-                TransformQvvs currentTransform                                             = entityManager.GetComponentData<TickedWorldTransform>(entity).worldTransform;
-                currentTransform.scale                                                     = newLocalScale;
-                entityManager.SetComponentData(entity, new WorldTransform { worldTransform = currentTransform });
+                TransformQvvs currentTransform                                                   = entityManager.GetComponentData<TickedWorldTransform>(entity).worldTransform;
+                currentTransform.scale                                                           = newLocalScale;
+                entityManager.SetComponentData(entity, new TickedWorldTransform { worldTransform = currentTransform });
                 return;
             }
             SetTickedLocalScale(handle, newLocalScale, entityManager);

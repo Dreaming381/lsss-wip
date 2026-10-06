@@ -126,9 +126,9 @@ namespace Latios.Unika
 
         public bool Equals(Script<T> other) => this == other;
 
-        public override bool Equals(object obj) => ((Script)this).Equals(obj);
+        public override bool Equals(object obj) => obj != null && Equals((Script<T>)obj);
 
-        public override int GetHashCode() => new int2(m_entity.GetHashCode(), m_headerRO.instanceId).GetHashCode();
+        public override int GetHashCode() => ((Script)this).GetHashCode();
 
         public override string ToString() => ((Script)this).ToString();
 

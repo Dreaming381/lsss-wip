@@ -114,7 +114,7 @@ namespace Latios.Transforms
             if (!threadCache.isCreated)
             {
                 threadCache                                      = new ThreadCache<Cache>(default);
-                threadCache.cache.transformHandle                = transformLookup.lookup.ToHandle(true);
+                threadCache.cache.transformHandle                = transformLookup.lookup.ToHandle(false);
                 threadCache.cache.entityInHierarchyHandle        = hierarchyLookup.ToHandle(true);
                 threadCache.cache.entityInHierarchyCleanupHandle = cleanupLookup.ToHandle(true);
             }
@@ -449,7 +449,7 @@ namespace Latios.Transforms
             if (!threadCache.isCreated)
             {
                 threadCache                                      = new ThreadCache<Cache>(default);
-                threadCache.cache.transformHandle                = transformLookup.ToHandle(false);
+                threadCache.cache.transformHandle                = transformLookup.ToHandle(true);
                 threadCache.cache.entityInHierarchyHandle        = hierarchyLookup.ToHandle(true);
                 threadCache.cache.entityInHierarchyCleanupHandle = cleanupLookup.ToHandle(true);
             }

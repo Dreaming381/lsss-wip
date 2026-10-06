@@ -187,10 +187,15 @@ namespace Latios.Transforms
                                                                        ComponentAddSet childAddSet,
                                                                        SetParentOptions options)
         {
-            var  resultBuffer         = tsa.AllocateAsSpan<ComponentAddSet>(parentClassification.indexInHierarchy + 1);
-            var  resultCount          = 0;
-            var  parentAddSet         = GetParentComponentsToAdd(em, hierarchy[parentClassification.indexInHierarchy].entity, parentClassification.role, childAddSet, options);
-            bool allTransformsPresent = false;
+            var resultBuffer              = tsa.AllocateAsSpan<ComponentAddSet>(parentClassification.indexInHierarchy + 1);
+            var resultCount               = 0;
+            var parentInHierarchy         = hierarchy[parentClassification.indexInHierarchy];
+            var parentAddSet              = GetParentComponentsToAdd(em, parentInHierarchy.entity, parentClassification.role, childAddSet, options);
+            parentAddSet.indexInHierarchy = parentClassification.indexInHierarchy;
+            parentAddSet.parent           = hierarchy[parentInHierarchy.parentIndex].entity;
+            if (parentInHierarchy.m_flags.HasCopyParent())
+                parentAddSet.isCopyParent = true;
+            bool allTransformsPresent     = false;
             if (!parentAddSet.noChange)
             {
                 resultBuffer[0] = parentAddSet;
@@ -213,8 +218,12 @@ namespace Latios.Transforms
                 }
             }
 
-            var rootAddSet            = GetParentComponentsToAdd(em, parentClassification.root, TreeClassification.TreeRole.Root, childAddSet, options, !allTransformsPresent);
-            resultBuffer[resultCount] = rootAddSet;
+            ComponentAddSet rootAddSet;
+            if (parentClassification.isRootAlive)
+                rootAddSet = GetParentComponentsToAdd(em, parentClassification.root, TreeClassification.TreeRole.Root, childAddSet, options, !allTransformsPresent);
+            else
+                rootAddSet = new ComponentAddSet { entity = parentClassification.root };
+            resultBuffer[resultCount]                     = rootAddSet;
             resultCount++;
             return resultBuffer.Slice(0, resultCount);
         }

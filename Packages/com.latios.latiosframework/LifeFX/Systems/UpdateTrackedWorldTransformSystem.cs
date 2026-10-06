@@ -63,13 +63,13 @@ namespace Latios.LifeFX.Systems
 
             var jh = new UpdateJob
             {
-                aliveByThread          = aliveByThread,
-                allocator              = state.WorldUpdateAllocator,
-                lastSystemVersion      = state.LastSystemVersion,
-                newChunks              = newChunks.AsParallelWriter(),
-                trackedEntities        = m_trackedEntities.AsDeferredJobArray(),
-                trackedTransforms      = m_trackedTransforms.AsDeferredJobArray(),
-                uploadIndices          = uploadIndices,
+                aliveByThread     = aliveByThread,
+                allocator         = state.WorldUpdateAllocator,
+                lastSystemVersion = state.LastSystemVersion,
+                newChunks         = newChunks.AsParallelWriter(),
+                trackedEntities   = m_trackedEntities.AsDeferredJobArray(),
+                trackedTransforms = m_trackedTransforms.AsDeferredJobArray(),
+                uploadIndices     = uploadIndices,
             }.Inject(api).ScheduleParallel(m_query, state.Dependency);
 
             jh = new ReapJob
@@ -83,12 +83,12 @@ namespace Latios.LifeFX.Systems
 
             state.Dependency = new AllocateNewJob
             {
-                freelist               = m_freeList,
-                newChunks              = newChunks.AsDeferredJobArray(),
-                reaped                 = reaped,
-                trackedEntities        = m_trackedEntities,
-                trackedTransforms      = m_trackedTransforms,
-                uploadIndices          = uploadIndices,
+                freelist          = m_freeList,
+                newChunks         = newChunks.AsDeferredJobArray(),
+                reaped            = reaped,
+                trackedEntities   = m_trackedEntities,
+                trackedTransforms = m_trackedTransforms,
+                uploadIndices     = uploadIndices,
             }.Inject(api).Schedule(jh);
 
             api.worldBlackboardEntity.SetCollectionComponentAndDisposeOld(new TrackedTransformUploadList
@@ -112,11 +112,11 @@ namespace Latios.LifeFX.Systems
         partial struct UpdateJob : IJobChunk, IInjectable
         {
             [ReadOnly, Inject] EntityTypeHandle                                     entityHandle;
-            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle                     worldTransformHandle;
+            [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle              worldTransformHandle;
             [ReadOnly, Inject] ComponentTypeHandle<TrackedWorldTransformEnableFlag> enabledFlagHandle;
-            [ReadOnly] public NativeArray<Entity>                                  trackedEntities;
+            [ReadOnly] public NativeArray<Entity>                                   trackedEntities;
 
-            [Inject] ComponentTypeHandle<TrackedWorldTransform>                        trackedTransformHandle;
+            [Inject] ComponentTypeHandle<TrackedWorldTransform>                      trackedTransformHandle;
             [NativeDisableParallelForRestriction] public NativeArray<TransformQvvs>  trackedTransforms;
             [NativeDisableParallelForRestriction] public NativeArray<UnsafeBitArray> aliveByThread;
             public NativeList<DeferredChunk>.ParallelWriter                          newChunks;
@@ -156,7 +156,7 @@ namespace Latios.LifeFX.Systems
                     {
                         if (!enabledMask[i])
                         {
-                            if (math.clamp(indices[i], 0, trackedEntities.Length) != indices[i] || trackedEntities[indices[i]] != entities[i])
+                            if (math.clamp(indices[i], 0, math.max(0, trackedEntities.Length - 1)) != indices[i] || trackedEntities[indices[i]] != entities[i])
                                 continue;
                         }
                         alive.Set(indices[i], true);
@@ -168,11 +168,14 @@ namespace Latios.LifeFX.Systems
                     var entities      = chunk.GetEntityDataPtrRO(entityHandle);
                     var indices       = (int*)chunk.GetRequiredComponentDataPtrRO(ref trackedTransformHandle);
                     var transforms    = worldTransformHandle.Resolve(in chunk);
-                    var deferredChunk = new DeferredChunk { chunk = chunk };
+                    var deferredChunk = new DeferredChunk { chunk = chunk, chunkIndexInQuery = unfilteredChunkIndex };
                     for (int i = 0; i < chunk.Count; i++)
                     {
-                        if (trackedEntities.Length == 0 || math.clamp(indices[i], 0, trackedEntities.Length - 1) != indices[i] || trackedEntities[indices[i]] != entities[i])
+                        if (trackedEntities.Length == 0 ||
+                            math.clamp(indices[i], 0, math.max(0, trackedEntities.Length - 1)) != indices[i] || trackedEntities[indices[i]] != entities[i])
                         {
+                            if (!enabledMask[i])
+                                continue;
                             if (i < 64)
                                 deferredChunk.lower.SetBits(i, true);
                             else
@@ -243,7 +246,7 @@ namespace Latios.LifeFX.Systems
                     uploadIndices.Write(dead, threadIndex);
                     trackedEntities[dead]    = default;
                     var transform            = trackedTransforms[dead];
-                    transform.context32    &= 0x7fffffff;
+                    transform.context32     &= 0x7fffffff;
                     trackedTransforms[dead]  = transform;
                 }
             }
@@ -252,16 +255,16 @@ namespace Latios.LifeFX.Systems
         [BurstCompile]
         partial struct AllocateNewJob : IJob, IInjectable
         {
-            [ReadOnly, Inject] EntityTypeHandle                 entityHandle;
+            [ReadOnly, Inject] EntityTypeHandle                        entityHandle;
             [ReadOnly, Inject] WorldTransformReadOnlyAspect.TypeHandle worldTransformHandle;
 
             [Inject] ComponentTypeHandle<TrackedWorldTransform> trackedTransformHandle;
-            public NativeList<Entity>                         trackedEntities;
-            public NativeList<TransformQvvs>                  trackedTransforms;
-            public NativeList<int>                            freelist;
-            public NativeArray<DeferredChunk>                 newChunks;
-            public UnsafeParallelBlockList<int>               uploadIndices;
-            public NativeList<int>                            reaped;
+            public NativeList<Entity>                           trackedEntities;
+            public NativeList<TransformQvvs>                    trackedTransforms;
+            public NativeList<int>                              freelist;
+            public NativeArray<DeferredChunk>                   newChunks;
+            public UnsafeParallelBlockList<int>                 uploadIndices;
+            public NativeList<int>                              reaped;
 
             [NativeSetThreadIndex]
             int threadIndex;
