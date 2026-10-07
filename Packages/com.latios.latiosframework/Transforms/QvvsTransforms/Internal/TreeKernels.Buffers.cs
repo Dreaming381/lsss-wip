@@ -438,6 +438,8 @@ namespace Latios.Transforms
             return resultBuffer.Slice(0, resultCount);
         }
 
+        // Todo: We could deduplicate entities here if the user uses mixed removal and re-add modes. However, this is rare and adds cost.
+        // This needs to be re-evaluated during the TreeChange optimization effort.
         public static void AddEntityToLeg(ref DynamicBuffer<LinkedEntityGroup> leg, Entity entity)
         {
             leg.Add(new LinkedEntityGroup { Value = entity });

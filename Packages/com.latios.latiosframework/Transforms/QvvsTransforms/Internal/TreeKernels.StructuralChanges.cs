@@ -105,7 +105,7 @@ namespace Latios.Transforms
             if (em.HasComponent<LiveBakedTag>(child) && !em.HasComponent<LiveAddedParentTag>(child))
                 addSet.liveAddedParent = true;
 #endif
-            var isTicked = em.HasComponent<TickedEntityTag>(child);
+            var isTicked = em.HasComponent<TickedEntityTag>(child) || em.HasComponent<TickedWorldTransform>(child);
             var isNormal = em.HasComponent<WorldTransform>(child);
             if (!isTicked && !isNormal)
             {
@@ -203,6 +203,8 @@ namespace Latios.Transforms
 
                 for (int index = hierarchy[parentClassification.indexInHierarchy].parentIndex; index > 0; index = hierarchy[index].parentIndex)
                 {
+                    if (!em.IsAlive(hierarchy[index].entity))
+                        continue;
                     var newAddSet = GetParentComponentsToAdd(em, hierarchy[index].entity, TreeClassification.TreeRole.InternalWithChildren, childAddSet, options);
                     if (newAddSet.noChange)
                     {

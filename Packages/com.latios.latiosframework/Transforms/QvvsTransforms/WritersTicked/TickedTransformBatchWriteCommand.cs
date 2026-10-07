@@ -514,6 +514,8 @@ namespace Latios.Transforms
                     dst++;
                 }
             }
+            if (dst == 0)
+                return;
             data = data.Slice(0, dst);
             ops  = ops.Slice(0, dst);
             switch (firstAspect.m_accessType)

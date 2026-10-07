@@ -279,7 +279,7 @@ namespace Latios.Transforms
                 if (liveBakedChecker[childChunk] && !liveAddedParentChecker[childChunk])
                     addSet.liveAddedParent = true;
 #endif
-                var isTicked = tickedEntityChecker[childChunk];
+                var isTicked = hasTickedTransform || tickedEntityChecker[childChunk];
                 var isNormal = hasWorldTransform;
                 if (!isTicked && !isNormal)
                 {
@@ -379,6 +379,8 @@ namespace Latios.Transforms
 
                     for (int index = hierarchy[parentClassification.indexInHierarchy].parentIndex; index > 0; index = hierarchy[index].parentIndex)
                     {
+                        if (!esil.IsAlive(hierarchy[index].entity))
+                            continue;
                         var newAddSet = GetParentComponentsToAdd(hierarchy[index].entity, TreeKernels.TreeClassification.TreeRole.InternalWithChildren, childAddSet, options);
                         if (newAddSet.addSet.noChange)
                         {
