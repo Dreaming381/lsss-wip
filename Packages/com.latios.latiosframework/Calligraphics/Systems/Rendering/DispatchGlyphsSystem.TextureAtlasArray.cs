@@ -39,6 +39,7 @@ namespace Latios.Calligraphics.Systems
                 renderTexture2DArray.enableRandomWrite = true;
                 renderTexture2DArray.useMipMap         = useMipmapping;
                 renderTexture2DArray.autoGenerateMips  = false;
+                renderTexture2DArray.hideFlags         = HideFlags.HideAndDontSave;
 
                 CommandBuffer cmd = new CommandBuffer();
                 cmd.SetRenderTarget(new RenderTargetIdentifier(renderTexture2DArray));
@@ -77,6 +78,7 @@ namespace Latios.Calligraphics.Systems
                     renderTexture2DArray.enableRandomWrite = true;
                     renderTexture2DArray.useMipMap         = useMipmapping;
                     renderTexture2DArray.autoGenerateMips  = false;
+                    renderTexture2DArray.hideFlags         = HideFlags.HideAndDontSave;
 
                     for (int i = 0; i < atlasesNeeded; i++)
                     {

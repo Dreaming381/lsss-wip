@@ -465,7 +465,7 @@ namespace Latios.Transforms
 
         public static float3 TransformDirectionScaledAndStretched(in TransformQvvs qvvs, float3 direction)
         {
-            return math.rotate(qvvs.rotation, direction) * qvvs.stretch * qvvs.scale;
+            return math.rotate(qvvs.rotation, direction * qvvs.stretch * qvvs.scale);
         }
 
         public static float3 InverseTransformDirection(in TransformQvvs qvvs, float3 direction)

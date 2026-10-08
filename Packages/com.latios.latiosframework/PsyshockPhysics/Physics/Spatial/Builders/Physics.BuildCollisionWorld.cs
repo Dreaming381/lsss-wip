@@ -432,8 +432,9 @@ namespace Latios.Psyshock
 
             jh = new BuildCollisionWorldInternal.Part5FromAoSJob
             {
-                layer       = world.layer,
-                colliderAoS = aos.AsDeferredJobArray(),
+                layer                = world.layer,
+                colliderAoS          = aos.AsDeferredJobArray(),
+                worldIndexPreshifted = world.worldIndex << 24
             }.Schedule(aos, 128, jh);
 
             var mjh = JobHandle.CombineDependencies(jh1b, jh);
