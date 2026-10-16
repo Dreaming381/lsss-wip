@@ -65,6 +65,12 @@ namespace Latios.Unika.Editor
                 result = null;
                 foreach (var reference in references)
                 {
+                    if (reference is UnikaScriptAuthoringBase direct && authoringInterfaceType.IsInstanceOfType(direct))
+                    {
+                        result = direct;
+                        return true;
+                    }
+
                     var go = reference as GameObject;
                     if (go == null && reference is Component component)
                         go = component.gameObject;
@@ -89,6 +95,7 @@ namespace Latios.Unika.Editor
                 property.serializedObject.ApplyModifiedProperties();
             }
 
+            label = EditorGUI.BeginProperty(position, label, pRef);
             var controlId = GUIUtility.GetControlID(FocusType.Keyboard, position);
 
             var totalPos  = position;
@@ -200,6 +207,7 @@ namespace Latios.Unika.Editor
                     EditorGUIUtility.SetIconSize(prevSize);
                     break;
             }
+            EditorGUI.EndProperty();
 
             void Ping(bool doubleClick)
             {
