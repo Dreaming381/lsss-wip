@@ -2,9 +2,6 @@
 using System.Text;
 using Unity.Collections;
 
-// Warning: These methods are not called unless the caller explicitly passes the fixedString via "in".
-// Todo: This does 32-bit to 16-bit casts, and may not work correctly in some situations.
-
 namespace Latios
 {
     public static unsafe class StringBuilderExtensions
