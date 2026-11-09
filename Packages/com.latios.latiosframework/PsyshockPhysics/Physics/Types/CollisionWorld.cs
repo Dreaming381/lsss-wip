@@ -76,6 +76,7 @@ namespace Latios.Psyshock
         public JobHandle Dispose(JobHandle inputDeps)
         {
             layer.worldSubdivisionsPerAxis = 0;
+            worldIndex                     = 0;
             return CollectionsExtensions.CombineDependencies(stackalloc JobHandle[]
             {
                 layer.bucketStartsAndCounts.Dispose(inputDeps),

@@ -1,4 +1,5 @@
 using System;
+using Latios.Calci;
 using Unity.Burst;
 using Unity.Mathematics;
 
@@ -20,9 +21,12 @@ namespace Latios.Psyshock
                                           in RigidTransform sphereTransform,
                                           float maxDistance)
         {
-            var    sphereInTriangleSpaceTransform = math.InverseTransformFast(in triangleTransform, in sphereTransform);
-            float3 sphereCenterInTriangleSpace    = math.transform(sphereInTriangleSpaceTransform, sphere.center);
-            return PointRayTriangle.PointTriangleWithin(sphereCenterInTriangleSpace, in triangle, maxDistance + sphere.radius);
+            // Transform to world-space relative to the triangle
+            // Todo: Is it faster to transform the sphere into triangle space? It is less instructions, but a larger latency chain.
+            float3     sphereCenterInWorldTriangleRelative = sphereTransform.pos - triangleTransform.pos + math.rotate(sphereTransform.rot, sphere.center);
+            simdFloat3 triPointsLocal                      = triangle.AsSimdFloat3();
+            simdFloat3 triPointsTransformed                = simd.mul(triangleTransform.rot, triPointsLocal);
+            return PointRayTriangle.PointTriangleWithin(sphereCenterInWorldTriangleRelative, in triPointsTransformed, maxDistance + sphere.radius);
         }
 
         public static bool DistanceBetween(in TriangleCollider triangle,
@@ -32,19 +36,21 @@ namespace Latios.Psyshock
                                            float maxDistance,
                                            out ColliderDistanceResult result)
         {
-            var            sphereInTriangleSpaceTransform = math.InverseTransformFast(in triangleTransform, in sphereTransform);
-            float3         sphereCenterInTriangleSpace    = math.transform(sphereInTriangleSpaceTransform, sphere.center);
-            SphereCollider sphereInTriangleSpace          = new SphereCollider(sphereCenterInTriangleSpace, sphere.radius);
-            bool           hit                            = TriangleSphereDistance(in triangle,
-                                                                         in sphereInTriangleSpace,
-                                                                         maxDistance,
-                                                                         out ColliderDistanceResultInternal localResult);
+            // Transform to world-space relative to the triangle
+            float3         sphereCenterInWorldTriangleRelative = sphereTransform.pos - triangleTransform.pos + math.rotate(sphereTransform.rot, sphere.center);
+            simdFloat3     triPointsLocal                      = triangle.AsSimdFloat3();
+            simdFloat3     triPointsTransformed                = simd.mul(triangleTransform.rot, triPointsLocal);
+            SphereCollider sphereTransformed                   = new SphereCollider(sphereCenterInWorldTriangleRelative, sphere.radius);
+            bool           hit                                 = TriangleSphereDistance(in triPointsTransformed,
+                                                                              in sphereTransformed,
+                                                                              maxDistance,
+                                                                              out ColliderDistanceResultInternal localResult);
             result = new ColliderDistanceResult
             {
-                hitpointA         = math.transform(triangleTransform, localResult.hitpointA),
-                hitpointB         = math.transform(triangleTransform, localResult.hitpointB),
-                normalA           = math.rotate(triangleTransform, localResult.normalA),
-                normalB           = math.rotate(triangleTransform, localResult.normalB),
+                hitpointA         = localResult.hitpointA + triangleTransform.pos,
+                hitpointB         = localResult.hitpointB + triangleTransform.pos,
+                normalA           = localResult.normalA,
+                normalB           = localResult.normalB,
                 distance          = localResult.distance,
                 subColliderIndexA = 0,
                 subColliderIndexB = 0,
@@ -61,28 +67,24 @@ namespace Latios.Psyshock
                                         in RigidTransform targetTriangleTransform,
                                         out ColliderCastResult result)
         {
-            var  targetTriangleTransformInverse = math.inverse(targetTriangleTransform);
-            var  casterInTargetSpace            = math.mul(targetTriangleTransformInverse, castStart);
-            var  start                          = math.transform(casterInTargetSpace, sphereToCast.center);
-            var  ray                            = new Ray(start, start + math.rotate(targetTriangleTransformInverse, castEnd - castStart.pos));
-            bool hit                            = PointRayTriangle.RaycastRoundedTriangle( in ray,
-                                                                                           targetTriangle.AsSimdFloat3(),
-                                                                                           sphereToCast.radius,
-                                                                                           out var fraction,
-                                                                                           out _);
+            // Transform into world-space relative to the triangle
+            var  triPoints        = simd.mul(targetTriangleTransform.rot, targetTriangle.AsSimdFloat3());
+            var  sphereCenter     = castStart.pos - targetTriangleTransform.pos + math.rotate(castStart.rot, sphereToCast.center);
+            var  castDisplacement = castEnd - castStart.pos;
+            var  ray              = new Ray(sphereCenter, sphereCenter + castDisplacement);
+            bool hit              = PointRayTriangle.RaycastRoundedTriangle(in ray, in triPoints, sphereToCast.radius, out var fraction, out _);
             if (hit)
             {
-                var hitTransform = castStart;
-                hitTransform.pos = math.lerp(castStart.pos, castEnd, fraction);
-                DistanceBetween(in targetTriangle, in targetTriangleTransform, in sphereToCast, in hitTransform, 1f, out var distanceResult);
+                var sphereAtHit = new SphereCollider(sphereCenter + castDisplacement * fraction, sphereToCast.radius);
+                TriangleSphereDistance(in triPoints, in sphereAtHit, float.MaxValue, out var distanceResult);
                 result = new ColliderCastResult
                 {
-                    hitpoint                 = distanceResult.hitpointB,
+                    hitpoint                 = distanceResult.hitpointB + targetTriangleTransform.pos,
                     normalOnCaster           = distanceResult.normalB,
                     normalOnTarget           = distanceResult.normalA,
-                    subColliderIndexOnCaster = distanceResult.subColliderIndexB,
-                    subColliderIndexOnTarget = distanceResult.subColliderIndexA,
-                    distance                 = math.distance(hitTransform.pos, castStart.pos)
+                    subColliderIndexOnCaster = 0,
+                    subColliderIndexOnTarget = 0,
+                    distance                 = math.length(castDisplacement) * fraction,
                 };
                 return true;
             }
@@ -97,24 +99,25 @@ namespace Latios.Psyshock
                                         in RigidTransform targetSphereTransform,
                                         out ColliderCastResult result)
         {
+            // Transform to world-space relative to the triangle and reverse-cast
+            var  triPoints          = simd.mul(castStart.rot, triangleToCast.AsSimdFloat3());
+            var  sphereCenterOffset = math.rotate(targetSphereTransform.rot, targetSphere.center);
+            var  sphereCenter       = targetSphereTransform.pos - castStart.pos + sphereCenterOffset;
             var  castReverse        = castStart.pos - castEnd;
-            var  worldToCasterSpace = math.inverse(castStart);
-            var  start              = math.transform(targetSphereTransform, targetSphere.center);
-            var  ray                = new Ray(math.transform(worldToCasterSpace, start), math.transform(worldToCasterSpace, start + castReverse));
-            bool hit                = PointRayTriangle.RaycastRoundedTriangle(in ray, triangleToCast.AsSimdFloat3(), targetSphere.radius, out var fraction, out _);
+            var  ray                = new Ray(sphereCenter, sphereCenter + castReverse);
+            bool hit                = PointRayTriangle.RaycastRoundedTriangle(in ray, in triPoints, targetSphere.radius, out var fraction, out _);
             if (hit)
             {
-                var hitTransform = castStart;
-                hitTransform.pos = math.lerp(castStart.pos, castEnd, fraction);
-                DistanceBetween(in triangleToCast, in hitTransform, in targetSphere, in targetSphereTransform, 1f, out var distanceResult);
+                var sphereAtHit = new SphereCollider(sphereCenter + castReverse * fraction, targetSphere.radius);
+                TriangleSphereDistance(in triPoints, in sphereAtHit, float.MaxValue, out var distanceResult);
                 result = new ColliderCastResult
                 {
-                    hitpoint                 = distanceResult.hitpointA,
+                    hitpoint                 = distanceResult.hitpointA - sphereAtHit.center + sphereCenterOffset + targetSphereTransform.pos,
                     normalOnCaster           = distanceResult.normalA,
                     normalOnTarget           = distanceResult.normalB,
-                    subColliderIndexOnCaster = distanceResult.subColliderIndexA,
-                    subColliderIndexOnTarget = distanceResult.subColliderIndexB,
-                    distance                 = math.distance(hitTransform.pos, castStart.pos)
+                    subColliderIndexOnCaster = 0,
+                    subColliderIndexOnTarget = 0,
+                    distance                 = math.length(castReverse) * fraction
                 };
                 return true;
             }
@@ -178,13 +181,13 @@ namespace Latios.Psyshock
             return 0;
         }
 
-        internal static bool TriangleSphereDistance(in TriangleCollider triangle, in SphereCollider sphere, float maxDistance, out ColliderDistanceResultInternal result)
+        internal static bool TriangleSphereDistance(in simdFloat3 triPoints, in SphereCollider sphere, float maxDistance, out ColliderDistanceResultInternal result)
         {
-            bool   hit     = PointRayTriangle.PointTriangleDistance(sphere.center, in triangle, maxDistance + sphere.radius, out PointDistanceResultInternal pointDistanceResult);
+            bool   hit     = PointRayTriangle.PointTriangleDistance(sphere.center, in triPoints, maxDistance + sphere.radius, out PointDistanceResultInternal pointDistanceResult);
             float3 normalB = math.normalizesafe(pointDistanceResult.hitpoint - sphere.center, -pointDistanceResult.normal);
             result         = new ColliderDistanceResultInternal
             {
-                distance     = pointDistanceResult.distance - sphere.radius,
+                distance     = math.min(pointDistanceResult.distance - sphere.radius, maxDistance),
                 hitpointA    = pointDistanceResult.hitpoint,
                 hitpointB    = sphere.center + normalB * sphere.radius,
                 normalA      = pointDistanceResult.normal,

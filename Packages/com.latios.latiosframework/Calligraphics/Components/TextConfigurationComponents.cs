@@ -118,8 +118,8 @@ namespace Latios.Calligraphics
         /// </summary>
         public bool wordWrap
         {
-            get => maxLineWidth >= float.MaxValue || maxLineWidth <= 0f;
-            set => maxLineWidth = float.MaxValue;
+            get => maxLineWidth < float.MaxValue && maxLineWidth > 0f;
+            set => maxLineWidth = math.select(float.MaxValue, maxLineWidth, value);
         }
 
         /// <summary>

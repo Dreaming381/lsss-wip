@@ -177,11 +177,10 @@ namespace Latios.Psyshock
             var hit = PointRayCapsule.PointCapsuleDistance(sphere.center, in capsule, maxDistance + sphere.radius, out var pointResult);
             result  = new ColliderDistanceResultInternal
             {
-                hitpointA = pointResult.hitpoint,
-                hitpointB = sphere.center - pointResult.normal * sphere.radius,
-                normalA   = pointResult.normal,
-                normalB   = -pointResult.normal,
-                // In case of a rounding error, distance might still be too far after subtracting the radius, so just clamp it
+                hitpointA    = pointResult.hitpoint,
+                hitpointB    = sphere.center - pointResult.normal * sphere.radius,
+                normalA      = pointResult.normal,
+                normalB      = -pointResult.normal,
                 distance     = math.min(maxDistance, pointResult.distance - sphere.radius),
                 featureCodeA = pointResult.featureCode,
                 featureCodeB = 0,

@@ -130,8 +130,7 @@ void GetGlyphCorner(uint glyphIndex, uint cornerIndex, uint glyphStartIndex, uin
         // bottom left
         position = blPosition;
         uvA = float3(blUVA, arrayIndex);
-        //uvB = blUVB;
-        uvB = float2(0, 0);
+        uvB = blUVB;
         color = blColor;
     }
     else if (cornerIndex == 1)
@@ -139,8 +138,7 @@ void GetGlyphCorner(uint glyphIndex, uint cornerIndex, uint glyphStartIndex, uin
         // top left
         position = tlPosition;
         uvA = float3(blUVA.x, trUVA.y, arrayIndex);
-        //uvB = tlUVB;
-        uvB = float2(0, 1);
+        uvB = tlUVB;
         color = tlColor;
     }
     else if (cornerIndex == 2)
@@ -148,8 +146,7 @@ void GetGlyphCorner(uint glyphIndex, uint cornerIndex, uint glyphStartIndex, uin
         // top right
         position = trPosition;
         uvA = float3(trUVA, arrayIndex);
-        //uvB = trUVB;
-        uvB = float2(1, 1);
+        uvB = trUVB;
         color = trColor;
     }
     else
@@ -157,8 +154,7 @@ void GetGlyphCorner(uint glyphIndex, uint cornerIndex, uint glyphStartIndex, uin
         // bottom right
         position = brPosition;
         uvA = float3(trUVA.x, blUVA.y, arrayIndex);
-        //uvB = brUVB;
-        uvB = float2(1, 0);
+        uvB = brUVB;
         color = brColor;
     }
 }

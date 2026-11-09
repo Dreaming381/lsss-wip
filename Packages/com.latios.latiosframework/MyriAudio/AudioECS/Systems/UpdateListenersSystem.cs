@@ -1,3 +1,4 @@
+using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -69,6 +70,12 @@ namespace Latios.Myri.AudioEcsBuiltin
 
             foreach (var mix in context.auxWorld.AllOf<ListenerStereoMix>())
             {
+                // Handle output buffer resize.
+                if (Hint.Unlikely(mix.aux.samplesPerChannel != context.finalOutputBuffer.samplesPerChannel))
+                {
+                    mix.aux.Dispose();
+                    mix.aux = new ListenerStereoMix(context.finalOutputBuffer.samplesPerChannel, context.auxWorld.allocator);
+                }
                 mix.aux.StartNewMix();
             }
         }

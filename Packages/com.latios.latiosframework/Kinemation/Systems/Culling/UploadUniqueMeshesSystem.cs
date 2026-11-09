@@ -1,5 +1,3 @@
-using Latios.Kinemation.Systems;
-using Latios.Unsafe;
 using Unity.Burst;
 using Unity.Burst.Intrinsics;
 using Unity.Collections;
@@ -447,7 +445,7 @@ namespace Latios.Kinemation
                                 vertexCount = uv0xys.Length;
                                 tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2, 0));
                             }
-                            if (uv3xyzBuffers.Length > 0)
+                            if (uv3xyzs.Length > 0)
                             {
                                 vertexCount = uv3xyzs.Length;
                                 tempDescriptors.Add(new VertexAttributeDescriptor(VertexAttribute.TexCoord3, VertexAttributeFormat.Float32, 3, 0));
@@ -474,23 +472,26 @@ namespace Latios.Kinemation
                             }
 
                             meshData.SetVertexBufferParams(vertexCount, tempDescriptors.AsArray());
-                            var stream0 = meshData.GetVertexData<float>(0);
-
-                            int writeIndex = 0;
-                            for (int i = 0; i < vertexCount; i++)
+                            if (tempDescriptors.Length > 0)
                             {
-                                if (positions.Length > 0)
-                                    Write(ref writeIndex, ref stream0, positions[i]);
-                                if (normals.Length > 0)
-                                    Write(ref writeIndex, ref stream0, normals[i]);
-                                if (tangents.Length > 0)
-                                    Write(ref writeIndex, ref stream0, tangents[i]);
-                                if (colors.Length > 0)
-                                    Write(ref writeIndex, ref stream0, colors[i]);
-                                if (uv0xys.Length > 0)
-                                    Write(ref writeIndex, ref stream0, uv0xys[i]);
-                                if (uv3xyzs.Length > 0)
-                                    Write(ref writeIndex, ref stream0, uv3xyzs[i]);
+                                var stream0 = meshData.GetVertexData<float>(0);
+
+                                int writeIndex = 0;
+                                for (int i = 0; i < vertexCount; i++)
+                                {
+                                    if (positions.Length > 0)
+                                        Write(ref writeIndex, ref stream0, positions[i]);
+                                    if (normals.Length > 0)
+                                        Write(ref writeIndex, ref stream0, normals[i]);
+                                    if (tangents.Length > 0)
+                                        Write(ref writeIndex, ref stream0, tangents[i]);
+                                    if (colors.Length > 0)
+                                        Write(ref writeIndex, ref stream0, colors[i]);
+                                    if (uv0xys.Length > 0)
+                                        Write(ref writeIndex, ref stream0, uv0xys[i]);
+                                    if (uv3xyzs.Length > 0)
+                                        Write(ref writeIndex, ref stream0, uv3xyzs[i]);
+                                }
                             }
                         }
 
@@ -809,6 +810,21 @@ namespace Latios.Kinemation
                     {
                         UnityEngine.Debug.LogError($"Cannot calculate tangents without positions, normals, and UV0 values for {entities[entityIndex].ToFixedString()}.");
                         failed = true;
+                    }
+                }
+
+                if (vertexCount <= 0 && !(hasRawBuffers && hasRawLayouts))
+                {
+                    vertexCount = 0;
+                    if (hasIndices)
+                    {
+                        foreach (var index in indexBuffers[entityIndex])
+                            vertexCount = math.max(vertexCount, index.index + 1);
+                    }
+                    else if (hasSubmehes)
+                    {
+                        foreach (var submesh in submeshBuffers[entityIndex])
+                            vertexCount = math.max(vertexCount, submesh.indexStart + submesh.indexCount);
                     }
                 }
 

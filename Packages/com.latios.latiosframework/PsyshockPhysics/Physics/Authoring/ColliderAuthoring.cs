@@ -57,6 +57,8 @@ namespace Latios.Psyshock.Authoring
 
                 foreach (var colliderGO in authoring.colliders)
                 {
+                    if (colliderGO == null)
+                        continue;
                     smartBaker.m_colliderCache.Clear();
                     smartBaker.GetComponents(colliderGO, smartBaker.m_colliderCache);
                     smartBaker.m_compoundList.AddRange(smartBaker.m_colliderCache);

@@ -236,7 +236,7 @@ namespace Latios.LifeFX.Systems
         static void DispatchManagedFromManaged(UnityObjectRef<GraphicsEventBufferReceptor> requestor, GraphicsBufferUnmanaged buffer, int start, int count, ref bool isBurst)
         {
             isBurst = false;
-            if (requestor != null)
+            if (requestor.IsValid())
                 requestor.Value.PublishInternal(buffer.ToManaged(), start, count);
         }
 
@@ -244,7 +244,7 @@ namespace Latios.LifeFX.Systems
         static unsafe void DispatchManaged(IntPtr dispatchData)
         {
             ref var data = ref *(DispatchData*)dispatchData;
-            if (data.requestor != null)
+            if (data.requestor.IsValid())
                 data.requestor.Value.PublishInternal(data.buffer.ToManaged(), data.start, data.count);
         }
 

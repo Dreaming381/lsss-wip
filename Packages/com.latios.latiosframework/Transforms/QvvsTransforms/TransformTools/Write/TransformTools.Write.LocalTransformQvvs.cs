@@ -174,7 +174,7 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                transformLookupRW.GetCheckedLookup(handle.root.entity, key)[entity] = new WorldTransform { worldTransform = newLocalTransform };
+                transformLookupRW.GetCheckedLookup(entity, key)[entity] = new WorldTransform { worldTransform = newLocalTransform };
                 return;
             }
             SetLocalTransform(handle, in newLocalTransform, ref transformLookupRW.GetCheckedLookup(handle.root.entity, key), ref entityStorageInfoLookup);
@@ -405,7 +405,7 @@ namespace Latios.Transforms
             var handle = GetHierarchyHandle(entity, ref rootReferenceLookupRO, ref entityInHierarchyLookupRO, ref entityInHierarchyCleanupLookupRO);
             if (handle.isNull)
             {
-                transformLookupRW.GetCheckedLookup(handle.root.entity, key)[entity] = new TickedWorldTransform { worldTransform = newLocalTransform };
+                transformLookupRW.GetCheckedLookup(entity, key)[entity] = new TickedWorldTransform { worldTransform = newLocalTransform };
                 return;
             }
             SetTickedLocalTransform(handle, in newLocalTransform, ref transformLookupRW.GetCheckedLookup(handle.root.entity, key), ref entityStorageInfoLookup);

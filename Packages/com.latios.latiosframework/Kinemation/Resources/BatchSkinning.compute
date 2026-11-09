@@ -766,6 +766,7 @@ void BatchSkinning(uint threadId : SV_GroupIndex, uint3 groupIds : SV_GroupID)
         else if (meshOperation == kMeshOpLoadCvtQvvsToDqsStoreGs)
         {
             // Compute World Dual Quaternions with pre-offset skeleton in memory and write to groupshared.
+            GroupMemoryBarrierWithGroupSync();
             for (uint i = threadId; i < meshBonesCount; i += THREAD_GROUP_SIZE)
             {
                 Qvvs boneQvvs = _skeletonQvvsTransforms[skeletonTransformStartIndex + i];

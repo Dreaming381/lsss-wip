@@ -72,23 +72,24 @@ namespace Latios.Psyshock
                 return false;
             }
 
-            var targetTriangleTransformInverse = math.inverse(targetTriangleTransform);
-            var casterInTargetSpace            = math.mul(targetTriangleTransformInverse, castStart);
-            var triPoints                      = targetTriangle.AsSimdFloat3();
+            // Transform into world-space relative to the triangle.
+            var triPoints           = simd.mul(targetTriangleTransform.rot, targetTriangle.AsSimdFloat3());
+            var shiftedCastStartPos = castStart.pos - targetTriangleTransform.pos;
+            var capStartA           = shiftedCastStartPos + math.rotate(castStart.rot, capsuleToCast.pointA);
+            var capStartB           = shiftedCastStartPos + math.rotate(castStart.rot, capsuleToCast.pointB);
+            var castDisplacement    = castEnd - castStart.pos;
 
-            var  startA = math.transform(casterInTargetSpace, capsuleToCast.pointA);
-            var  rayA   = new Ray(startA, startA + math.rotate(targetTriangleTransformInverse, castEnd - castStart.pos));
-            bool hitA   = PointRayTriangle.RaycastRoundedTriangle(in rayA, in triPoints, capsuleToCast.radius, out var fractionA, out _);
-            fractionA   = math.select(2f, fractionA, hitA);
-            var  startB = math.transform(casterInTargetSpace, capsuleToCast.pointB);
-            var  rayB   = new Ray(startB, startB + math.rotate(targetTriangleTransformInverse, castEnd - castStart.pos));
-            bool hitB   = PointRayTriangle.RaycastRoundedTriangle(in rayB, in triPoints, capsuleToCast.radius, out var fractionB, out _);
-            fractionB   = math.select(2f, fractionB, hitB);
+            var  rayA = new Ray(capStartA, capStartA + castDisplacement);
+            bool hitA = PointRayTriangle.RaycastRoundedTriangle(in rayA, in triPoints, capsuleToCast.radius, out var fractionA, out _);
+            fractionA = math.select(2f, fractionA, hitA);
+            var  rayB = new Ray(capStartB, capStartB + castDisplacement);
+            bool hitB = PointRayTriangle.RaycastRoundedTriangle(in rayB, in triPoints, capsuleToCast.radius, out var fractionB, out _);
+            fractionB = math.select(2f, fractionB, hitB);
 
-            var        ray = new Ray(0f, math.rotate(targetTriangleTransformInverse, castStart.pos - castEnd));
+            var        ray = new Ray(0f, -castDisplacement);
             bool3      hitEdge;
             float3     fractionsEdge;
-            simdFloat3 startSimd = new simdFloat3(startA, startA, startB, startB);
+            simdFloat3 startSimd = new simdFloat3(capStartA, capStartA, capStartB, capStartB);
             simdFloat3 cso       = startSimd - triPoints.abba;
             hitEdge.x            = PointRayTriangle.RaycastRoundedQuad(in ray, in cso, capsuleToCast.radius, out fractionsEdge.x, out _);
             cso                  = startSimd - triPoints.bccb;
@@ -101,17 +102,17 @@ namespace Latios.Psyshock
             float fraction = math.min(math.min(fractionA, fractionB), math.cmin(fractionsEdge));
             if (hit)
             {
-                var hitTransform = castStart;
-                hitTransform.pos = math.lerp(castStart.pos, castEnd, fraction);
-                DistanceBetween(in targetTriangle, in targetTriangleTransform, in capsuleToCast, in hitTransform, 1f, out var distanceResult);
+                var hitShift     = castDisplacement * fraction;
+                var capsuleAtHit = new CapsuleCollider(capStartA + hitShift, capStartB + hitShift, capsuleToCast.radius);
+                TriangleCapsuleDistance(in triPoints, in capsuleAtHit, float.MaxValue, out var distanceResult);
                 result = new ColliderCastResult
                 {
-                    hitpoint                 = distanceResult.hitpointB,
+                    hitpoint                 = distanceResult.hitpointB + targetTriangleTransform.pos,
                     normalOnCaster           = distanceResult.normalB,
                     normalOnTarget           = distanceResult.normalA,
-                    subColliderIndexOnCaster = distanceResult.subColliderIndexB,
-                    subColliderIndexOnTarget = distanceResult.subColliderIndexA,
-                    distance                 = math.distance(hitTransform.pos, castStart.pos)
+                    subColliderIndexOnCaster = 0,
+                    subColliderIndexOnTarget = 0,
+                    distance                 = math.length(castDisplacement) * fraction,
                 };
                 return true;
             }
@@ -132,23 +133,24 @@ namespace Latios.Psyshock
                 return false;
             }
 
-            var castStartInverse    = math.inverse(castStart);
-            var targetInCasterSpace = math.mul(castStartInverse, targetCapsuleTransform);
-            var triPoints           = triangleToCast.AsSimdFloat3();
+            // Transform into world-space relative to the triangle and reverse cast.
+            var triPoints        = simd.mul(castStart.rot, triangleToCast.AsSimdFloat3());
+            var shiftedTargetPos = targetCapsuleTransform.pos - castStart.pos;
+            var capStartA        = shiftedTargetPos + math.rotate(targetCapsuleTransform.rot, targetCapsule.pointA);
+            var capStartB        = shiftedTargetPos + math.rotate(targetCapsuleTransform.rot, targetCapsule.pointB);
+            var castReverse      = castStart.pos - castEnd;
 
-            var  targetA = math.transform(targetInCasterSpace, targetCapsule.pointA);
-            var  rayA    = new Ray(targetA, targetA - math.rotate(castStartInverse, castEnd - castStart.pos));
-            bool hitA    = PointRayTriangle.RaycastRoundedTriangle(in rayA, in triPoints, targetCapsule.radius, out var fractionA, out _);
-            fractionA    = math.select(2f, fractionA, hitA);
-            var  targetB = math.transform(targetInCasterSpace, targetCapsule.pointB);
-            var  rayB    = new Ray(targetB, targetB - math.rotate(castStartInverse, castEnd - castStart.pos));
-            bool hitB    = PointRayTriangle.RaycastRoundedTriangle(in rayB, in triPoints, targetCapsule.radius, out var fractionB, out _);
-            fractionB    = math.select(2f, fractionB, hitB);
+            var  rayA = new Ray(capStartA, capStartA + castReverse);
+            bool hitA = PointRayTriangle.RaycastRoundedTriangle(in rayA, in triPoints, targetCapsule.radius, out var fractionA, out _);
+            fractionA = math.select(2f, fractionA, hitA);
+            var  rayB = new Ray(capStartB, capStartB + castReverse);
+            bool hitB = PointRayTriangle.RaycastRoundedTriangle(in rayB, in triPoints, targetCapsule.radius, out var fractionB, out _);
+            fractionB = math.select(2f, fractionB, hitB);
 
-            var        ray = new Ray(0f, math.rotate(castStartInverse, castStart.pos - castEnd));
+            var        ray = new Ray(0f, castReverse);
             bool3      hitEdge;
             float3     fractionsEdge;
-            simdFloat3 targetSimd = new simdFloat3(targetA, targetB, targetB, targetA);
+            simdFloat3 targetSimd = new simdFloat3(capStartA, capStartB, capStartB, capStartA);
             simdFloat3 cso        = triPoints.aabb - targetSimd;
             hitEdge.x             = PointRayTriangle.RaycastRoundedQuad(in ray, in cso, targetCapsule.radius, out fractionsEdge.x, out _);
             cso                   = triPoints.bbcc - targetSimd;
@@ -161,17 +163,17 @@ namespace Latios.Psyshock
             float fraction = math.min(math.min(fractionA, fractionB), math.cmin(fractionsEdge));
             if (hit)
             {
-                var hitTransform = castStart;
-                hitTransform.pos = math.lerp(castStart.pos, castEnd, fraction);
-                DistanceBetween(in triangleToCast, in hitTransform, in targetCapsule, in targetCapsuleTransform, 1f, out var distanceResult);
+                var hitShift     = castReverse * fraction;
+                var capsuleAtHit = new CapsuleCollider(capStartA + hitShift, capStartB + hitShift, targetCapsule.radius);
+                TriangleCapsuleDistance(in triPoints, in capsuleAtHit, float.MaxValue, out var distanceResult);
                 result = new ColliderCastResult
                 {
-                    hitpoint                 = distanceResult.hitpointA,
+                    hitpoint                 = distanceResult.hitpointA - hitShift - shiftedTargetPos + targetCapsuleTransform.pos,
                     normalOnCaster           = distanceResult.normalA,
                     normalOnTarget           = distanceResult.normalB,
-                    subColliderIndexOnCaster = distanceResult.subColliderIndexA,
-                    subColliderIndexOnTarget = distanceResult.subColliderIndexB,
-                    distance                 = math.distance(hitTransform.pos, castStart.pos)
+                    subColliderIndexOnCaster = 0,
+                    subColliderIndexOnTarget = 0,
+                    distance                 = math.length(castReverse) * fraction
                 };
                 return true;
             }
@@ -244,16 +246,7 @@ namespace Latios.Psyshock
         internal static bool TriangleCapsuleWithin(in simdFloat3 triPoints, in CapsuleCollider capsule, float maxDistance)
         {
             simdFloat3 triPointsBcab = triPoints.bcab;
-            CapsuleCapsule.SegmentSegment(in triPoints,
-                                          triPointsBcab,
-                                          new simdFloat3(capsule.pointA),
-                                          new simdFloat3(capsule.pointB),
-                                          out _,
-                                          out _,
-                                          out int isStartEndABx4,
-                                          out var closestAToBPrecise);
-
-            simdFloat3 edges = triPointsBcab - triPoints;
+            simdFloat3 edges         = triPointsBcab - triPoints;
 
             // if counter-clockwise, normal faces "up"
             float3 planeNormal = math.normalizesafe(math.cross(edges.a, edges.c));
@@ -262,10 +255,15 @@ namespace Latios.Psyshock
                 // Triangle is degenerate. Find the two endpoints.
                 float4 edgeLengthsSq           = simd.lengthsq(edges);
                 int    bestDegenerateEdgeIndex = math.tzcnt(math.bitmask(math.cmax(edgeLengthsSq) == edgeLengthsSq));
-                // Todo: Inline the Within() variant.
-                var  triCapsule    = new CapsuleCollider(triPoints[bestDegenerateEdgeIndex], triPointsBcab[bestDegenerateEdgeIndex], 0f);
-                bool degenerateHit = CapsuleCapsule.CapsuleCapsuleDistance(in triCapsule, in capsule, maxDistance, out _);
-                return degenerateHit;
+                CapsuleCapsule.SegmentSegment(triPoints[bestDegenerateEdgeIndex],
+                                              triPointsBcab[bestDegenerateEdgeIndex],
+                                              capsule.pointA,
+                                              capsule.pointB,
+                                              out _,
+                                              out _,
+                                              out _,
+                                              out float3 degenerateAToBPrecise);
+                return math.length(degenerateAToBPrecise) - capsule.radius <= maxDistance;
             }
 
             // calculate edge planes aligned with triangle normal without the normalization (since it isn't required)
@@ -285,7 +283,9 @@ namespace Latios.Psyshock
             bool  oppositeOfPlane = math.min(signedDistanceA, signedDistanceB) < 0f && math.max(signedDistanceA, signedDistanceB) > 0f;
             float pierceFraction  = signedDistanceA / (signedDistanceA - signedDistanceB);
             // Instead of lerping to find the capsule axis and testing new dot products, we can just lerp the dot products.
-            bool  pierced            = oppositeOfPlane && math.all(aDots + (bDots - aDots) * pierceFraction >= 0f);
+            bool pierced = oppositeOfPlane && math.all(aDots + (bDots - aDots) * pierceFraction >= 0f);
+            if (pierced && maxDistance >= 0f)
+                return true;
             float faceAxisDistance   = float.MaxValue;
             float faceResultDistance = float.MaxValue;
             if (aFaceValid || bFaceValid)
@@ -310,6 +310,15 @@ namespace Latios.Psyshock
                     bFaceValid = false;
                 }
             }
+
+            CapsuleCapsule.SegmentSegment(in triPoints,
+                                          triPointsBcab,
+                                          new simdFloat3(capsule.pointA),
+                                          new simdFloat3(capsule.pointB),
+                                          out _,
+                                          out _,
+                                          out int isStartEndABx4,
+                                          out var closestAToBPrecise);
 
             int4  endpointFlagsSplit = new int4(isStartEndABx4, isStartEndABx4 >> 4, isStartEndABx4 >> 8, isStartEndABx4 >> 12) & 0xf;
             bool4 isEdgeStart        = (endpointFlagsSplit & 1) != 0;
@@ -353,16 +362,7 @@ namespace Latios.Psyshock
         internal static bool TriangleCapsuleDistance(in simdFloat3 triPoints, in CapsuleCollider capsule, float maxDistance, out ColliderDistanceResultInternal result)
         {
             simdFloat3 triPointsBcab = triPoints.bcab;
-            CapsuleCapsule.SegmentSegment(in triPoints,
-                                          triPointsBcab,
-                                          new simdFloat3(capsule.pointA),
-                                          new simdFloat3(capsule.pointB),
-                                          out var closestTriEdges,
-                                          out var closestAxisToEdges,
-                                          out int isStartEndABx4,
-                                          out var closestAToBPrecise);
-
-            simdFloat3 edges = triPointsBcab - triPoints;
+            simdFloat3 edges         = triPointsBcab - triPoints;
 
             // if counter-clockwise, normal faces "up"
             float3 planeNormal = math.normalizesafe(math.cross(edges.a, edges.c));
@@ -439,6 +439,15 @@ namespace Latios.Psyshock
                     bFaceValid = false;
                 }
             }
+
+            CapsuleCapsule.SegmentSegment(in triPoints,
+                                          triPointsBcab,
+                                          new simdFloat3(capsule.pointA),
+                                          new simdFloat3(capsule.pointB),
+                                          out var closestTriEdges,
+                                          out var closestAxisToEdges,
+                                          out int isStartEndABx4,
+                                          out var closestAToBPrecise);
 
             int4  endpointFlagsSplit = new int4(isStartEndABx4, isStartEndABx4 >> 4, isStartEndABx4 >> 8, isStartEndABx4 >> 12) & 0xf;
             bool4 isEdgeStart        = (endpointFlagsSplit & 1) != 0;

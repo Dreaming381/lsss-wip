@@ -159,6 +159,7 @@ namespace Latios.Transforms
                 {
                     m_worldTransform = worldTransform,
                     m_handle         = handle,
+                    m_esil           = esil,
                     m_access         = entityPtr
                 };
             }
@@ -337,6 +338,7 @@ namespace Latios.Transforms
                     {
                         m_worldTransform = transform,
                         m_handle         = default,
+                        m_esil           = esil,
                         m_access         = cache.chunkEntities + indexInChunk
                     };
                 }
@@ -513,6 +515,7 @@ namespace Latios.Transforms
                 {
                     m_worldTransform = tickedWorldTransform,
                     m_handle         = handle,
+                    m_esil           = em.GetEntityStorageInfoLookup(),
                     m_access         = entityPtr
                 };
             }
@@ -616,6 +619,7 @@ namespace Latios.Transforms
                 {
                     m_worldTransform = tickedWorldTransform,
                     m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
                     m_access         = entityPtr
                 };
             }
@@ -673,6 +677,7 @@ namespace Latios.Transforms
                 {
                     m_worldTransform = tickedWorldTransform,
                     m_handle         = handle,
+                    m_esil           = broker.entityStorageInfoLookup,
                     m_access         = entityPtr
                 };
             }

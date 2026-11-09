@@ -1,5 +1,6 @@
 using Latios.Calci;
 using Unity.Burst;
+using Unity.Burst.CompilerServices;
 using Unity.Mathematics;
 
 namespace Latios.Psyshock
@@ -15,17 +16,19 @@ namespace Latios.Psyshock
         public static bool WithinDistance(float3 point, in TriangleCollider triangle, in RigidTransform triangleTransform, float maxDistance)
         {
             var pointInTriangleSpace = math.InverseTransformFast(in triangleTransform, point);
-            return PointTriangleWithin(pointInTriangleSpace, in triangle, maxDistance);
+            return PointTriangleWithin(pointInTriangleSpace, triangle.AsSimdFloat3(), maxDistance);
         }
 
         public static bool DistanceBetween(float3 point, in TriangleCollider triangle, in RigidTransform triangleTransform, float maxDistance, out PointDistanceResult result)
         {
-            var  pointInTriangleSpace = math.InverseTransformFast(in triangleTransform, point);
-            bool hit                  = PointTriangleDistance(pointInTriangleSpace, in triangle, maxDistance, out var localResult);
+            var  shiftedPoint         = point - triangleTransform.pos;
+            var  triPointsLocal       = triangle.AsSimdFloat3();
+            var  triPointsTransformed = simd.mul(triangleTransform.rot, triPointsLocal);
+            bool hit                  = PointTriangleDistance(shiftedPoint, in triPointsTransformed, maxDistance, out var localResult);
             result                    = new PointDistanceResult
             {
-                hitpoint = math.transform(triangleTransform, localResult.hitpoint),
-                normal   = math.rotate(triangleTransform, localResult.normal),
+                hitpoint = localResult.hitpoint + triangleTransform.pos,
+                normal   = localResult.normal,
                 distance = localResult.distance
             };
             return hit;
@@ -78,14 +81,13 @@ namespace Latios.Psyshock
             return PointRayCapsule.PointCapsuleWithin(point, in capsule, 0f);
         }
 
-        internal static bool PointTriangleWithin(float3 point, in TriangleCollider triangle, float maxDistance)
+        internal static bool PointTriangleWithin(float3 point, in simdFloat3 triPoints, float maxDistance)
         {
             if (maxDistance < 0f)
                 return false;
 
-            simdFloat3 vertices = triangle.AsSimdFloat3();
-            simdFloat3 edges    = vertices.bcaa - vertices;
-            simdFloat3 vp       = point - vertices;
+            simdFloat3 edges = triPoints.bcab - triPoints;
+            simdFloat3 vp    = point - triPoints;
 
             // project point onto plane
             // if counter-clockwise, normal faces "up"
@@ -97,15 +99,15 @@ namespace Latios.Psyshock
             if (math.all(dots.xyz >= 0f) && !planeNormal.Equals(float3.zero))
             {
                 // all inside, hit plane
-                float projectionDot = math.dot(planeNormal, point - triangle.pointA);
+                float projectionDot = math.dot(planeNormal, point - triPoints.a);
                 return math.abs(projectionDot) <= maxDistance;
             }
 
             // The closest point is on one of the edges. This also covers degenerate triangles.
             float4     edgeLengthsSq = simd.lengthsq(edges);
             float4     edgeDots      = math.clamp(simd.dot(vp, edges), 0f, edgeLengthsSq);
-            simdFloat3 edgeHitpoints = vertices + edges * (edgeDots / edgeLengthsSq);
-            edgeHitpoints            = simd.select(edgeHitpoints, vertices.bcaa, edgeDots == edgeLengthsSq);
+            simdFloat3 edgeHitpoints = triPoints + edges * (edgeDots / edgeLengthsSq);
+            edgeHitpoints            = simd.select(edgeHitpoints, triPoints.bcab, edgeDots == edgeLengthsSq);
             float distanceSq         = math.cmin(simd.distancesq(point, edgeHitpoints).xyz);
             return distanceSq <= maxDistance * maxDistance;
         }
@@ -113,9 +115,13 @@ namespace Latios.Psyshock
         // Distance is unsigned, triangle is "double-sided"
         internal static bool PointTriangleDistance(float3 point, in TriangleCollider triangle, float maxDistance, out PointDistanceResultInternal result)
         {
-            simdFloat3 vertices = triangle.AsSimdFloat3();
-            simdFloat3 edges    = vertices.bcaa - vertices;
-            simdFloat3 vp       = point - vertices;
+            return PointTriangleDistance(point, triangle.AsSimdFloat3(), maxDistance, out result);
+        }
+
+        internal static bool PointTriangleDistance(float3 point, in simdFloat3 triPoints, float maxDistance, out PointDistanceResultInternal result)
+        {
+            simdFloat3 edges = triPoints.bcab - triPoints;
+            simdFloat3 vp    = point - triPoints;
 
             // project point onto plane
             // if counter-clockwise, normal faces "up"
@@ -125,16 +131,16 @@ namespace Latios.Psyshock
             simdFloat3 edgeUnnormals = simd.cross(edges, planeNormal);
             float4     dots          = simd.dot(edgeUnnormals, vp);
 
-            if (planeNormal.Equals(float3.zero))
+            if (Hint.Unlikely(planeNormal.Equals(float3.zero)))
             {
                 // On all three edges at once because the cross product was 0.
                 // We can't use the typical edge-hit test because we don't have valid edge normals.
-                CapsuleCollider capAB = new CapsuleCollider(triangle.pointA, triangle.pointB, 0f);
+                CapsuleCollider capAB = new CapsuleCollider(triPoints.a, triPoints.b, 0f);
                 bool            hitAB = PointRayCapsule.PointCapsuleDistance(point, in capAB, maxDistance, out var resultAB);
-                CapsuleCollider capBC = new CapsuleCollider(triangle.pointB, triangle.pointC, 0f);
+                CapsuleCollider capBC = new CapsuleCollider(triPoints.b, triPoints.c, 0f);
                 bool            hitBC = PointRayCapsule.PointCapsuleDistance(point, in capBC, maxDistance, out var resultBC);
                 resultBC.featureCode++;
-                CapsuleCollider capCA  = new CapsuleCollider(triangle.pointC, triangle.pointA, 0f);
+                CapsuleCollider capCA  = new CapsuleCollider(triPoints.c, triPoints.a, 0f);
                 bool            hitCA  = PointRayCapsule.PointCapsuleDistance(point, in capCA, maxDistance, out var resultCA);
                 resultCA.featureCode  += (ushort)math.select(2, -1, (resultCA.featureCode & 0xff) == 1);
                 if (!hitAB && !hitBC && !hitCA)
@@ -156,7 +162,7 @@ namespace Latios.Psyshock
             else if (math.all(dots.xyz > 0f))
             {
                 // all inside, hit plane
-                float  projectionDot  = math.dot(planeNormal, point - triangle.pointA);
+                float  projectionDot  = math.dot(planeNormal, point - triPoints.a);
                 float3 projectedPoint = point - projectionDot * planeNormal;
                 result.hitpoint       = projectedPoint;
                 result.distance       = math.abs(projectionDot);
@@ -170,8 +176,8 @@ namespace Latios.Psyshock
                 float4     edgeDots        = math.clamp(simd.dot(vp, edges), 0f, edgeLengthsSq);
                 bool4      clampedToStarts = edgeDots == 0f;
                 bool4      clampedToEnds   = edgeDots == edgeLengthsSq;
-                simdFloat3 edgeHitpoints   = vertices + edges * (edgeDots / edgeLengthsSq);
-                edgeHitpoints              = simd.select(edgeHitpoints, vertices.bcaa, edgeDots == edgeLengthsSq);
+                simdFloat3 edgeHitpoints   = triPoints + edges * (edgeDots / edgeLengthsSq);
+                edgeHitpoints              = simd.select(edgeHitpoints, triPoints.bcab, edgeDots == edgeLengthsSq);
                 float4 distancesSq         = simd.distancesq(point, edgeHitpoints);
                 // Only a point within (and not on the boundary of) an edge's voronoi region can hold the closest point.
                 // But we can run into scenarios where floating-point math doesn't distinguish distances, especially if the point is far away.
@@ -189,12 +195,21 @@ namespace Latios.Psyshock
                 int   sharedEdgeIndex          = math.select(bestEdgeIndex, previousEdgeIndex, clampedToStart);
                 sharedEdgeIndex                = math.select(sharedEdgeIndex, nextEdgeIndex, clampedToEnd);
                 simdFloat3 edgeNormals         = simd.normalize(edgeUnnormals);
-                result.hitpoint                = edgeHitpoints[bestEdgeIndex];
-                result.distance                = math.sqrt(minDistanceSq);
-                result.normal                  = math.normalize(-edgeNormals[bestEdgeIndex] - edgeNormals[sharedEdgeIndex]);
-                int featureCode                = bestEdgeIndex + math.select(0x4000, 0, clampedToStart);
-                featureCode                    = math.select(featureCode, nextEdgeIndex, clampedToEnd);
-                result.featureCode             = (ushort)featureCode;
+                // At a sharp vertex the two outward normals nearly cancel, but the incoming and outgoing edge directions don't.
+                simdFloat3 edgeDirections             = simd.normalize(edges);
+                int        incomingEdgeIndex          = math.select(bestEdgeIndex, sharedEdgeIndex, clampedToStart);
+                int        outgoingEdgeIndex          = math.select(sharedEdgeIndex, bestEdgeIndex, clampedToStart);
+                float3     perpendicularEdgeNormalSum = -edgeNormals[bestEdgeIndex] - edgeNormals[sharedEdgeIndex];
+                float3     parallelEdgeNormalSum      = edgeDirections[incomingEdgeIndex] - edgeDirections[outgoingEdgeIndex];
+                bool       parallelIsBetter           = math.lengthsq(perpendicularEdgeNormalSum) < math.lengthsq(parallelEdgeNormalSum);
+                float3     bestNormalSum              = math.select(perpendicularEdgeNormalSum, parallelEdgeNormalSum, parallelIsBetter);
+
+                result.hitpoint    = edgeHitpoints[bestEdgeIndex];
+                result.distance    = math.sqrt(minDistanceSq);
+                result.normal      = math.normalize(bestNormalSum);
+                int featureCode    = bestEdgeIndex + math.select(0x4000, 0, clampedToStart);
+                featureCode        = math.select(featureCode, nextEdgeIndex, clampedToEnd);
+                result.featureCode = (ushort)featureCode;
             }
             return result.distance <= maxDistance;
         }
@@ -336,7 +351,7 @@ namespace Latios.Psyshock
         internal static bool RaycastRoundedTriangle(in Ray ray, in simdFloat3 triPoints, float radius, out float fraction, out float3 normal)
         {
             // Make sure the ray doesn't start inside.
-            if (PointTriangleWithin(ray.start, new TriangleCollider(triPoints.a, triPoints.b, triPoints.c), radius))
+            if (PointTriangleWithin(ray.start, in triPoints, radius))
             {
                 fraction = 2f;
                 normal   = default;

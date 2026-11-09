@@ -323,14 +323,14 @@ namespace Latios.Kinemation.Systems
                 var rounded            = math.round(postClamp);
                 var isWithinCrossfade  = math.abs(postClamp - rounded) <= meshLodCrossfadeMargin;
                 var groupClampRegion   = rounded + math.select(float3.zero, new float3(0f, meshLodCrossfadeMargin, -meshLodCrossfadeMargin), isWithinCrossfade);
-                var meshLodLevel       = math.clamp(groupClampRegion.x, groupClampRegion.y, groupClampRegion.z);
+                var meshLodLevel       = math.clamp(postClamp.x, groupClampRegion.y, groupClampRegion.z);
                 meshLodLevel           = math.min(meshLodLevel, meshLod.levelCount - 1.5f);  // The extra 0.5 is to prevent crossfading
                 var meshLodRounded     = math.round(meshLodLevel);
                 if (math.distance(meshLodLevel, meshLodRounded) < meshLodCrossfadeMargin)
                 {
-                    var hiResOpacity = math.unlerp(meshLodRounded - meshLodCrossfadeMargin, meshLodRounded + meshLodCrossfadeMargin, meshLodLevel);
+                    var hiResOpacity = math.unlerp(meshLodRounded + meshLodCrossfadeMargin, meshLodRounded - meshLodCrossfadeMargin, meshLodLevel);
                     meshLod.lodLevel = (ushort)meshLodLevel;
-                    if (meshLodLevel > meshLodRounded)
+                    if (meshLodLevel >= meshLodRounded)
                         meshLod.lodLevel--;
                     crossfade.SetFromHiResOpacity(hiResOpacity, false);
                     crossfadeEnabled       = true;

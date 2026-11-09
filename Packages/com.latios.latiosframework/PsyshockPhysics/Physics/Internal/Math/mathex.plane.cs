@@ -22,6 +22,11 @@ namespace Latios.Psyshock
             return new Plane(normal, -math.dot(normal, relativeOrigin));
         }
 
+        public static Plane PlaneFrom(float3 relativeOrigin, float3 normal)
+        {
+            return new Plane(normal, -math.dot(normal, relativeOrigin));
+        }
+
         public static Plane Flip(Plane plane)
         {
             float4 v = plane;

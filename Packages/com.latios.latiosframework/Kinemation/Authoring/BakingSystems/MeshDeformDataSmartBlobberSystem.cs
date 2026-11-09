@@ -367,13 +367,19 @@ namespace Latios.Kinemation.Authoring.Systems
                     {
                         verticesToSkin[i].position = t[i];
                     }
-                    mesh.GetNormals(context.vector3Cache.AsArray());
+                    if (mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.Normal))
+                        mesh.GetNormals(context.vector3Cache.AsArray());
+                    else
+                        context.vector3Cache.AsArray().AsSpan().Fill(new Vector3(0f, 0f, 1f));
                     for (int i = 0; i < mesh.vertexCount; i++)
                     {
                         verticesToSkin[i].normal = t[i];
                     }
                     context.vector4Cache.ResizeUninitialized(mesh.vertexCount);
-                    mesh.GetTangents(context.vector4Cache.AsArray());
+                    if (mesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.Tangent))
+                        mesh.GetTangents(context.vector4Cache.AsArray());
+                    else
+                        context.vector4Cache.AsArray().AsSpan().Fill(new Vector4(1f, 0f, 0f, 1f));
                     var tt = context.vector4Cache.AsArray().Reinterpret<float4>();
                     for (int i = 0; i < mesh.vertexCount; i++)
                     {
@@ -840,7 +846,7 @@ namespace Latios.Kinemation.Authoring.Systems
                     if (normalizationIsValid)
                     {
                         var triangleCount                        = indicesCount / 3;
-                        blobRoot.normalizationData.triangleCount = triangleCount / 3;
+                        blobRoot.normalizationData.triangleCount = triangleCount;
                         int indicesUintToAllocate                = 0;
                         switch (blobRoot.normalizationData.packMode)
                         {

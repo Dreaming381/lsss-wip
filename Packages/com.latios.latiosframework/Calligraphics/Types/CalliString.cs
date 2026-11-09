@@ -136,7 +136,7 @@ namespace Latios.Calligraphics
                 return false;
             var oldLength = Length;
             Length        = newLength;
-            if (clearOptions == NativeArrayOptions.ClearMemory)
+            if (clearOptions == NativeArrayOptions.ClearMemory && newLength > oldLength)
                 m_stringBuffer.AsNativeArray().GetSubArray(oldLength, newLength - oldLength).AsSpan().Clear();
             return true;
         }
@@ -255,9 +255,15 @@ namespace Latios.Calligraphics
             return new Enumerator(this);
         }
 
-        public bool Equals(string other)
+        public unsafe bool Equals(string other)
         {
-            return CompareTo(other) == 0;
+            int          alen = Length;
+            int          blen = other.Length;
+            byte*        aptr = (byte*)m_stringBuffer.GetUnsafeReadOnlyPtr();
+            fixed (char* bptr = other)
+            {
+                return UTF8ArrayUnsafeUtility.StrCmp(aptr, alen, bptr, blen) == 0;
+            }
         }
 
         public bool Equals(NativeText other)
@@ -343,6 +349,11 @@ namespace Latios.Calligraphics
         public int CompareTo(FixedString4096Bytes other)
         {
             return FixedStringMethods.CompareTo(ref this, other);
+        }
+
+        public override string ToString()
+        {
+            return FixedStringMethods.ConvertToString(ref this);
         }
     }
 }

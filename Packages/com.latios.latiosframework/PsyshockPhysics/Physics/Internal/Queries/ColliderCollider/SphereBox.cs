@@ -175,7 +175,7 @@ namespace Latios.Psyshock
             normalB        = math.chgsign(normalB, pointDistanceResult.distance);
             result         = new ColliderDistanceResultInternal
             {
-                distance     = pointDistanceResult.distance - sphere.radius,
+                distance     = math.min(pointDistanceResult.distance - sphere.radius, maxDistance),
                 hitpointA    = pointDistanceResult.hitpoint,
                 hitpointB    = sphere.center + normalB * sphere.radius,
                 normalA      = pointDistanceResult.normal,
@@ -183,7 +183,7 @@ namespace Latios.Psyshock
                 featureCodeA = pointDistanceResult.featureCode,
                 featureCodeB = 0
             };
-            return result.distance <= maxDistance;  // Rechecked for rounding
+            return hit;
         }
     }
 }

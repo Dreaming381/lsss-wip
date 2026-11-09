@@ -152,7 +152,7 @@ float4 mergeFaceAndOutlineColorsAndAlpha(float4 alpha, float4 faceColor, float4 
     outline2Color.rgb *= outline2Color.a;
     outline3Color.rgb *= outline3Color.a;
     float4 outColor = lerp(lerp(lerp(outline3Color, outline2Color, alpha.z), outline1Color, alpha.y), faceColor, alpha.x);
-    outColor.rgb /= outColor.a;
+    outColor.rgb = outColor.a > 0 ? outColor.rgb / outColor.a : 0;
     return outColor;
 }
 /// Computes the final color given the evaluated primary face + outlines color and the underlay color

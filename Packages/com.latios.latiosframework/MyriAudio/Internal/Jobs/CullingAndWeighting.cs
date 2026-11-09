@@ -296,13 +296,8 @@ namespace Latios.Myri
 
             //ITD
             {
-                float itd = (math.dot(emitterPositionNormalized, math.right()) * 0.5f + 0.5f) * weights.itdWeights.Length;
-                //float frac                    = math.modf(itd, out float integer);
-                //int   indexLow                = math.clamp((int)integer, 0, weights.itdWeights.Length - 1);
-                //int   indexHigh               = math.clamp(indexLow + 1, 0, weights.itdWeights.Length - 1);
-                //weights.itdWeights[indexLow]  = volume * frac;
-                //weights.itdWeights[indexHigh] = volume * (1f - frac);
-                int index                 = math.clamp((int)math.round(itd), 0, weights.itdWeights.Length - 1);
+                float itd                 = (math.dot(emitterPositionNormalized, math.right()) * 0.5f + 0.5f) * (weights.itdWeights.Length - 1);
+                int   index               = math.clamp((int)math.round(itd), 0, weights.itdWeights.Length - 1);
                 weights.itdWeights[index] = volume;
             }
 

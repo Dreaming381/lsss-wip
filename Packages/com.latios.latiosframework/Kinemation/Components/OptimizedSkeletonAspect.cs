@@ -64,6 +64,12 @@ namespace Latios.Kinemation
                     var array = m_boneTransforms.AsNativeArray();
                     InitWeights(array.GetSubArray(0, requiredBones).Reinterpret<TransformQvvs>());
                     array.GetSubArray(requiredBones, requiredBones).CopyFrom(array.GetSubArray(0, requiredBones));
+                    for (int i = 0; i < requiredBones; i++)
+                    {
+                        var bone                     = array[i];
+                        bone.boneTransform.context32 = -1;  // Clear socket before syncing to prevent exceptions.
+                        array[i]                     = bone;
+                    }
                     Sync(true);
                     array.GetSubArray(requiredBones * 2, requiredBones * 2).CopyFrom(array.GetSubArray(0, requiredBones * 2));
                     array.GetSubArray(requiredBones * 4, requiredBones * 2).CopyFrom(array.GetSubArray(0, requiredBones * 2));
@@ -87,7 +93,7 @@ namespace Latios.Kinemation
 
                 var                                handle        = transformAspect.entityInHierarchyHandle;
                 ReadOnlySpan<DependentSkinnedMesh> skinnedMeshes =
-                    optionalDependentSkinnedMeshesBufferRO.IsCreated ? optionalDependentSkinnedMeshesBufferRO.AsNativeArray() : default;
+                    optionalDependentSkinnedMeshesBufferRO.IsCreated ? optionalDependentSkinnedMeshesBufferRO.AsNativeArray().AsReadOnlySpan() : default;
                 foreach (var child in handle.bloodChildren)
                 {
                     var  entity = child.entity;

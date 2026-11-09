@@ -412,7 +412,7 @@ namespace Latios.Psyshock
                     while (enumerator.MoveNext())
                     {
                         ref var header = ref enumerator.GetCurrentAsRef();
-                        bool    aIsRW  = (header.flags & PairStream.PairHeader.kWritableA) == PairStream.PairHeader.kWritableA;
+                        bool    aIsRW  = Bits.GetBit(header.flags, PairStream.PairHeader.kWriteableABit);
                         if (aIsRW && map.TryGetValue(header.entityA, out var oldIndex))
                         {
                             if (oldIndex != bucketIndex)
@@ -422,7 +422,7 @@ namespace Latios.Psyshock
                         else if (aIsRW)
                             map.Add(header.entityA, bucketIndex);
 
-                        bool bIsRW = (header.flags & PairStream.PairHeader.kWritableB) == PairStream.PairHeader.kWritableB;
+                        bool bIsRW = Bits.GetBit(header.flags, PairStream.PairHeader.kWriteableBBit);
                         if (bIsRW && map.TryGetValue(header.entityB, out oldIndex))
                         {
                             if (oldIndex != bucketIndex)

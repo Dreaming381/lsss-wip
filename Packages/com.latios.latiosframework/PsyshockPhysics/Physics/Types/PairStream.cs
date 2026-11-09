@@ -442,11 +442,11 @@ namespace Latios.Psyshock
             /// <returns>A reference to the allocated instance of type T</returns>
             public ref T ReplaceRef<T>() where T : unmanaged
             {
-                WriteHeader().flags  &= (~PairHeader.kRootPtrIsRaw) & 0xff;
-                header->rootPtr       = AllocateRaw(UnsafeUtility.SizeOf<T>(), UnsafeUtility.AlignOf<T>());
-                header->rootTypeHash  = BurstRuntime.GetHashCode32<T>();
-                ref var result        = ref UnsafeUtility.AsRef<T>(header->rootPtr);
-                result                = default;
+                Bits.SetBit(ref WriteHeader().flags, PairHeader.kRootPtrIsRawBit, false);
+                header->rootPtr      = AllocateRaw(UnsafeUtility.SizeOf<T>(), UnsafeUtility.AlignOf<T>());
+                header->rootTypeHash = BurstRuntime.GetHashCode32<T>();
+                ref var result       = ref UnsafeUtility.AsRef<T>(header->rootPtr);
+                result               = default;
                 return ref result;
             }
             /// <summary>
@@ -458,9 +458,9 @@ namespace Latios.Psyshock
             /// <returns>A pointer to the new allocation</returns>
             public void* ReplaceRaw(int sizeInBytes, int alignInBytes)
             {
-                WriteHeader().flags  |= PairHeader.kRootPtrIsRaw;
-                header->rootPtr       = AllocateRaw(sizeInBytes, alignInBytes);
-                header->rootTypeHash  = 0;
+                Bits.SetBit(ref WriteHeader().flags, PairHeader.kRootPtrIsRawBit, true);
+                header->rootPtr      = AllocateRaw(sizeInBytes, alignInBytes);
+                header->rootTypeHash = 0;
                 return header->rootPtr;
             }
             /// <summary>
@@ -506,26 +506,26 @@ namespace Latios.Psyshock
             /// </summary>
             public bool enabled
             {
-                get => (ReadHeaderParallel().flags & PairHeader.kEnabled) == PairHeader.kEnabled;
-                set => Bits.SetBit(ref WriteHeader().flags, PairHeader.kEnabled, value);
+                get => Bits.GetBit(ReadHeaderParallel().flags, PairHeader.kEnabledBit);
+                set => Bits.SetBit(ref WriteHeader().flags, PairHeader.kEnabledBit, value);
             }
 
             /// <summary>
             /// If true, the pair's associated object was allocated as a raw pointer.
             /// </summary>
-            public bool isRaw => (ReadHeaderParallel().flags & PairHeader.kRootPtrIsRaw) == PairHeader.kRootPtrIsRaw;
+            public bool isRaw => Bits.GetBit(ReadHeaderParallel().flags, PairHeader.kRootPtrIsRawBit);
             /// <summary>
             /// If true, the first entity in the pair was granted read-write access upon creation.
             /// However, read-write access may still not be permitted depending on the context
             /// (it is disallowed for immediate contexts).
             /// </summary>
-            public bool aIsRW => (ReadHeaderParallel().flags & PairHeader.kWritableA) == PairHeader.kWritableA;
+            public bool aIsRW => Bits.GetBit(ReadHeaderParallel().flags, PairHeader.kWriteableABit);
             /// <summary>
             /// If true, the second entity in the pair was granted read-write access upon creation.
             /// However, read-write access may still not be permitted depending on the context
             /// (it is disallowed for immediate contexts).
             /// </summary>
-            public bool bIsRW => (ReadHeaderParallel().flags & PairHeader.kWritableB) == PairHeader.kWritableB;
+            public bool bIsRW => Bits.GetBit(ReadHeaderParallel().flags, PairHeader.kWriteableBBit);
             /// <summary>
             /// The index of the stream this pair resides in
             /// </summary>
@@ -779,7 +779,7 @@ namespace Latios.Psyshock
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             void CheckTypeHash<T>() where T : unmanaged
             {
-                if ((header->flags & PairHeader.kRootPtrIsRaw) == PairHeader.kRootPtrIsRaw)
+                if (Bits.GetBit(header->flags, PairHeader.kRootPtrIsRawBit))
                     throw new InvalidOperationException(
                         $"Attempted to access a raw allocation using an explicit type. If this is intended, use GetRaw in combination with UnsafeUtility.AsRef.");
                 if (header->rootTypeHash != BurstRuntime.GetHashCode32<T>())
@@ -837,15 +837,18 @@ namespace Latios.Psyshock
                     data.state->needsAliasChecks = true;
                 }
 
+                byte flags = 0;
+                Bits.SetBit(ref flags, PairHeader.kWriteableABit,   aIsRW);
+                Bits.SetBit(ref flags, PairHeader.kWriteableBBit,   bIsRW);
+                Bits.SetBit(ref flags, PairHeader.kEnabledBit,      true);
+                Bits.SetBit(ref flags, PairHeader.kRootPtrIsRawBit, isRaw);
                 var headerPtr = (PairHeader*)UnsafeUtility.AddressOf(ref data.pairHeaders.Allocate(targetStream));
                 *   headerPtr = new PairHeader
                 {
                     entityA      = key.entityA,
                     entityB      = key.entityB,
                     rootTypeHash = typeHash,
-                    flags        =
-                        (byte)((aIsRW ? PairHeader.kWritableA : default) + (bIsRW ? PairHeader.kWritableB : default) + PairHeader.kEnabled +
-                               (isRaw ? PairHeader.kRootPtrIsRaw : default))
+                    flags        = flags,
                 };
 
                 pair = new Pair
@@ -938,10 +941,10 @@ namespace Latios.Psyshock
             public byte   userByte;
             public byte   flags;
 
-            public const byte kWritableA    = 0x1;
-            public const byte kWritableB    = 0x2;
-            public const byte kEnabled      = 0x4;
-            public const byte kRootPtrIsRaw = 0x8;
+            public const byte kWriteableABit   = 0;
+            public const byte kWriteableBBit   = 1;
+            public const byte kEnabledBit      = 2;
+            public const byte kRootPtrIsRawBit = 3;
         }
 
         internal struct State
@@ -1015,15 +1018,18 @@ namespace Latios.Psyshock
             else
                 data.state->needsAliasChecks = true;
 
+            byte flags = 0;
+            Bits.SetBit(ref flags, PairHeader.kWriteableABit,   aIsRW);
+            Bits.SetBit(ref flags, PairHeader.kWriteableBBit,   bIsRW);
+            Bits.SetBit(ref flags, PairHeader.kEnabledBit,      true);
+            Bits.SetBit(ref flags, PairHeader.kRootPtrIsRawBit, isRaw);
             var headerPtr = (PairHeader*)UnsafeUtility.AddressOf(ref data.pairHeaders.Allocate(targetStream));
             *headerPtr    = new PairHeader
             {
                 entityA      = entityA,
                 entityB      = entityB,
                 rootTypeHash = typeHash,
-                flags        =
-                    (byte)((aIsRW ? PairHeader.kWritableA : default) + (bIsRW ? PairHeader.kWritableB : default) + PairHeader.kEnabled +
-                           (isRaw ? PairHeader.kRootPtrIsRaw : default))
+                flags        = flags,
             };
 
             pair = new Pair
@@ -1060,15 +1066,18 @@ namespace Latios.Psyshock
             else
                 data.state->needsAliasChecks = true;
 
+            byte flags = 0;
+            Bits.SetBit(ref flags, PairHeader.kWriteableABit,   referencePair.aIsRW);
+            Bits.SetBit(ref flags, PairHeader.kWriteableBBit,   referencePair.bIsRW);
+            Bits.SetBit(ref flags, PairHeader.kEnabledBit,      true);
+            Bits.SetBit(ref flags, PairHeader.kRootPtrIsRawBit, isRaw);
             var headerPtr = (PairHeader*)UnsafeUtility.AddressOf(ref data.pairHeaders.Allocate(targetStream));
             *headerPtr    = new PairHeader
             {
                 entityA      = referencePair.entityA,
                 entityB      = referencePair.entityB,
                 rootTypeHash = typeHash,
-                flags        =
-                    (byte)((referencePair.aIsRW ? PairHeader.kWritableA : default) + (referencePair.bIsRW ? PairHeader.kWritableB : default) + PairHeader.kEnabled +
-                           (isRaw ? PairHeader.kRootPtrIsRaw : default))
+                flags        = flags,
             };
 
             pair = new Pair

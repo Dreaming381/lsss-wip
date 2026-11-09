@@ -54,7 +54,7 @@ namespace Latios.Unika.Authoring
                 if (ReferenceEquals(s, this))
                 {
                     var scriptsToGenerate = GetScriptCountToGenerate();
-                    if (scriptsToGenerate >= 0 && nthScriptIndex < scriptsToGenerate)
+                    if (nthScriptIndex >= 0 && nthScriptIndex < scriptsToGenerate)
                     {
                         return new ScriptRef
                         {
