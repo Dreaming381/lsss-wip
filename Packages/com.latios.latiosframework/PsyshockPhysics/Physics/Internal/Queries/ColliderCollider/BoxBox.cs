@@ -3,6 +3,7 @@
 using System;
 using Latios.Calci;
 using Unity.Burst;
+using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Mathematics;
 
@@ -20,8 +21,7 @@ namespace Latios.Psyshock
             var bOffsetTransform  = bTransform;
             bOffsetTransform.pos += math.rotate(bTransform.rot, boxB.center);
             var bInATransform     = math.InverseTransformFast(in aOffsetTransform, in bOffsetTransform);
-            var aInBTransform     = math.InverseTransformFast(in bOffsetTransform, in aOffsetTransform);
-            return BoxBoxOverlapping(boxA.halfSize, boxB.halfSize, in bInATransform, in aInBTransform);
+            return BoxBoxOverlapping(boxA.halfSize, boxB.halfSize, in bInATransform);
         }
 
         public static bool WithinDistance(in BoxCollider boxA,
@@ -232,7 +232,7 @@ namespace Latios.Psyshock
                 PointRayBox.BestFacePlanesAndVertices(in boxB, bLocalContactNormal, out var bEdgePlaneNormals, out _,                       out var bPlane, out var bVertices);
                 bPlane                                 = mathex.TransformPlane(bInATransform, bPlane);
                 bVertices                              = simd.transform(bInATransform, bVertices);
-                bEdgePlaneNormals                      = simd.mul(bInATransform.rot, bEdgePlaneNormals);
+                bEdgePlaneNormals                      = simd.rotate(bInATransform.rot, bEdgePlaneNormals);
                 var  bEdgePlaneDistances               = simd.dot(bEdgePlaneNormals, bVertices.bcda);
                 bool needsClosestPoint                 = true;
                 var  distanceScalarAlongContactNormalB = math.rcp(math.dot(-aLocalContactNormal, bPlane.normal));
@@ -311,71 +311,35 @@ namespace Latios.Psyshock
             return result;
         }
 
-        private static bool BoxBoxOverlapping(float3 halfSizeA,
-                                              float3 halfSizeB,
-                                              in RigidTransform bInASpace,
-                                              in RigidTransform aInBSpace)
+        static bool BoxBoxOverlapping(float3 halfSizeA, float3 halfSizeB, in RigidTransform bInASpace)
         {
-            var         bInARotMat = new float3x3(bInASpace.rot);
-            Span<float> axesX      =
-                stackalloc float[] { 1f, 0f, 0f, bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x, 1f, 0f, 0f, 0f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z,
-                                     -bInARotMat.c0.y, -bInARotMat.c1.y, -bInARotMat.c2.y };
-            Span<float> axesY =
-                stackalloc float[] { 0f, 1f, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, 0f, -bInARotMat.c0.z, -bInARotMat.c1.z, -bInARotMat.c2.z, 0f, 0f, 0f,
-                                     bInARotMat.c0.x, bInARotMat.c1.x, bInARotMat.c2.x };
-            Span<float> axesZ =
-                stackalloc float[] { 0f, 0f, 1f, bInARotMat.c0.z, bInARotMat.c1.z, bInARotMat.c2.z, 0f, bInARotMat.c0.y, bInARotMat.c1.y, bInARotMat.c2.y, -bInARotMat.c0.x,
-                                     -bInARotMat.c1.x, -bInARotMat.c2.x, 0f, 0f, 0f };
-            // Burst is doing something stupid that is preventing LLVM from doing vector early-out.
-            int result = 0;
-            for (int i = 0; i < 16; i++)
+            var bInARotMat   = new float3x3(bInASpace.rot);
+            var faceAxesBinA = new simdFloat3(bInARotMat.c0, bInARotMat.c1, bInARotMat.c2, bInARotMat.c0);
             {
-                var axisX     = axesX[i];
-                var axisY     = axesY[i];
-                var axisZ     = axesZ[i];
-                var axisLenSq = axisX * axisX + axisY * axisY + axisZ * axisZ;
-                var valid     = axisLenSq > math.FLT_MIN_NORMAL;
-
-                var aSupportX = math.chgsign(halfSizeA.x, axisX);
-                var aSupportY = math.chgsign(halfSizeA.y, axisY);
-                var aSupportZ = math.chgsign(halfSizeA.z, axisZ);
-
-                var tx       = 2f * (aInBSpace.rot.value.y * axisZ - aInBSpace.rot.value.z * axisY);
-                var ty       = 2f * (aInBSpace.rot.value.z * axisX - aInBSpace.rot.value.x * axisZ);
-                var tz       = 2f * (aInBSpace.rot.value.x * axisY - aInBSpace.rot.value.y * axisX);
-                var axisInBX = axisX + aInBSpace.rot.value.w * tx + (aInBSpace.rot.value.y * tz - aInBSpace.rot.value.z * ty);
-                var axisInBY = axisY + aInBSpace.rot.value.w * ty + (aInBSpace.rot.value.z * tx - aInBSpace.rot.value.x * tz);
-                var axisInBZ = axisZ + aInBSpace.rot.value.w * tz + (aInBSpace.rot.value.x * ty - aInBSpace.rot.value.y * tx);
-
-                var bSupportInBX  = math.chgsign(halfSizeB.x, -axisInBX);
-                var bSupportInBY  = math.chgsign(halfSizeB.y, -axisInBY);
-                var bSupportInBZ  = math.chgsign(halfSizeB.z, -axisInBZ);
-                tx                = 2f * (bInASpace.rot.value.y * bSupportInBZ - bInASpace.rot.value.z * bSupportInBY);
-                ty                = 2f * (bInASpace.rot.value.z * bSupportInBX - bInASpace.rot.value.x * bSupportInBZ);
-                tz                = 2f * (bInASpace.rot.value.x * bSupportInBY - bInASpace.rot.value.y * bSupportInBX);
-                var bSupportRelBX = bSupportInBX + bInASpace.rot.value.w * tx + (bInASpace.rot.value.y * tz - bInASpace.rot.value.z * ty);
-                var bSupportRelBY = bSupportInBY + bInASpace.rot.value.w * ty + (bInASpace.rot.value.z * tx - bInASpace.rot.value.x * tz);
-                var bSupportRelBZ = bSupportInBZ + bInASpace.rot.value.w * tz + (bInASpace.rot.value.x * ty - bInASpace.rot.value.y * tx);
-                var bSupportX     = bInASpace.pos.x + bSupportRelBX;
-                var bSupportY     = bInASpace.pos.y + bSupportRelBY;
-                var bSupportZ     = bInASpace.pos.z + bSupportRelBZ;
-
-                var aSupportDot = aSupportX * axisX + aSupportY * axisY + aSupportZ * axisZ;
-                var bSupportDot = bSupportX * axisX + bSupportY * axisY + bSupportZ * axisZ;
-                if (bSupportDot > aSupportDot)
-                    //return false;
-                    result++;
-
-                var negBSupportX   = bInASpace.pos.x - bSupportRelBX;
-                var negBSupportY   = bInASpace.pos.y - bSupportRelBY;
-                var negBSupportZ   = bInASpace.pos.z - bSupportRelBZ;
-                var negASupportDot = -aSupportDot;
-                var negBSupportDot = negBSupportX * axisX + negBSupportY * axisY + negBSupportZ * axisZ;
-                if (negASupportDot > negBSupportDot)
-                    //return false;
-                    result++;
+                // Inline IsSeparatingAxis4 for A's face axes.
+                float4     boxARadiusOnAxes = halfSizeA.xyzx;
+                simdFloat3 axesInBSpace     = simd.inverseRotateRightUpForwardRight(bInARotMat);
+                float4     boxBRadiusOnAxes = simd.dot(simd.abs(axesInBSpace), halfSizeB);
+                // When the distance B's center is from A's along the axis is greater than the combined box extents along the axis, there is separation.
+                if (math.any(math.abs(bInASpace.pos.xyzx) > boxARadiusOnAxes + boxBRadiusOnAxes))
+                    return false;
             }
-            return result == 0;
+            if (math.any(IsSeparatingAxis4(faceAxesBinA, halfSizeA, halfSizeB, in bInARotMat, bInASpace.pos)))
+                return false;
+            if (math.any(IsSeparatingAxis4(simd.rightCross(faceAxesBinA), halfSizeA, halfSizeB, in bInARotMat, bInASpace.pos)))
+                return false;
+            if (math.any(IsSeparatingAxis4(simd.upCross(faceAxesBinA), halfSizeA, halfSizeB, in bInARotMat, bInASpace.pos)))
+                return false;
+            return !math.any(IsSeparatingAxis4(simd.forwardCross(faceAxesBinA), halfSizeA, halfSizeB, in bInARotMat, bInASpace.pos));
+        }
+
+        static bool4 IsSeparatingAxis4(simdFloat3 axes, float3 halfSizeA, float3 halfSizeB, in float3x3 bInARotMat, float3 centerB)
+        {
+            float4     boxARadiusOnAxes = simd.dot(simd.abs(axes), halfSizeA);
+            simdFloat3 axesInBSpace     = simd.inverseRotate(bInARotMat, axes);
+            float4     boxBRadiusOnAxes = simd.dot(simd.abs(axesInBSpace), halfSizeB);
+            // When the distance B's center is from A's along the axis is greater than the combined box extents along the axis, there is separation.
+            return math.abs(simd.dot(axes, centerB)) > boxARadiusOnAxes + boxBRadiusOnAxes;
         }
 
         // This implementation is a simplified mix of BoxBoxOverlapping() and BoxBoxDistance().
@@ -1470,6 +1434,440 @@ namespace Latios.Psyshock
                 result.featureCodeA = PointRayBox.FeatureCodeFromBoxNormal(result.normalA);
             }
             return result.distance <= maxDistance;
+        }
+
+        private static bool BoxBoxDistanceSeparated(float3 halfSizeA,
+                                                    float3 halfSizeB,
+                                                    in AffineTransform bInASpace,
+                                                    float maxDistance,
+                                                    out ColliderDistanceResultInternal result)
+        {
+            // Edge pairs.
+            simdFloat3 bAxes = new simdFloat3(bInASpace.rs.c0, bInASpace.rs.c1, bInASpace.rs.c2, bInASpace.rs.c0);
+
+            // Ax vs Bs
+            simdFloat3 aXCrossBs = simd.rightCross(bAxes);
+            // Ensure each axis points such that B's center is ahead of A's center
+            aXCrossBs                   = simd.chgsign0Positive(aXCrossBs, simd.dot(aXCrossBs, bInASpace.t));
+            simdFloat3 aXCrossAXCrossBs = simd.rightCross(aXCrossBs);
+            simdFloat3 bCrossAXCrossBs  = simd.cross(bAxes, aXCrossBs);
+            SelectEdgeEdgeSupports(aXCrossBs,
+                                   new bool3(true, false, false),
+                                   halfSizeA,
+                                   halfSizeB,
+                                   in bInASpace,
+                                   out simdFloat3 aEdgeSupportCentersX,
+                                   out simdFloat3 aEdgeAltSupportCentersX,
+                                   out simdFloat3 bEdgeSupportCentersX,
+                                   out simdFloat3 bEdgeAltSupportCentersX);
+            float4 edgeEdgeXXDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.x,
+                axisHalfSizeB      = halfSizeB.x,
+                bAxisIndex         = 0,
+                crossAxis          = aXCrossBs.a,
+                crossAxisCrossADir = aXCrossAXCrossBs.a,
+                crossAxisCrossBDir = bCrossAXCrossBs.a
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersX.a, aEdgeAltSupportCentersX.a, bEdgeSupportCentersX.a,
+                                                                               bEdgeAltSupportCentersX.a),
+                                                                out bool absoluteClosestFoundXX);
+            float4 edgeEdgeXYDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.x,
+                axisHalfSizeB      = halfSizeB.y,
+                bAxisIndex         = 1,
+                crossAxis          = aXCrossBs.b,
+                crossAxisCrossADir = aXCrossAXCrossBs.b,
+                crossAxisCrossBDir = bCrossAXCrossBs.b
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersX.b, aEdgeAltSupportCentersX.b, bEdgeSupportCentersX.b,
+                                                                               bEdgeAltSupportCentersX.b),
+                                                                out bool absoluteClosestFoundXY);
+            float4 edgeEdgeXZDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.x,
+                axisHalfSizeB      = halfSizeB.z,
+                bAxisIndex         = 2,
+                crossAxis          = aXCrossBs.c,
+                crossAxisCrossADir = aXCrossAXCrossBs.c,
+                crossAxisCrossBDir = bCrossAXCrossBs.c
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersX.c, aEdgeAltSupportCentersX.c, bEdgeSupportCentersX.c,
+                                                                               bEdgeAltSupportCentersX.c),
+                                                                out bool absoluteClosestFoundXZ);
+
+            // Ay vs Bs
+            simdFloat3 aYCrossBs        = simd.upCross(bAxes);
+            aYCrossBs                   = simd.chgsign0Positive(aYCrossBs, simd.dot(aYCrossBs, bInASpace.t));
+            simdFloat3 aYCrossAYCrossBs = simd.upCross(aYCrossBs);
+            simdFloat3 bCrossAYCrossBs  = simd.cross(bAxes, aYCrossBs);
+            SelectEdgeEdgeSupports(aYCrossBs,
+                                   new bool3(false, true, false),
+                                   halfSizeA,
+                                   halfSizeB,
+                                   in bInASpace,
+                                   out simdFloat3 aEdgeSupportCentersY,
+                                   out simdFloat3 aEdgeAltSupportCentersY,
+                                   out simdFloat3 bEdgeSupportCentersY,
+                                   out simdFloat3 bEdgeAltSupportCentersY);
+            float4 edgeEdgeYXDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.y,
+                axisHalfSizeB      = halfSizeB.x,
+                bAxisIndex         = 0,
+                crossAxis          = aYCrossBs.a,
+                crossAxisCrossADir = aYCrossAYCrossBs.a,
+                crossAxisCrossBDir = bCrossAYCrossBs.a
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersY.a, aEdgeAltSupportCentersY.a, bEdgeSupportCentersY.a,
+                                                                               bEdgeAltSupportCentersY.a),
+                                                                out bool absoluteClosestFoundYX);
+            float4 edgeEdgeYYDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.y,
+                axisHalfSizeB      = halfSizeB.y,
+                bAxisIndex         = 1,
+                crossAxis          = aYCrossBs.b,
+                crossAxisCrossADir = aYCrossAYCrossBs.b,
+                crossAxisCrossBDir = bCrossAYCrossBs.b
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersY.b, aEdgeAltSupportCentersY.b, bEdgeSupportCentersY.b,
+                                                                               bEdgeAltSupportCentersY.b),
+                                                                out bool absoluteClosestFoundYY);
+            float4 edgeEdgeYZDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.y,
+                axisHalfSizeB      = halfSizeB.z,
+                bAxisIndex         = 2,
+                crossAxis          = aYCrossBs.c,
+                crossAxisCrossADir = aYCrossAYCrossBs.c,
+                crossAxisCrossBDir = bCrossAYCrossBs.c
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersY.c, aEdgeAltSupportCentersY.c, bEdgeSupportCentersY.c,
+                                                                               bEdgeAltSupportCentersY.c),
+                                                                out bool absoluteClosestFoundYZ);
+
+            // Az vs Bs
+            simdFloat3 aZCrossBs        = simd.forwardCross(bAxes);
+            aZCrossBs                   = simd.chgsign0Positive(aZCrossBs, simd.dot(aZCrossBs, bInASpace.t));
+            simdFloat3 aZCrossAZCrossBs = simd.forwardCross(aZCrossBs);
+            simdFloat3 bCrossAZCrossBs  = simd.cross(bAxes, aZCrossBs);
+            SelectEdgeEdgeSupports(aZCrossBs,
+                                   new bool3(false, false, true),
+                                   halfSizeA,
+                                   halfSizeB,
+                                   in bInASpace,
+                                   out simdFloat3 aEdgeSupportCentersZ,
+                                   out simdFloat3 aEdgeAltSupportCentersZ,
+                                   out simdFloat3 bEdgeSupportCentersZ,
+                                   out simdFloat3 bEdgeAltSupportCentersZ);
+            float4 edgeEdgeZXDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.z,
+                axisHalfSizeB      = halfSizeB.x,
+                bAxisIndex         = 0,
+                crossAxis          = aZCrossBs.a,
+                crossAxisCrossADir = aZCrossAZCrossBs.a,
+                crossAxisCrossBDir = bCrossAZCrossBs.a
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersZ.a, aEdgeAltSupportCentersZ.a, bEdgeSupportCentersZ.a,
+                                                                               bEdgeAltSupportCentersZ.a),
+                                                                out bool absoluteClosestFoundZX);
+            float4 edgeEdgeZYDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.z,
+                axisHalfSizeB      = halfSizeB.y,
+                bAxisIndex         = 1,
+                crossAxis          = aZCrossBs.b,
+                crossAxisCrossADir = aZCrossAZCrossBs.b,
+                crossAxisCrossBDir = bCrossAZCrossBs.b
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersZ.b, aEdgeAltSupportCentersZ.b, bEdgeSupportCentersZ.b,
+                                                                               bEdgeAltSupportCentersZ.b),
+                                                                out bool absoluteClosestFoundZY);
+            float4 edgeEdgeZZDistSq = EdgeEdgeDistanceSqsOnAxis(new EdgeEdgeAxisConfiguration
+            {
+                axisHalfSizeA      = halfSizeA.z,
+                axisHalfSizeB      = halfSizeB.z,
+                bAxisIndex         = 2,
+                crossAxis          = aZCrossBs.c,
+                crossAxisCrossADir = aZCrossAZCrossBs.c,
+                crossAxisCrossBDir = bCrossAZCrossBs.c
+            },
+                                                                in bInASpace,
+                                                                new simdFloat3(aEdgeSupportCentersZ.c, aEdgeAltSupportCentersZ.c, bEdgeSupportCentersZ.c,
+                                                                               bEdgeAltSupportCentersZ.c),
+                                                                out bool absoluteClosestFoundZZ);
+
+            // Reduce edges
+            bool4  axbyBeatsX   = edgeEdgeXYDistSq < edgeEdgeXXDistSq;
+            float4 bestAxDistSq = math.select(edgeEdgeXXDistSq, edgeEdgeXYDistSq, axbyBeatsX);
+            int4   bestAxCode   = math.select(int4.zero, 1, axbyBeatsX);
+            bool4  axbzWins     = edgeEdgeXZDistSq < bestAxDistSq;
+            bestAxDistSq        = math.select(bestAxDistSq, edgeEdgeXZDistSq, axbzWins);
+            bestAxCode          = math.select(bestAxCode, 2, axbzWins);
+
+            bool4  aybyBeatsX    = edgeEdgeYYDistSq < edgeEdgeYXDistSq;
+            float4 bestAyDistSq  = math.select(edgeEdgeYXDistSq, edgeEdgeYYDistSq, aybyBeatsX);
+            int4   bestAyCode    = math.select(int4.zero, 1, aybyBeatsX);
+            bool4  aybzWins      = edgeEdgeYZDistSq < bestAyDistSq;
+            bestAyDistSq         = math.select(bestAyDistSq, edgeEdgeYZDistSq, aybzWins);
+            bestAyCode           = math.select(bestAyCode, 2, aybzWins);
+            bestAyCode          += 4;
+
+            bool4  azbyBeatsX    = edgeEdgeZYDistSq < edgeEdgeZXDistSq;
+            float4 bestAzDistSq  = math.select(edgeEdgeZXDistSq, edgeEdgeZYDistSq, azbyBeatsX);
+            int4   bestAzCode    = math.select(int4.zero, 1, azbyBeatsX);
+            bool4  azbzWins      = edgeEdgeZZDistSq < bestAzDistSq;
+            bestAzDistSq         = math.select(bestAzDistSq, edgeEdgeZZDistSq, azbzWins);
+            bestAzCode           = math.select(bestAzCode, 2, azbzWins);
+            bestAzCode          += 8;
+
+            bool4  ayBeatsX        = bestAyDistSq < bestAxDistSq;
+            float4 edgesBestDistSq = math.select(bestAxDistSq, bestAyDistSq, ayBeatsX);
+            int4   edgesBestCodes  = math.select(bestAxCode, bestAyCode, ayBeatsX);
+            bool4  azWins          = bestAzDistSq < edgesBestDistSq;
+            edgesBestDistSq        = math.select(edgesBestDistSq, bestAzDistSq, azWins);
+            edgesBestCodes         = math.select(edgesBestCodes, bestAzCode, azWins);
+
+            float bestEdgeDistSq             = math.cmin(edgesBestDistSq);
+            bool  absoluteClosestFoundIsEdge = absoluteClosestFoundXX | absoluteClosestFoundXY | absoluteClosestFoundXZ |
+                                              absoluteClosestFoundYX | absoluteClosestFoundYY | absoluteClosestFoundYZ |
+                                              absoluteClosestFoundZX | absoluteClosestFoundZY | absoluteClosestFoundZZ;
+
+            // Vertices vs boxes unless we know we found the edge already
+            float      bestVertexDistSq    = float.MaxValue;
+            float4     verticesBestDistSq  = float.MaxValue;
+            simdFloat3 verticesClosestA    = default;
+            simdFloat3 verticesClosestBInB = default;
+            if (!absoluteClosestFoundIsEdge)
+            {
+                simdFloat3 verticesSigns03 = new simdFloat3(new float3(1f, 1f, 1f), new float3(-1f, 1f, 1f), new float3(1f, -1f, 1f), new float3(-1f, -1f, 1f));
+                simdFloat3 verticesSigns47 = verticesSigns03;
+                verticesSigns47.z          = -verticesSigns47.z;
+
+                // Test B's vertices against box A
+                simdFloat3 bVertices03InB     = simd.chgsign(halfSizeB, verticesSigns03);
+                simdFloat3 bVertices47InB     = simd.chgsign(halfSizeB, verticesSigns47);
+                simdFloat3 bVertices03        = simd.transform(bInASpace, bVertices03InB);
+                simdFloat3 bVertices47        = simd.transform(bInASpace, bVertices47InB);
+                simdFloat3 bVertices03Clamped = simd.clamp(bVertices03, -halfSizeA, halfSizeA);
+                simdFloat3 bVertices47Clamped = simd.clamp(bVertices47, -halfSizeA, halfSizeA);
+                float4     bVerticesDistSq03  = simd.distancesq(bVertices03, bVertices03Clamped);
+                float4     bVerticesDistSq47  = simd.distancesq(bVertices47, bVertices47Clamped);
+                bool4      bVertices47Wins    = bVerticesDistSq47 < bVerticesDistSq03;
+                verticesBestDistSq            = math.select(bVerticesDistSq03, bVerticesDistSq47, bVertices47Wins);
+                // Todo: Would it be better to remember vertex indices rather than simd select the actual vertices?
+                verticesClosestA    = simd.select(bVertices03Clamped, bVertices47Clamped, bVertices47Wins);
+                verticesClosestBInB = simd.select(bVertices03InB, bVertices47InB, bVertices47Wins);
+
+                // Test A's vertices against box B
+                simdFloat3 aVertices03           = simd.chgsign(halfSizeA, verticesSigns03);
+                simdFloat3 aVertices47           = simd.chgsign(halfSizeA, verticesSigns47);
+                simdFloat3 aVertices03InB        = simd.inverseTransformIdentityScale(bInASpace, aVertices03);
+                simdFloat3 aVertices47InB        = simd.inverseTransformIdentityScale(bInASpace, aVertices47);
+                simdFloat3 aVertices03InBClamped = simd.clamp(aVertices03InB, -halfSizeB, halfSizeB);
+                simdFloat3 aVertices47InBClamped = simd.clamp(aVertices47InB, -halfSizeB, halfSizeB);
+                float4     aVerticesDistSq03     = simd.distancesq(aVertices03InB, aVertices03InBClamped);
+                float4     aVerticesDistSq47     = simd.distancesq(aVertices47InB, aVertices47InBClamped);
+                bool4      aVertices03Wins       = aVerticesDistSq03 < verticesBestDistSq;
+                verticesBestDistSq               = math.select(verticesBestDistSq, aVerticesDistSq03, aVertices03Wins);
+                verticesClosestA                 = simd.select(verticesClosestA, aVertices03, aVertices03Wins);
+                verticesClosestBInB              = simd.select(verticesClosestBInB, aVertices03InBClamped, aVertices03Wins);
+                bool4 aVertices47Wins            = aVerticesDistSq47 < verticesBestDistSq;
+                verticesBestDistSq               = math.select(verticesBestDistSq, aVerticesDistSq47, aVertices47Wins);
+                verticesClosestA                 = simd.select(verticesClosestA, aVertices47, aVertices47Wins);
+                verticesClosestBInB              = simd.select(verticesClosestBInB, aVertices47InBClamped, aVertices47Wins);
+                bestVertexDistSq                 = math.cmin(verticesBestDistSq);
+            }
+
+            // Finalize the winner.
+            float  distSq;
+            float3 closestA, closestBInB;
+            float3 normalA, normalBInB;
+            ushort featureCodeA, featureCodeB;
+            if (bestVertexDistSq <= bestEdgeDistSq)
+            {
+                int bestLane = math.tzcnt(math.bitmask(bestVertexDistSq == verticesBestDistSq));
+                distSq       = bestVertexDistSq;
+                closestA     = verticesClosestA[bestLane];
+                closestBInB  = verticesClosestBInB[bestLane];
+                if (Hint.Unlikely(distSq == 0f))
+                {
+                    // If distSq is 0, then neither point was moved by clamping, which means one vertex must be inside the other box.
+                    float3 depthA = halfSizeA - math.abs(closestA);
+                    float3 depthB = halfSizeB - math.abs(closestBInB);
+                    if (math.all(depthA > 0f))
+                    {
+                        int axis       = math.tzcnt(math.bitmask(new bool4(depthA == math.cmin(depthA), false)));
+                        closestA[axis] = math.chgsign(halfSizeA[axis], closestA[axis]);
+                        float depth    = depthA[axis];
+                        distSq         = -depth * depth;
+                    }
+                    else if (math.all(depthB > 0f))
+                    {
+                        int axis          = math.tzcnt(math.bitmask(new bool4(depthB == math.cmin(depthB), false)));
+                        closestBInB[axis] = math.chgsign(halfSizeB[axis], closestBInB[axis]);
+                        float depth       = depthB[axis];
+                        distSq            = -depth * depth;
+                    }
+                }
+                featureCodeA = PointRayBox.FeatureCodeAndNormalFromCenterRelativeSurfacePoint(closestA, halfSizeA, out normalA);
+                featureCodeB = PointRayBox.FeatureCodeAndNormalFromCenterRelativeSurfacePoint(closestBInB, halfSizeB, out normalBInB);
+            }
+            else
+            {
+                int    bestLane            = math.tzcnt(math.bitmask(bestEdgeDistSq == edgesBestDistSq));
+                int    crossAxisIndex      = edgesBestCodes[bestLane];
+                int    aAxisIndex          = crossAxisIndex / 4;
+                int    bAxisIndex          = crossAxisIndex % 4;
+                bool3  aAxisMask           = aAxisIndex == new int3(0, 1, 2);
+                bool3  bAxisMask           = bAxisIndex == new int3(0, 1, 2);
+                float3 aAxis               = math.select(0f, 1f, aAxisMask);
+                float3 bAxis               = bInASpace.rs[bAxisIndex];
+                float3 crossAxis           = math.cross(aAxis, bAxis);
+                float3 crossAxisSupportDir = math.chgsign0Positive(crossAxis, math.dot(crossAxis, bInASpace.t));
+
+                float3 crossAxisInB          = mathex.InverseRotate(bAxes, crossAxisSupportDir);
+                float3 aEdgeSupportCenter    = math.select(math.chgsign0Positive(halfSizeA, crossAxisSupportDir), default, aAxisMask);
+                float3 bEdgeSupportCenterInB = math.select(math.chgsign0Positive(halfSizeB, -crossAxisInB), default, bAxisMask);
+                if ((bestLane & 1) != 0)
+                {
+                    float3 aAlternateSupportMagnitudes = math.select(math.abs(crossAxisSupportDir), float.MaxValue, aAxisMask);
+                    bool   aFlipX                      = aAlternateSupportMagnitudes.x <= aAlternateSupportMagnitudes.y & aAlternateSupportMagnitudes.x <=
+                                                       aAlternateSupportMagnitudes.z;
+                    bool aFlipY        = !aFlipX & aAlternateSupportMagnitudes.y <= aAlternateSupportMagnitudes.z;
+                    bool aFlipZ        = !aFlipX & !aFlipY;
+                    aEdgeSupportCenter = math.select(aEdgeSupportCenter, -aEdgeSupportCenter, new bool3(aFlipX, aFlipY, aFlipZ));
+                }
+                if ((bestLane & 2) != 0)
+                {
+                    float3 bAlternateSupportMagnitudes = math.select(math.abs(crossAxisInB), float.MaxValue, bAxisMask);
+                    bool   bFlipX                      = bAlternateSupportMagnitudes.x <= bAlternateSupportMagnitudes.y & bAlternateSupportMagnitudes.x <=
+                                                       bAlternateSupportMagnitudes.z;
+                    bool bFlipY           = !bFlipX & bAlternateSupportMagnitudes.y <= bAlternateSupportMagnitudes.z;
+                    bool bFlipZ           = !bFlipX & !bFlipY;
+                    bEdgeSupportCenterInB = math.select(bEdgeSupportCenterInB, -bEdgeSupportCenterInB, new bool3(bFlipX, bFlipY, bFlipZ));
+                }
+                float  crossAxisLengthSq = math.lengthsq(crossAxis);
+                float3 centerAToCenterB  = math.transform(bInASpace, bEdgeSupportCenterInB) - aEdgeSupportCenter;
+                closestA                 = aEdgeSupportCenter;
+                closestA[aAxisIndex]     = math.dot(centerAToCenterB, math.cross(bAxis, crossAxis)) / crossAxisLengthSq;
+                closestBInB              = bEdgeSupportCenterInB;
+                closestBInB[bAxisIndex]  = math.dot(centerAToCenterB, math.cross(aAxis, crossAxis)) / crossAxisLengthSq;
+                distSq                   = bestEdgeDistSq;
+                float root2over2         = math.SQRT2 / 2f;
+                normalA                  = math.select(math.chgsign(root2over2, aEdgeSupportCenter), 0f, aAxisMask);
+                normalBInB               = math.select(math.chgsign(root2over2, bEdgeSupportCenterInB), 0f, bAxisMask);
+                featureCodeA             = PointRayBox.FeatureCodeFromBoxNormal(normalA);
+                featureCodeB             = PointRayBox.FeatureCodeFromBoxNormal(normalBInB);
+            }
+            result = new ColliderDistanceResultInternal
+            {
+                hitpointA    = closestA,
+                hitpointB    = math.transform(bInASpace, closestBInB),
+                normalA      = normalA,
+                normalB      = math.mul(bInASpace.rs, normalBInB),
+                distance     = math.chgsign(math.sqrt(math.abs(distSq)), distSq),
+                featureCodeA = featureCodeA,
+                featureCodeB = featureCodeB,
+            };
+            return result.distance <= maxDistance;
+        }
+
+        static void SelectEdgeEdgeSupports(simdFloat3 crossAxes,
+                                           bool3 aAxisMask,
+                                           float3 halfSizeA,
+                                           float3 halfSizeB,
+                                           in AffineTransform bInASpace,
+                                           out simdFloat3 aEdgeSupportCenters,
+                                           out simdFloat3 aAlternateSupportCenters,
+                                           out simdFloat3 bEdgeSupportCentersInB,
+                                           out simdFloat3 bAlternateSupportCentersInB)
+        {
+            simdFloat3 crossAxesInB = simd.inverseRotate(bInASpace.rs, crossAxes);
+            aEdgeSupportCenters     = simd.select(simd.chgsign0Positive(halfSizeA, crossAxes), default, aAxisMask);
+            bEdgeSupportCentersInB  = simd.chgsign0Positive(halfSizeB, -crossAxesInB);
+            bEdgeSupportCentersInB  = simd.select(bEdgeSupportCentersInB,
+                                                  default,
+                                                  new bool4(true, false, false, true),
+                                                  new bool4(false, true, false, false),
+                                                  new bool4(false, false, true, false));
+
+            simdFloat3 aAlternateSupportMagnitudes = simd.select(simd.abs(crossAxes), new simdFloat3(float.MaxValue), aAxisMask);
+            bool4      aFlipX                      = aAlternateSupportMagnitudes.x <= aAlternateSupportMagnitudes.y & aAlternateSupportMagnitudes.x <=
+                                                aAlternateSupportMagnitudes.z;
+            bool4 aFlipY             = !aFlipX & aAlternateSupportMagnitudes.y <= aAlternateSupportMagnitudes.z;
+            bool4 aFlipZ             = !aFlipX & !aFlipY;
+            aAlternateSupportCenters = simd.select(aEdgeSupportCenters, -aEdgeSupportCenters, aFlipX, aFlipY, aFlipZ);
+
+            simdFloat3 bAlternateSupportMagnitudes =
+                simd.select(simd.abs(crossAxesInB), new simdFloat3(float.MaxValue), new bool4(true, false, false, true), new bool4(false, true, false, false),
+                            new bool4(false, false, true, false));
+            bool4 bFlipX = bAlternateSupportMagnitudes.x <= bAlternateSupportMagnitudes.y & bAlternateSupportMagnitudes.x <=
+                           bAlternateSupportMagnitudes.z;
+            bool4 bFlipY                = !bFlipX & bAlternateSupportMagnitudes.y <= bAlternateSupportMagnitudes.z;
+            bool4 bFlipZ                = !bFlipX & !bFlipY;
+            bAlternateSupportCentersInB = simd.select(bEdgeSupportCentersInB, -bEdgeSupportCentersInB, bFlipX, bFlipY, bFlipZ);
+        }
+
+        struct EdgeEdgeAxisConfiguration
+        {
+            public float3 crossAxis;
+            public float3 crossAxisCrossBDir;  // Cross operand order does not matter
+            public float3 crossAxisCrossADir;  // Cross operand order does not matter
+            public float  axisHalfSizeA;
+            public float  axisHalfSizeB;
+            public int    bAxisIndex;
+        }
+
+        static float4 EdgeEdgeDistanceSqsOnAxis(in EdgeEdgeAxisConfiguration config, in AffineTransform bInASpace, simdFloat3 edgeCenters, out bool absoluteClosestFound)
+        {
+            simdFloat3 aEdgeCenters     = edgeCenters.abab;
+            simdFloat3 bEdgeCentersInB  = edgeCenters.ccdd;
+            simdFloat3 bEdgeCenters     = simd.transform(bInASpace, bEdgeCentersInB);
+            simdFloat3 centerAToCenterB = bEdgeCenters - aEdgeCenters;
+            float3     bEdgeDirection   = bInASpace.rs[config.bAxisIndex];
+
+            // closestA = centerA + distanceAlongA * edgeDirectionA
+            // closestB = centerB + distanceAlongB * edgeDirectionB
+            // Traveling from centerA to centerB can be imagined in three segments: centerA to closestA, closestA to closestB, and closestB to centerB.
+            // Therefore centerAToCenterB = distanceAlongA * edgeDirectionA + closestAToClosestB - distanceAlongB * edgeDirectionB
+            // closestAToClosestB occurs on the crossAxis direction. It's squared magnitude is what we are after.
+            // But we also want to know if distanceAlongA and distanceAlongB stay within their respective edges.
+            // edgeDirectionB and crossAxis lie in the same plane as the latter two travel segments. The first travel segment must also reach this plane.
+            // We find the distance from the center to this plane from centerA. Same for B.
+            float4 distanceAlongAScaled = simd.dot(centerAToCenterB, config.crossAxisCrossBDir);
+            float4 distanceAlongBScaled = simd.dot(centerAToCenterB, config.crossAxisCrossADir);
+            float4 separation           = simd.dot(centerAToCenterB, config.crossAxis);
+            // Because B's edge direction is unit length and perpendicular to crossAxis, the magnitude of crossAxisCrossBDir matches the magnitude of crossAxis.
+            // Because both planeNormal and A's edge direction are perpendicular to crossAxis, A's edge direction is composed by some factor along the B's edge direction,
+            // and some factor along the planeNormal. The angle along the planeNormal is sin(angleBetweenEdgeDirections).
+            // The magnitude of crossAxis is also sin(angleBetweenEdgeDirections). Therefore the magnitude of the projection of A's edge along the planeNormal is
+            // the magnitude of crossAxis.
+            // The scale of the dot product is the magnitude of A's edge projected onto the scaled planeNormal, where the plane normal is scaled by the magnitude of
+            // crossAxisCrossBDir. That is, scale = dot(aEdgeDir, planeNormal) * length(crossAxisCrossBDir) = math.length(crossAxis) * math.length(crossAxis).
+            // This derivation also works with A's and B's edge roles swapped.
+            // Another way to think about it is that the scale is dot(aEdgeDir, crossAxisCrossBDir) = dot(aEdgeDir, cross(crossAxis, bEdgeDir)) which via triple
+            // product rule equals dot(crossAxis, cross(aEdgeDir, bEdgeDir)) where the cross product has a known magnitude of being the dot product.
+            float4 scale = math.lengthsq(config.crossAxis);
+            // With the scale, we can compare against the actual edge lengths
+            bool4 isNotEndpoint  = math.abs(distanceAlongAScaled) < config.axisHalfSizeA * scale;
+            isNotEndpoint       &= math.abs(distanceAlongBScaled) < config.axisHalfSizeB * scale;
+            // If the closest points are not endpoints, and there's a positive separation axis, then the edge pair is guaranteed the closest, and closer than any vertex-box pair.
+            // This only applies to the primary supports.
+            absoluteClosestFound = isNotEndpoint.x & (separation.x > 0f);
+            float4 distanceSq    = separation * separation / scale;
+            return math.select(float.MaxValue, distanceSq, isNotEndpoint);
         }
 
 #if LATIOS_PSYSHOCK_REFERENCE
