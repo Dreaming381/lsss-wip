@@ -1,5 +1,3 @@
-//#define LATIOS_PSYSHOCK_REFERENCE
-
 using System;
 using System.Runtime.CompilerServices;
 using Latios.Calci;
@@ -115,32 +113,27 @@ namespace Latios.Psyshock
         public static bool ColliderCast(in BoxCollider boxToCast, in RigidTransform castStart, float3 castEnd, in BoxCollider targetBox, in RigidTransform targetBoxTransform,
                                         out ColliderCastResult result)
         {
-            var  castStartInverse             = math.inverse(castStart);
-            var  targetInCasterSpaceTransform = math.mul(castStartInverse, targetBoxTransform);
-            var  castDirection                = math.rotate(castStartInverse, castEnd - castStart.pos);
-            var  normalizedCastDirection      = math.normalize(castDirection);
-            bool hit                          = Mpr.MprCastNoRoundness(boxToCast,
-                                                                       targetBox,
-                                                                       in targetInCasterSpaceTransform,
-                                                                       normalizedCastDirection,
-                                                                       math.length(castDirection),
-                                                                       out float distanceOfImpact,
-                                                                       out bool somethingWentWrong);
-            InternalQueryTypeUtilities.CheckMprResolved(somethingWentWrong);
-            if (!hit || distanceOfImpact <= 0f)
+            var aOffsetTransform             = castStart;
+            aOffsetTransform.pos            += math.rotate(castStart.rot, boxToCast.center);
+            var bOffsetTransform             = targetBoxTransform;
+            bOffsetTransform.pos            += math.rotate(targetBoxTransform.rot, targetBox.center);
+            var bInASpace                    = new AffineTransform(math.InverseTransformFast(in aOffsetTransform, in bOffsetTransform));
+            var castDisplacement             = castEnd - castStart.pos;
+            var transformedCastDisplacement  = math.InverseRotateFast(castStart.rot, castDisplacement);
+
+            if (!SAT.CastAllAxes(boxToCast.halfSize, targetBox.halfSize, in bInASpace, transformedCastDisplacement, out float fraction))
             {
                 result = default;
                 return false;
             }
 
-            var castHitOffset       = math.rotate(castStart, normalizedCastDirection * distanceOfImpact);
             var casterHitTransform  = castStart;
-            casterHitTransform.pos += castHitOffset;
+            casterHitTransform.pos += castDisplacement * fraction;
             DistanceBetween(in boxToCast, in casterHitTransform, in targetBox, in targetBoxTransform, float.MaxValue, out var distanceResult);
 
             result = new ColliderCastResult
             {
-                distance                 = distanceOfImpact,
+                distance                 = fraction * math.length(castDisplacement),
                 hitpoint                 = distanceResult.hitpointA,
                 normalOnCaster           = distanceResult.normalA,
                 normalOnTarget           = distanceResult.normalB,
@@ -481,6 +474,77 @@ namespace Latios.Psyshock
                 float4     boxBRadiusOnAxes = simd.dot(simd.abs(axesInBSpace), halfSizeB);
                 // When the distance B's center is from A's along the axis is greater than the combined box extents along the axis, there is separation.
                 return math.abs(simd.dot(axes, bInASpace.t)) - boxARadiusOnAxes - boxBRadiusOnAxes;
+            }
+
+            // With SAT, we are comparing the projection of box B's center relative to the radii of the two boxes as projected along the axis,
+            // assuming A's center is at the origin. Interestingly, this means we can define box B's center as a parameter function and solve
+            // for that parameter when the axis detects overlap. By making this parameter function describe the collider cast sweeping position,
+            // and computing this overlap region for all 15 axes, we can solve the ColliderCast hit fraction.
+            public static bool CastAllAxes(float3 halfSizeA, float3 halfSizeB, in AffineTransform bInASpace, float3 castDisplacement, out float fraction)
+            {
+                var faceAxesBinA = new simdFloat3(bInASpace.rs.c0, bInASpace.rs.c1, bInASpace.rs.c2, bInASpace.rs.c0);
+                SatCastA(halfSizeA, halfSizeB, in bInASpace, castDisplacement, out var minFractionA, out var maxFractionA);
+                SatCastB(halfSizeA, halfSizeB, in faceAxesBinA, bInASpace.t, castDisplacement, out var minFractionB, out var maxFractionB);
+                SatCastEdges(simd.rightCross(faceAxesBinA),   halfSizeA, halfSizeB, in bInASpace, castDisplacement, out var minFractionX, out var maxFractionX);
+                SatCastEdges(simd.upCross(faceAxesBinA),      halfSizeA, halfSizeB, in bInASpace, castDisplacement, out var minFractionY, out var maxFractionY);
+                SatCastEdges(simd.forwardCross(faceAxesBinA), halfSizeA, halfSizeB, in bInASpace, castDisplacement, out var minFractionZ, out var maxFractionZ);
+                float min = math.cmax(math.max(math.max(math.max(minFractionA, minFractionB), math.max(minFractionX, minFractionY)), minFractionZ));
+                float max = math.cmin(math.min(math.min(math.min(maxFractionA, maxFractionB), math.min(maxFractionX, maxFractionY)), maxFractionZ));
+                fraction  = min;
+                return min > 0f && min <= math.min(max, 1f);
+            }
+
+            static void GetCastInterval(float4 centerProjected, float4 castProjection, float4 sumRadii, out float4 minFraction, out float4 maxFraction)
+            {
+                // The boxes overlap when abs(centerProjected - fraction * castProjection) <= radiusA + radiusB
+                // Therefore, our fraction interval is (centerProjected - radiusA - radiusB) / castProjection
+                // and (centerProjected + radiusA + radiusB) / castProjection
+                float4 low                = (centerProjected - sumRadii) / castProjection;
+                float4 high               = (centerProjected + sumRadii) / castProjection;
+                bool4  castOrthogonal     = castProjection == 0f;
+                float4 orthogonalFraction = math.select(float.MaxValue, float.MinValue, math.abs(centerProjected) <= sumRadii);
+                minFraction               = math.select(math.min(low, high), orthogonalFraction, castOrthogonal);
+                maxFraction               = math.select(math.max(low, high), -orthogonalFraction, castOrthogonal);
+            }
+
+            static void SatCastA(float3 halfSizeA, float3 halfSizeB, in AffineTransform bInASpace, float3 castDisplacement, out float4 minFraction, out float4 maxFraction)
+            {
+                float4     boxARadiusOnAxes = halfSizeA.xyzx;
+                simdFloat3 axesInBSpace     = simd.inverseRotateRightUpForwardRight(bInASpace.rs);
+                float4     boxBRadiusOnAxes = simd.dot(simd.abs(axesInBSpace), halfSizeB);
+                float4     castProjection   = castDisplacement.xyzx;
+                GetCastInterval(bInASpace.t.xyzx, castProjection, boxARadiusOnAxes + boxBRadiusOnAxes, out minFraction, out maxFraction);
+            }
+
+            static void SatCastB(float3 halfSizeA,
+                                 float3 halfSizeB,
+                                 in simdFloat3 faceAxesBinA,
+                                 float3 bInAPosition,
+                                 float3 castDisplacement,
+                                 out float4 minFraction,
+                                 out float4 maxFraction)
+            {
+                float4 boxARadiusOnAxes = simd.dot(simd.abs(faceAxesBinA), halfSizeA);
+                float4 boxBRadiusOnAxes = halfSizeB.xyzx;
+                float4 centerProjected  = simd.dot(faceAxesBinA, bInAPosition);
+                float4 castProjection   = simd.dot(faceAxesBinA, castDisplacement);
+                GetCastInterval(centerProjected, castProjection, boxARadiusOnAxes + boxBRadiusOnAxes, out minFraction, out maxFraction);
+            }
+
+            static void SatCastEdges(simdFloat3 axes,
+                                     float3 halfSizeA,
+                                     float3 halfSizeB,
+                                     in AffineTransform bInASpace,
+                                     float3 castDisplacement,
+                                     out float4 minFraction,
+                                     out float4 maxFraction)
+            {
+                float4     boxARadiusOnAxes = simd.dot(simd.abs(axes), halfSizeA);
+                simdFloat3 axesInBSpace     = simd.inverseRotate(bInASpace.rs, axes);
+                float4     boxBRadiusOnAxes = simd.dot(simd.abs(axesInBSpace), halfSizeB);
+                float4     centerProjected  = simd.dot(axes, bInASpace.t);
+                float4     castProjection   = simd.dot(axes, castDisplacement);
+                GetCastInterval(centerProjected, castProjection, boxARadiusOnAxes + boxBRadiusOnAxes, out minFraction, out maxFraction);
             }
         }
 
